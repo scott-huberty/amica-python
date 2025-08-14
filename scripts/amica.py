@@ -3162,7 +3162,146 @@ while iter <= max_iter:
 # end while
 
 # call write_output
-assert 1 == 0  # Stop to check that output writing is correct
+# The final comparison with Fortran saved outputs.
+
+LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
+assert_almost_equal(LL, LL_f, decimal=5)
+assert_allclose(LL, LL_f, atol=1e-5)
+
+A_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/A")
+A_f = A_f.reshape((32, 32)).T # XXX: is there a simpler way to do this?
+assert_almost_equal(A, A_f, decimal=3)
+
+alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
+alpha_f = alpha_f.reshape((32, 3))
+alpha_f = alpha_f.T
+assert_almost_equal(alpha, alpha_f, decimal=3)
+
+c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
+c_f = c_f.reshape((32, 1)).squeeze()
+assert_almost_equal(c.squeeze(), c_f)
+
+
+comp_list_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/comp_list", dtype=np.int32)
+# Something weird is happening there.
+
+
+gm_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/gm")
+assert gm == gm_f == np.array([1.])
+
+mean_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mean")
+assert_almost_equal(mean, mean_f)
+
+mu_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mu", dtype=np.float64)
+mu_f = mu_f.reshape((32, 3))
+mu_f = mu_f.T
+assert_almost_equal(mu, mu_f, decimal=1)
+
+rho_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/rho", dtype=np.float64)
+rho_f = rho_f.reshape((32, 3))
+rho_f = rho_f.T
+assert_almost_equal(rho, rho_f, decimal=2)
+
+S_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/S", dtype=np.float64)
+S_f = S_f.reshape((32, 32,)).T
+assert_almost_equal(S, S_f)
+
+sbeta_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/sbeta", dtype=np.float64)
+sbeta_f = sbeta_f.reshape((32, 3))
+sbeta_f = sbeta_f.T
+assert_almost_equal(sbeta, sbeta_f, decimal=2)
+
+W_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/W", dtype=np.float64)
+W_f = W_f.reshape((32, 32, 1)).squeeze().T
+assert_almost_equal(W.squeeze(), W_f, decimal=3)
+
+import matplotlib.pyplot as plt
+
+
+for output in ["python", "fortran"]:
+    fig, ax = plt.subplots(
+        nrows=8,
+        ncols=4,
+        figsize=(12, 16),
+        constrained_layout=True
+        )
+    for i, this_ax in zip(range(32), ax.flat):
+        mne.viz.plot_topomap(
+            A[:, i] if output == "python" else A_f[:, i],
+            pos=raw.info,
+            axes=this_ax,
+            show=False,
+        )
+        this_ax.set_title(f"Component {i}")
+    fig.suptitle(f"AMICA Component Topomaps ({output})", fontsize=16)
+    fig.savefig(f"/Users/scotterik/devel/projects/amica-python/figs/amica_topos_{output}.png")
+    plt.close(fig)
+
+
+def get_amica_sources(X, W, S, mean):
+      """
+      Apply AMICA transformation to get ICA sources.
+      
+      Parameters:
+      -----------
+      X : ndarray, shape (n_channels, n_times)
+          Input data matrix
+      W : ndarray, shape (n_components, n_channels) 
+          Unmixing matrix from AMICA (for single model, use W[:,:,0])
+      S : ndarray, shape (n_channels, n_channels)
+          Sphering/whitening matrix  
+      mean : ndarray, shape (n_channels,)
+          Channel means
+          
+      Returns:
+      --------
+      sources : ndarray, shape (n_components, n_times)
+          Independent component time series
+      """
+      # 1. Remove mean
+      X_centered = X - mean[:, np.newaxis]
+
+      # 2. Apply sphering
+      X_sphered = S @ X_centered
+
+      # 3. Apply ICA unmixing (this is the key step)
+      sources = W @ X_sphered
+
+      return sources
+
+sources_python = get_amica_sources(
+    dataseg, W.squeeze(), S, mean
+)
+sources_fortran = get_amica_sources(
+    dataseg, W_f, S_f, mean_f
+)
+# Now lets check the correlation between the two sources
+# Taking a subset to avoid memory issues
+corrs = np.zeros(sources_python.shape[0])
+for i in range(sources_python.shape[0]):
+    corr = np.corrcoef(
+        sources_python[i, ::10],
+        sources_fortran[i, ::10]
+    )[0, 1]
+    corrs[i] = corr
+assert np.all(np.abs(corr) > 0.99)  # Should be very high correlation
+
+info = mne.create_info(
+    ch_names=[f"IC{i}" for i in range(sources_python.shape[0])],
+    sfreq=raw.info['sfreq'],
+    ch_types='eeg'
+)
+
+raw_src_python = mne.io.RawArray(sources_python, info)
+raw_src_fortran = mne.io.RawArray(sources_fortran, info)
+
+mne.viz.set_browser_backend("matplotlib")
+fig = raw_src_python.plot(scalings=dict(eeg=.3))
+fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_python.png")
+plt.close(fig)
+fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
+fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
+plt.close(fig)
     
 
 
