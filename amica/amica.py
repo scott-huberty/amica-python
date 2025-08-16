@@ -1293,13 +1293,12 @@ def accum_updates_and_likelihood():
                 # This gets overwritten but just a sanity check
                 assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
             if do_newton and iter >= newt_start:
+                # in Fortran, this is a nested loop..
                 # do i = 1,nw
-                Wtmp_new = Wtmp.copy()
-                Wtmp_new = np.zeros((nw, nw), dtype=np.float64)
                 # if (i == k) then
                 # Wtmp(i,i) = dA(i,i,h) / lambda(i,h)
                 # on-diagonal elements
-                np.fill_diagonal(Wtmp_new, dA[:, :, h - 1].diagonal() / lambda_[:, h - 1])
+                np.fill_diagonal(Wtmp, dA[:, :, h - 1].diagonal() / lambda_[:, h - 1])
                 # else
                 # sk1 = sigma2(i,h) * kappa(k,h)
                 # sk2 = sigma2(k,h) * kappa(i,h)
@@ -1320,10 +1319,11 @@ def accum_updates_and_likelihood():
                     # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
                     numerator = sk1 * dA[i_indices, k_indices, h-1] - dA[k_indices, i_indices, h-1]
                     denominator = sk1 * sk2 - 1.0
-                    Wtmp_new[condition_mask] = (numerator / denominator)[condition_mask]
+                    Wtmp[condition_mask] = (numerator / denominator)[condition_mask]
                 if iter == 50 and h == 1:
-                    assert_almost_equal(Wtmp_new[0, 0], 8.1190061761001329e-06, decimal=5)
-                    assert_almost_equal(Wtmp_new[31, 31], -0.0003951422941096415, decimal=5)
+                    assert_almost_equal(Wtmp[0, 0], 8.1190061761001329e-06, decimal=5)
+                    assert_almost_equal(Wtmp[31, 31], -0.0003951422941096415, decimal=5)
+                    assert_almost_equal(lambda_[0, 0], 2.1605803812074149, decimal=3)
                     assert_almost_equal(lambda_[31,0], 1.999712575384778, decimal=5)
                     assert_almost_equal(dA[0, 0, 0], 1.7541765458983782e-05, decimal=5)
                     # Off diagonal checks
@@ -1334,65 +1334,11 @@ def accum_updates_and_likelihood():
                     assert_almost_equal(sk2[0,1], 11.694885823590258, decimal=2)
                     assert_almost_equal(dA[0, 1, 0], -0.01598350862531657, decimal=4)
                     assert_almost_equal(dA[1, 0, 0], 0.082200846375440673, decimal=4)
-                    assert_almost_equal(Wtmp_new[0, 1], -0.0043189762604319707, decimal=5)
-                for i, _ in enumerate(range(nw), start=1):
-                    for k, _ in enumerate(range(num_comps), start=1):
-                        if i == k:
-                            # Wtmp(i,i) = dA(i,i,h) / lambda(i,h)
-                            Wtmp[i - 1, i - 1] = dA[i - 1, i - 1, h - 1] / lambda_[i - 1, h - 1]
-                            if iter == 50 and i == 1 and k == 1:
-                                # XXX: Notice how small the dA value is for this element
-                                # XXX: and thus the Wtmp value too.
-                                assert_almost_equal(dA[0, 0, 0], 1.7541765458983782e-05, decimal=5)
-                                assert_almost_equal(lambda_[0, 0], 2.1605803812074149, decimal=3)
-                                assert_almost_equal(Wtmp[0, 0], 8.1190061761001329e-06, decimal=5)
-                            if iter == 50 and i == 32 and k == 32:
-                                assert_almost_equal(dA[31,31,0], -0.00079017101459744055, decimal=5)
-                                assert_almost_equal(lambda_[31,0], 1.999712575384778, decimal=5)
-                                assert_almost_equal(Wtmp[31, 31], -0.0003951422941096415, decimal=5)
-                        else:
-                            # sk1 = sigma2(i,h) * kappa(k,h)
-                            # sk2 = sigma2(k,h) * kappa(i,h)
-                            assert i != k
-                            sk1 = sigma2[i - 1, h - 1] * kappa[k - 1, h - 1]
-                            sk2 = sigma2[k - 1, h - 1] * kappa[i - 1, h - 1]
-                            if iter == 50 and h == 1 and i == 1 and k == 2:
-                                assert_almost_equal(sigma2[0, 0], 1.1119132747254035, decimal=4)
-                                assert_almost_equal(kappa[1, 0], 2.253684332170284, decimal=4)
-                                assert_almost_equal(kappa[0, 0], 10.42003377654923, decimal=2)
-                                assert_almost_equal(sk1, 2.5059015259807942, decimal=3)
-                                assert_almost_equal(sk2, 11.694885823590258, decimal=2)
-                                assert sk1 * sk2 > 0.0
-                            if sk1 * sk2 > 0.0:
-                                # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
-                                Wtmp[i - 1, k - 1] = (
-                                    (
-                                        sk1
-                                        * dA[i - 1, k - 1, h - 1]
-                                        - dA[k - 1, i - 1, h - 1]
-                                    )
-                                    / (sk1 * sk2 - 1.0)
-                                )
-                                if iter == 50 and h == 1 and i == 1 and k == 2:
-                                    assert_almost_equal(dA[0, 1, 0], -0.01598350862531657, decimal=4)
-                                    assert_almost_equal(dA[1, 0, 0], 0.082200846375440673, decimal=4)
-                                    assert_almost_equal(Wtmp[0, 1], -0.0043189762604319707, decimal=5)
-                            else:
-                                posdef = False
-                                no_newt = True
-                                assert 1 == 0 # want to see if this gets hit.
-                        # end if (i == k)
-                    # end do (k)
-                # end do (i)
-                # this test is alread done above.
-                if iter == 50 and i == 32 and k == 32:
-                    Wtmp_diagonal = np.diag(Wtmp)
-                    Wtmp_new_diagonal = np.diag(Wtmp_new)
-                    assert_allclose(Wtmp_diagonal, Wtmp_new_diagonal)
-                    assert_allclose(Wtmp, Wtmp_new)
                     assert_almost_equal(dA[31,31,0], -0.00079017101459744055, decimal=5)
-                    assert_almost_equal(lambda_[31,0], 1.999712575384778, decimal=5)
-                    assert_almost_equal(Wtmp[31, 31], -0.0003951422941096415, decimal=5)
+                    assert_almost_equal(Wtmp[0, 1], -0.0043189762604319707, decimal=5)
+                # end if (i == k)
+                # end do (k)
+                # end do (i)
             # end if (do_newton .and. iter >= newt_start)
             elif not do_newton and iter >= newt_start:
                 raise NotImplementedError()  # pragma no cover
