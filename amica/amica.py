@@ -14,6 +14,7 @@ from funmod import psifun
 
 import warnings
 
+import line_profiler
 # Configure all warnings to be treated as errors
 # warnings.simplefilter('error')
 
@@ -35,7 +36,7 @@ def get_unmixing_matrices(
         W,
         num_models,
         ):
-    """    Get unmixing matrices for AMICA."""
+    """Get unmixing matrices for AMICA."""
     from scipy import linalg
     W = W.copy()
     if "iter" not in globals():
@@ -88,7 +89,7 @@ def get_seg_list(raw):
     return blocks_in_sample, num_samples, all_blks
 
 
-
+@line_profiler.profile
 def get_updates_and_likelihood():
     assert num_thrds == 1
     dgm_numer_tmp[:] = 0.0
@@ -141,11 +142,13 @@ def get_updates_and_likelihood():
 
     if do_reject:
         num_blocks = ngood // (num_thrds * block_size)
+        raise NotImplementedError()
     else:
         num_blocks = ldim // (num_thrds * block_size)
 
     assert num_blocks == 59
 
+    # !--------- loop over the blocks ----------
     for blk, _ in enumerate(range(num_blocks), start=1):
         x0strt = (blk - 1) * num_thrds * block_size + 1
         if blk < num_blocks:
@@ -153,6 +156,7 @@ def get_updates_and_likelihood():
         else:
             if do_reject:
                 x0stp = ngood
+                raise NotImplementedError()
             else:
                 x0stp = ldim
         bsize = x0stp - x0strt + 1
@@ -227,11 +231,10 @@ def get_updates_and_likelihood():
                 assert_almost_equal(Ptmp[bstp - 1, 0], -65.93059440479017, decimal=7)
                 assert_allclose(Ptmp[bstrt - 1:bstp, 0], -65.93059440479017, atol=1e-7)
                 assert Ptmp[bstp, 0] == 0
-            elif h == 1 and blk == 59:
-                # assert_almost_equal(Ptmp[bstp - 1, 0], -111.60532918598989, decimal=7)
-                # assert_allclose(Ptmp[bstrt - 1:bstp, 0], -111.60532918598989, atol=1e-7)
-                # assert Ptmp[bstp, 0] == 0
-                pass
+            elif iter == 1 and h == 1 and blk == 59:
+                assert_almost_equal(Ptmp[bstp - 1, 0], -65.93059440479017, decimal=3)
+                assert_allclose(Ptmp[bstrt - 1:bstp, 0], -65.93059440479017, atol=1e-3)
+                assert Ptmp[bstp, 0] == 0
 
             # !--- get b
             if update_c and update_A:
@@ -525,7 +528,7 @@ def get_updates_and_likelihood():
                                     1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
                                 )
                         result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-                        assert_almost_equal(result_1, result_2)
+                        # assert_almost_equal(result_1, result_2)
                         with np.errstate(over='raise'):
                             try:
                                 result = (
@@ -690,6 +693,7 @@ def get_updates_and_likelihood():
                 if update_c:
                     if do_reject:
                         raise NotImplementedError()
+                        # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
                     else:
                         # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
                         tmpsum = np.sum(v[bstrt-1:bstp, h - 1] * dataseg[i - 1, xstrt - 1:xstp])
@@ -1098,7 +1102,7 @@ def get_updates_and_likelihood():
     # In alphabetical order
     return LLtmp
 
-
+@line_profiler.profile
 def accum_updates_and_likelihood():
     # !--- add to the cumulative dtmps
     # ...
@@ -1264,8 +1268,10 @@ def accum_updates_and_likelihood():
 
         for h, _ in enumerate(range(num_models), start=1):
             # if (print_debug) then
+            # print *, 'dA ', h, ' = '; call flush(6)
             if do_reject:
                 raise NotImplementedError()
+                # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
             else:
                 # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
                 assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
@@ -1406,6 +1412,7 @@ def accum_updates_and_likelihood():
     # if (seg_rank == 0) then
     if do_reject:
         raise NotImplementedError()
+        # LL(iter) = LLtmp2 / dble(numgoodsum*nw)
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
@@ -1428,6 +1435,7 @@ def update_params():
     if update_gm:
         if do_reject:
             raise NotImplementedError()
+            # gm = dgm_numer / dble(numgoodsum)
         else:
             gm[:] = dgm_numer / all_blks 
             if iter == 1:
@@ -1642,62 +1650,8 @@ def update_params():
     return
 
 
-        
-
-
-def main():
-    fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
-    raw = mne.io.read_raw_eeglab(fpath)
-    return raw
 
 if __name__ == "__main__":
-    ######### Get The data #########
-    raw = main()
-    blocks_in_sample, num_samples, all_blks = get_seg_list(raw)
-    assert blocks_in_sample == 30504
-    assert num_samples == 1
-    assert all_blks == 30504
-    dataseg: np.ndarray = raw.get_data() # shape (n_channels, n_times) = (32, 30504)
-    assert dataseg.shape == (32, 30504)
-    dataseg *= 1e6  # Convert to microvolts
-    # Check our value against the Fortran output
-    assert_almost_equal(dataseg[0, 0], -35.7974853515625)
-    assert_almost_equal(dataseg[1, 0], 2.3078439235687256)
-    assert_almost_equal(dataseg[2, 0], -26.776725769042969)
-
-    assert_almost_equal(dataseg[0, 1], -21.326353073120117)
-    assert_almost_equal(dataseg[-1, -1], 12.871612548828125)
-    assert_almost_equal(dataseg[0, 15252], 28.903553009033203)
-    assert_almost_equal(dataseg[0, 29696], -0.48521178960800171)
-    assert_almost_equal(dataseg[0, 29700], -2.2563831806182861)
-    assert_almost_equal(dataseg[15, 29701], 14.67259693145752)
-    assert_almost_equal(dataseg[31, 0], -9.5071401596069336)
-    assert_almost_equal(dataseg[20, 29710], -11.413822174072266)
-
-    ###### Calculate the mean #########
-    meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
-    assert_almost_equal(meantmp[0], -113139.76889015333)
-    mean = meantmp / dataseg.shape[1]  # Divide by number of time points to get mean
-    assert_almost_equal(mean[0], -3.7090141912586323)
-    assert_almost_equal(mean[1], -6.7516788952437894)
-    assert_almost_equal(mean[2], 2.5880450259870105)
-    # We did in two steps what we could have done in one:
-    np.testing.assert_array_almost_equal(mean, dataseg.mean(axis=1))
-
-    ###### SUBTRACT THE MEAN FROM THE DATA ######
-    dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
-    assert_almost_equal(dataseg[0, 0], -32.088471160303868)
-    assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
-    assert_almost_equal(dataseg[2, 0], -29.36477079502998)
-
-    ###### SPHERE THE DATA ######
-
-    # Compute the covariance matrix
-    # The Fortran code processes the data in blocks
-    # and appears to only update the lower triangular part of the covariance matrix
-    # But in practice, you usually want to compute the full covariance matrix?
-    # e.g. Stmp = np.cov(dataseg)
-
     num_models = 1
     num_mix = 3
     num_comps = None
@@ -1784,6 +1738,81 @@ if __name__ == "__main__":
     vsum = 0
     tmpsum = 0
 
+    load_sphere = False
+    do_sphere = True
+    do_approx_sphere = False
+    
+    load_A = False
+    load_mu = False
+    load_sbeta = False
+    load_beta = False
+    load_rho = False
+    load_c = False
+    load_alpha = False
+    load_comp_list = False
+    do_opt_block = False
+    load_rej = False
+
+    # !-------------------- GET THE DATA ------------------------
+    fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
+    raw = mne.io.read_raw_eeglab(fpath)
+    blocks_in_sample, num_samples, all_blks = get_seg_list(raw)
+    assert blocks_in_sample == 30504
+    assert num_samples == 1
+    assert all_blks == 30504
+    dataseg: np.ndarray = raw.get_data() # shape (n_channels, n_times) = (32, 30504)
+    assert dataseg.shape == (32, 30504)
+    dataseg *= 1e6  # Convert to microvolts
+    # Check our value against the Fortran output
+    assert_almost_equal(dataseg[0, 0], -35.7974853515625)
+    assert_almost_equal(dataseg[1, 0], 2.3078439235687256)
+    assert_almost_equal(dataseg[2, 0], -26.776725769042969)
+
+    assert_almost_equal(dataseg[0, 1], -21.326353073120117)
+    assert_almost_equal(dataseg[-1, -1], 12.871612548828125)
+    assert_almost_equal(dataseg[0, 15252], 28.903553009033203)
+    assert_almost_equal(dataseg[0, 29696], -0.48521178960800171)
+    assert_almost_equal(dataseg[0, 29700], -2.2563831806182861)
+    assert_almost_equal(dataseg[15, 29701], 14.67259693145752)
+    assert_almost_equal(dataseg[31, 0], -9.5071401596069336)
+    assert_almost_equal(dataseg[20, 29710], -11.413822174072266)
+
+    #if (do_reject) then
+    #    allocate(dataseg(1)%gooddata(dataseg(1)%lastdim),stat=ierr); call tststat(ierr)
+    #    allocate(dataseg(1)%goodinds(dataseg(1)%lastdim),stat=ierr); call tststat(ierr)
+    #    dataseg(1)%gooddata = .true.
+    #    dataseg(1)%numgood = dataseg(1)%lastdim
+    #    do j = 1,dataseg(1)%numgood
+    #       dataseg(1)%goodinds(j) = j
+    #    end do
+    # end if
+
+    # !---------------------------- get the mean --------------------------------
+    print("getting the mean ...")
+    meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
+    assert_almost_equal(meantmp[0], -113139.76889015333)
+    mean = meantmp / dataseg.shape[1]  # Divide by number of time points to get mean
+    assert_almost_equal(mean[0], -3.7090141912586323)
+    assert_almost_equal(mean[1], -6.7516788952437894)
+    assert_almost_equal(mean[2], 2.5880450259870105)
+    # We did in two steps what we could have done in one:
+    np.testing.assert_array_almost_equal(mean, dataseg.mean(axis=1))
+
+    # !--- subtract the mean
+    dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
+    assert_almost_equal(dataseg[0, 0], -32.088471160303868)
+    assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
+    assert_almost_equal(dataseg[2, 0], -29.36477079502998)
+
+    # !------------------------ sphere the data -------------------------------
+    print(" Getting the covariance matrix ...")
+    # call DSCAL(nx*nx,dble(0.0),Stmp,1)
+    # Compute the covariance matrix
+    # The Fortran code processes the data in blocks
+    # and appears to only update the lower triangular part of the covariance matrix
+    # But in practice, you usually want to compute the full covariance matrix?
+    # e.g. Stmp = np.cov(dataseg)
+
     for k in range(num_blocks):
         bstrt = (k * blk_size) + 1
         bstp = bstrt + blk_size - 1
@@ -1796,7 +1825,7 @@ if __name__ == "__main__":
         elif k == 58: # Last block
             assert bstrt == 29697
             assert bstp == 30208
-        # Do DSYRK operation i.e. C := alpha * A * Aᵗ + beta * C
+        # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
         X = dataseg[:, bstrt-1:bstp].copy()  # Adjust for zero-based indexing
         # We probably want to do Stmp = X @ X.T
         Stmp_2[np.tril_indices(nx)] += (X @ X.T)[np.tril_indices(nx)]
@@ -1829,6 +1858,7 @@ if __name__ == "__main__":
     if lastblocksize != 0:
         bstrt = num_blocks * blk_size + 1 # Fortran is 1-based
         bstp = ldim
+        # call DSYRK('L','N',nx,lastblocksize,dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
         X_last = dataseg[:, bstrt-1:bstp]  # shape (nx, lastblocksize)
         Stmp_2[np.tril_indices(nx)] += (X_last @ X_last.T)[np.tril_indices(nx)]
         np.testing.assert_almost_equal(Stmp_2[0, 0], 45778661.956294745, decimal=6)
@@ -1838,6 +1868,7 @@ if __name__ == "__main__":
     cnt = 30504 # Number of time points, as per the Fortran code
     # Normalize the covariance matrix by dividing by the number of samples
     # S is the final covariance matrix
+    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1) 
     S /= cnt
     np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
 
@@ -1849,16 +1880,18 @@ if __name__ == "__main__":
     Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
     np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
 
-    ###### SPHERE THE DATA ######
 
     #### Do Eigenvalue Decomposition ####
     lwork = 10 * nx * nx  # Work array size, as per Fortran code
     eigs = np.zeros(nx)
     eigv = np.zeros(nx)
+    print(f"doing eig nx = {nx}, lwork = {lwork}")
+    # call DCOPY(nx*nx,S,1,Stmp,1)
     Stmp = S.copy()  # Copy S to Stmp
     assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
     assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
 
+    # call DSYEV('V','L',nx,Stmp,nx,eigs,work,lwork,info)
     eigs, eigv = np.linalg.eigh(Stmp)  # Eigenvalue decomposition
     assert eigs.ndim == 1
     assert len(eigs) == 32
@@ -1884,79 +1917,94 @@ if __name__ == "__main__":
     )
     print(f"minimum eigenvalues: {lowest_eigs}")
     print(f"maximum eigenvalues: {biggest_eigs}")
+    
     numeigs = min(pcakeep, sum(eigs > mineig))
     assert numeigs == nx == 32
     print(f"num eigs kept: {numeigs}")
 
-    # reverse the order of eigenvectors
-    Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
-    np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
-    eigv = np.sort(eigs)[::-1]
-    np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
-    np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
+    if load_sphere:
+        raise NotImplementedError()
+    else:
+        # !--- get the sphering matrix
+        print("Getting the sphering matrix ...")
+        # reverse the order of eigenvectors
+        Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
+        np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
+        eigv = np.sort(eigs)[::-1]
+        np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
+        np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
 
     # do sphere
-    # This is a duplicate of the previous step
-    print(f"doing eig nx = {nx}, lwork = {lwork}")
-    assert S.shape == (nx, nx) == (32, 32)
-    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-    Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
+    if do_sphere:
+        # This is a duplicate of the previous step
+        print(f"doing eig nx = {nx}, lwork = {lwork}")
+        assert S.shape == (nx, nx) == (32, 32)
+        np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
+        Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
 
-    eigs, eigvecs = np.linalg.eigh(Stmp)  # eigvecs: columns are eigenvectors
-    Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
+        eigs, eigvecs = np.linalg.eigh(Stmp)  # eigvecs: columns are eigenvectors
+        Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
 
-    min_eigs = eigs[:min(nx//2, 3)]
-    max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
-    print(f"minimum eigenvalues: {min_eigs}")
-    print(f"maximum eigenvalues: {max_eigs}")
+        min_eigs = eigs[:min(nx//2, 3)]
+        max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
+        print(f"minimum eigenvalues: {min_eigs}")
+        print(f"maximum eigenvalues: {max_eigs}")
 
-    min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-    max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-    np.testing.assert_array_almost_equal(
-        min_eigs,
-        min_eigs_fortran
-    )
-    np.testing.assert_array_almost_equal(
-        max_eigs,
-        max_eigs_fortran
-    )
+        min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
+        max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
+        np.testing.assert_array_almost_equal(
+            min_eigs,
+            min_eigs_fortran
+        )
+        np.testing.assert_array_almost_equal(
+            max_eigs,
+            max_eigs_fortran
+        )
 
-    numeigs = min(pcakeep, sum(eigs > mineig))
-    print(f"num eigs kept: {numeigs}")
-    assert numeigs == nx == 32
+        numeigs = min(pcakeep, sum(eigs > mineig))
+        print(f"num eigs kept: {numeigs}")
+        assert numeigs == nx == 32
 
-    Stmp2 = np.zeros((numeigs, nx))
-    assert Stmp2.shape == (numeigs, nx) == (32, 32)
-    eigv = np.zeros(nx)
-    assert eigv.shape == (nx,) == (32,)
-    for i in range(nx):
-        eigv[i] = eigs[nx - i - 1]  # Reverse the eigenvalues
-        for j in range(nx):
-            Stmp2[i, j] = Stmp[j, nx - i - 1]  # Reverse the eigenvectors (columns)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729, decimal=7)
-    np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776, decimal=7)
+        Stmp2 = np.zeros((numeigs, nx))
+        assert Stmp2.shape == (numeigs, nx) == (32, 32)
+        eigv = np.zeros(nx)
+        assert eigv.shape == (nx,) == (32,)
+        for i in range(nx):
+            eigv[i] = eigs[nx - i - 1]  # Reverse the eigenvalues
+            for j in range(nx):
+                Stmp2[i, j] = Stmp[j, nx - i - 1]  # Reverse the eigenvectors (columns)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729, decimal=7)
+        np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776, decimal=7)
 
-    Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-    sldet = 0.0 # Logarithm of the determinant, initialized to zero
-    for i in range(numeigs):
-        Stmp2[i, :] = Stmp2[i, :] / np.sqrt(eigv[i])
-        # check for NaN:
-        if np.isnan(Stmp2[i, :]).any():
-            print(f"NaN! i = {i}, eigv = {eigv[i]}")
-        sldet -= 0.5 * np.log(eigv[i])
+        Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
+        sldet = 0.0 # Logarithm of the determinant, initialized to zero
+        for i in range(numeigs):
+            Stmp2[i, :] = Stmp2[i, :] / np.sqrt(eigv[i])
+            # check for NaN:
+            if np.isnan(Stmp2[i, :]).any():
+                print(f"NaN! i = {i}, eigv = {eigv[i]}")
+            sldet -= 0.5 * np.log(eigv[i])
 
-    np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
+        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
-    if numeigs == nx:
-        # do_approx_sphere
-        S = Stmp.T @ Stmp2
+        if numeigs == nx:
+            # call DSCAL(nx*nx,dble(0.0),S,1) 
+            if do_approx_sphere:
+                raise NotImplementedError()
+            else:
+                # call DCOPY(nx*nx,Stmp2,1,S,1)  
+                S = Stmp.T @ Stmp2
+        else:
+            # if (do_approx_sphere) then
+            raise NotImplementedError()
+        np.testing.assert_almost_equal(S[0, 0], 0.043377346952119616, decimal=7)
     else:
+        # !--- just normalize by the channel variances (don't sphere)
         raise NotImplementedError()
-    np.testing.assert_almost_equal(S[0, 0], 0.043377346952119616, decimal=7)
-    
+   
     print("Sphering the data...")
 
     # Apply the sphering matrix to the data (whitening)
@@ -2034,9 +2082,12 @@ if __name__ == "__main__":
     assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
 
     nw = numeigs # Number of weights, as per Fortran code
+    
+    # ! get the pseudoinverse of S
     # Compute the pseudo-inverse of the sphering matrix (for later use?)
     assert S.shape == (nx, nx) == (32, 32)
     # assert S[0, 0] == 0.043377346952119616
+    # call DCOPY(nx*nx,S,1,Stmp2,1)
     Stmp2 = S.copy()
     Spinv = np.zeros((nx, numeigs))
     assert Spinv.shape == (nx, nw) == (32, 32)
@@ -2046,6 +2097,7 @@ if __name__ == "__main__":
     assert sVtmp.shape == (32, 32)
     print(f"numeigs = {numeigs}, nw = {nw}")
     
+    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
     sUtmp, eigs, sVtmp = np.linalg.svd(Stmp2, full_matrices=False)
     assert sUtmp.shape == (nx, nw) == (32, 32)
     assert sVtmp.shape == (nw, nx) == (32, 32)
@@ -2055,15 +2107,23 @@ if __name__ == "__main__":
     assert_almost_equal(abs(sVtmp[0, 1]), 0.0004865397257969421, decimal=7)
     assert_almost_equal(eigs[0], 0.45268334, decimal=7)
     for i in range(numeigs):
+        # sVtmp(i,:) = sVtmp(i,:) / eigs(i)
         sVtmp[i, :] = sVtmp[i, :] / eigs[i]  # Normalize the eigenvectors
     assert_almost_equal(abs(sVtmp[0, 0]), 0.025217004224530888, decimal=7)
     assert_almost_equal(abs(sVtmp[31, 31]), 12.0494339875739, decimal=7)
     # Explicitly index to ensure the shape remains (nx, nw)
+    # call DGEMM('T','T',nx,numeigs,numeigs,dble(1.0),sVtmp,numeigs,sUtmp,numeigs,dble(0.0),Spinv,nx)
     Spinv[:, :] = sVtmp.T @ sUtmp.T  # Pseudo-inverse of the sphering matrix
     assert_almost_equal(Spinv[0, 0], 33.11301219430311, decimal=7)
 
+    # if (seg_rank == 0 .and. print_debug) then
+    #    print *, 'S = '; call flush(6)
+    #   call matout(S(1:2,1:2),2,2)
+    #   print *, 'Sphered data = '; call flush(6)
+
 
     # !-------------------- ALLOCATE VARIABLES ---------------------
+    print("Allocating variables ...")
     if num_comps is None:
         num_comps = nx * num_models
 
@@ -2171,91 +2231,109 @@ if __name__ == "__main__":
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
     # if (seg_rank == 0) then
+    print("Initializing variables ...")
 
     if load_gm:
         raise NotImplementedError()
     else:
         gm[:] = int(1.0 / num_models)
-    alpha[:num_mix, :] = 1.0 / num_mix
-    for ki, k in enumerate(range(num_comps), start=1):
-        for ji, j in enumerate(range(num_mix), start=1):
-            mu[j, k] = ji - 1 - (num_mix - 1) / 2
-    assert mu.shape == (num_mix, num_comps) == (3, 32)
-    np.testing.assert_allclose(mu[0, :], -1.0)
-    np.testing.assert_allclose(mu[1, :], 0.0)
-    np.testing.assert_allclose(mu[2, :], 1.0)
-    if not fix_init:
-        mutmp = MUTMP.copy()
-        mu[:num_mix, :] = mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
-        assert_almost_equal(mu[0, 0], -1.0009659467356704, decimal=7)
-        assert_almost_equal(mu[2, 31], 0.99866076686138183, decimal=7)
-    # load_beta
-    sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
-    assert_almost_equal(sbeta[0, 0], 0.96533589542801645, decimal=7)
-    assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
-    # load_rho
-    rho[:num_mix, :] = rho0
-    np.testing.assert_allclose(rho, 1.5)
-    # load_c
-    c[:, :] = 0.0
-    assert c.shape == (nw, num_models) == (32, 1)
-    # load_A
-    for h, _ in enumerate(range(num_models), start=1):
-        A[:, (h-1)*nw:h*nw] = 0.01 * (0.5 - WTMP)
-        if h == 1:
-            assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
-        for i, _ in enumerate(range(nw), start=1):
-            A[i-1, (h-1)*nw + i - 1] = 1.0
-            Anrmk = np.sqrt(
-                        np.sum(
-                            np.square(
-                                A[:, (h-1) * nw + i - 1]
-                                )
-                            )
-                    )
+    if load_alpha:
+        raise NotImplementedError()
+    else:
+        alpha[:num_mix, :] = 1.0 / num_mix
+    if load_mu:
+        raise NotImplementedError()
+    else:
+        for ki, k in enumerate(range(num_comps), start=1):
+            for ji, j in enumerate(range(num_mix), start=1):
+                mu[j, k] = ji - 1 - (num_mix - 1) / 2
+        assert mu.shape == (num_mix, num_comps) == (3, 32)
+        np.testing.assert_allclose(mu[0, :], -1.0)
+        np.testing.assert_allclose(mu[1, :], 0.0)
+        np.testing.assert_allclose(mu[2, :], 1.0)
+        if not fix_init:
+            mutmp = MUTMP.copy()
+            mu[:num_mix, :] = mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
+            assert_almost_equal(mu[0, 0], -1.0009659467356704, decimal=7)
+            assert_almost_equal(mu[2, 31], 0.99866076686138183, decimal=7)
+    if load_beta:
+        raise NotImplementedError()
+    else:
+        if fix_init:
+            raise NotImplementedError()
+        else:
+            sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
+            assert_almost_equal(sbeta[0, 0], 0.96533589542801645, decimal=7)
+            assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
+    if load_rho:
+        raise NotImplementedError()
+    else:
+        rho[:num_mix, :] = rho0
+        np.testing.assert_allclose(rho, 1.5)
+    if load_c:
+        raise NotImplementedError()
+    else:
+        c[:, :] = 0.0
+        assert c.shape == (nw, num_models) == (32, 1)
+    if load_A:
+        raise NotImplementedError()
+    else:
+        for h, _ in enumerate(range(num_models), start=1):
+            A[:, (h-1)*nw:h*nw] = 0.01 * (0.5 - WTMP)
             if h == 1:
-                if i == 1:
-                    assert_almost_equal(Anrmk, 1.0001205115690768, decimal=7)
-                elif i == 2:
-                    assert_almost_equal(Anrmk, 1.0001597653323635, decimal=7)
-                elif i == 3:
-                    assert_almost_equal(Anrmk, 1.0001246023020249, decimal=7)
-                elif i == 4:
-                    assert_almost_equal(Anrmk, 1.0001246214648813, decimal=7)
-                elif i == 5:
-                    assert_almost_equal(Anrmk, 1.0001391792172245, decimal=7)
-                elif i == 6:
-                    assert_almost_equal(Anrmk, 1.0001153695881879, decimal=7)
-                elif i == 7:
-                    assert_almost_equal(Anrmk, 1.0001348988545486, decimal=7)
-                elif i == 32:
-                    assert_almost_equal(Anrmk, 1.0001690977165658, decimal=7)
+                assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
+            for i, _ in enumerate(range(nw), start=1):
+                A[i-1, (h-1)*nw + i - 1] = 1.0
+                Anrmk = np.sqrt(
+                            np.sum(
+                                np.square(
+                                    A[:, (h-1) * nw + i - 1]
+                                    )
+                                )
+                        )
+                if h == 1:
+                    if i == 1:
+                        assert_almost_equal(Anrmk, 1.0001205115690768, decimal=7)
+                    elif i == 2:
+                        assert_almost_equal(Anrmk, 1.0001597653323635, decimal=7)
+                    elif i == 3:
+                        assert_almost_equal(Anrmk, 1.0001246023020249, decimal=7)
+                    elif i == 4:
+                        assert_almost_equal(Anrmk, 1.0001246214648813, decimal=7)
+                    elif i == 5:
+                        assert_almost_equal(Anrmk, 1.0001391792172245, decimal=7)
+                    elif i == 6:
+                        assert_almost_equal(Anrmk, 1.0001153695881879, decimal=7)
+                    elif i == 7:
+                        assert_almost_equal(Anrmk, 1.0001348988545486, decimal=7)
+                    elif i == 32:
+                        assert_almost_equal(Anrmk, 1.0001690977165658, decimal=7)
+                else:
+                    raise ValueError("Unexpected model index")
+                A[:, (h-1) * nw + i - 1] = A[:, (h-1) * nw + i - 1] / Anrmk
+                comp_list[i - 1, h - 1] = (h - 1) * nw + i
+            if h == 1:
+                assert_almost_equal(A[0, 0], 0.99987950295221151, decimal=7)
+                assert_almost_equal(A[0, 1], 0.0031751973942113266, decimal=7)
+                assert_almost_equal(A[0, 2], 0.0032972413345084516, decimal=7)
+                assert_almost_equal(A[0, 3], -0.0039658956397471655, decimal=7)
+                assert_almost_equal(A[0, 4], -0.003799613000692897, decimal=7)
+                assert_almost_equal(A[0, 5], 0.0028189089968969124, decimal=7)
+                assert_almost_equal(A[0, 6], -0.0049667241649223011, decimal=7)
+                assert_almost_equal(A[0, 7], -0.0049493288857340749, decimal=7)
+                assert_almost_equal(A[0, 31], 0.0033698692262480665, decimal=7)
+
+                assert_equal(comp_list[0, 0], 1)
+                assert_equal(comp_list[1, 0], 2)
+                assert_equal(comp_list[2, 0], 3)
+                assert_equal(comp_list[3, 0], 4)
+                assert_equal(comp_list[4, 0], 5)
+                assert_equal(comp_list[5, 0], 6)
+                assert_equal(comp_list[6, 0], 7)
+                assert_equal(comp_list[31, 0], 32)
             else:
                 raise ValueError("Unexpected model index")
-            A[:, (h-1) * nw + i - 1] = A[:, (h-1) * nw + i - 1] / Anrmk
-            comp_list[i - 1, h - 1] = (h - 1) * nw + i
-        if h == 1:
-            assert_almost_equal(A[0, 0], 0.99987950295221151, decimal=7)
-            assert_almost_equal(A[0, 1], 0.0031751973942113266, decimal=7)
-            assert_almost_equal(A[0, 2], 0.0032972413345084516, decimal=7)
-            assert_almost_equal(A[0, 3], -0.0039658956397471655, decimal=7)
-            assert_almost_equal(A[0, 4], -0.003799613000692897, decimal=7)
-            assert_almost_equal(A[0, 5], 0.0028189089968969124, decimal=7)
-            assert_almost_equal(A[0, 6], -0.0049667241649223011, decimal=7)
-            assert_almost_equal(A[0, 7], -0.0049493288857340749, decimal=7)
-            assert_almost_equal(A[0, 31], 0.0033698692262480665, decimal=7)
-
-            assert_equal(comp_list[0, 0], 1)
-            assert_equal(comp_list[1, 0], 2)
-            assert_equal(comp_list[2, 0], 3)
-            assert_equal(comp_list[3, 0], 4)
-            assert_equal(comp_list[4, 0], 5)
-            assert_equal(comp_list[5, 0], 6)
-            assert_equal(comp_list[6, 0], 7)
-            assert_equal(comp_list[31, 0], 32)
-        else:
-            raise ValueError("Unexpected model index")
-    
+    # end load_A
     
     W, wc = get_unmixing_matrices(
         c=c,
@@ -2269,7 +2347,6 @@ if __name__ == "__main__":
 
 
     # load_comp_list
-    load_comp_list = False
     if load_comp_list:
         raise NotImplementedError()
     # XXX: Seems like the Fortran code duplicated this step?
@@ -2290,9 +2367,13 @@ if __name__ == "__main__":
             raise NotImplementedError("Unexpected model index")
         comp_used[:] = True
     
+    # if (print_debug) then
+    #  print *, 'data ='; call flush(6)
+
+    if load_rej:
+        raise NotImplementedError()    
 
     # !-------------------- Determine optimal block size -------------------
-    do_opt_block = False
     block_size = 512 # Default of program is 128 but test config uses 512
     max_thrds = 1 # Default of program is 24, test file config uses 10, but lets set it to 1 for simplicity
     num_thrds = max_thrds
@@ -2327,915 +2408,915 @@ if __name__ == "__main__":
     assert blk_size == 512
 
 
-v[:, :] = 1.0 / num_models
-leave = False
+    v[:, :] = 1.0 / num_models
+    leave = False
 
-print(f"{myrank+1} : entering the main loop ...")
+    print(f"{myrank+1} : entering the main loop ...")
 
-# !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-iter = 1
-numrej = 0
+    iter = 1
+    numrej = 0
 
-c1 = time.time()
+    c1 = time.time()
 
-while iter <= max_iter:
-    # !----- get determinants
-    for h, _ in enumerate(range(num_models), start=1):
-        Wtmp = W[:, :, h - 1].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-        assert Wtmp.shape == (nw, nw) == (32, 32)
-        if iter == 1 and h == 1:
-            assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
-            assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
-            assert_almost_equal(Wtmp[0, 2], -0.0032916117077828426, decimal=7)
-            assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
-            assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
-            assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
-        lwork = 5 * nx * nx
-        assert lwork == 5120
+    while iter <= max_iter:
+        # !----- get determinants
+        for h, _ in enumerate(range(num_models), start=1):
+            Wtmp = W[:, :, h - 1].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+            assert Wtmp.shape == (nw, nw) == (32, 32)
+            if iter == 1 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
+                assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
+                assert_almost_equal(Wtmp[0, 2], -0.0032916117077828426, decimal=7)
+                assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
+                assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
+                assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
+            lwork = 5 * nx * nx
+            assert lwork == 5120
 
-        if iter == 2 and h == 1:
-            assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
+            if iter == 2 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
 
 
-        # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-        # Use LAPACK-style QR decomposition  
-        # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
-        (Wtmp, wr), tau_matrix = linalg.qr(Wtmp, mode='raw')
-        if iter == 1 and h == 1:
-            assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
-            assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
-            assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
-            assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
-            assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
-            assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
-            assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
-            assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
-            assert wr.shape == (nw,) == (32,)
-            assert_almost_equal(wr[0], 1.9998793803957402)
-        elif iter == 2 and h == 1:
-            assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
+            # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+            # Use LAPACK-style QR decomposition  
+            # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
+            (Wtmp, wr), tau_matrix = linalg.qr(Wtmp, mode='raw')
+            if iter == 1 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
+                assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
+                assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
+                assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
+                assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
+                assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
+                assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
+                assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
+                assert wr.shape == (nw,) == (32,)
+                assert_almost_equal(wr[0], 1.9998793803957402)
+            elif iter == 2 and h == 1:
+                assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
+            
+            Dtemp[h - 1] = 0.0
+            for i, _ in enumerate(range(nw), start=1):
+                if Wtmp[i - 1, i - 1] != 0.0:
+                    Dtemp[h - 1] += np.log(np.abs(Wtmp[i - 1, i - 1]))
+                else:
+                    print(f"Model {h} determinant is zero!")
+                    Dtemp[h - 1] += minlog
+                    raise ValueError("Determinant is zero. Raising explicitly for now")
+            if h == 1 and iter == 1:
+                assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
+            elif h == 1 and iter == 2:
+                assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
+        Dsum = Dtemp.copy()
         
-        Dtemp[h - 1] = 0.0
-        for i, _ in enumerate(range(nw), start=1):
-            if Wtmp[i - 1, i - 1] != 0.0:
-                Dtemp[h - 1] += np.log(np.abs(Wtmp[i - 1, i - 1]))
-            else:
-                print(f"Model {h} determinant is zero!")
-                Dtemp[h - 1] += minlog
-                raise ValueError("Determinant is zero. Raising explicitly for now")
-        if h == 1 and iter == 1:
-            assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
-        elif h == 1 and iter == 2:
-            assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
-    Dsum = Dtemp.copy()
-    
-    # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
-    LLtmp = get_updates_and_likelihood()
-    ndtmpsum = accum_updates_and_likelihood()
+        # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
+        LLtmp = get_updates_and_likelihood()
+        ndtmpsum = accum_updates_and_likelihood()
 
-    # XXX: checking get_updates_and_likelihood set things globally
-    # This should also give an idea of the vars that are assigned within that function.
-    # Iteration 1 checks that are values were set globally and are correct form baseline
-    if iter == 1:
-        assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-        assert_allclose(pdtype, 0)
-        assert_allclose(rho, 1.5)
-        assert_almost_equal(g[0, 0], 0.19658642673900478)
-        assert_almost_equal(g[808-1, 31], -0.22482758905985217)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        # assert_almost_equal(tmpsum, -52.929467835976844)
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-        assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[1-1, 31, 2, 0], 0.72907838295502048, decimal=7)
-        assert_almost_equal(z[808-1, 31, 2, 0], 0.057629436774909774, decimal=7)
-        assert_almost_equal(u[1-1], 0.72907838295502048)
-        assert_almost_equal(u[808-1], 0.057629436774909774, decimal=7)
-        assert u[808] == 0.0
-        # assert_almost_equal(usum, 325.12075860737821, decimal=7)
-        assert_almost_equal(tmpvec[1-1], -2.1657430925146017, decimal=7)
-        assert_almost_equal(tmpvec2[808-1], 1.3553626849082627, decimal=7)
-        assert tmpvec[808] == 0.0
-        assert tmpvec2[808] == 0.0
-        assert_almost_equal(ufp[1-1], 0.37032270799594241, decimal=7)
-        assert_almost_equal(dalpha_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-        assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-        assert_almost_equal(dmu_denom_tmp[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-        assert_almost_equal(dmu_denom_tmp[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
-        assert_almost_equal(y[808-1, 31, 2, 0], -1.8370080076417346)
-        assert_almost_equal(logab[1-1], -3.2486146387719028, decimal=7)
-        assert_almost_equal(tmpy[1-1], 0.038827961341319203, decimal=7)
-        assert_almost_equal(drho_numer_tmp[2, 31], 469.83886293477855, decimal=5)
-        assert_almost_equal(drho_denom_tmp[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-        assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-        assert_almost_equal(P[808-1], -111.60532918598989)
-        assert P[808] == 0.0
-        assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-        # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-        assert_almost_equal(fp[0], 0.50793264023957352)
-        assert_almost_equal(z0[0, 2], -1.7145368856186436)
-        
-        # These shouldnt get updated until the start of newton_optimization
-        
-        # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
-        # Meaning that globally (here) they should remain their globally assigned values
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert tmpsum == 0
-        assert usum == 0
-        assert vsum == 0
-
-        # These should also not change until the start of newton_optimization
-        assert np.all(dkappa_numer_tmp == 0)
-        assert np.all(dkappa_denom_tmp == 0)
-        assert np.all(dlambda_numer_tmp == 0)
-        assert np.all(dlambda_denom_tmp == 0)
-        assert np.all(dbaralpha_numer_tmp == 0)
-        assert np.all(dbaralpha_denom_tmp == 0)
-                
-        # accum_updates_and_likelihood checks..
+        # XXX: checking get_updates_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
-        assert dgm_numer[0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert dc_denom[0, 0] == 30504
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.057812635452922263)
-        assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
-        assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
-        assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-        assert_almost_equal(LL[0], -3.5136812444614773)
-    # Iteration 2 checks that our values were set globablly and updated based on the first iteration
-    elif iter == 2:
-        assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
-        assert_allclose(pdtype, 0)
-        assert_almost_equal(rho[0, 0], 1.4573165687688203)
-        assert_almost_equal(g[0, 0], 0.92578280732700213)
-        assert_almost_equal(g[808-1, 31], -0.57496468258661515)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.71373487258192514)
-        assert_almost_equal(u[0], 0.71373487258192514)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -1.3567967124454048)
-        assert_almost_equal(tmpvec2[807], 1.3678868714057633)
-        assert_almost_equal(ufp[0], 0.53217005240394044)
-        assert_almost_equal(dalpha_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -1108.6782119748359, decimal=4)
-        assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
-        assert_almost_equal(dmu_denom_tmp[2, 31], 28683.078762189802, decimal=1)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 9031.0233079175741, decimal=4)
-        assert_almost_equal(y[808-1, 31, 2, 0], -1.8067399375706592)
-        assert_almost_equal(logab[0], -2.075346997788714)
-        assert_almost_equal(tmpy[0], 0.12551286724858962)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1018.8376753403364, decimal=4)
-        assert_almost_equal(drho_denom_tmp[2, 31], 9221.7061911138153, decimal=4)
-        assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
-        assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-        assert_almost_equal(P[808-1], -109.77900836816768, decimal=6)
-        assert P[808] == 0.0
-        assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
+        # Iteration 1 checks that are values were set globally and are correct form baseline
+        if iter == 1:
+            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            assert_allclose(pdtype, 0)
+            assert_allclose(rho, 1.5)
+            assert_almost_equal(g[0, 0], 0.19658642673900478)
+            assert_almost_equal(g[808-1, 31], -0.22482758905985217)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            # assert_almost_equal(tmpsum, -52.929467835976844)
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
+            assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[1-1, 31, 2, 0], 0.72907838295502048, decimal=7)
+            assert_almost_equal(z[808-1, 31, 2, 0], 0.057629436774909774, decimal=7)
+            assert_almost_equal(u[1-1], 0.72907838295502048)
+            assert_almost_equal(u[808-1], 0.057629436774909774, decimal=7)
+            assert u[808] == 0.0
+            # assert_almost_equal(usum, 325.12075860737821, decimal=7)
+            assert_almost_equal(tmpvec[1-1], -2.1657430925146017, decimal=7)
+            assert_almost_equal(tmpvec2[808-1], 1.3553626849082627, decimal=7)
+            assert tmpvec[808] == 0.0
+            assert tmpvec2[808] == 0.0
+            assert_almost_equal(ufp[1-1], 0.37032270799594241, decimal=7)
+            assert_almost_equal(dalpha_numer_tmp[2, 31], 9499.991274464508, decimal=5)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+            assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
+            assert_almost_equal(dmu_denom_tmp[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+            assert_almost_equal(dmu_denom_tmp[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
+            assert_almost_equal(y[808-1, 31, 2, 0], -1.8370080076417346)
+            assert_almost_equal(logab[1-1], -3.2486146387719028, decimal=7)
+            assert_almost_equal(tmpy[1-1], 0.038827961341319203, decimal=7)
+            assert_almost_equal(drho_numer_tmp[2, 31], 469.83886293477855, decimal=5)
+            assert_almost_equal(drho_denom_tmp[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
+            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
+            assert_almost_equal(P[808-1], -111.60532918598989)
+            assert P[808] == 0.0
+            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
+            assert_almost_equal(fp[0], 0.50793264023957352)
+            assert_almost_equal(z0[0, 2], -1.7145368856186436)
+            
+            # These shouldnt get updated until the start of newton_optimization
+            
+            # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
+            # Meaning that globally (here) they should remain their globally assigned values
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert tmpsum == 0
+            assert usum == 0
+            assert vsum == 0
+
+            # These should also not change until the start of newton_optimization
+            assert np.all(dkappa_numer_tmp == 0)
+            assert np.all(dkappa_denom_tmp == 0)
+            assert np.all(dlambda_numer_tmp == 0)
+            assert np.all(dlambda_denom_tmp == 0)
+            assert np.all(dbaralpha_numer_tmp == 0)
+            assert np.all(dbaralpha_denom_tmp == 0)
+                    
+            # accum_updates_and_likelihood checks..
+            # This should also give an idea of the vars that are assigned within that function.
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert dc_denom[0, 0] == 30504
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.057812635452922263)
+            assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
+            assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
+            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
+            assert_almost_equal(LL[0], -3.5136812444614773)
+        # Iteration 2 checks that our values were set globablly and updated based on the first iteration
+        elif iter == 2:
+            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
+            assert_allclose(pdtype, 0)
+            assert_almost_equal(rho[0, 0], 1.4573165687688203)
+            assert_almost_equal(g[0, 0], 0.92578280732700213)
+            assert_almost_equal(g[808-1, 31], -0.57496468258661515)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.71373487258192514)
+            assert_almost_equal(u[0], 0.71373487258192514)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -1.3567967124454048)
+            assert_almost_equal(tmpvec2[807], 1.3678868714057633)
+            assert_almost_equal(ufp[0], 0.53217005240394044)
+            assert_almost_equal(dalpha_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -1108.6782119748359, decimal=4)
+            assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
+            assert_almost_equal(dmu_denom_tmp[2, 31], 28683.078762189802, decimal=1)
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
+            assert_almost_equal(dbeta_denom_tmp[2, 31], 9031.0233079175741, decimal=4)
+            assert_almost_equal(y[808-1, 31, 2, 0], -1.8067399375706592)
+            assert_almost_equal(logab[0], -2.075346997788714)
+            assert_almost_equal(tmpy[0], 0.12551286724858962)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1018.8376753403364, decimal=4)
+            assert_almost_equal(drho_denom_tmp[2, 31], 9221.7061911138153, decimal=4)
+            assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
+            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
+            assert_almost_equal(P[808-1], -109.77900836816768, decimal=6)
+            assert P[808] == 0.0
+            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
 
 
 
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-        assert np.all(dkappa_numer_tmp == 0)
-        assert np.all(dkappa_denom_tmp == 0)
-        assert np.all(dlambda_numer_tmp == 0)
-        assert np.all(dlambda_denom_tmp == 0)
-        assert np.all(dbaralpha_numer_tmp == 0)
-        assert np.all(dbaralpha_denom_tmp == 0)
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+            assert np.all(dkappa_numer_tmp == 0)
+            assert np.all(dkappa_denom_tmp == 0)
+            assert np.all(dlambda_numer_tmp == 0)
+            assert np.all(dlambda_denom_tmp == 0)
+            assert np.all(dbaralpha_numer_tmp == 0)
+            assert np.all(dbaralpha_denom_tmp == 0)
 
-        # accum_updates_and_likelihood checks..
-        assert dgm_numer[0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-        assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-        assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert dc_denom[0, 0] == 30504
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.02543823967703519)
-        assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
-        assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
-        assert_almost_equal(dAK[0, 0], 0.32313767684058614)
-        assert_almost_equal(LL[1], -3.4687938365664754)
-    # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
-    elif iter == 6:
-        assert_almost_equal(LLtmp, -3372846.1983887195, decimal=0) # XXX: check this value after some iterations
-        assert_allclose(pdtype, 0)
-        assert_almost_equal(rho[0, 0], 1.6596808063060098, decimal=6)
-        assert_almost_equal(g[0, 0], 1.794817411477307, decimal=5)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30516.952085935056, decimal=4)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.69136049069775307)
-        assert_almost_equal(u[0], 0.6913604906977530)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -1.1046865511863306)
-        assert_almost_equal(tmpvec2[807], 1.3194000624903648)
-        assert_almost_equal(ufp[0], 0.59641243589387538)
-        assert_almost_equal(dalpha_numer_tmp[2, 31], 8985.8986770919, decimal=3)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -111.8015829420637, decimal=4)
-        assert_almost_equal(sbeta[2, 31], 1.0839583626010401)
-        assert_almost_equal(dmu_denom_tmp[2, 31], 28930.973472169302, decimal=1)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 8985.8986770919, decimal=3)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 8970.9829177114116, decimal=3)
-        assert_almost_equal(y[807, 31, 2, 0], -1.7370898669683204)
-        assert_almost_equal(logab[0], -1.6591733867897893)
-        assert_almost_equal(tmpy[0], 0.1902962164721258)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1214.4636329640518, decimal=4)
-        assert_almost_equal(drho_denom_tmp[2, 31], 8985.8986770919, decimal=3)
-        assert_almost_equal(Wtmp2[31,31, 0], 487.69334138564017, decimal=5)
-        assert_almost_equal(dWtmp[31, 0, 0], 445.56655654078196, decimal=3)
-        assert_almost_equal(P[807], -108.94331430531588, decimal=4)
-        assert P[808] == 0.0
-        # Since this is the first iteration with a non-zero value of `fp`, we can check it(?)
-        assert_almost_equal(z0[807, 2],-4.0217986812214068, decimal=5) # TODO: check z0 at iter 1 and 2 too!
-        assert_almost_equal(fp[0], 0.86266491059092532)
-        assert_almost_equal(fp[57], -1.1889691032614789)
-        assert_almost_equal(fp[58], -1.278533424519249) # TODO: check fp at iter 1 and 2 too!?
-        assert_almost_equal(fp[59], -0.93242048677530975)
-        assert_almost_equal(fp[60], -0.63948266794539166)
-        assert_almost_equal(fp[84], -0.56089112997188539)
+            # accum_updates_and_likelihood checks..
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
+            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
+            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert dc_denom[0, 0] == 30504
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.02543823967703519)
+            assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
+            assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
+            assert_almost_equal(dAK[0, 0], 0.32313767684058614)
+            assert_almost_equal(LL[1], -3.4687938365664754)
+        # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
+        elif iter == 6:
+            assert_almost_equal(LLtmp, -3372846.1983887195, decimal=0) # XXX: check this value after some iterations
+            assert_allclose(pdtype, 0)
+            assert_almost_equal(rho[0, 0], 1.6596808063060098, decimal=6)
+            assert_almost_equal(g[0, 0], 1.794817411477307, decimal=5)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30516.952085935056, decimal=4)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.69136049069775307)
+            assert_almost_equal(u[0], 0.6913604906977530)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -1.1046865511863306)
+            assert_almost_equal(tmpvec2[807], 1.3194000624903648)
+            assert_almost_equal(ufp[0], 0.59641243589387538)
+            assert_almost_equal(dalpha_numer_tmp[2, 31], 8985.8986770919, decimal=3)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -111.8015829420637, decimal=4)
+            assert_almost_equal(sbeta[2, 31], 1.0839583626010401)
+            assert_almost_equal(dmu_denom_tmp[2, 31], 28930.973472169302, decimal=1)
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 8985.8986770919, decimal=3)
+            assert_almost_equal(dbeta_denom_tmp[2, 31], 8970.9829177114116, decimal=3)
+            assert_almost_equal(y[807, 31, 2, 0], -1.7370898669683204)
+            assert_almost_equal(logab[0], -1.6591733867897893)
+            assert_almost_equal(tmpy[0], 0.1902962164721258)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1214.4636329640518, decimal=4)
+            assert_almost_equal(drho_denom_tmp[2, 31], 8985.8986770919, decimal=3)
+            assert_almost_equal(Wtmp2[31,31, 0], 487.69334138564017, decimal=5)
+            assert_almost_equal(dWtmp[31, 0, 0], 445.56655654078196, decimal=3)
+            assert_almost_equal(P[807], -108.94331430531588, decimal=4)
+            assert P[808] == 0.0
+            # Since this is the first iteration with a non-zero value of `fp`, we can check it(?)
+            assert_almost_equal(z0[807, 2],-4.0217986812214068, decimal=5) # TODO: check z0 at iter 1 and 2 too!
+            assert_almost_equal(fp[0], 0.86266491059092532)
+            assert_almost_equal(fp[57], -1.1889691032614789)
+            assert_almost_equal(fp[58], -1.278533424519249) # TODO: check fp at iter 1 and 2 too!?
+            assert_almost_equal(fp[59], -0.93242048677530975)
+            assert_almost_equal(fp[60], -0.63948266794539166)
+            assert_almost_equal(fp[84], -0.56089112997188539)
+            
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+            assert np.all(dkappa_numer_tmp == 0)
+            assert np.all(dkappa_denom_tmp == 0)
+            assert np.all(dlambda_numer_tmp == 0)
+            assert np.all(dlambda_denom_tmp == 0)
+            assert np.all(dbaralpha_numer_tmp == 0)
+            assert np.all(dbaralpha_denom_tmp == 0)
         
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-        assert np.all(dkappa_numer_tmp == 0)
-        assert np.all(dkappa_denom_tmp == 0)
-        assert np.all(dlambda_numer_tmp == 0)
-        assert np.all(dlambda_denom_tmp == 0)
-        assert np.all(dbaralpha_numer_tmp == 0)
-        assert np.all(dbaralpha_denom_tmp == 0)
-       
-        # accum_updates_and_likelihood checks..
-        assert dgm_numer[0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 6863.1788101028606, decimal=1)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 422.1058070631093, decimal=1)
-        # TODO: If convergence between Fortran and Python fails, investigate this test further
-        assert_allclose(dmu_denom[0, 0], 24665.100564338834, atol=7) # XXX: actual: 24658.50885724126
-        assert_almost_equal(dmu_denom[1, 0], 81647.973272452728, decimal=0)
-        assert_almost_equal(dbeta_numer[0, 0], 6863.1788101028606, decimal=1)
-        assert_allclose(dbeta_denom[0, 0], 6188.9865111902163, atol=1) # XXX: watch this
-        assert_almost_equal(drho_numer[0, 0], -13.811215932674735, decimal=2)
-        assert_almost_equal(drho_denom[0, 0], 6863.1788101028606, decimal=1)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert_almost_equal(dc_denom[0, 0], 30504)
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.027336532858014823, decimal=6)
-        assert_almost_equal(Wtmp[0, 0], 0.035383384656119343, decimal=5)
-        assert_almost_equal(dA[31, 31, 0], 0.0044430908022083148)
-        assert_almost_equal(dAK[0, 0], 0.023777611358806922, decimal=5)
-        assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
-    # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
-    elif iter == 13:
-        assert_almost_equal(LLtmp, -3365666.6397414943, decimal=0)
-        assert_allclose(pdtype, 0)
-        assert rho[0, 0] == 2
-        assert_almost_equal(g[0, 0], 2.1400965914822829, decimal=4)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30536.517637659435, decimal=2)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.67832217780600279, decimal=6)
-        assert_almost_equal(u[0], 0.67832217780600279, decimal=6)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -1.0366792842674277, decimal=5)
-        assert_almost_equal(tmpvec2[807], 1.2955986372707802, decimal=6)
-        assert_almost_equal(ufp[0], 0.61178307738527227, decimal=6)
-        assert_almost_equal(dalpha_numer_tmp[2, 31],  8938.2762877099703, decimal=2)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -57.981251283326493, decimal=2)
-        assert_almost_equal(sbeta[2, 31], 1.1025496093930458, decimal=6)
-        assert_almost_equal(dmu_denom_tmp[2, 31], 30619.489765620856, decimal=0)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 8938.2762877099703, decimal=2)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 8888.1790665922072, decimal=2)
-        assert_almost_equal(y[807, 31, 2, 0], -1.727848166958698, decimal=6)
-        assert_almost_equal(logab[0], -1.5275975229548373, decimal=5)
-        assert_almost_equal(tmpy[0], 0.21705651469760887, decimal=6)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1221.8470584153822, decimal=3)
-        assert_almost_equal(drho_denom_tmp[2, 31], 8938.2762877099703, decimal=2)
-        assert_almost_equal(Wtmp2[31,31, 0], 497.47068868656362, decimal=3)
-        assert_almost_equal(dWtmp[31, 0, 0], 654.25229071070828, decimal=2)
-        assert_almost_equal(P[807], -108.61782325153263, decimal=3) # NOTE: with. new z formulation, this dropped from 4 to 3 decimals
-        assert P[808] == 0.0
-        # Since iter 13 is the first time rho[...,...] == 2, lets check fp and z0
-        assert_almost_equal(z0[0, 2], -1.9396173556279477, decimal=6)
-        assert_almost_equal(fp[0], 0.90190634686905302, decimal=6)
-        assert dalpha_denom[0, 0] == 30504
+            # accum_updates_and_likelihood checks..
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 6863.1788101028606, decimal=1)
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 422.1058070631093, decimal=1)
+            # TODO: If convergence between Fortran and Python fails, investigate this test further
+            assert_allclose(dmu_denom[0, 0], 24665.100564338834, atol=7) # XXX: actual: 24658.50885724126
+            assert_almost_equal(dmu_denom[1, 0], 81647.973272452728, decimal=0)
+            assert_almost_equal(dbeta_numer[0, 0], 6863.1788101028606, decimal=1)
+            assert_allclose(dbeta_denom[0, 0], 6188.9865111902163, atol=1) # XXX: watch this
+            assert_almost_equal(drho_numer[0, 0], -13.811215932674735, decimal=2)
+            assert_almost_equal(drho_denom[0, 0], 6863.1788101028606, decimal=1)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert_almost_equal(dc_denom[0, 0], 30504)
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.027336532858014823, decimal=6)
+            assert_almost_equal(Wtmp[0, 0], 0.035383384656119343, decimal=5)
+            assert_almost_equal(dA[31, 31, 0], 0.0044430908022083148)
+            assert_almost_equal(dAK[0, 0], 0.023777611358806922, decimal=5)
+            assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
+        # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
+        elif iter == 13:
+            assert_almost_equal(LLtmp, -3365666.6397414943, decimal=0)
+            assert_allclose(pdtype, 0)
+            assert rho[0, 0] == 2
+            assert_almost_equal(g[0, 0], 2.1400965914822829, decimal=4)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30536.517637659435, decimal=2)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.67832217780600279, decimal=6)
+            assert_almost_equal(u[0], 0.67832217780600279, decimal=6)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -1.0366792842674277, decimal=5)
+            assert_almost_equal(tmpvec2[807], 1.2955986372707802, decimal=6)
+            assert_almost_equal(ufp[0], 0.61178307738527227, decimal=6)
+            assert_almost_equal(dalpha_numer_tmp[2, 31],  8938.2762877099703, decimal=2)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -57.981251283326493, decimal=2)
+            assert_almost_equal(sbeta[2, 31], 1.1025496093930458, decimal=6)
+            assert_almost_equal(dmu_denom_tmp[2, 31], 30619.489765620856, decimal=0)
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 8938.2762877099703, decimal=2)
+            assert_almost_equal(dbeta_denom_tmp[2, 31], 8888.1790665922072, decimal=2)
+            assert_almost_equal(y[807, 31, 2, 0], -1.727848166958698, decimal=6)
+            assert_almost_equal(logab[0], -1.5275975229548373, decimal=5)
+            assert_almost_equal(tmpy[0], 0.21705651469760887, decimal=6)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1221.8470584153822, decimal=3)
+            assert_almost_equal(drho_denom_tmp[2, 31], 8938.2762877099703, decimal=2)
+            assert_almost_equal(Wtmp2[31,31, 0], 497.47068868656362, decimal=3)
+            assert_almost_equal(dWtmp[31, 0, 0], 654.25229071070828, decimal=2)
+            assert_almost_equal(P[807], -108.61782325153263, decimal=3) # NOTE: with. new z formulation, this dropped from 4 to 3 decimals
+            assert P[808] == 0.0
+            # Since iter 13 is the first time rho[...,...] == 2, lets check fp and z0
+            assert_almost_equal(z0[0, 2], -1.9396173556279477, decimal=6)
+            assert_almost_equal(fp[0], 0.90190634686905302, decimal=6)
+            assert dalpha_denom[0, 0] == 30504
 
 
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-        assert np.all(dkappa_numer_tmp == 0)
-        assert np.all(dkappa_denom_tmp == 0)
-        assert np.all(dlambda_numer_tmp == 0)
-        assert np.all(dlambda_denom_tmp == 0)
-        assert np.all(dbaralpha_numer_tmp == 0)
-        assert np.all(dbaralpha_denom_tmp == 0)
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+            assert np.all(dkappa_numer_tmp == 0)
+            assert np.all(dkappa_denom_tmp == 0)
+            assert np.all(dlambda_numer_tmp == 0)
+            assert np.all(dlambda_denom_tmp == 0)
+            assert np.all(dbaralpha_numer_tmp == 0)
+            assert np.all(dbaralpha_denom_tmp == 0)
 
-        # accum_updates_and_likelihood checks..
-        # NOTE: diff is getting bigger...
-        assert_allclose(dmu_numer[0, 0], 21.957169883469504, atol=.61) # NOTE: with the new z formulation, this diff increased from .6 to .61
-        # NOTE: this is better than iteration 6
-        assert_almost_equal(dmu_denom[0, 0], 24054.607188781654, decimal=0)
-        assert_almost_equal(dbeta_numer[0, 0], 6939.7767992896879, decimal=0)
-        assert_almost_equal(dbeta_denom[0, 0], 6778.306242024727, decimal=0)
-        assert_almost_equal(drho_numer[0, 0], -85.115110322050114, decimal=1)
-        assert_almost_equal(drho_denom[0, 0], 6939.7767992896879, decimal=0)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert_almost_equal(dc_denom[0, 0], 30504)
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.017302191303964484, decimal=6)
-        assert_almost_equal(Wtmp[0, 0], 0.014739590254522428, decimal=5)
-        assert_almost_equal(dA[31, 31, 0], 0.0033054619451940532, decimal=6)
-        assert_almost_equal(dAK[0, 0], 0.054656493651221078, decimal=4)
-        assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
+            # accum_updates_and_likelihood checks..
+            # NOTE: diff is getting bigger...
+            assert_allclose(dmu_numer[0, 0], 21.957169883469504, atol=.61) # NOTE: with the new z formulation, this diff increased from .6 to .61
+            # NOTE: this is better than iteration 6
+            assert_almost_equal(dmu_denom[0, 0], 24054.607188781654, decimal=0)
+            assert_almost_equal(dbeta_numer[0, 0], 6939.7767992896879, decimal=0)
+            assert_almost_equal(dbeta_denom[0, 0], 6778.306242024727, decimal=0)
+            assert_almost_equal(drho_numer[0, 0], -85.115110322050114, decimal=1)
+            assert_almost_equal(drho_denom[0, 0], 6939.7767992896879, decimal=0)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert_almost_equal(dc_denom[0, 0], 30504)
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.017302191303964484, decimal=6)
+            assert_almost_equal(Wtmp[0, 0], 0.014739590254522428, decimal=5)
+            assert_almost_equal(dA[31, 31, 0], 0.0033054619451940532, decimal=6)
+            assert_almost_equal(dAK[0, 0], 0.054656493651221078, decimal=4)
+            assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
+            
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 6939.7767992896879, decimal=0)
+        # Iteration 49 is the last iteration before Newton optimization starts
+        elif iter == 49:
+            # XXX: Differences are getting bigger...
+            assert_allclose(LLtmp, -3359186.107234634, atol=1.7)   # NOTE: with the new z formulation, this diff increased from 1.7 to 2.6...
+            assert_allclose(pdtype, 0)
+            assert rho[0, 0] == 2
+            assert_almost_equal(g[0, 0], 2.477478447402544, decimal=2)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30624.756591096837, decimal=2)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.65982001083857444, decimal=4)
+            assert_almost_equal(u[0], 0.65982001083857444, decimal=4)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -0.88428781327395733, decimal=4)
+            assert_almost_equal(tmpvec2[807], 1.2870592154292586, decimal=5)
+            assert_almost_equal(ufp[0], 0.64192219596666389, decimal=4)
+            assert_almost_equal(dalpha_numer_tmp[2, 31],  8872.5404004132524, decimal=0)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -24.138141493554972, decimal=2)
+            assert_almost_equal(sbeta[2, 31], 1.1911349478668991, decimal=5)
+            assert_allclose(dmu_denom_tmp[2, 31], 33081.137409173243, atol=5) # XXX: got a lot bigger
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 8872.5404004132524, decimal=0)
+            assert_almost_equal(dbeta_denom_tmp[2, 31], 8850.4168334085825, decimal=0)
+            assert_almost_equal(y[807, 31, 2, 0], -1.7396451392547487, decimal=4)
+            assert_almost_equal(logab[0], -1.2873335336072882, decimal=4)
+            assert_almost_equal(tmpy[0], 0.27600576284568779, decimal=4)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1183.0743703872088, decimal=1)
+
+            assert_almost_equal(drho_denom_tmp[2, 31], 8872.5404004132524, decimal=0)
+            assert_almost_equal(Wtmp2[31,31, 0], 529.75883911183087, decimal=1)
+            assert_almost_equal(dWtmp[31, 0, 0], 238.68591274888794, decimal=2)
+            assert_almost_equal(P[807], -108.18470148389292, decimal=3)
+            assert P[808] == 0.0
+            # Since this is the first iteration with a non-zero value of `fp`, we can check it(?)
+            assert_almost_equal(z0[807, 2], -3.8937208002587753, decimal=4) # TODO: check z0 at iter 1 and 2 too!
+            assert_almost_equal(fp[0], 0.97287470131564513, decimal=4)
+
+
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+            assert np.all(dkappa_numer_tmp == 0)
+            assert np.all(dkappa_denom_tmp == 0)
+            assert np.all(dlambda_numer_tmp == 0)
+            assert np.all(dlambda_denom_tmp == 0)
+            assert np.all(dbaralpha_numer_tmp == 0)
+            assert np.all(dbaralpha_denom_tmp == 0)
+
+
+            # accum_updates_and_likelihood checks..
+            assert dalpha_denom[0, 0] == 30504
+            # NOTE: diff is getting bigger...
+            assert_allclose(dmu_numer[0, 0], -12.03609417605216, atol=1.1)
+            # NOTE: These are getting bigger too...
+            assert_allclose(dmu_denom[0, 0], 31965.096806640384, atol=5) # XXX: This is exploding
+            assert_allclose(dbeta_numer[0, 0], 7352.8606832566402, atol=3)
+            assert_allclose(dbeta_denom[0, 0], 7334.7039452669806, atol=3)
+            assert_allclose(drho_numer[0, 0], 98.927157788623788, atol=1.05)
+            assert_allclose(drho_denom[0, 0], 7352.8606832566402, atol=3)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert_almost_equal(dc_denom[0, 0], 30504)
+            assert no_newt is False
+            # NOTE: At least these are stable
+            assert_almost_equal(ndtmpsum, 0.0084891038412971687, decimal=6)
+            assert_almost_equal(Wtmp[0, 0], 2.335031968114798e-06, decimal=5)
+            assert_almost_equal(dA[31, 31, 0], 0.0075845852186566549, decimal=6)
+            assert_almost_equal(dAK[0, 0], 0.048022737203789939, decimal=5)
+            assert_almost_equal(LL[48], -3.4413377213179359, decimal=5)
+        elif iter == 50:
+            # XXX: The difference in LLtmp bt Python and Fortran is now greater than 1
+            assert_allclose(LLtmp, -3359066.4458949207, atol=2.2)
+            assert_allclose(pdtype, 0)
+            assert rho[0, 0] == 2
+            assert_almost_equal(g[0, 0], 2.4810795312213751, decimal=3)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30627.050414988473, decimal=2)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.65953411404641771, decimal=4)
+            assert_almost_equal(u[0], 0.65953411404641771, decimal=4)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -0.5971585956051837, decimal=4)
+            assert_almost_equal(tmpvec2[807], 1.2874846666558946, decimal=5)
+            assert_almost_equal(ufp[0], 0.64207450875025041, decimal=4)
+            assert_almost_equal(dalpha_numer_tmp[2, 31], 8873.0781815692208, decimal=0)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -24.176289588340516, decimal=2)
+            assert_almost_equal(sbeta[2, 31], 1.1927559154063399, decimal=5)
+            # NOTE: This is pretty damn big.
+            assert_allclose(dmu_denom_tmp[2, 31], 32726.934158884735, atol=41)
+            assert_almost_equal(dbeta_numer_tmp[2, 31], 8873.0781815692208, decimal=0)
+            assert_allclose(dbeta_denom_tmp[2, 31], 8851.7435942223565, atol=.3)
+            assert_almost_equal(y[807, 31, 2, 0], -1.738775509162269, decimal=4)
+            assert_almost_equal(logab[0], -1.2854512329438936, decimal=4)
+            assert_almost_equal(tmpy[0], 0.27652577793502991, decimal=4)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1178.544837232155, decimal=1)
+            assert_almost_equal(drho_denom_tmp[2, 31], 8873.0781815692208, decimal=0)
+            assert_almost_equal(Wtmp2[31,31, 0], 530.78335296460727, decimal=2)
+            assert_almost_equal(dWtmp[31, 0, 0], 234.27368516496344, decimal=1)
+            assert_almost_equal(P[807], -108.17582556557629, decimal=3)
+            assert P[808] == 0.0
+            assert_almost_equal(z0[807, 2], -3.8918613674010727, decimal=4)
+            assert_almost_equal(fp[0], 0.97352736587187594, decimal=4)
+
+            assert_allclose(zeta, 1) # TODO: check zeta at iter 1 and 2 too!
+            assert_almost_equal(nd[0, 0], 0.20135421232976469) # TODO: check nd at iter 1 and 2 too!
+
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+
+            # This is the first iteration with newton optimization.
+            assert_allclose(dkappa_numer_tmp[2,31,0], 18154.657956748808, atol=.5)
+            assert_almost_equal(dkappa_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
+            assert_allclose(dalpha_numer_tmp[0, 0], 7358.455587371981, atol=2.3)
+            assert dalpha_denom_tmp[0, 0] == 30504
+            assert_almost_equal(dlambda_numer_tmp[2,31,0], 12781.052993351612, decimal=0)
+            assert_almost_equal(dlambda_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
+            assert_almost_equal(dbaralpha_numer_tmp[2,31,0], 8873.0781815692208, decimal=0)
+            assert dbaralpha_denom_tmp[2,31,0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30627.050414988473, decimal=2)
+            assert dsigma2_denom_tmp[31, 0] == 30504
+
+            # accum_updates_and_likelihood checks..
+            assert dalpha_denom[0, 0] == 30504
+            # Diff is a tiny bit better than iter 49
+            assert_allclose(dmu_numer[0, 0], -11.348554826921401, atol=.8)
+            assert_allclose(dmu_denom[0, 0], 32076.594558378649, atol=5.5)
+            assert_allclose(dbeta_numer[0, 0], 7358.455587371981, atol=2.5)
+            assert_allclose(dbeta_denom[0, 0], 7341.1247549479785, atol=2.8)
+            assert_allclose(drho_numer[0, 0], 101.25911463423381, atol=1.2)
+            assert_allclose(drho_denom[0, 0], 7358.455587371981, atol=2.3)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert_almost_equal(dc_denom[0, 0], 30504)
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.0073565912271668201, decimal=6)
+            assert_almost_equal(Wtmp[0, 0], 8.1190061761001329e-06, decimal=5)
+            assert_almost_equal(Wtmp[31, 31], -0.0003951422941096415, decimal=5)
+            assert_almost_equal(dA[31, 31, 0], 0.0091219326235389663, decimal=5)
+            assert_almost_equal(dAK[0, 0], 0.020958681999945186, decimal=5)
+            assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
+
+            # This is the first iteration with newton optimization.
+            assert_allclose(dkappa_numer[2,31,0], 18154.657956748808, atol=.5)
+            assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
+            assert_allclose(dalpha_numer[0, 0], 7358.455587371981, atol=2.3)
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dlambda_numer[2, 31, 0], 12781.052993351612, decimal=0)
+            assert_almost_equal(dlambda_denom[2, 31, 0], 8873.0781815692208, decimal=0)
+            assert_almost_equal(dbaralpha_numer[2, 31, 0], 8873.0781815692208, decimal=0)
+            assert dbaralpha_denom[2, 31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30627.050414988473, decimal=2)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(lambda_[31, 0], 1.999712575384778, decimal=5)
+            assert_almost_equal(kappa[31, 0], 1.934993986251285, decimal=5)
+            assert_almost_equal(baralpha[2, 31, 0], 0.2908824475993057, decimal=5)
+        elif iter == 51:
+            # Make sure that things got updated correctly
+            assert_allclose(LLtmp, -3358872.6750551183, atol=2.6)
+            assert_allclose(pdtype, 0)
+            assert rho[0, 0] == 2
+            assert_almost_equal(g[0, 0], 2.4852170473110653, decimal=3)
+            assert g[808, 31] == 0.0
+            assert dgm_numer_tmp[0] == 30504
+            assert dsigma2_denom_tmp[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30628.831839164774, decimal=2)
+            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert dc_denom_tmp[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[0, 31, 2, 0], 0.65928333926925609, decimal=5)
+            assert_almost_equal(u[0], 0.65928333926925609, decimal=5)
+            assert u[808] == 0.0
+            assert_almost_equal(tmpvec[0], -0.59593364968695495, decimal=5)
+            assert_almost_equal(tmpvec2[807], 1.2872566025488381, decimal=5)
+            assert_almost_equal(ufp[0], 0.64235001279904225, decimal=4)
+            assert_allclose(dalpha_numer_tmp[2, 31], 8874.8603597611218, atol=.3)
+            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dmu_numer_tmp[2, 31], -27.292610955142912, decimal=1)
+            assert_almost_equal(sbeta[2, 31], 1.1945437443486264, decimal=5)
+            assert_allclose(dmu_denom_tmp[2, 31], 33180.850258108716, atol=7.8) # XXX: This improved from iter 50
+            assert_allclose(dmu_denom_tmp[2, 31], 33180.850258108716, atol=7.8) # XXX: This improved from iter 50
+            assert_allclose(dbeta_numer_tmp[2, 31], 8874.8603597611218, atol=.3)
+            assert_allclose(dbeta_denom_tmp[2, 31], 8847.2545940464734, atol=.3)
+            assert_almost_equal(y[807, 31, 2, 0], -1.735853371099926, decimal=4)
+            assert_almost_equal(logab[0], -1.2831506247770437, decimal=4)
+            assert_almost_equal(tmpy[0], 0.27716268775714137, decimal=5)
+            assert_almost_equal(drho_numer_tmp[2, 31], 1166.9743530092449, decimal=1)
+            assert_allclose(drho_denom_tmp[2, 31], 8874.8603597611218, atol=.3)
+            assert_almost_equal(Wtmp2[31,31, 0], 532.49387475396043, decimal=2)
+            assert_almost_equal(dWtmp[31, 0, 0], 237.34893948745585, decimal=1)
+            assert_almost_equal(P[807], -108.16502581281499, decimal=4)
+            assert P[808] == 0.0
+            assert_almost_equal(z0[807, 2], -3.8860451816517467, decimal=4)
+            assert_almost_equal(fp[0], 0.97431555529829927, decimal=5)
+            assert_allclose(zeta, 1) # TODO: check zeta at iter 1 and 2 too!
+            assert_almost_equal(nd[0, 0], 0.20135421232976469)
+
+            assert tblksize == 0
+            assert xstrt == 0
+            assert xstp == 0
+            assert bstrt == 30209
+            assert bstp == 30504
+            assert LLinc == 0
+            assert usum == 0
+            assert vsum == 0
+            assert tmpsum == 0
+
+            # This is the second iteration with newton optimization.
+            assert_allclose(dkappa_numer_tmp[2,31,0], 18220.944183088388, atol=.5)
+            assert_almost_equal(dkappa_denom_tmp[2,31,0], 8874.8603597611218, decimal=0)
+            assert_allclose(dalpha_numer_tmp[0, 0], 7363.6689390720639, atol=2.1)
+            assert dalpha_denom_tmp[0, 0] == 30504
+            assert_almost_equal(dlambda_numer_tmp[2,31,0], 12757.121968441179, decimal=0)
+            assert_almost_equal(dlambda_denom_tmp[2,31,0], 8874.8603597611218, decimal=0)
+            assert_almost_equal(dbaralpha_numer_tmp[2,31,0], 8874.8603597611218, decimal=0)
+            assert dbaralpha_denom_tmp[2,31,0] == 30504
+            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30628.831839164774, decimal=2)
+            assert dsigma2_denom_tmp[31, 0] == 30504
+
+            # accum_updates_and_likelihood checks..
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], -10.832650902288606, decimal=0)
+            assert_allclose(dmu_denom[0, 0], 32177.109448796087, atol=7.7)
+            assert_allclose(dbeta_numer[0, 0], 7363.6689390720639, atol=2.1)
+            assert_allclose(dbeta_denom[0, 0], 7347.4789931268888, atol=2.5)
+            assert_allclose(drho_numer[0, 0], 103.44667822536218, atol=1.2)
+            assert_allclose(drho_denom[0, 0], 7363.6689390720639, atol=2.1)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert_almost_equal(dc_denom[0, 0], 30504)
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.0073389825605663503, decimal=6)
+            assert_almost_equal(Wtmp[0, 0], -1.8419101530766373e-05, decimal=4)
+            assert_almost_equal(Wtmp[31, 31], -0.00025591957520697674, decimal=6)
+            assert_almost_equal(dA[31, 31, 0], 0.0097612643283371426, decimal=6)
+            assert_almost_equal(dAK[0, 0], 0.02073372161888665, decimal=4)
+            assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
+
+            # This is the second iteration with newton optimization.
+            assert_allclose(dkappa_numer[2,31,0], 18220.944183088388, atol=.5)
+            assert_allclose(dkappa_denom[2,31,0], 8874.8603597611218, atol=.3)
+            assert_allclose(dalpha_numer[0, 0], 7363.6689390720639, atol=2.1)
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dlambda_numer[2, 31, 0], 12757.121968441179, decimal=0)
+            assert_almost_equal(dlambda_denom[2, 31, 0], 8874.8603597611218, decimal=0)
+            assert_almost_equal(dbaralpha_numer[2, 31, 0], 8874.8603597611218, decimal=0)
+            assert dbaralpha_denom[2, 31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30628.831839164774, decimal=2)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(lambda_[31, 0], 1.9994560610191709, decimal=5)
+            assert_almost_equal(kappa[31, 0], 1.9359511444613011, decimal=5)
+            assert_almost_equal(baralpha[2, 31, 0], 0.29094087200895363, decimal=5)
+            assert lrate == 0.1
+        elif iter > 51:
+            assert no_newt == False
+
+
+            
         
-        assert dgm_numer[0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 6939.7767992896879, decimal=0)
-    # Iteration 49 is the last iteration before Newton optimization starts
-    elif iter == 49:
-        # XXX: Differences are getting bigger...
-        assert_allclose(LLtmp, -3359186.107234634, atol=1.7)   # NOTE: with the new z formulation, this diff increased from 1.7 to 2.6...
-        assert_allclose(pdtype, 0)
-        assert rho[0, 0] == 2
-        assert_almost_equal(g[0, 0], 2.477478447402544, decimal=2)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30624.756591096837, decimal=2)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.65982001083857444, decimal=4)
-        assert_almost_equal(u[0], 0.65982001083857444, decimal=4)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -0.88428781327395733, decimal=4)
-        assert_almost_equal(tmpvec2[807], 1.2870592154292586, decimal=5)
-        assert_almost_equal(ufp[0], 0.64192219596666389, decimal=4)
-        assert_almost_equal(dalpha_numer_tmp[2, 31],  8872.5404004132524, decimal=0)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -24.138141493554972, decimal=2)
-        assert_almost_equal(sbeta[2, 31], 1.1911349478668991, decimal=5)
-        assert_allclose(dmu_denom_tmp[2, 31], 33081.137409173243, atol=5) # XXX: got a lot bigger
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 8872.5404004132524, decimal=0)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 8850.4168334085825, decimal=0)
-        assert_almost_equal(y[807, 31, 2, 0], -1.7396451392547487, decimal=4)
-        assert_almost_equal(logab[0], -1.2873335336072882, decimal=4)
-        assert_almost_equal(tmpy[0], 0.27600576284568779, decimal=4)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1183.0743703872088, decimal=1)
+        # !----- display log likelihood of data
+        # if (seg_rank == 0) then
+        c2 = time.time()
+        t0 = c2 - c1
+        # assert t0 < 2
+        #  if (mod(iter,outstep) == 0) then
 
-        assert_almost_equal(drho_denom_tmp[2, 31], 8872.5404004132524, decimal=0)
-        assert_almost_equal(Wtmp2[31,31, 0], 529.75883911183087, decimal=1)
-        assert_almost_equal(dWtmp[31, 0, 0], 238.68591274888794, decimal=2)
-        assert_almost_equal(P[807], -108.18470148389292, decimal=3)
-        assert P[808] == 0.0
-        # Since this is the first iteration with a non-zero value of `fp`, we can check it(?)
-        assert_almost_equal(z0[807, 2], -3.8937208002587753, decimal=4) # TODO: check z0 at iter 1 and 2 too!
-        assert_almost_equal(fp[0], 0.97287470131564513, decimal=4)
+        if (iter % outstep) == 0:
+            print(
+                f"Iteration {iter}, lrate = {lrate}, LL = {LL[iter - 1]} "
+                f"nd = {ndtmpsum}, D = {Dsum.max()} {Dsum.min()} "
+                f"took {t0:.2f} seconds"
+                )
+            c1 = time.time()
 
-
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-        assert np.all(dkappa_numer_tmp == 0)
-        assert np.all(dkappa_denom_tmp == 0)
-        assert np.all(dlambda_numer_tmp == 0)
-        assert np.all(dlambda_denom_tmp == 0)
-        assert np.all(dbaralpha_numer_tmp == 0)
-        assert np.all(dbaralpha_denom_tmp == 0)
-
-
-        # accum_updates_and_likelihood checks..
-        assert dalpha_denom[0, 0] == 30504
-        # NOTE: diff is getting bigger...
-        assert_allclose(dmu_numer[0, 0], -12.03609417605216, atol=1.1)
-        # NOTE: These are getting bigger too...
-        assert_allclose(dmu_denom[0, 0], 31965.096806640384, atol=5) # XXX: This is exploding
-        assert_allclose(dbeta_numer[0, 0], 7352.8606832566402, atol=3)
-        assert_allclose(dbeta_denom[0, 0], 7334.7039452669806, atol=3)
-        assert_allclose(drho_numer[0, 0], 98.927157788623788, atol=1.05)
-        assert_allclose(drho_denom[0, 0], 7352.8606832566402, atol=3)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert_almost_equal(dc_denom[0, 0], 30504)
-        assert no_newt is False
-        # NOTE: At least these are stable
-        assert_almost_equal(ndtmpsum, 0.0084891038412971687, decimal=6)
-        assert_almost_equal(Wtmp[0, 0], 2.335031968114798e-06, decimal=5)
-        assert_almost_equal(dA[31, 31, 0], 0.0075845852186566549, decimal=6)
-        assert_almost_equal(dAK[0, 0], 0.048022737203789939, decimal=5)
-        assert_almost_equal(LL[48], -3.4413377213179359, decimal=5)
-    elif iter == 50:
-        # XXX: The difference in LLtmp bt Python and Fortran is now greater than 1
-        assert_allclose(LLtmp, -3359066.4458949207, atol=2.2)
-        assert_allclose(pdtype, 0)
-        assert rho[0, 0] == 2
-        assert_almost_equal(g[0, 0], 2.4810795312213751, decimal=3)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30627.050414988473, decimal=2)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.65953411404641771, decimal=4)
-        assert_almost_equal(u[0], 0.65953411404641771, decimal=4)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -0.5971585956051837, decimal=4)
-        assert_almost_equal(tmpvec2[807], 1.2874846666558946, decimal=5)
-        assert_almost_equal(ufp[0], 0.64207450875025041, decimal=4)
-        assert_almost_equal(dalpha_numer_tmp[2, 31], 8873.0781815692208, decimal=0)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -24.176289588340516, decimal=2)
-        assert_almost_equal(sbeta[2, 31], 1.1927559154063399, decimal=5)
-        # NOTE: This is pretty damn big.
-        assert_allclose(dmu_denom_tmp[2, 31], 32726.934158884735, atol=41)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 8873.0781815692208, decimal=0)
-        assert_allclose(dbeta_denom_tmp[2, 31], 8851.7435942223565, atol=.3)
-        assert_almost_equal(y[807, 31, 2, 0], -1.738775509162269, decimal=4)
-        assert_almost_equal(logab[0], -1.2854512329438936, decimal=4)
-        assert_almost_equal(tmpy[0], 0.27652577793502991, decimal=4)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1178.544837232155, decimal=1)
-        assert_almost_equal(drho_denom_tmp[2, 31], 8873.0781815692208, decimal=0)
-        assert_almost_equal(Wtmp2[31,31, 0], 530.78335296460727, decimal=2)
-        assert_almost_equal(dWtmp[31, 0, 0], 234.27368516496344, decimal=1)
-        assert_almost_equal(P[807], -108.17582556557629, decimal=3)
-        assert P[808] == 0.0
-        assert_almost_equal(z0[807, 2], -3.8918613674010727, decimal=4)
-        assert_almost_equal(fp[0], 0.97352736587187594, decimal=4)
-
-        assert_allclose(zeta, 1) # TODO: check zeta at iter 1 and 2 too!
-        assert_almost_equal(nd[0, 0], 0.20135421232976469) # TODO: check nd at iter 1 and 2 too!
-
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-
-        # This is the first iteration with newton optimization.
-        assert_allclose(dkappa_numer_tmp[2,31,0], 18154.657956748808, atol=.5)
-        assert_almost_equal(dkappa_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
-        assert_allclose(dalpha_numer_tmp[0, 0], 7358.455587371981, atol=2.3)
-        assert dalpha_denom_tmp[0, 0] == 30504
-        assert_almost_equal(dlambda_numer_tmp[2,31,0], 12781.052993351612, decimal=0)
-        assert_almost_equal(dlambda_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
-        assert_almost_equal(dbaralpha_numer_tmp[2,31,0], 8873.0781815692208, decimal=0)
-        assert dbaralpha_denom_tmp[2,31,0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30627.050414988473, decimal=2)
-        assert dsigma2_denom_tmp[31, 0] == 30504
-
-        # accum_updates_and_likelihood checks..
-        assert dalpha_denom[0, 0] == 30504
-        # Diff is a tiny bit better than iter 49
-        assert_allclose(dmu_numer[0, 0], -11.348554826921401, atol=.8)
-        assert_allclose(dmu_denom[0, 0], 32076.594558378649, atol=5.5)
-        assert_allclose(dbeta_numer[0, 0], 7358.455587371981, atol=2.5)
-        assert_allclose(dbeta_denom[0, 0], 7341.1247549479785, atol=2.8)
-        assert_allclose(drho_numer[0, 0], 101.25911463423381, atol=1.2)
-        assert_allclose(drho_denom[0, 0], 7358.455587371981, atol=2.3)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert_almost_equal(dc_denom[0, 0], 30504)
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.0073565912271668201, decimal=6)
-        assert_almost_equal(Wtmp[0, 0], 8.1190061761001329e-06, decimal=5)
-        assert_almost_equal(Wtmp[31, 31], -0.0003951422941096415, decimal=5)
-        assert_almost_equal(dA[31, 31, 0], 0.0091219326235389663, decimal=5)
-        assert_almost_equal(dAK[0, 0], 0.020958681999945186, decimal=5)
-        assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
-
-        # This is the first iteration with newton optimization.
-        assert_allclose(dkappa_numer[2,31,0], 18154.657956748808, atol=.5)
-        assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
-        assert_allclose(dalpha_numer[0, 0], 7358.455587371981, atol=2.3)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dlambda_numer[2, 31, 0], 12781.052993351612, decimal=0)
-        assert_almost_equal(dlambda_denom[2, 31, 0], 8873.0781815692208, decimal=0)
-        assert_almost_equal(dbaralpha_numer[2, 31, 0], 8873.0781815692208, decimal=0)
-        assert dbaralpha_denom[2, 31, 0] == 30504
-        assert_almost_equal(dsigma2_numer[31, 0], 30627.050414988473, decimal=2)
-        assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(lambda_[31, 0], 1.999712575384778, decimal=5)
-        assert_almost_equal(kappa[31, 0], 1.934993986251285, decimal=5)
-        assert_almost_equal(baralpha[2, 31, 0], 0.2908824475993057, decimal=5)
-    elif iter == 51:
-        # Make sure that things got updated correctly
-        assert_allclose(LLtmp, -3358872.6750551183, atol=2.6)
-        assert_allclose(pdtype, 0)
-        assert rho[0, 0] == 2
-        assert_almost_equal(g[0, 0], 2.4852170473110653, decimal=3)
-        assert g[808, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30628.831839164774, decimal=2)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[0, 31, 2, 0], 0.65928333926925609, decimal=5)
-        assert_almost_equal(u[0], 0.65928333926925609, decimal=5)
-        assert u[808] == 0.0
-        assert_almost_equal(tmpvec[0], -0.59593364968695495, decimal=5)
-        assert_almost_equal(tmpvec2[807], 1.2872566025488381, decimal=5)
-        assert_almost_equal(ufp[0], 0.64235001279904225, decimal=4)
-        assert_allclose(dalpha_numer_tmp[2, 31], 8874.8603597611218, atol=.3)
-        assert dalpha_denom_tmp[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -27.292610955142912, decimal=1)
-        assert_almost_equal(sbeta[2, 31], 1.1945437443486264, decimal=5)
-        assert_allclose(dmu_denom_tmp[2, 31], 33180.850258108716, atol=7.8) # XXX: This improved from iter 50
-        assert_allclose(dmu_denom_tmp[2, 31], 33180.850258108716, atol=7.8) # XXX: This improved from iter 50
-        assert_allclose(dbeta_numer_tmp[2, 31], 8874.8603597611218, atol=.3)
-        assert_allclose(dbeta_denom_tmp[2, 31], 8847.2545940464734, atol=.3)
-        assert_almost_equal(y[807, 31, 2, 0], -1.735853371099926, decimal=4)
-        assert_almost_equal(logab[0], -1.2831506247770437, decimal=4)
-        assert_almost_equal(tmpy[0], 0.27716268775714137, decimal=5)
-        assert_almost_equal(drho_numer_tmp[2, 31], 1166.9743530092449, decimal=1)
-        assert_allclose(drho_denom_tmp[2, 31], 8874.8603597611218, atol=.3)
-        assert_almost_equal(Wtmp2[31,31, 0], 532.49387475396043, decimal=2)
-        assert_almost_equal(dWtmp[31, 0, 0], 237.34893948745585, decimal=1)
-        assert_almost_equal(P[807], -108.16502581281499, decimal=4)
-        assert P[808] == 0.0
-        assert_almost_equal(z0[807, 2], -3.8860451816517467, decimal=4)
-        assert_almost_equal(fp[0], 0.97431555529829927, decimal=5)
-        assert_allclose(zeta, 1) # TODO: check zeta at iter 1 and 2 too!
-        assert_almost_equal(nd[0, 0], 0.20135421232976469)
-
-        assert tblksize == 0
-        assert xstrt == 0
-        assert xstp == 0
-        assert bstrt == 30209
-        assert bstp == 30504
-        assert LLinc == 0
-        assert usum == 0
-        assert vsum == 0
-        assert tmpsum == 0
-
-        # This is the second iteration with newton optimization.
-        assert_allclose(dkappa_numer_tmp[2,31,0], 18220.944183088388, atol=.5)
-        assert_almost_equal(dkappa_denom_tmp[2,31,0], 8874.8603597611218, decimal=0)
-        assert_allclose(dalpha_numer_tmp[0, 0], 7363.6689390720639, atol=2.1)
-        assert dalpha_denom_tmp[0, 0] == 30504
-        assert_almost_equal(dlambda_numer_tmp[2,31,0], 12757.121968441179, decimal=0)
-        assert_almost_equal(dlambda_denom_tmp[2,31,0], 8874.8603597611218, decimal=0)
-        assert_almost_equal(dbaralpha_numer_tmp[2,31,0], 8874.8603597611218, decimal=0)
-        assert dbaralpha_denom_tmp[2,31,0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30628.831839164774, decimal=2)
-        assert dsigma2_denom_tmp[31, 0] == 30504
-
-        # accum_updates_and_likelihood checks..
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], -10.832650902288606, decimal=0)
-        assert_allclose(dmu_denom[0, 0], 32177.109448796087, atol=7.7)
-        assert_allclose(dbeta_numer[0, 0], 7363.6689390720639, atol=2.1)
-        assert_allclose(dbeta_denom[0, 0], 7347.4789931268888, atol=2.5)
-        assert_allclose(drho_numer[0, 0], 103.44667822536218, atol=1.2)
-        assert_allclose(drho_denom[0, 0], 7363.6689390720639, atol=2.1)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert_almost_equal(dc_denom[0, 0], 30504)
-        assert no_newt is False
-        assert_almost_equal(ndtmpsum, 0.0073389825605663503, decimal=6)
-        assert_almost_equal(Wtmp[0, 0], -1.8419101530766373e-05, decimal=4)
-        assert_almost_equal(Wtmp[31, 31], -0.00025591957520697674, decimal=6)
-        assert_almost_equal(dA[31, 31, 0], 0.0097612643283371426, decimal=6)
-        assert_almost_equal(dAK[0, 0], 0.02073372161888665, decimal=4)
-        assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
-
-        # This is the second iteration with newton optimization.
-        assert_allclose(dkappa_numer[2,31,0], 18220.944183088388, atol=.5)
-        assert_allclose(dkappa_denom[2,31,0], 8874.8603597611218, atol=.3)
-        assert_allclose(dalpha_numer[0, 0], 7363.6689390720639, atol=2.1)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dlambda_numer[2, 31, 0], 12757.121968441179, decimal=0)
-        assert_almost_equal(dlambda_denom[2, 31, 0], 8874.8603597611218, decimal=0)
-        assert_almost_equal(dbaralpha_numer[2, 31, 0], 8874.8603597611218, decimal=0)
-        assert dbaralpha_denom[2, 31, 0] == 30504
-        assert_almost_equal(dsigma2_numer[31, 0], 30628.831839164774, decimal=2)
-        assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(lambda_[31, 0], 1.9994560610191709, decimal=5)
-        assert_almost_equal(kappa[31, 0], 1.9359511444613011, decimal=5)
-        assert_almost_equal(baralpha[2, 31, 0], 0.29094087200895363, decimal=5)
-        assert lrate == 0.1
-    elif iter > 51:
-        assert no_newt == False
-
-
-        
-    
-    # !----- display log likelihood of data
-    # if (seg_rank == 0) then
-    c2 = time.time()
-    t0 = c2 - c1
-    # assert t0 < 2
-    #  if (mod(iter,outstep) == 0) then
-
-    if (iter % outstep) == 0:
-        print(
-            f"Iteration {iter}, lrate = {lrate}, LL = {LL[iter - 1]} "
-            f"nd = {ndtmpsum}, D = {Dsum.max()} {Dsum.min()} "
-            f"took {t0:.2f} seconds"
-              )
-        c1 = time.time()
-
-    # !----- check whether likelihood is increasing
-    # if (seg_rank == 0) then
-    # ! if we get a NaN early, try to reinitialize and startover a few times 
-    if (iter <= restartiter and np.isnan(LL[iter - 1])):
-        if numrestarts > maxrestarts:
-            leave = True
-            raise RuntimeError()
-        else:
-            raise NotImplementedError()
-    # end if
-    if iter == 2:
-        assert not np.isnan(LL[iter - 1])
-        assert not (LL[iter - 1] < LL[iter - 2])
-    if iter > 1:
-        if np.isnan(LL[iter - 1]) and iter > restartiter:
-            leave = True
-            raise RuntimeError(f"Got NaN! Exiting")
-        if (LL[iter - 1] < LL[iter - 2]):
-            assert 1 == 0
-            print("Likelihood decreasing!")
-            if (lrate < minlrate) or (ndtmpsum <= min_nd):
+        # !----- check whether likelihood is increasing
+        # if (seg_rank == 0) then
+        # ! if we get a NaN early, try to reinitialize and startover a few times 
+        if (iter <= restartiter and np.isnan(LL[iter - 1])):
+            if numrestarts > maxrestarts:
                 leave = True
-                print("minimum change threshold met, exiting loop")
+                raise RuntimeError()
             else:
-                lrate *= lratefact
-                rholrate *= rholratefact
-                numdecs += 1
-                if numdecs >= maxdecs:
-                    lrate0 *= lrate0 * lratefact
-                    if iter == 2:
-                        assert 1 == 0
-                    if iter > newt_start:
-                        raise NotImplementedError()
-                        rholrate0 *= rholratefact
-                    if do_newton and iter > newt_start:
-                        print("Reducing maximum Newton lrate")
-                        newtrate *= lratefact
-                        assert 1 == 0 # stop to check that value
-                    numdecs = 0
-                # end if (numdecs >= maxdecs)
-            # end if (lrate vs minlrate)
-        # end if LL
-        if use_min_dll:
-            if (LL[iter - 1] - LL[iter - 2]) < min_dll:
-                numincs += 1
+                raise NotImplementedError()
+        # end if
+        if iter == 2:
+            assert not np.isnan(LL[iter - 1])
+            assert not (LL[iter - 1] < LL[iter - 2])
+        if iter > 1:
+            if np.isnan(LL[iter - 1]) and iter > restartiter:
+                leave = True
+                raise RuntimeError(f"Got NaN! Exiting")
+            if (LL[iter - 1] < LL[iter - 2]):
                 assert 1 == 0
-                if numincs > maxincs:
+                print("Likelihood decreasing!")
+                if (lrate < minlrate) or (ndtmpsum <= min_nd):
+                    leave = True
+                    print("minimum change threshold met, exiting loop")
+                else:
+                    lrate *= lratefact
+                    rholrate *= rholratefact
+                    numdecs += 1
+                    if numdecs >= maxdecs:
+                        lrate0 *= lrate0 * lratefact
+                        if iter == 2:
+                            assert 1 == 0
+                        if iter > newt_start:
+                            raise NotImplementedError()
+                            rholrate0 *= rholratefact
+                        if do_newton and iter > newt_start:
+                            print("Reducing maximum Newton lrate")
+                            newtrate *= lratefact
+                            assert 1 == 0 # stop to check that value
+                        numdecs = 0
+                    # end if (numdecs >= maxdecs)
+                # end if (lrate vs minlrate)
+            # end if LL
+            if use_min_dll:
+                if (LL[iter - 1] - LL[iter - 2]) < min_dll:
+                    numincs += 1
+                    assert 1 == 0
+                    if numincs > maxincs:
+                        leave = True
+                        print(
+                            f"Exiting because likelihood increasing by less than {min_dll} "
+                            f"for more than {maxincs} iterations ..."
+                            )
+                        assert 1 == 0
+                else:
+                    numincs = 0
+                if iter == 2:
+                    assert numincs == 0
+            else:
+                raise NotImplementedError() # pragma no cover
+            if use_grad_norm:
+                if ndtmpsum < min_nd:
                     leave = True
                     print(
-                        f"Exiting because likelihood increasing by less than {min_dll} "
-                        f"for more than {maxincs} iterations ..."
-                        )
+                        f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
+                    )
                     assert 1 == 0
+                if iter == 2:
+                    assert leave is False
             else:
-                numincs = 0
-            if iter == 2:
-                assert numincs == 0
-        else:
-            raise NotImplementedError() # pragma no cover
-        if use_grad_norm:
-            if ndtmpsum < min_nd:
-                leave = True
-                print(
-                    f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
-                )
-                assert 1 == 0
-            if iter == 2:
-                assert leave is False
-        else:
-            raise NotImplementedError() # pragma no cover
-    # end if (iter > 1)
-    if do_newton and (iter == newt_start):
-        print("Starting Newton ... setting numdecs to 0")
+                raise NotImplementedError() # pragma no cover
+        # end if (iter > 1)
+        if do_newton and (iter == newt_start):
+            print("Starting Newton ... setting numdecs to 0")
 
-    # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
-    # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
+        # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
+        # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
 
-    if leave:
-        assert 1 == 0  # Stop to check that exit condition is correct
-        exit()
-    if startover:
-        raise NotImplementedError()
-    else:
-        # !----- do updates: gm, alpha, mu, sbeta, rho, W
-        update_params()
-        if iter == 1:
-            # XXX: making sure all variables were globally set.
-            assert_almost_equal(Anrmk, 0.98448954017506363)
-            assert gm[0] == 1
-            assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
-            assert_almost_equal(c[0, 0], 0.0)
-            assert posdef is True
-            assert_almost_equal(lrate0, 0.05)
-            assert_almost_equal(lrate, 0.05)
-            assert_almost_equal(rholrate0, 0.05)
-            assert_almost_equal(rholrate, 0.05)
-            assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
-            assert maxrho == 2
-            assert minrho == 1
-            assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
-            assert not rhotmp[rhotmp == maxrho].any()
-            assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert not rho[rho == minrho].any()
-            assert_almost_equal(A[31, 31], 0.99984153789378194)
-            assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
-            assert_almost_equal(mu[0, 31], -0.8568024781696123)
-            assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
-            assert_almost_equal(wc[0, 0], 0)
-        elif iter == 2:
-            assert_almost_equal(Anrmk, 0.99554375802233519)
-            assert gm[0] == 1
-            assert_almost_equal(alpha[0, 0], 0.25773550277474716)
-            assert_almost_equal(c[0, 0], 0.0)
-            assert posdef is True
-            assert_almost_equal(lrate0, 0.05)
-            assert_almost_equal(lrate, 0.05)
-            assert_almost_equal(rholrate0, 0.05)
-            assert_almost_equal(rholrate, 0.05)
-            assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
-            assert maxrho == 2
-            assert minrho == 1
-            assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
-            assert not rhotmp[rhotmp == maxrho].any()
-            assert_almost_equal(rho[0, 0], 1.5062036957555023)
-            assert not rhotmp[rhotmp == maxrho].any()
-            assert_almost_equal(A[31, 31], 0.99985752877785194)
-            assert_almost_equal(sbeta[0, 0], 1.07570700640128)
-            assert_almost_equal(mu[0, 0], -0.53783126597732789)
-            assert_almost_equal(W[0, 0, 0], 1.0002289118030874)
-            assert_almost_equal(wc[0, 0], 0)
-
-        # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
-
-        # !----- write history if it's a specified step
-        # if (do_history .and. mod(iter,histstep) == 0) then
-
-        # !----- reject data
-        if (
-            do_reject
-            and (maxrej > 0)
-            and (
-                iter == rejstart
-                or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
-            )
-        ):
+        if leave:
+            assert 1 == 0  # Stop to check that exit condition is correct
+            exit()
+        if startover:
             raise NotImplementedError()
-        
-        iter += 1
-    # end if/else
-# end while
+        else:
+            # !----- do updates: gm, alpha, mu, sbeta, rho, W
+            update_params()
+            if iter == 1:
+                # XXX: making sure all variables were globally set.
+                assert_almost_equal(Anrmk, 0.98448954017506363)
+                assert gm[0] == 1
+                assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
+                assert_almost_equal(c[0, 0], 0.0)
+                assert posdef is True
+                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(lrate, 0.05)
+                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(rholrate, 0.05)
+                assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
+                assert maxrho == 2
+                assert minrho == 1
+                assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(rho[0, 0], 1.4573165687688203)
+                assert not rho[rho == minrho].any()
+                assert_almost_equal(A[31, 31], 0.99984153789378194)
+                assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
+                assert_almost_equal(mu[0, 31], -0.8568024781696123)
+                assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
+                assert_almost_equal(wc[0, 0], 0)
+            elif iter == 2:
+                assert_almost_equal(Anrmk, 0.99554375802233519)
+                assert gm[0] == 1
+                assert_almost_equal(alpha[0, 0], 0.25773550277474716)
+                assert_almost_equal(c[0, 0], 0.0)
+                assert posdef is True
+                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(lrate, 0.05)
+                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(rholrate, 0.05)
+                assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
+                assert maxrho == 2
+                assert minrho == 1
+                assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(rho[0, 0], 1.5062036957555023)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(A[31, 31], 0.99985752877785194)
+                assert_almost_equal(sbeta[0, 0], 1.07570700640128)
+                assert_almost_equal(mu[0, 0], -0.53783126597732789)
+                assert_almost_equal(W[0, 0, 0], 1.0002289118030874)
+                assert_almost_equal(wc[0, 0], 0)
 
-# call write_output
-# The final comparison with Fortran saved outputs.
+            # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
 
-LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
-assert_almost_equal(LL, LL_f, decimal=5)
-assert_allclose(LL, LL_f, atol=1e-5)
+            # !----- write history if it's a specified step
+            # if (do_history .and. mod(iter,histstep) == 0) then
 
-A_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/A")
-A_f = A_f.reshape((32, 32)).T # XXX: is there a simpler way to do this?
-assert_almost_equal(A, A_f, decimal=3)
+            # !----- reject data
+            if (
+                do_reject
+                and (maxrej > 0)
+                and (
+                    iter == rejstart
+                    or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
+                )
+            ):
+                raise NotImplementedError()
+            
+            iter += 1
+        # end if/else
+    # end while
 
-alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
-alpha_f = alpha_f.reshape((32, 3))
-alpha_f = alpha_f.T
-assert_almost_equal(alpha, alpha_f, decimal=3)
+    # call write_output
+    # The final comparison with Fortran saved outputs.
 
-c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
-c_f = c_f.reshape((32, 1)).squeeze()
-assert_almost_equal(c.squeeze(), c_f)
+    LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
+    assert_almost_equal(LL, LL_f, decimal=5)
+    assert_allclose(LL, LL_f, atol=1e-5)
 
+    A_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/A")
+    A_f = A_f.reshape((32, 32)).T # XXX: is there a simpler way to do this?
+    assert_almost_equal(A, A_f, decimal=3)
 
-comp_list_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/comp_list", dtype=np.int32)
-# Something weird is happening there.
+    alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
+    alpha_f = alpha_f.reshape((32, 3))
+    alpha_f = alpha_f.T
+    assert_almost_equal(alpha, alpha_f, decimal=3)
 
-
-gm_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/gm")
-assert gm == gm_f == np.array([1.])
-
-mean_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mean")
-assert_almost_equal(mean, mean_f)
-
-mu_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mu", dtype=np.float64)
-mu_f = mu_f.reshape((32, 3))
-mu_f = mu_f.T
-assert_almost_equal(mu, mu_f, decimal=1)
-
-rho_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/rho", dtype=np.float64)
-rho_f = rho_f.reshape((32, 3))
-rho_f = rho_f.T
-assert_almost_equal(rho, rho_f, decimal=2)
-
-S_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/S", dtype=np.float64)
-S_f = S_f.reshape((32, 32,)).T
-assert_almost_equal(S, S_f)
-
-sbeta_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/sbeta", dtype=np.float64)
-sbeta_f = sbeta_f.reshape((32, 3))
-sbeta_f = sbeta_f.T
-assert_almost_equal(sbeta, sbeta_f, decimal=2)
-
-W_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/W", dtype=np.float64)
-W_f = W_f.reshape((32, 32, 1)).squeeze().T
-assert_almost_equal(W.squeeze(), W_f, decimal=3)
-
-import matplotlib.pyplot as plt
+    c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
+    c_f = c_f.reshape((32, 1)).squeeze()
+    assert_almost_equal(c.squeeze(), c_f)
 
 
-for output in ["python", "fortran"]:
-    fig, ax = plt.subplots(
-        nrows=8,
-        ncols=4,
-        figsize=(12, 16),
-        constrained_layout=True
-        )
-    for i, this_ax in zip(range(32), ax.flat):
-        mne.viz.plot_topomap(
-            A[:, i] if output == "python" else A_f[:, i],
-            pos=raw.info,
-            axes=this_ax,
-            show=False,
-        )
-        this_ax.set_title(f"Component {i}")
-    fig.suptitle(f"AMICA Component Topomaps ({output})", fontsize=16)
-    fig.savefig(f"/Users/scotterik/devel/projects/amica-python/figs/amica_topos_{output}.png")
-    plt.close(fig)
+    comp_list_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/comp_list", dtype=np.int32)
+    # Something weird is happening there.
+
+
+    gm_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/gm")
+    assert gm == gm_f == np.array([1.])
+
+    mean_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mean")
+    assert_almost_equal(mean, mean_f)
+
+    mu_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mu", dtype=np.float64)
+    mu_f = mu_f.reshape((32, 3))
+    mu_f = mu_f.T
+    assert_almost_equal(mu, mu_f, decimal=1)
+
+    rho_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/rho", dtype=np.float64)
+    rho_f = rho_f.reshape((32, 3))
+    rho_f = rho_f.T
+    assert_almost_equal(rho, rho_f, decimal=2)
+
+    S_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/S", dtype=np.float64)
+    S_f = S_f.reshape((32, 32,)).T
+    assert_almost_equal(S, S_f)
+
+    sbeta_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/sbeta", dtype=np.float64)
+    sbeta_f = sbeta_f.reshape((32, 3))
+    sbeta_f = sbeta_f.T
+    assert_almost_equal(sbeta, sbeta_f, decimal=2)
+
+    W_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/W", dtype=np.float64)
+    W_f = W_f.reshape((32, 32, 1)).squeeze().T
+    assert_almost_equal(W.squeeze(), W_f, decimal=3)
+
+    import matplotlib.pyplot as plt
+
+
+    for output in ["python", "fortran"]:
+        fig, ax = plt.subplots(
+            nrows=8,
+            ncols=4,
+            figsize=(12, 16),
+            constrained_layout=True
+            )
+        for i, this_ax in zip(range(32), ax.flat):
+            mne.viz.plot_topomap(
+                A[:, i] if output == "python" else A_f[:, i],
+                pos=raw.info,
+                axes=this_ax,
+                show=False,
+            )
+            this_ax.set_title(f"Component {i}")
+        fig.suptitle(f"AMICA Component Topomaps ({output})", fontsize=16)
+        fig.savefig(f"/Users/scotterik/devel/projects/amica-python/figs/amica_topos_{output}.png")
+        plt.close(fig)
 
 
 def get_amica_sources(X, W, S, mean):
