@@ -1229,12 +1229,44 @@ def accum_updates_and_likelihood():
             kappa[:, :] = 0.0
             lambda_[:, :] = 0.0
             for h, _ in enumerate(range(num_models), start=1):
+                # In Fortran, this is a nested for loop...
+                # for do (h = 1, num_models)
+                # for do j = 1, num_mix
+                h_idx = h - 1  # For easier indexing
+
+                # These 6 variables don't exist in Fortran.
+                baralpha_h = baralpha[:, :, h_idx]
+                dkappa_numer_h = dkappa_numer[:, :, h_idx]
+                dkappa_denom_h = dkappa_denom[:, :, h_idx]
+                dlambda_numer_h = dlambda_numer[:, :, h_idx]
+                dlambda_denom_h = dlambda_denom[:, :, h_idx]
+                # Get the component indices for this model 'h'
+                comp_indices_h = comp_list[:, h_idx] - 1 # shape (nw,)
+
+                # Calculate dkap for all mixtures 
+                # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
+                # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
+                dkap_h = dkappa_numer_h / dkappa_denom_h
+                # --- Update kappa ---
+                # Calculate all update terms and sum along the mixture axis
+                kappa_update = np.sum(baralpha_h * dkap_h, axis=0)
+                kappa_new = kappa.copy()
+                kappa_new[:, h_idx] += kappa_update
+
+                # --- Update lambda_ ---
+                # lambda(i,h) = lambda(i,h) + ...
+                #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
+                # mu_selected will have shape (num_mix, nw)
+                mu_selected = mu[:, comp_indices_h]
+
+                # Calculate the full lambda update term
+                lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap_h * mu_selected**2)
+                lambda_update = np.sum(baralpha_h * lambda_inner_term, axis=0)
+                lambda_new = lambda_.copy()
+                lambda_new[:, h_idx] += lambda_update
+
                 for i, _ in enumerate(range(nw), start=1):
                     for j, _ in enumerate(range(num_mix), start=1):
-                        # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
-                        # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
-                        # lambda(i,h) = lambda(i,h) + ...
-                        # baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
                         dkap = dkappa_numer[j - 1, i - 1, h - 1] / dkappa_denom[j - 1, i - 1, h - 1]
                         kappa[i - 1, h - 1] += baralpha[j - 1, i - 1, h - 1] * dkap
                         lambda_[i - 1, h - 1] = (
@@ -1257,6 +1289,10 @@ def accum_updates_and_likelihood():
                 assert_almost_equal(dkap, 2.0460383178476764, decimal=4)
                 assert_almost_equal(kappa[31, 0], 1.934993986251285, decimal=5)
                 assert_almost_equal(lambda_[0, 0], 2.1605803812074149, decimal=3)
+                assert_allclose(lambda_new, lambda_, atol=1e-7)
+                assert_allclose(kappa_new, kappa, atol=1e-7)
+                assert_almost_equal(dkap_h[2, 31], 2.0460383178476764, decimal=4)
+                assert 1 == 0
             # if (print_debug) then
         # end if (do_newton .and. iter >= newt_start)
         elif not do_newton and iter >= newt_start:
