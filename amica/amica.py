@@ -820,7 +820,16 @@ def get_updates_and_likelihood():
                     # end match (pdtype[i - 1, h - 1])
                 # end do (j)
             # end do (i)
-            
+
+             # --- Vectorized calculation of ufp and g update ---
+            assert u_mat.shape == fp_all.shape == (1024, 32, 3)  # max_block_size, nw, num_mix
+            # for (i = 1, nw)
+            # for (j = 1, num_mix)
+            # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
+            # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
+            ufp_all = u_mat * fp_all
+
+
             for i, _ in enumerate(range(nw), start=1):
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
                 for j, _ in enumerate(range(num_mix), start=1):
@@ -848,7 +857,7 @@ def get_updates_and_likelihood():
 
 
                     # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
-                    ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
+                    ufp[bstrt-1:bstp] = ufp_all[bstrt-1:bstp, i - 1, j - 1]
                     if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                         assert_almost_equal(ufp[bstrt-1], 0.39545687967550036, decimal=7)
                     
