@@ -732,8 +732,10 @@ def get_updates_and_likelihood():
             z_slice = z[bstrt-1:bstp, :, :, h_index]  # shape: (block_size, nw, num_mix)
             # Reshape v_slice for broadcasting over z_slice
             v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-            u_mat = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+            u_mat[bstrt-1:bstp, :, :] = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
             usum_mat = u_mat.sum(axis=0)  # shape: (nw, num_mix)
+            assert u_mat.shape == (1024, 32, 3)  # max_block_size, nw, num_mix
+            assert usum_mat.shape == (32, 3)  # nw, num_mix
             
             # !--- get fp, zfp
             for i, _ in enumerate(range(nw), start=1):
@@ -2443,9 +2445,10 @@ if __name__ == "__main__":
         z = np.zeros((N1, nw, num_mix, num_models))  # Allocate z
         z0 = np.zeros((N1, num_mix))  # Allocate z0
         fp = np.zeros(N1)
-        fp_all = np.zeros((N1, nw, num_mix))
+        fp_all = np.zeros((N1, nw, num_mix)) # Python only
         ufp = np.zeros(N1)
         u = np.zeros(N1)
+        u_mat = np.zeros((N1, nw, num_mix)) # Python only
         utmp = np.zeros(N1)
         ztmp = np.zeros(N1)
         vtmp = np.zeros(N1)
