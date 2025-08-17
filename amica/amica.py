@@ -734,6 +734,91 @@ def get_updates_and_likelihood():
             v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
             u_mat = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
             usum_mat = u_mat.sum(axis=0)  # shape: (nw, num_mix)
+            
+            # !--- get fp, zfp
+            for i, _ in enumerate(range(nw), start=1):
+                i_index = i - 1
+                for j, _ in enumerate(range(num_mix), start=1):
+                    j_index = j - 1
+                    match pdtype[i - 1, h - 1]:
+                        case 0:
+                            # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+                            if iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
+                                assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0
+                            if rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0:
+                                # fp(bstrt:bstp) = sign(dble(1.0),y(bstrt:bstp,i,j,h))
+                                fp_all[bstrt-1:bstp, i_index, j_index] = np.sign(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
+                            # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
+                            elif rho[j - 1, comp_list[i - 1, h - 1] - 1] == 2.0:
+                                # fp(bstrt:bstp) = y(bstrt:bstp,i,j,h) * dble(2.0)
+                                fp_all[bstrt-1:bstp, i_index, j_index] = y[bstrt-1:bstp, i - 1, j - 1, h - 1] * 2.0
+                            else:
+                                # call vdLn(tblksize,abs(y(bstrt:bstp,i,j,h)),tmpvec(bstrt:bstp))
+                                # call vdExp(tblksize,(rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp),tmpvec2(bstrt:bstp))
+                                # tmpvec(bstrt:bstp) = log(abs(y(bstrt:bstp,i,j,h)))
+                                # tmpvec2(bstrt:bstp) = exp((rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp))
+                                tmpvec[bstrt-1:bstp] = np.log(np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1]))
+                                tmpvec2[bstrt-1:bstp] = np.exp(
+                                    (rho[j - 1, comp_list[i - 1, h - 1] - 1] - 1.0) * tmpvec[bstrt-1:bstp]
+                                )
+                                # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)) * tmpvec2(bstrt:bstp)
+                                fp_all[bstrt-1:bstp, i_index, j_index] = (
+                                    rho[j - 1, comp_list[i - 1, h - 1] - 1]
+                                    * np.sign(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
+                                    * tmpvec2[bstrt-1:bstp]
+                                )
+                                if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                    assert_almost_equal(tmpvec[bstrt-1], -0.24010849721367941, decimal=7)
+                                    assert_almost_equal(tmpvec[bstp-1], 0.78783579259769021, decimal=7)
+                                    assert_almost_equal(tmpvec2[bstrt-1], 0.88687232382412851, decimal=7)
+                                    assert_almost_equal(tmpvec2[bstp-1], 1.4827788020492549, decimal=7)
+                                    assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.5  # this is set by the config file
+                                    assert_almost_equal(fp_all[bstrt-1, i_index, j_index], 1.3303084857361926, decimal=7)
+                                    assert tmpvec[bstp] == 0.0
+                                    assert tmpvec2[bstp] == 0.0
+                            if iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
+                                np.testing.assert_equal(fp_all[:142, i_index, j_index], -1.0)
+                                assert fp_all[142, i_index, j_index] == 1.0
+                                np.testing.assert_equal(fp_all[475:512, i_index, j_index], 1.0)
+                                # This is actually testing a leftover value from a previous iteration..
+                                # this indice was touched by the last block of iteration 5.
+                                assert_almost_equal(fp[512], 0.65938585821435558)
+                                assert_almost_equal(fp_all[512, 31, 2], 0.65938585821435558)
+                            elif iter == 5 and i == 32 and j == 3 and blk == 59:
+                                assert_almost_equal(fp_all[512, 31, 2], 0.65938585821435558)
+                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 2:
+                                np.testing.assert_equal(fp_all[:3, i_index, j_index], 1.0)
+                                assert fp_all[3, i_index, j_index] == -1.0
+                                assert fp_all[4, i_index, j_index] == -1.0
+                                np.testing.assert_equal(fp_all[5:39, i_index, j_index], 1.0)
+                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 59:
+                                np.testing.assert_equal(fp_all[:58, i_index, j_index], -1.0)
+                                assert fp_all[58, i_index, j_index] == 1.0
+                                assert fp_all[59, i_index, j_index] == -1.0
+                                np.testing.assert_equal(fp_all[60:84, i_index, j_index], -1.0)
+                            elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                assert_almost_equal(fp_all[bstrt-1, i_index, j_index], -0.36683010780476027, decimal=4)
+                            elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 59:
+                                assert_almost_equal(fp_all[0, i_index, j_index], 0.97056106297026667, decimal=4)
+                            elif iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=6)
+                        case 2:
+                            raise NotImplementedError()
+                        case 3:
+                            raise NotImplementedError()
+                        case 4:
+                            raise NotImplementedError()
+                        case 1:
+                            raise NotImplementedError()
+                        case _:
+                            raise ValueError(
+                                f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
+                                "Expected values are 0, 1, 2, 3, or 4."
+                            )
+                    # end match (pdtype[i - 1, h - 1])
+                # end do (j)
+            # end do (i)
+            
             for i, _ in enumerate(range(nw), start=1):
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
                 for j, _ in enumerate(range(num_mix), start=1):
@@ -757,76 +842,8 @@ def get_updates_and_likelihood():
                         assert_almost_equal(tmpsum_c_vec[0], -24.713041229552594)
 
                     # !--- get fp, zfp
-                    match pdtype[i - 1, h - 1]:
-                        case 0:
-                            # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-                            if iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
-                                assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0
-                            if rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0:
-                                # fp(bstrt:bstp) = sign(dble(1.0),y(bstrt:bstp,i,j,h))
-                                fp[bstrt-1:bstp] = np.sign(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
-                            # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
-                            elif rho[j - 1, comp_list[i - 1, h - 1] - 1] == 2.0:
-                                # fp(bstrt:bstp) = y(bstrt:bstp,i,j,h) * dble(2.0)
-                                fp[bstrt-1:bstp] = y[bstrt-1:bstp, i - 1, j - 1, h - 1] * 2.0
-                            else:
-                                # call vdLn(tblksize,abs(y(bstrt:bstp,i,j,h)),tmpvec(bstrt:bstp))
-                                # call vdExp(tblksize,(rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp),tmpvec2(bstrt:bstp))
-                                # tmpvec(bstrt:bstp) = log(abs(y(bstrt:bstp,i,j,h)))
-                                # tmpvec2(bstrt:bstp) = exp((rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp))
-                                tmpvec[bstrt-1:bstp] = np.log(np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1]))
-                                tmpvec2[bstrt-1:bstp] = np.exp(
-                                    (rho[j - 1, comp_list[i - 1, h - 1] - 1] - 1.0) * tmpvec[bstrt-1:bstp]
-                                )
-                                # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)) * tmpvec2(bstrt:bstp)
-                                fp[bstrt-1:bstp] = (
-                                    rho[j - 1, comp_list[i - 1, h - 1] - 1]
-                                    * np.sign(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
-                                    * tmpvec2[bstrt-1:bstp]
-                                )
-                                if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                    assert_almost_equal(tmpvec[bstrt-1], -0.24010849721367941, decimal=7)
-                                    assert_almost_equal(tmpvec[bstp-1], 0.78783579259769021, decimal=7)
-                                    assert_almost_equal(tmpvec2[bstrt-1], 0.88687232382412851, decimal=7)
-                                    assert_almost_equal(tmpvec2[bstp-1], 1.4827788020492549, decimal=7)
-                                    assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.5  # this is set by the config file
-                                    assert_almost_equal(fp[bstrt-1], 1.3303084857361926, decimal=7)
-                                    assert tmpvec[bstp] == 0.0
-                                    assert tmpvec2[bstp] == 0.0
-                            if iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
-                                np.testing.assert_equal(fp[:142], -1.0)
-                                assert fp[142] == 1.0
-                                np.testing.assert_equal(fp[475:512], 1.0)
-                                assert_almost_equal(fp[512], 0.65938585821435558)
-                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 2:
-                                np.testing.assert_equal(fp[:3], 1.0)
-                                assert fp[3] == -1.0
-                                assert fp[4] == -1.0
-                                np.testing.assert_equal(fp[5:39], 1.0)
-                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 59:
-                                np.testing.assert_equal(fp[:58], -1.0)
-                                assert fp[58] == 1.0
-                                assert fp[59] == -1.0
-                                np.testing.assert_equal(fp[60:84], -1.0)
-                            elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                assert_almost_equal(fp[bstrt-1], -0.36683010780476027, decimal=4)
-                            elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 59:
-                                assert_almost_equal(fp[0], 0.97056106297026667, decimal=4)
-                                
-                        case 2:
-                            raise NotImplementedError()
-                        case 3:
-                            raise NotImplementedError()
-                        case 4:
-                            raise NotImplementedError()
-                        case 1:
-                            raise NotImplementedError()
-                        case _:
-                            raise ValueError(
-                                f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
-                                "Expected values are 0, 1, 2, 3, or 4."
-                            )
-                    # end match (pdtype[i - 1, h - 1])
+                    fp[bstrt-1:bstp] = fp_all[bstrt-1:bstp, i - 1, j - 1]
+
 
                     # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
                     ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
@@ -849,7 +866,11 @@ def get_updates_and_likelihood():
                                 assert_almost_equal(sbeta[0, 0], 2.1795738370308331, decimal=3)
                                 assert np.all(dkappa_numer_tmp == 0.0)
                                 assert np.all(dkappa_denom_tmp == 0.0)
-                                assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=6)
+                                # The commented out test below was testing tmpvec value from the pdtype code block,
+                                # Which originally was just before get g.
+                                # Since we moved the pdtype code block into its own dedicated loop above,
+                                # I moved the commented out test over there.
+                                # assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=6)
                                 assert len(tmpvec[bstrt-1:bstp]) == 512
                             # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
                             # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
@@ -2422,6 +2443,7 @@ if __name__ == "__main__":
         z = np.zeros((N1, nw, num_mix, num_models))  # Allocate z
         z0 = np.zeros((N1, num_mix))  # Allocate z0
         fp = np.zeros(N1)
+        fp_all = np.zeros((N1, nw, num_mix))
         ufp = np.zeros(N1)
         u = np.zeros(N1)
         utmp = np.zeros(N1)
