@@ -725,13 +725,20 @@ def get_updates_and_likelihood():
             elif iter == 49 and h == 1 and blk == 1:
                 assert_almost_equal(tmpsum_c_vec[0], -24.713041229552594, decimal=5)
 
-            for i, _ in enumerate(range(nw), start=1):                
+            # NOTE: VECTORIZED
+            # for do (j = 1, num_mix)
+            # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
+            # usum = sum( u(bstrt:bstp) )
+            z_slice = z[bstrt-1:bstp, :, :, h_index]  # shape: (block_size, nw, num_mix)
+            # Reshape v_slice for broadcasting over z_slice
+            v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
+            u_mat = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+            usum_mat = u_mat.sum(axis=0)  # shape: (nw, num_mix)
+            for i, _ in enumerate(range(nw), start=1):
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
                 for j, _ in enumerate(range(num_mix), start=1):
-                    # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
-                    # usum = sum( u(bstrt:bstp) )
-                    u[bstrt-1:bstp] = v[bstrt-1:bstp, h - 1] * z[bstrt-1:bstp, i - 1, j - 1, h - 1]
-                    usum = u[bstrt-1:bstp].sum()
+                    u[:u_mat.shape[0]] = u_mat[:, i - 1, j - 1]  # shape: (block_size,)
+                    usum = u[bstrt - 1:bstp].sum()  # sum over the block
                     if iter == 1 and i == 1 and j == 1 and h == 1 and blk == 1:
                         assert vsum == 512
                         assert dgm_numer_tmp[0] == 512
