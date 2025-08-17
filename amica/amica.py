@@ -678,13 +678,62 @@ def get_updates_and_likelihood():
             else:
                 raise NotImplementedError()
             
+            # NOTE: VECTORIZED
+            # for do (i = 1, nw)
+            h_index = h - 1
+            v_slice = v[bstrt-1:bstp, h_index] # # shape: (block_size,)
+            if update_A and do_newton:
+                # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
+                # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
+                # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
+                # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
+                b_slice = b[bstrt-1:bstp, :, h_index] # shape: (block_size, nw)
+                tmpsum_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
+                dsigma2_numer_tmp_new = dsigma2_numer_tmp.copy()
+                dsigma2_denom_tmp_new = dsigma2_denom_tmp.copy()
+                dsigma2_numer_tmp_new[:, h_index] += tmpsum_vec
+                dsigma2_denom_tmp_new[:, h_index] += vsum  # vsum is scalar, broadcasts to all
+            elif not update_A and do_newton:
+                raise NotImplementedError()
+            if update_c:
+                    if do_reject:
+                        raise NotImplementedError()
+                        # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
+                    else:
+                        # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
+                        # # Vectorized update for dc
+                        data_slice = dataseg[:, xstrt - 1:xstp]
+                        assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
+                        tmpsum_c_vec = data_slice @ v_slice
+                        # OR... tmpsum_vec = np.sum(v_block[np.newaxis, :] * data_block, axis=1)
+                    # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
+                    # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
+                    dc_numer_tmp_new = dc_numer_tmp.copy()
+                    dc_denom_tmp_new = dc_denom_tmp.copy()
+                    dc_numer_tmp_new[:, h_index] += tmpsum_c_vec
+                    dc_denom_tmp_new[:, h_index] += vsum  # # vsum is scalar, broadcasts
+            else:
+                raise NotImplementedError()
+            if iter == 1 and h == 1 and blk == 1:
+                # j=1, i=1
+                assert_almost_equal(dgm_numer_tmp[0], 512.0)
+                assert_almost_equal(dsigma2_numer_tmp_new[0, 0], 222.53347035817833, decimal=5)
+                assert_almost_equal(dsigma2_denom_tmp_new[0, 0], 512.0)
+                assert_almost_equal(dc_numer_tmp_new[0, 0], -24.713041229552594, decimal=5)
+                assert_almost_equal(dc_denom_tmp_new[0, 0], 512.0)
+                assert g.shape == (1024, 32)
+                assert g[0, 0] == 0.0
+                assert_almost_equal(tmpsum_c_vec[0], -24.713041229552594, decimal=5)
+                assert_almost_equal(z[bstrt - 1,0,0,0], 0.29726705039895657)
+            elif iter == 49 and h == 1 and blk == 1:
+                assert_almost_equal(tmpsum_c_vec[0], -24.713041229552594, decimal=5)
             for i, _ in enumerate(range(nw), start=1):
                 if update_A and do_newton:
                     # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
                     # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
                     # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
                     # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
-                    
+                    assert vsum == 512
                     tmpsum = np.sum(v[bstrt-1:bstp, h - 1] * b[bstrt-1:bstp, i - 1, h - 1] ** 2)
                     dsigma2_numer_tmp[i - 1, h - 1] += tmpsum
                     dsigma2_denom_tmp[i - 1, h - 1] += vsum
@@ -704,6 +753,11 @@ def get_updates_and_likelihood():
                     dc_denom_tmp[i - 1, h - 1] += vsum
                 else:
                     raise NotImplementedError()
+                if iter == 1 and h == 1 and blk == 1 and i == 32 and j == 3:
+                    assert_allclose(dsigma2_numer_tmp_new, dsigma2_numer_tmp, rtol=1e-5)
+                    assert_allclose(dsigma2_denom_tmp_new, dsigma2_denom_tmp, rtol=1e-5)
+                    assert_allclose(dc_numer_tmp_new, dc_numer_tmp, rtol=1e-5)
+                    assert_allclose(dc_denom_tmp_new, dc_denom_tmp, rtol=1e-5)
                 
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
                 for j, _ in enumerate(range(num_mix), start=1):
