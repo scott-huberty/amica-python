@@ -829,6 +829,44 @@ def get_updates_and_likelihood():
             # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
             ufp_all = u_mat * fp_all
 
+            # !--- get g (Vectorized)
+            if iter == 1 and blk == 1 and h == 1:
+                assert g[0, 0] == 0.0
+            if update_A:
+                # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
+            
+                # Method 1:  einsum (memory friendly)
+                #comp_idx = comp_list[:, h - 1] - 1  # (nw,)
+                #S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
+                #g_update = np.einsum('tnj,nj->tn', ufp_all[bstrt-1:bstp, :, :], S_T, optimize=True)
+                #g[bstrt-1:bstp, :] += g_update
+
+                # Method 2: Fully vectorized (more complex but maximum performance)
+                i_indices, j_indices = np.meshgrid(np.arange(nw), np.arange(num_mix), indexing='ij')
+                comp_indices = comp_list[i_indices, h_index] - 1  # Shape: (nw, num_mix)
+                sbeta_vals = sbeta[j_indices, comp_indices]  # Shape: (nw, num_mix)
+                # Sum over j dimension
+                g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp_all[bstrt-1:bstp, :, :], axis=2)
+                g[bstrt-1:bstp, :] += g_update
+
+                # Method 3: Fully vectorized (more complex but maximum performance)
+                # 1. Prepare sbeta for broadcasting.
+                # Select the sbeta values for the current model h.
+                # sbeta_h = sbeta[:, comp_list[:, h_index] - 1]  # Shape: (num_mix, nw)
+                # Transpose and add a new axis to align with ufp_all's dimensions.
+                # sbeta_br = sbeta_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
+                # 2. Calculate the update term for all i and j at once.
+                # This works because ufp_all and sbeta_br are now broadcast-compatible.
+                # g_update = sbeta_br * ufp_all[bstrt-1:bstp, :, :] # Shape: (tblksize, nw, num_mix)
+                # 3. Sum the update terms across the mixture axis (j) and update g.
+                # This collapses the num_mix dimension, creating the final update matrix for g.
+                # g[bstrt-1:bstp, :] += np.sum(g_update, axis=2)
+
+                # Method 4: Using broadcasting
+                # g_update = (ufp_all[bstrt-1:bstp, :, :] * S_T[None, :, :]).sum(axis=2)
+                # g[bstrt-1:bstp, :] += g_update
+            else:
+                raise NotImplementedError()
 
             for i, _ in enumerate(range(nw), start=1):
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
@@ -839,7 +877,7 @@ def get_updates_and_likelihood():
                         assert vsum == 512
                         assert dgm_numer_tmp[0] == 512
                         assert g.shape == (1024, 32)
-                        assert g[0, 0] == 0.0
+                        # assert g[0, 0] == 0.0
                         assert dsigma2_denom_tmp[i - 1, h - 1] == 512
                         assert v[bstrt - 1, h - 1] == 1
                         assert_almost_equal(z[bstrt - 1, i - 1, j - 1, h - 1], 0.29726705039895657)
@@ -864,10 +902,11 @@ def get_updates_and_likelihood():
                     # !--- get g
                     if update_A:
                         # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
-                        g[bstrt-1:bstp, i - 1] += sbeta[j - 1, comp_list[i - 1, h - 1] - 1] * ufp[bstrt-1:bstp]
+                        # g[bstrt-1:bstp, i - 1] += sbeta[j - 1, comp_list[i - 1, h - 1] - 1] * ufp[bstrt-1:bstp]
                         if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                             assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.96533589542801645, decimal=7)
-                            assert_almost_equal(g[bstrt-1, i - 1], 0.38174872104471852, decimal=7)
+                            # Test no longer relevant now that g is updated in a vectorized way.
+                            # assert_almost_equal(g[bstrt-1, i - 1], 0.38174872104471852, decimal=7)
 
                         if do_newton and iter >= newt_start:
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
