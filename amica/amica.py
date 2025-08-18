@@ -868,90 +868,29 @@ def get_updates_and_likelihood():
 
                 # --- Vectorized Newton-Raphson Updates ---
                 if do_newton and iter >= newt_start:
-                    if iter == 50 and blk == 1:
-                        assert np.all(dkappa_numer_tmp == 0.0)
-                        assert np.all(dkappa_denom_tmp == 0.0)
-
-                    tmpsums_to_compare = np.zeros((nw, num_mix))
-                    for i, _ in enumerate(range(nw), start=1):
-                        for j, _ in enumerate(range(num_mix), start=1):
-                            fp[bstrt-1:bstp] = fp_all[bstrt-1:bstp, i - 1, j - 1]
-                            ufp[bstrt-1:bstp] = ufp_all[bstrt-1:bstp, i - 1, j - 1]
-                            u[:u_mat.shape[0]] = u_mat[:, i - 1, j - 1]  # shape: (block_size,)
-                            usum = u[bstrt - 1:bstp].sum()  # sum over the block
-                            tmpsum = np.sum(ufp[bstrt-1:bstp] * fp[bstrt-1:bstp]) * sbeta[j - 1, comp_list[i - 1, h - 1] - 1] ** 2
-                            tmpsums_to_compare[i - 1, j - 1] = tmpsum
-                            dkappa_numer_tmp_old[j - 1, i - 1, h - 1] += tmpsum
-                            dkappa_denom_tmp_old[j - 1, i - 1, h - 1] += usum
-                            if iter == 50 and blk == 1 and j == 1 and i == 1:
-                                assert_almost_equal(fp[0], -0.71878681214269513, decimal=3)
-                                assert_almost_equal(ufp[0], -0.40660630337920428, decimal=3)
-                                assert_almost_equal(u[0], 0.56568414515997534, decimal=3)
-                                assert_almost_equal(usum, 155.44720879244451, decimal=2)
-                                assert_allclose(tmpsum, 1091.2825693944128, atol=1.7)
-                                assert_allclose(dkappa_numer_tmp_old[0,0,0], 1091.2825693944128, atol=1.7)
-                                assert_almost_equal(dkappa_denom_tmp_old[0, 0, 0], 155.44720879244451, decimal=2)
-                            elif iter == 50 and blk == 1 and j == 3 and i == 32:
-                                assert_almost_equal(fp[0], -0.83333826517775822, decimal=3)
-                                assert_almost_equal(ufp[0], -0.34850627145262114, decimal=3)
-                                assert_almost_equal(u[0], 0.41820505071644798, decimal=3)
-                                assert_almost_equal(usum, 138.85336185473668, decimal=2)
-                                assert_allclose(tmpsum, 226.96164572263717, atol=.5)
-                                assert_allclose(dkappa_numer_tmp_old[0,0,0], 1091.2825693944128, atol=1.7)
-                                assert_almost_equal(dkappa_denom_tmp_old[0, 0, 0], 155.44720879244451, decimal=2)
-                            elif iter == 50 and blk == 59 and j == 3 and i == 32:
-                                # Pulled from fortran
-                                assert_almost_equal(fp[0], 0.97352736587187594, decimal=3)
-                                assert_almost_equal(ufp[0], 0.64207450875025041, decimal=3)
-                                assert_almost_equal(u[0], 0.65953411404641771, decimal=3)
-                                assert_almost_equal(usum, 319.52608413809827, decimal=2)
-                                assert_allclose(tmpsum, 475.34429387358784, atol=.5)
-                                assert_allclose(dkappa_numer_tmp_old[2,31,0], 18154.657956748808, atol=.5)
-                                assert_almost_equal(dkappa_denom_tmp_old[2, 31, 0], 8873.0781815692208, decimal=0)
-
+                    # --- FORTRAN CODE ---
+                    # for (i = 1, nw) ... for (j = 1, num_mix)
+                    # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
+                    # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
+                    # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
+                    # --- END FORTRAN CODE ---
 
                     comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
                     # 1. Kappa updates
                     ufp_fp_sums = np.sum(ufp_all[bstrt-1:bstp, :, :] * fp_all[bstrt-1:bstp, :, :], axis=0)
                     sbeta_vals = sbeta[:, comp_indices] ** 2
                     tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
-                    
-                    # Add the update, transposing to match destination shapes.
                     dkappa_numer_tmp[:, :, h_index] += tmpsum_kappa
                     dkappa_denom_tmp[:, :, h_index] += usum_mat.T
-
-                    
-                    if iter == 51 and blk == 1 and j == 3 and i == 32:
-                        assert_almost_equal(fp[0], -0.84816120039689802, decimal=4)
-                        assert_almost_equal(ufp[0], -0.34996286490148865, decimal=5)
-                        assert_almost_equal(u[0], 0.41261362195974433, decimal=4)
-                        assert_almost_equal(usum, 138.31760985323825, decimal=2)
-                        assert_almost_equal(tmpsum, 227.52941909107884, decimal=2)
-
-
+                    # Kappa tests
+                    if iter == 50 and blk == 59:
+                        assert_allclose(dkappa_numer_tmp[2,31,0], 18154.657956748808, atol=.5)
+                        assert_almost_equal(dkappa_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
+                    elif iter == 51 and blk == 1:
                         assert_almost_equal(dkappa_numer_tmp[2,31,0], 227.52941909107884, decimal=2)
                         assert_almost_equal(dkappa_denom_tmp[2,31,0], 138.31760985323825, decimal=2)
                         assert_allclose(dkappa_numer_tmp[0,0,0], 1100.3006462689891, atol=1.8)
-                        assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=0)
-
-                        # assert_allclose(dkappa_numer_tmp_old[2,31,0], 227.5294190910788, atol=1.7)
-                        # assert_almost_equal(dkappa_denom_tmp_old[0, 0, 0], 138.31760985323825, decimal=2)
-                        # assert_allclose(dkappa_numer_tmp_old[0,0,0], 1100.3006462689891, atol=1.7)
-                        # assert_almost_equal(dkappa_denom_tmp_old[0, 0, 0], 155.44720879244451, decimal=2)
-    
-                    # j=3, i=32
-                    if iter == 50:
-                        assert_almost_equal(fp_all[0, 31, 2], fp[0])
-                        assert_almost_equal(ufp_all[0, 31, 2], ufp[0])
-                        assert_almost_equal(u_mat[0, 31, 2], u[0])
-                        assert_almost_equal(usum_mat[31, 2], usum)
-                        assert_allclose(tmpsum_kappa, tmpsums_to_compare.T)
-                        assert_allclose(dkappa_numer_tmp, dkappa_numer_tmp_old)
-                        assert_allclose(dkappa_denom_tmp, dkappa_denom_tmp_old)
-
-                if iter == 50 and blk == 59:
-                    assert_allclose(dkappa_numer_tmp[2,31,0], 18154.657956748808, atol=.5)
-                    assert_almost_equal(dkappa_denom_tmp[2,31,0], 8873.0781815692208, decimal=0)
+                        assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=0)   
             else:
                 raise NotImplementedError()
 
@@ -1019,7 +958,7 @@ def get_updates_and_likelihood():
                             # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
                             # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
                             # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
-                            tmpsum = np.sum(ufp[bstrt-1:bstp] * fp[bstrt-1:bstp]) * sbeta[j - 1, comp_list[i - 1, h - 1] - 1] ** 2
+                            # tmpsum = np.sum(ufp[bstrt-1:bstp] * fp[bstrt-1:bstp]) * sbeta[j - 1, comp_list[i - 1, h - 1] - 1] ** 2
                             #dkappa_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
                             #dkappa_denom_tmp[j - 1, i - 1, h - 1] += usum
                             tmpvec[bstrt-1:bstp] = (
@@ -1027,7 +966,7 @@ def get_updates_and_likelihood():
                             )
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 # XXX: This is the source of the numerical instability...
-                                assert_allclose(tmpsum, 1091.2825693944128, atol=1.7)
+                                # assert_allclose(tmpsum, 1091.2825693944128, atol=1.7)
 
                                 # assert_allclose(dkappa_numer_tmp[0,0,0], 1091.2825693944128, atol=1.7)
                                 # assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
@@ -2352,8 +2291,6 @@ if __name__ == "__main__":
         dkappa_numer_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dkappa_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
         dkappa_denom_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
-        dkappa_numer_tmp_old = dkappa_numer_tmp.copy()
-        dkappa_denom_tmp_old = dkappa_denom_tmp.copy()
         dlambda_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
         dlambda_numer_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dlambda_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
