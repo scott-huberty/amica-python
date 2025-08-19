@@ -736,7 +736,9 @@ def get_updates_and_likelihood():
             usum_mat = u_mat[bstrt-1:bstp, :, :].sum(axis=0)  # shape: (nw, num_mix)
             assert u_mat.shape == (1024, 32, 3)  # max_block_size, nw, num_mix
             assert usum_mat.shape == (32, 3)  # nw, num_mix
-            
+            if iter == 1 and h == 1 and blk == 1:
+                assert_almost_equal(u_mat[bstrt - 1, 0, 0], 0.29726705039895657)
+                assert_almost_equal(u_mat[bstp - 1, 0, 0], 0.031986885982993922)
             # !--- get fp, zfp
             for i, _ in enumerate(range(nw), start=1):
                 i_index = i - 1
@@ -829,7 +831,7 @@ def get_updates_and_likelihood():
             # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
             ufp_all = u_mat * fp_all
 
-            # !--- get g (Vectorized)
+            # !--- get g
             if iter == 1 and blk == 1 and h == 1:
                 assert g[0, 0] == 0.0
             if update_A:
@@ -873,7 +875,7 @@ def get_updates_and_likelihood():
                     # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
                     # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
                     # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
-                    # --- END FORTRAN CODE ---
+                    # --------------------
 
                     comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
                     # 1. Kappa updates
@@ -891,6 +893,28 @@ def get_updates_and_likelihood():
                         assert_almost_equal(dkappa_denom_tmp[2,31,0], 138.31760985323825, decimal=2)
                         assert_allclose(dkappa_numer_tmp[0,0,0], 1100.3006462689891, atol=1.8)
                         assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=0)   
+                    
+                    # 2. Lambda updates
+                    # ---------------------------FORTRAN CODE---------------------------
+                    # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
+                    # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
+                    # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
+                    # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
+                    # ------------------------------------------------------------------
+                    tmpvec_mat_dlambda[bstrt-1:bstp, :, :] = (
+                        fp_all[bstrt-1:bstp, :, :] * y[bstrt-1:bstp, :, :, h_index] - 1.0
+                    )
+                    tmpsum_dlambda = np.sum(
+                        u_mat[bstrt-1:bstp, :, :] * np.square(tmpvec_mat_dlambda[bstrt-1:bstp, :, :]), axis=0
+                    )  # shape: (nw, num_mix)
+                    dlambda_numer_tmp[:, :, h_index] += tmpsum_dlambda.T
+                    dlambda_denom_tmp[:, :, h_index] += usum_mat.T
+                    #tmpvec[bstrt-1:bstp] = (
+                    #            fp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1] - 1.0
+                    #        )
+                    if iter == 50 and blk == 1:
+                        assert_almost_equal(tmpvec_mat_dlambda[0,0,0], -0.74167275934487087, decimal=3)
+                        assert_almost_equal(tmpsum_dlambda[0,0], 167.7669749064776, decimal=1)
             else:
                 raise NotImplementedError()
 
@@ -961,20 +985,22 @@ def get_updates_and_likelihood():
                             # tmpsum = np.sum(ufp[bstrt-1:bstp] * fp[bstrt-1:bstp]) * sbeta[j - 1, comp_list[i - 1, h - 1] - 1] ** 2
                             #dkappa_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
                             #dkappa_denom_tmp[j - 1, i - 1, h - 1] += usum
-                            tmpvec[bstrt-1:bstp] = (
-                                fp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1] - 1.0
-                            )
-                            if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
+                            tmpvec[bstrt-1:bstp] = tmpvec_mat_dlambda[bstrt-1:bstp, i - 1, j - 1]
+                            #tmpvec[bstrt-1:bstp] = (
+                            #    fp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1] - 1.0
+                            #)
+                            #if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 # XXX: This is the source of the numerical instability...
                                 # assert_allclose(tmpsum, 1091.2825693944128, atol=1.7)
 
                                 # assert_allclose(dkappa_numer_tmp[0,0,0], 1091.2825693944128, atol=1.7)
                                 # assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
-                                assert_almost_equal(tmpvec[0], -0.74167275934487087, decimal=3)
+                            #    assert_almost_equal(tmpvec[0], -0.74167275934487087, decimal=3)
 
-                            tmpsum = np.sum(u[bstrt-1:bstp] * tmpvec[bstrt-1:bstp] ** 2)
-                            dlambda_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
-                            dlambda_denom_tmp[j - 1, i - 1, h - 1] += usum
+                            tmpsum = tmpsum_dlambda[i - 1, j - 1]
+                            #tmpsum = np.sum(u[bstrt-1:bstp] * tmpvec[bstrt-1:bstp] ** 2)
+                            # dlambda_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
+                            # dlambda_denom_tmp[j - 1, i - 1, h - 1] += usum
                             dbaralpha_numer_tmp[j - 1, i - 1, h - 1] += usum
                             dbaralpha_denom_tmp[j - 1, i - 1, h - 1] += vsum
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
@@ -2533,6 +2559,7 @@ if __name__ == "__main__":
         P = np.zeros(N1)
         Pmax = np.zeros(N1)
         tmpvec = np.zeros(N1)
+        tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
         tmpvec2 = np.zeros(N1)
     print(f"{myrank + 1}: block size = {block_size}")
     # for seg, _ in enumerate(range(numsegs), start=1):
