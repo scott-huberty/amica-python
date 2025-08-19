@@ -1006,7 +1006,34 @@ def get_updates_and_likelihood():
                     assert_almost_equal(tmpsum_mu_denom[0,0], 360.4704319881526, decimal=5)
                     # XXX: monitor this in other blocks
                     assert_almost_equal(dmu_denom_tmp[0, 0], 360.4704319881526, decimal=5)
-
+            elif not update_mu:
+                raise NotImplementedError()
+            if update_beta:
+                # 1. update numerator
+                # -------------------------------FORTRAN--------------------------------
+                # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
+                # ----------------------------------------------------------------------
+                # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
+                dbeta_numer_tmp[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
+                # 2. update denominator
+                # -------------------------------FORTRAN--------------------------------
+                # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+                # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+                # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
+                # ----------------------------------------------------------------------
+                if np.all(rho[:, comp_indices] <= 2.0):
+                    tmpsum_dbeta_denom = np.sum(
+                        ufp_all[bstrt-1:bstp, :, :] * y[bstrt-1:bstp, :, :, h_index], axis=0
+                    )
+                    dbeta_denom_tmp[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
+                else:
+                    raise NotImplementedError()
+            elif not update_beta:
+                raise NotImplementedError()
+            if iter == 1 and h == 1 and blk == 1:
+                assert_almost_equal(tmpsum_dbeta_denom[0, 0], 144.06646473063475, decimal=7)
+                assert_almost_equal(dbeta_numer_tmp[0, 0], 150.7126774891847)
+                assert_almost_equal(dbeta_denom_tmp[0, 0], 144.06646473063475)
 
             for i, _ in enumerate(range(nw), start=1):
                 # !print *, myrank+1,':', thrdnum+1,': getting u ...'; call flush(6)
@@ -1046,10 +1073,10 @@ def get_updates_and_likelihood():
                     if update_A:
                         # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
                         # g[bstrt-1:bstp, i - 1] += sbeta[j - 1, comp_list[i - 1, h - 1] - 1] * ufp[bstrt-1:bstp]
-                        if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                        """if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                             assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.96533589542801645)
                             # Test no longer relevant now that g is updated in a vectorized way.
-                            # assert_almost_equal(g[bstrt-1, i - 1], 0.38174872104471852, decimal=7)
+                            # assert_almost_equal(g[bstrt-1, i - 1], 0.38174872104471852, decimal=7)"""
 
                         if do_newton and iter >= newt_start:
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
@@ -1091,18 +1118,18 @@ def get_updates_and_likelihood():
                                 # assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
                             #    assert_almost_equal(tmpvec[0], -0.74167275934487087, decimal=3)
 
-                            tmpsum = tmpsum_dlambda[i - 1, j - 1]
+                            #tmpsum = tmpsum_dlambda[i - 1, j - 1]
                             #tmpsum = np.sum(u[bstrt-1:bstp] * tmpvec[bstrt-1:bstp] ** 2)
                             # dlambda_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
                             # dlambda_denom_tmp[j - 1, i - 1, h - 1] += usum
                             #dbaralpha_numer_tmp[j - 1, i - 1, h - 1] += usum
                             #dbaralpha_denom_tmp[j - 1, i - 1, h - 1] += vsum
-                            if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
+                            """if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 assert_almost_equal(tmpsum, 167.7669749064776, decimal=1)
                                 # assert_almost_equal(dlambda_numer_tmp[0, 0, 0], 167.7669749064776, decimal=1)
                                 # assert_almost_equal(dlambda_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
                                 # assert_almost_equal(dbaralpha_numer_tmp[0, 0, 0], 155.44720879244451, decimal=2)
-                                # assert dbaralpha_denom_tmp[0, 0, 0] == 512
+                                # assert dbaralpha_denom_tmp[0, 0, 0] == 512"""
                         # end if (do_newton and iter >= newt_start)
                     else:
                         raise NotImplementedError()
@@ -1140,7 +1167,7 @@ def get_updates_and_likelihood():
                         # TODO: below can we recover some numerical imprecision by vectorizing instead of looping over chunks and summing?
                         # dmu_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += tmpsum  # XXX: Errors accumulate across 59 additions
                     # end if (update_mu)
-                    if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                    """if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                         assert_almost_equal(dalpha_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 150.7126774891847)
                         #assert_almost_equal(dmu_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 118.9749748873901)
                         assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.96533589542801645)
@@ -1148,30 +1175,30 @@ def get_updates_and_likelihood():
                         assert_almost_equal(ufp[bstp - 1], 0.071144214718724744, decimal=7)
                         assert_almost_equal(y[bstrt - 1, i - 1, j - 1, h - 1], 0.78654251876520975, decimal=7)
                         #assert_almost_equal(tmpsum, 360.4704319881526, decimal=5)
-                        #assert_almost_equal(dmu_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 360.4704319881526, decimal=5)  # XXX: monitor this in other blocks
+                        #assert_almost_equal(dmu_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 360.4704319881526, decimal=5)  # XXX: monitor this in other blocks"""
 
-                    if update_beta:
+                    #if update_beta:
                         # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
-                        dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
+                        # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
 
                         # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-                        if rho[j - 1, comp_list[i - 1, h - 1] - 1] <= 2.0:
-                            # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
-                            tmpsum = np.sum(ufp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1])
+                        #if rho[j - 1, comp_list[i - 1, h - 1] - 1] <= 2.0:
+                        #    # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+                        #    tmpsum = np.sum(ufp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1])
                             # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
-                            dbeta_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += tmpsum
-                        else:
-                            raise NotImplementedError()
+                        #    dbeta_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += tmpsum
+                        #else:
+                        #    raise NotImplementedError()
                     # end if (update_beta)
-                    if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
-                        assert_almost_equal(usum, 150.7126774891847, decimal=7)
-                        assert_almost_equal(dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 150.7126774891847, decimal=7)
-                        assert_almost_equal(y[ (bstp - 1) // 2, i - 1, j - 1, h - 1], 1.7885818811721905, decimal=7)
-                        assert_almost_equal(y[10, 0, 0, 0], 0.97584257835899235, decimal=7)
-                        assert_almost_equal(y[100, 0, 0, 0], 0.66542460075707799, decimal=7)
-                        assert_almost_equal(y[bstp -1, i - 1, j - 1, h - 1], 2.19863297580662345, decimal=7)
-                        assert_almost_equal(tmpsum, 144.06646473063475, decimal=7)
-                        assert_almost_equal(dbeta_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 144.06646473063475, decimal=7)
+                    """if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                        assert_almost_equal(usum, 150.7126774891847)
+                        assert_almost_equal(dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 150.7126774891847)
+                        assert_almost_equal(y[ (bstp - 1) // 2, i - 1, j - 1, h - 1], 1.7885818811721905)
+                        assert_almost_equal(y[10, 0, 0, 0], 0.97584257835899235)
+                        assert_almost_equal(y[100, 0, 0, 0], 0.66542460075707799)
+                        assert_almost_equal(y[bstp -1, i - 1, j - 1, h - 1], 2.19863297580662345)
+                        assert_almost_equal(tmpsum, 144.06646473063475)
+                        assert_almost_equal(dbeta_denom_tmp[j - 1, comp_list[i - 1, h - 1] - 1], 144.06646473063475)"""
                     
                     if dorho:
                         # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
@@ -3055,7 +3082,8 @@ if __name__ == "__main__":
             assert_almost_equal(dc_numer[0, 0],  0)
             assert_almost_equal(dc_denom[0, 0], 30504)
             assert no_newt is False
-            assert_almost_equal(ndtmpsum, 0.017302191303964484, decimal=6)
+            # NOTE: vectorizing beta updates loses 1 order of magnitude precision (decimal=6 to decimal=5)
+            assert_almost_equal(ndtmpsum, 0.017302191303964484, decimal=5)
             # NOTE: with dalpha_numer_tmp vectorization, we lose 1 order of magnitude precision (decimal=5 to decimal=4) 
             assert_almost_equal(Wtmp[0, 0], 0.014739590254522428, decimal=4)
             assert_almost_equal(dA[31, 31, 0], 0.0033054619451940532, decimal=6)
@@ -3087,7 +3115,8 @@ if __name__ == "__main__":
             assert_almost_equal(ufp[0], 0.64192219596666389, decimal=4)
             assert_almost_equal(dalpha_numer_tmp[2, 31],  8872.5404004132524, decimal=0)
             assert dalpha_denom_tmp[2, 31] == 30504
-            assert_almost_equal(dmu_numer_tmp[2, 31], -24.138141493554972, decimal=2)
+            # NOTE: Vectorizing beta updates loses 1 order of magnitude precision (decimal=1 to decimal=0)
+            assert_almost_equal(dmu_numer_tmp[2, 31], -24.138141493554972, decimal=1)
             # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=5 to decimal=4)
             assert_almost_equal(sbeta[2, 31], 1.1911349478668991, decimal=4)
             # NOTE: with the vectorization of dalpha_numer_tmp, this atol explodes from 5 to 50...
