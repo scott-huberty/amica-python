@@ -909,12 +909,29 @@ def get_updates_and_likelihood():
                     )  # shape: (nw, num_mix)
                     dlambda_numer_tmp[:, :, h_index] += tmpsum_dlambda.T
                     dlambda_denom_tmp[:, :, h_index] += usum_mat.T
-                    #tmpvec[bstrt-1:bstp] = (
-                    #            fp[bstrt-1:bstp] * y[bstrt-1:bstp, i - 1, j - 1, h - 1] - 1.0
-                    #        )
+                    
+
+                    # 3. Alpha updates
+                    # ---------------------------FORTRAN CODE---------------------------
+                    # for (i = 1, nw) ... for (j = 1, num_mix)
+                    # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
+                    # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
+                    # ------------------------------------------------------------------
+                    dbaralpha_numer_tmp[:, :, h_index] += usum_mat.T
+                    dbaralpha_denom_tmp[:,:, h_index] += vsum
+
                     if iter == 50 and blk == 1:
+                        # Kappa tests
+                        assert_allclose(dkappa_numer_tmp[0,0,0], 1091.2825693944128, atol=1.7)
+                        assert_almost_equal(dkappa_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
+                        # lambda tests
                         assert_almost_equal(tmpvec_mat_dlambda[0,0,0], -0.74167275934487087, decimal=3)
                         assert_almost_equal(tmpsum_dlambda[0,0], 167.7669749064776, decimal=1)
+                        assert_almost_equal(dlambda_numer_tmp[0, 0, 0], 167.7669749064776, decimal=1)
+                        assert_almost_equal(dlambda_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
+                        # dbalpha tests
+                        assert_almost_equal(dbaralpha_numer_tmp[0, 0, 0], 155.44720879244451, decimal=2)
+                        assert dbaralpha_denom_tmp[0, 0, 0] == 512
             else:
                 raise NotImplementedError()
 
@@ -982,6 +999,8 @@ def get_updates_and_likelihood():
                             # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
                             # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
                             # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
+                            
+                            # Python code equivalent:
                             # tmpsum = np.sum(ufp[bstrt-1:bstp] * fp[bstrt-1:bstp]) * sbeta[j - 1, comp_list[i - 1, h - 1] - 1] ** 2
                             #dkappa_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
                             #dkappa_denom_tmp[j - 1, i - 1, h - 1] += usum
@@ -1001,8 +1020,8 @@ def get_updates_and_likelihood():
                             #tmpsum = np.sum(u[bstrt-1:bstp] * tmpvec[bstrt-1:bstp] ** 2)
                             # dlambda_numer_tmp[j - 1, i - 1, h - 1] += tmpsum
                             # dlambda_denom_tmp[j - 1, i - 1, h - 1] += usum
-                            dbaralpha_numer_tmp[j - 1, i - 1, h - 1] += usum
-                            dbaralpha_denom_tmp[j - 1, i - 1, h - 1] += vsum
+                            #dbaralpha_numer_tmp[j - 1, i - 1, h - 1] += usum
+                            #dbaralpha_denom_tmp[j - 1, i - 1, h - 1] += vsum
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 assert_almost_equal(tmpsum, 167.7669749064776, decimal=1)
                                 assert_almost_equal(dlambda_numer_tmp[0, 0, 0], 167.7669749064776, decimal=1)
