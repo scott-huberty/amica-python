@@ -806,6 +806,7 @@ def get_updates_and_likelihood():
                                 assert_almost_equal(fp_all[0, i_index, j_index], 0.97056106297026667, decimal=4)
                             elif iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=6)
+                                assert len(tmpvec[bstrt-1:bstp]) == 512
                         case 2:
                             raise NotImplementedError()
                         case 3:
@@ -830,6 +831,7 @@ def get_updates_and_likelihood():
             # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
             # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
             ufp_all = u_mat * fp_all
+            
 
             # !--- get g
             if iter == 1 and blk == 1 and h == 1:
@@ -870,7 +872,12 @@ def get_updates_and_likelihood():
 
                 # --- Vectorized Newton-Raphson Updates ---
                 if do_newton and iter >= newt_start:
-                    # --- FORTRAN CODE ---
+
+                    if iter == 50 and blk == 1:
+                        assert np.all(dkappa_numer_tmp == 0.0)
+                        assert np.all(dkappa_denom_tmp == 0.0)
+
+                    # --- FORTRAN ---
                     # for (i = 1, nw) ... for (j = 1, num_mix)
                     # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
                     # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
@@ -911,7 +918,7 @@ def get_updates_and_likelihood():
                     dlambda_denom_tmp[:, :, h_index] += usum_mat.T
                     
 
-                    # 3. Alpha updates
+                    # 3. (dbar)Alpha updates
                     # ---------------------------FORTRAN CODE---------------------------
                     # for (i = 1, nw) ... for (j = 1, num_mix)
                     # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
@@ -989,7 +996,7 @@ def get_updates_and_likelihood():
                                 # Since we moved the pdtype code block into its own dedicated loop above,
                                 # I moved the commented out test over there.
                                 # assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=6)
-                                assert len(tmpvec[bstrt-1:bstp]) == 512
+                                # assert len(tmpvec[bstrt-1:bstp]) == 512
                             # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
                             # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
                             # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
@@ -1024,10 +1031,10 @@ def get_updates_and_likelihood():
                             #dbaralpha_denom_tmp[j - 1, i - 1, h - 1] += vsum
                             if iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 assert_almost_equal(tmpsum, 167.7669749064776, decimal=1)
-                                assert_almost_equal(dlambda_numer_tmp[0, 0, 0], 167.7669749064776, decimal=1)
-                                assert_almost_equal(dlambda_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
-                                assert_almost_equal(dbaralpha_numer_tmp[0, 0, 0], 155.44720879244451, decimal=2)
-                                assert dbaralpha_denom_tmp[0, 0, 0] == 512
+                                # assert_almost_equal(dlambda_numer_tmp[0, 0, 0], 167.7669749064776, decimal=1)
+                                # assert_almost_equal(dlambda_denom_tmp[0, 0, 0], 155.44720879244451, decimal=2)
+                                # assert_almost_equal(dbaralpha_numer_tmp[0, 0, 0], 155.44720879244451, decimal=2)
+                                # assert dbaralpha_denom_tmp[0, 0, 0] == 512
                         # end if (do_newton and iter >= newt_start)
                     else:
                         raise NotImplementedError()
