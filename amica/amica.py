@@ -229,7 +229,7 @@ def get_updates_and_likelihood():
             h_index = h - 1
             comp_indicies = comp_list[:, h_index] - 1
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
-            Ptmp[bstrt-1:bstp, h - 1] = Dsum[h - 1] + np.log(gm[h - 1]) + sldet
+            Ptmp[bstrt-1:bstp, h - 1] = Dsum[h_index] + np.log(gm[h_index]) + sldet
             if iter == 1 and h == 1 and blk == 1:
                 assert_almost_equal(Ptmp[bstp - 1, 0], -65.93059440479017, decimal=7)
                 assert_allclose(Ptmp[bstrt - 1:bstp, 0], -65.93059440479017, atol=1e-7)
@@ -326,433 +326,435 @@ def get_updates_and_likelihood():
                     assert_almost_equal(b[511, 15, 0], 0.45711730961589819, decimal=7)
                     assert_almost_equal(b[511, 31, 0], 1.0335229300770761, decimal=7)
                     assert_almost_equal(b[bstp, 0, 0], 0.0, decimal=7)
+            # end else
+            # !--- get y z
+            # do i = 1,nw
+            # !--- get probability
+            # select case (pdtype(i,h))
+            if pdftype == 0:
+                # Gaussian
+                if iter == 1 and h == 1 and blk == 1:
+                        assert bstrt == 1
+                        assert bstp == 512
+                        assert y[bstrt-1:bstp, 0, 0, 0].shape == (512,)
+                        assert y[0, 0, 0, 0] == 0
+                        assert comp_list[0, 0] == 1
+                        assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
+                        assert_almost_equal(b[0, 0, 0], -0.18617958844276997)
+                        assert_almost_equal(mu[0, 0], -1.0009659467356704)
+                assert np.all(pdtype == 0)
+                
+                
+                #--------------------------FORTRAN CODE-------------------------
+                # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
+                #---------------------------------------------------------------
+                # 1. Select the parameters for the current model and block
+                sbeta_h = sbeta[:, comp_indicies]      # Shape: (num_mix, nw)
+                mu_h = mu[:, comp_indicies]            # Shape: (num_mix, nw)
+                b_slice = b[bstrt-1:bstp, :, h_index]  # Shape: (tblksize, nw)
+                # 2. Explicitly align arrays for broadcasting
+                sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
+                mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
+                b_br = b_slice[:, np.newaxis, :]        # Shape: (tblksize, 1, nw)
+                # 3. Calculate and assign result
+                b_mu_diff = b_br - mu_br  # Shape: (tblksize, nw, num_mix)
+                # align for broadcasting
+                b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (tblksize, num_mix, nw)
+                y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
+                y[bstrt-1:bstp, :, :, h_index] = y_update
+                
+                #--------------------------FORTRAN CODE-------------------------
+                # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+                # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
+                # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
+                #---------------------------------------------------------------
+                # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
+                # Note: y_slice is already this shape. The others are broadcast.
+                y_slice = y[bstrt-1:bstp, :, :, h_index]
+                alpha_h = alpha[:, comp_indicies]
+                rho_h = rho[:, comp_indicies]
+
+                alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
+                rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
+
+                # 2. Create the boolean masks for each condition
+                is_rho1 = (np.isclose(rho_br, 1.0))
+                is_rho2 = (np.isclose(rho_br, 2.0))
+
+                # 3. Calculate the results for ALL THREE possible choices
+                log_alpha_br = np.log(alpha_br)
+                log_sbeta_br = np.log(sbeta_br)
+
+                # Choice if rho == 1.0
+                choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - np.log(2.0)
+
+                # Choice if rho == 2.0
+                choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
+
+                # Default choice (the 'else' case)
+                tmpvec_z0[bstrt-1:bstp, :, :] = np.log(np.abs(y_slice))
+                log_abs_y = tmpvec_z0[bstrt-1:bstp, :, :]
+                tmpvec2_z0[bstrt-1:bstp, :, :] = np.exp((rho_br) * log_abs_y)
+                tmpvec2_slice = tmpvec2_z0[bstrt-1:bstp, :, :]
+                gamma_log = gammaln(1.0 + 1.0 / rho_br)
+                choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
+
+                # 4. Use np.select to build the final array from the choices based on the masks
+                conditions = [is_rho1, is_rho2]
+                choices = [choice_1, choice_2]
+                z0_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
+            elif pdftype == 1:
+                raise NotImplementedError()
+            elif pdftype == 2:
+                raise NotImplementedError()
+            elif pdftype == 3:
+                raise NotImplementedError()
+            else:
+                raise ValueError(f"Invalid pdftype {pdftype}")
+                
+            # Check a few values against the Fortran output
+            if iter == 1 and h == 1 and blk == 1:
+                assert_almost_equal(y[0, 0, 0, 0], 0.78654251876520975)
+                assert_almost_equal(y[511, 0, 0, 0], 2.1986329758066234)
+                assert rho[0, 0] not in (1.0, 2.0)
+                assert_almost_equal(tmpvec_z0[0, 0, 2], 0.1540647351688724)
+                assert_almost_equal(tmpvec_z0[511, 0, 2], -1.3689579137330044)
+                assert_almost_equal(tmpvec2_z0[0, 0, 2], 1.2599815811899271)
+                assert_almost_equal(tmpvec2_z0[511, 0, 2], 0.1282932178257068)
+                assert_almost_equal(z0_all[0, 0, 2], -2.9784591487238883)
+            elif iter == 1 and h == 1 and blk == 5:
+                # j == 3 and i == 25 
+                assert_almost_equal(y[0, 24, 2, 0], -1.5830523099667171)
+            elif iter == 1 and h == 1 and blk == 58:
+                # j == 3 and i == 32 
+                assert pdtype[i - 1, h - 1] == 0
+                assert_almost_equal(z0_all[0, 31, 2], -2.6449740954101353)
+                assert_almost_equal(tmpvec2_z0[0, 31, 2], 0.96926517113281097)
+            elif iter == 1 and h == 1 and blk == 59:
+                # j == 3 and i == 32 
+                assert pdtype[i - 1, h - 1] == 0
+                assert_almost_equal(z0_all[0, 31, 2], -1.7145368856186436)
+            elif iter == 6 and h == 1 and blk == 1:
+                # j == 3 and i == 1 
+                assert pdtype[0, 0] == 0
+                assert_almost_equal(z0_all[0, 0, 2], -3.4948228241366635, decimal=5) # -1.7717921977005058?
+            elif iter == 6 and h == 1 and blk == 2:
+                # j == 3 and i == 1 
+                assert pdtype[0, 0] == 0
+                assert_almost_equal(z0_all[0, 0, 2], -3.0835927875939735, decimal=4)
+            elif iter == 6 and h == 1 and blk == 59:
+                # j == 3 and i == 1
+                assert pdtype[0, 0] == 0
+                assert_almost_equal(alpha[2, 0], 0.15495651231642776, decimal=6)
+                assert_almost_equal(sbeta[2, 0], 0.71882677666766215, decimal=5)
+                assert_almost_equal(y[0, 0, 2, 0], -0.19508550829305665, decimal=4)
+                assert_almost_equal(z0_all[0, 0, 2], -3.0829783288461443, decimal=5)
+                assert_almost_equal(z0_all[807, 0, 2], -3.3956057493525247, decimal=5)
+            elif iter == 13 and h == 1 and blk == 1:
+                # j == 1 and i == 1 
+                assert pdtype[0, 0] == 0
+                assert_almost_equal(z0_all[0, 0, 0], -1.5394706440040244, decimal=4)
+                # j == 2 and i == 1
+                # notice that for each j that rho line == 2.0
+                assert_almost_equal(z0_all[0, 0, 1], -1.1670825576427757, decimal=4)
+                assert_almost_equal(z0_all[511, 0,1], -0.49427281377070059, decimal=4)
+                assert z0_all[808, 0, 1] == 0
+            elif iter == 13 and h == 1 and blk == 59:
+                # and j == 1 and i == 1 
+                assert rho[0, 0] == 2.0
+                assert pdtype[0, 0] == 0
+                assert_almost_equal(z0_all[0, 0, 0], -2.5174885607823292, decimal=4)
+            elif iter == 13 and h == 1 and blk == 59:
+                # and j == 2 and i == 1 
+                assert rho[1, 0] == 2.0
+                assert_almost_equal(z0_all[0, 0, 1], -0.45430836593563906, decimal=4)
+                # j == 3 and i == 1
+                assert rho[2, 0] == 1.0
+                assert_almost_equal(z0_all[0, 0, 2], -3.7895126283292315, decimal=3)
+                assert 1 == 0
+
             
+            # end select
+            # !--- end for j
+            # !--- add the log likelihood of this component to the likelihood of this time point
+            # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+            # this max call operates across num_mixtures
+            Pmax_br[bstrt-1:bstp, :] = np.max(z0_all[bstrt-1:bstp, :, :], axis=-1)
+            if iter == 1 and h == 1 and blk == 1:
+                # and i == 1
+                assert bstrt == 1
+                assert bstp == 512
+                assert_almost_equal(Pmax_br[bstrt-1, 0], -1.8397475048612697)
+                assert_almost_equal(Pmax_br[(bstp-1)//2, 0], -1.7814295395506825)
+                assert_almost_equal(Pmax_br[bstp-1, 0], -1.8467707853596678)
+                assert Pmax_br[bstp, 0] == 0
+            elif iter == 1 and h == 1 and blk == 59:
+                # and i == 32 
+                assert bstrt == 1
+                assert bstp == 808
+                assert_almost_equal(Pmax_br[bstrt-1, 31], -1.7145368856186436)
+                assert_almost_equal(Pmax_br[(bstp-1)//2, 31], -1.8670127260281211)
+                assert_almost_equal(Pmax_br[bstp-1, 31], -1.7888606743768181)
+                assert Pmax_br[bstp, 31] == 0
+            
+            
+            ztmp_br[bstrt-1:bstp, :] = 0.0
+            # Prepare Pmax for broadcasting against the 3D z0_all array
+            Pmax_br_exp = Pmax_br[bstrt-1:bstp, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
+            # Calculate the exponent term for all components and mixtures
+            exp_term = np.exp(z0_all[bstrt-1:bstp, :, :] - Pmax_br_exp)
+            # Sum the results over the mixture axis (axis=2)
+            ztmp_br[bstrt-1:bstp, :] += exp_term.sum(axis=-1)
+            
+            '''tmpvec_br = Pmax_br[bstrt-1:bstp, :] + np.log(ztmp_br[bstrt-1:bstp, :])
+            Ptmp_br[bstrt-1:bstp, ]
+            Ptmp_br[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+            if iter == 1 and h == 1 and blk == 1:
+                # and j == 3 and i == 1 
+                assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
+                assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)'''
+
+            for i, _ in enumerate(range(nw), start=1):
                 # !--- get probability
                 # select case (pdtype(i,h))
-                if pdftype == 0:
-                    # Gaussian
-                    if iter == 1 and h == 1 and blk == 1:
-                            assert bstrt == 1
-                            assert bstp == 512
-                            assert y[bstrt-1:bstp, 0, 0, 0].shape == (512,)
-                            assert y[0, 0, 0, 0] == 0
-                            assert comp_list[0, 0] == 1
-                            assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
-                            assert_almost_equal(b[0, 0, 0], -0.18617958844276997)
-                            assert_almost_equal(mu[0, 0], -1.0009659467356704)
-                    assert np.all(pdtype == 0)
-                    
-                    # !--- get y z
-                    #--------------------------FORTRAN CODE-------------------------
-                    # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
-                    #---------------------------------------------------------------
-                    # 1. Select the parameters for the current model and block
-                    sbeta_h = sbeta[:, comp_indicies]      # Shape: (num_mix, nw)
-                    mu_h = mu[:, comp_indicies]            # Shape: (num_mix, nw)
-                    b_slice = b[bstrt-1:bstp, :, h_index]  # Shape: (tblksize, nw)
-                    # 2. Explicitly align arrays for broadcasting
-                    sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
-                    mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
-                    b_br = b_slice[:, np.newaxis, :]        # Shape: (tblksize, 1, nw)
-                    # 3. Calculate and assign result
-                    b_mu_diff = b_br - mu_br  # Shape: (tblksize, nw, num_mix)
-                    # align for broadcasting
-                    b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (tblksize, num_mix, nw)
-                    y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
-                    y[bstrt-1:bstp, :, :, h_index] = y_update
-                    
-                    #--------------------------FORTRAN CODE-------------------------
-                    # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-                    # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
-                    # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
-                    #---------------------------------------------------------------
-                    # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
-                    # Note: y_slice is already this shape. The others are broadcast.
-                    y_slice = y[bstrt-1:bstp, :, :, h_index]
-                    alpha_h = alpha[:, comp_indicies]
-                    rho_h = rho[:, comp_indicies]
-
-                    alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
-                    rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
-
-                    # 2. Create the boolean masks for each condition
-                    is_rho1 = (np.isclose(rho_br, 1.0))
-                    is_rho2 = (np.isclose(rho_br, 2.0))
-
-                    # 3. Calculate the results for ALL THREE possible choices
-                    log_alpha_br = np.log(alpha_br)
-                    log_sbeta_br = np.log(sbeta_br)
-
-                    # Choice if rho == 1.0
-                    choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - np.log(2.0)
-
-                    # Choice if rho == 2.0
-                    choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
-
-                    # Default choice (the 'else' case)
-                    tmpvec_z0[bstrt-1:bstp, :, :] = np.log(np.abs(y_slice))
-                    log_abs_y = tmpvec_z0[bstrt-1:bstp, :, :]
-                    tmpvec2_z0[bstrt-1:bstp, :, :] = np.exp((rho_br) * log_abs_y)
-                    tmpvec2_slice = tmpvec2_z0[bstrt-1:bstp, :, :]
-                    gamma_log = gammaln(1.0 + 1.0 / rho_br)
-                    choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
-
-                    # 4. Use np.select to build the final array from the choices based on the masks
-                    conditions = [is_rho1, is_rho2]
-                    choices = [choice_1, choice_2]
-                    z0_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
-                elif pdftype == 1:
-                    raise NotImplementedError()
-                elif pdftype == 2:
-                    raise NotImplementedError()
-                elif pdftype == 3:
-                    raise NotImplementedError()
-                else:
-                    raise ValueError(f"Invalid pdftype {pdftype}")
-                    
-                # Check a few values against the Fortran output
-                if iter == 1 and h == 1 and blk == 1:
-                    assert_almost_equal(y[0, 0, 0, 0], 0.78654251876520975)
-                    assert_almost_equal(y[511, 0, 0, 0], 2.1986329758066234)
-                    assert rho[0, 0] not in (1.0, 2.0)
-                    assert_almost_equal(tmpvec_z0[0, 0, 2], 0.1540647351688724)
-                    assert_almost_equal(tmpvec_z0[511, 0, 2], -1.3689579137330044)
-                    assert_almost_equal(tmpvec2_z0[0, 0, 2], 1.2599815811899271)
-                    assert_almost_equal(tmpvec2_z0[511, 0, 2], 0.1282932178257068)
-                    assert_almost_equal(z0_all[0, 0, 2], -2.9784591487238883)
-                elif iter == 1 and h == 1 and blk == 5:
-                    # j == 3 and i == 25 
-                    assert_almost_equal(y[0, 24, 2, 0], -1.5830523099667171)
-                elif iter == 1 and h == 1 and blk == 58:
-                    # j == 3 and i == 32 
-                    assert pdtype[i - 1, h - 1] == 0
-                    assert_almost_equal(z0_all[0, 31, 2], -2.6449740954101353)
-                    assert_almost_equal(tmpvec2_z0[0, 31, 2], 0.96926517113281097)
-                elif iter == 1 and h == 1 and blk == 59:
-                    # j == 3 and i == 32 
-                    assert pdtype[i - 1, h - 1] == 0
-                    assert_almost_equal(z0_all[0, 31, 2], -1.7145368856186436)
-                elif iter == 6 and h == 1 and blk == 1:
-                    # j == 3 and i == 1 
-                    assert pdtype[0, 0] == 0
-                    assert_almost_equal(z0_all[0, 0, 2], -3.4948228241366635, decimal=5) # -1.7717921977005058?
-                elif iter == 6 and h == 1 and blk == 2:
-                    # j == 3 and i == 1 
-                    assert pdtype[0, 0] == 0
-                    assert_almost_equal(z0_all[0, 0, 2], -3.0835927875939735, decimal=4)
-                elif iter == 6 and h == 1 and blk == 59:
-                    # j == 3 and i == 1
-                    assert pdtype[0, 0] == 0
-                    assert_almost_equal(alpha[2, 0], 0.15495651231642776, decimal=6)
-                    assert_almost_equal(sbeta[2, 0], 0.71882677666766215, decimal=5)
-                    assert_almost_equal(y[0, 0, 2, 0], -0.19508550829305665, decimal=4)
-                    assert_almost_equal(z0_all[0, 0, 2], -3.0829783288461443, decimal=5)
-                    assert_almost_equal(z0_all[807, 0, 2], -3.3956057493525247, decimal=5)
-                elif iter == 13 and h == 1 and blk == 1:
-                    # j == 1 and i == 1 
-                    assert pdtype[0, 0] == 0
-                    assert_almost_equal(z0_all[0, 0, 0], -1.5394706440040244, decimal=4)
-                    # j == 2 and i == 1
-                    # notice that for each j that rho line == 2.0
-                    assert_almost_equal(z0_all[0, 0, 1], -1.1670825576427757, decimal=4)
-                    assert_almost_equal(z0_all[511, 0,1], -0.49427281377070059, decimal=4)
-                    assert z0_all[808, 0, 1] == 0
-                elif iter == 13 and h == 1 and blk == 59:
-                    # and j == 1 and i == 1 
-                    assert rho[0, 0] == 2.0
-                    assert pdtype[0, 0] == 0
-                    assert_almost_equal(z0_all[0, 0, 0], -2.5174885607823292, decimal=4)
-                elif iter == 13 and h == 1 and blk == 59:
-                    # and j == 2 and i == 1 
-                    assert rho[1, 0] == 2.0
-                    assert_almost_equal(z0_all[0, 0, 1], -0.45430836593563906, decimal=4)
-                    # j == 3 and i == 1
-                    assert rho[2, 0] == 1.0
-                    assert_almost_equal(z0_all[0, 0, 2], -3.7895126283292315, decimal=3)
-                    assert 1 == 0
-
-                
-                # end select
+                match pdtype[i - 1, h - 1]:
+                    case 0:
+                        for j, _ in enumerate(range(num_mix), start=1):
+                            tmpvec[bstrt-1:bstp] = tmpvec_z0[bstrt-1:bstp, i - 1, j - 1]
+                            tmpvec2[bstrt-1:bstp] = tmpvec2_z0[bstrt-1:bstp, i - 1, j - 1]
+                            z0[bstrt-1:bstp, j - 1] = z0_all[bstrt-1:bstp, i - 1, j - 1]
+                            Pmax[bstrt-1:bstp] = Pmax_br[bstrt-1:bstp, i - 1]
+                            ztmp[bstrt-1:bstp] = ztmp_br[bstrt-1:bstp, i - 1]
+                            # checking a few values against the Fortran output b4 the loop
+                            '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                assert bstrt == 1
+                                assert bstp == 512
+                                assert y[bstrt-1:bstp, i - 1, j - 1, h - 1].shape == (512,)
+                                assert y[bstrt-1, i - 1, j - 1, h - 1] == 0
+                                assert comp_list[i - 1, h - 1] == 1
+                                assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.96533589542801645)
+                                assert_almost_equal(b[bstrt-1, i - 1, h - 1], -0.18617958844276997)
+                                assert_almost_equal(mu[j - 1, comp_list[i - 1, h - 1] - 1], -1.0009659467356704)'''
+                            # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
+                            #y[bstrt-1:bstp, i -1, j - 1, h - 1] = (
+                            #    sbeta[j - 1, comp_list[i - 1, h - 1] - 1]
+                            #    * (b[bstrt-1:bstp, i - 1, h - 1] - mu[j - 1, comp_list[i - 1, h - 1] - 1])
+                            #)
+                            '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], 0.78654251876520975)
+                                assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 2.1986329758066234)
+                                assert rho[j - 1, comp_list[i - 1, h - 1] - 1] not in (1.0, 2.0)
+                            elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 1:
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -0.30178254772840934)
+                                assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 0.12278307295778981)
+                            elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1],-0.97940369525887783)
+                                assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 0.089350893166796549)
+                                assert_almost_equal(y[bstp//2 - 1, i - 1, j - 1, h - 1], -0.29014720852527631)
+                            elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], 0.11466469645366399)
+                                assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], -1.8370080076417346)
+                                assert_almost_equal(y[bstp//2 - 1, i - 1, j - 1, h - 1], -0.65003290185923845)
+                                assert y[bstp, i - 1, j - 1, h - 1] == 0.0
+                            elif iter == 1 and j == 3 and i == 1 and h == 1 and blk == 59:
+                                assert bstrt == 1
+                                assert bstp == 808
+                                # TODO: test values at last block
+                                # assert y[bstrt-1:bstp, i - 1, j - 1, h - 1],
+                            elif iter == 1 and j == 3 and i == 25 and h == 1 and blk == 5:
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -1.5830523099667171)
+                            # For iter 6 rho should be 1.0 for all blk when i= 1, h=1, j=3...
+                            elif iter == 6 and j == 3 and i == 1 and h == 1: # I assume this is true for all blk
+                                assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0
+                            elif (iter == 6 and h == 1) and (j in (1,2)) and ( i in range(2, 33)):
+                                    assert rho[j - 1, comp_list[i - 1, h - 1] - 1] not in (1.0, 2.0)'''
+                            # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+                            '''if rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0: # Iter 6 will hit this
+                                z0[bstrt-1:bstp, j - 1] = (
+                                    np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    - np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
+                                    - np.log(2.0)
+                                )
+                            # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
+                            elif rho[j - 1, comp_list[i - 1, h - 1] - 1] == 2.0:
+                                # Iter 13 hits this
+                                z0[bstrt-1:bstp, j - 1] = (
+                                    np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    - y[bstrt-1:bstp, i - 1, j - 1, h - 1] ** 2
+                                    - np.log(1.7724538511680996)  # sqrt(pi)
+                                )      
+                            else:
+                                tmpvec[bstrt-1:bstp] = np.log(np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1]))
+                                tmpvec2[bstrt-1:bstp] = np.exp(rho[j - 1, comp_list[i - 1, h - 1] - 1] * tmpvec[bstrt-1:bstp])
+                                
+                                # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
+                                z0[bstrt-1:bstp, j - 1] = (
+                                    np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    - tmpvec2[bstrt-1:bstp]
+                                    - gammaln(1.0 + 1.0 / rho[j - 1, comp_list[i - 1, h - 1] - 1])
+                                    - np.log(2.0)
+                                )'''
+                            '''if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1 and pdtype[i - 1, h - 1] == 0:
+                                assert_almost_equal(tmpvec[bstrt-1], 0.1540647351688724)
+                                assert_almost_equal(tmpvec[bstp-1], -1.3689579137330044)
+                                assert_almost_equal(tmpvec2[bstrt-1], 1.2599815811899271)
+                                assert_almost_equal(tmpvec2[bstp-1], 0.1282932178257068)
+                                assert_almost_equal(z0[bstrt-1, j - 1], -2.9784591487238883)
+                            elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[bstrt-1, j-1], -2.6449740954101353)
+                                assert_almost_equal(tmpvec2[bstrt-1], 0.96926517113281097)
+                            elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[bstrt-1, j-1], -1.7145368856186436)
+                                assert_almost_equal(tmpvec2[bstrt-1], 0.038827961341319203)
+                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[bstrt-1, j-1], -3.4948228241366635, decimal=5) # -1.7717921977005058?
+                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 2:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[bstrt-1, j-1], -3.0835927875939735, decimal=4)
+                            elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 59:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(alpha[j - 1, comp_list[i - 1, h - 1] - 1], 0.15495651231642776, decimal=6)
+                                assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.71882677666766215, decimal=5)
+                                assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -0.19508550829305665, decimal=4)
+                                assert_almost_equal(z0[bstrt-1, j-1], -3.0829783288461443, decimal=5) 
+                                assert_almost_equal(z0[bstp-1, j-1], -3.3956057493525247, decimal=5)
+                            elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 1:
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[0, 0], -1.5394706440040244, decimal=4)
+                            elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 1:
+                                # notice that for each j that rho line == 2.0
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[0, 1], -1.1670825576427757, decimal=4)
+                                assert_almost_equal(z0[511, 1], -0.49427281377070059, decimal=4)
+                                assert z0[808, 1] == 0
+                            elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 59:
+                                assert rho[0, comp_list[i - 1, h - 1] - 1] == 2.0
+                                assert pdtype[i - 1, h - 1] == 0
+                                assert_almost_equal(z0[0, 0], -2.5174885607823292, decimal=4)
+                            elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 59:
+                                assert rho[1, comp_list[i - 1, h - 1] - 1] == 2.0
+                                assert_almost_equal(z0[0, 1], -0.45430836593563906, decimal=4)
+                            elif iter == 13 and j == 3 and i == 1 and h == 1 and blk == 59:
+                                assert rho[2, comp_list[i - 1, h - 1] - 1] == 1.0
+                                assert_almost_equal(z0[0, 2],-3.7895126283292315, decimal=3)'''
+                    case 2:
+                        raise NotImplementedError()
+                    case 3:
+                        raise NotImplementedError()
+                    case 4:
+                        raise NotImplementedError()
+                    case 1:
+                        raise NotImplementedError()
+                    case _:
+                        raise ValueError(
+                            f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
+                            "Expected values are 0, 1, 2, 3, or 4."
+                        )
+                    # end select
                 # !--- end for j
                 # !--- add the log likelihood of this component to the likelihood of this time point
                 # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
                 # this max call operates across num_mixtures
-                Pmax_br[bstrt-1:bstp, :] = np.max(z0_all[bstrt-1:bstp, :, :], axis=-1)
-                if iter == 1 and h == 1 and blk == 1:
-                    # and i == 1
+                # Pmax[bstrt-1:bstp] = np.max(z0[bstrt-1:bstp, :], axis=1)
+                '''if iter == 1 and i == 1 and h == 1 and blk == 1:
                     assert bstrt == 1
                     assert bstp == 512
-                    assert_almost_equal(Pmax_br[bstrt-1, 0], -1.8397475048612697)
-                    assert_almost_equal(Pmax_br[(bstp-1)//2, 0], -1.7814295395506825)
-                    assert_almost_equal(Pmax_br[bstp-1, 0], -1.8467707853596678)
-                    assert Pmax_br[bstp, 0] == 0
-                elif iter == 1 and h == 1 and blk == 59:
-                    # and i == 32 
+                    assert_almost_equal(Pmax[bstrt-1], -1.8397475048612697)
+                    assert_almost_equal(Pmax[(bstp-1)//2], -1.7814295395506825)
+                    assert_almost_equal(Pmax[bstp-1], -1.8467707853596678)
+                    assert Pmax[bstp] == 0
+                elif iter == 1 and i == 32 and h == 1 and blk == 59:
                     assert bstrt == 1
                     assert bstp == 808
-                    assert_almost_equal(Pmax_br[bstrt-1, 31], -1.7145368856186436)
-                    assert_almost_equal(Pmax_br[(bstp-1)//2, 31], -1.8670127260281211)
-                    assert_almost_equal(Pmax_br[bstp-1, 31], -1.7888606743768181)
-                    assert Pmax_br[bstp, 31] == 0
+                    assert_almost_equal(Pmax[bstrt-1], -1.7145368856186436)
+                    assert_almost_equal(Pmax[(bstp-1)//2], -1.8670127260281211)
+                    assert_almost_equal(Pmax[bstp-1], -1.7888606743768181)
+                    assert Pmax[bstp] == 0'''
                 
+                '''ztmp[bstrt-1:bstp] = 0.0
+                for j, _ in enumerate(range(num_mix), start=1):
+                    ztmp[bstrt-1:bstp] += np.exp(z0[bstrt-1:bstp, j - 1] - Pmax[bstrt-1:bstp])
+                    if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
+                        assert_almost_equal(ztmp[bstrt-1], 1.8787098696697053)
+                        assert_almost_equal(ztmp[bstp-1], 1.355797568009625)
+                        assert ztmp[bstp] == 0.0'''
                 
-                ztmp_br[bstrt-1:bstp, :] = 0.0
-                # Prepare Pmax for broadcasting against the 3D z0_all array
-                Pmax_br_exp = Pmax_br[bstrt-1:bstp, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
-                # Calculate the exponent term for all components and mixtures
-                exp_term = np.exp(z0_all[bstrt-1:bstp, :, :] - Pmax_br_exp)
-                # Sum the results over the mixture axis (axis=2)
-                ztmp_br[bstrt-1:bstp, :] += exp_term.sum(axis=-1)
-                
-                '''tmpvec_br = Pmax_br[bstrt-1:bstp, :] + np.log(ztmp_br[bstrt-1:bstp, :])
-                Ptmp_br[bstrt-1:bstp, ]
-                Ptmp_br[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
-                if iter == 1 and h == 1 and blk == 1:
-                    # and j == 3 and i == 1 
-                    assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
-                    assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)'''
+                tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
+                Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+                if iter == 1 and i == 1 and h == 1 and blk == 1:
+                    assert_almost_equal(tmpvec[bstrt-1], -1.2091622031269318)
+                    assert_almost_equal(tmpvec[(bstp-1)//2], -1.293181296723108)
+                    assert_almost_equal(tmpvec[bstp-1], -1.5423808931143423)
+                    assert tmpvec[bstp] == 0.0
 
-                for i, _ in enumerate(range(nw), start=1):
-                    # !--- get probability
-                    # select case (pdtype(i,h))
-                    match pdtype[i - 1, h - 1]:
-                        case 0:
-                            for j, _ in enumerate(range(num_mix), start=1):
-                                tmpvec[bstrt-1:bstp] = tmpvec_z0[bstrt-1:bstp, i - 1, j - 1]
-                                tmpvec2[bstrt-1:bstp] = tmpvec2_z0[bstrt-1:bstp, i - 1, j - 1]
-                                z0[bstrt-1:bstp, j - 1] = z0_all[bstrt-1:bstp, i - 1, j - 1]
-                                Pmax[bstrt-1:bstp] = Pmax_br[bstrt-1:bstp, i - 1]
-                                ztmp[bstrt-1:bstp] = ztmp_br[bstrt-1:bstp, i - 1]
-                                # checking a few values against the Fortran output b4 the loop
-                                '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                    assert bstrt == 1
-                                    assert bstp == 512
-                                    assert y[bstrt-1:bstp, i - 1, j - 1, h - 1].shape == (512,)
-                                    assert y[bstrt-1, i - 1, j - 1, h - 1] == 0
-                                    assert comp_list[i - 1, h - 1] == 1
-                                    assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.96533589542801645)
-                                    assert_almost_equal(b[bstrt-1, i - 1, h - 1], -0.18617958844276997)
-                                    assert_almost_equal(mu[j - 1, comp_list[i - 1, h - 1] - 1], -1.0009659467356704)'''
-                                # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
-                                #y[bstrt-1:bstp, i -1, j - 1, h - 1] = (
-                                #    sbeta[j - 1, comp_list[i - 1, h - 1] - 1]
-                                #    * (b[bstrt-1:bstp, i - 1, h - 1] - mu[j - 1, comp_list[i - 1, h - 1] - 1])
-                                #)
-                                '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], 0.78654251876520975)
-                                    assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 2.1986329758066234)
-                                    assert rho[j - 1, comp_list[i - 1, h - 1] - 1] not in (1.0, 2.0)
-                                elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 1:
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -0.30178254772840934)
-                                    assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 0.12278307295778981)
-                                elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1],-0.97940369525887783)
-                                    assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], 0.089350893166796549)
-                                    assert_almost_equal(y[bstp//2 - 1, i - 1, j - 1, h - 1], -0.29014720852527631)
-                                elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], 0.11466469645366399)
-                                    assert_almost_equal(y[bstp - 1, i - 1, j - 1, h - 1], -1.8370080076417346)
-                                    assert_almost_equal(y[bstp//2 - 1, i - 1, j - 1, h - 1], -0.65003290185923845)
-                                    assert y[bstp, i - 1, j - 1, h - 1] == 0.0
-                                elif iter == 1 and j == 3 and i == 1 and h == 1 and blk == 59:
-                                    assert bstrt == 1
-                                    assert bstp == 808
-                                    # TODO: test values at last block
-                                    # assert y[bstrt-1:bstp, i - 1, j - 1, h - 1],
-                                elif iter == 1 and j == 3 and i == 25 and h == 1 and blk == 5:
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -1.5830523099667171)
-                                # For iter 6 rho should be 1.0 for all blk when i= 1, h=1, j=3...
-                                elif iter == 6 and j == 3 and i == 1 and h == 1: # I assume this is true for all blk
-                                    assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0
-                                elif (iter == 6 and h == 1) and (j in (1,2)) and ( i in range(2, 33)):
-                                     assert rho[j - 1, comp_list[i - 1, h - 1] - 1] not in (1.0, 2.0)'''
-                                # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-                                '''if rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.0: # Iter 6 will hit this
-                                    z0[bstrt-1:bstp, j - 1] = (
-                                        np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        - np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1])
-                                        - np.log(2.0)
-                                    )
-                                # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
-                                elif rho[j - 1, comp_list[i - 1, h - 1] - 1] == 2.0:
-                                    # Iter 13 hits this
-                                    z0[bstrt-1:bstp, j - 1] = (
-                                        np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        - y[bstrt-1:bstp, i - 1, j - 1, h - 1] ** 2
-                                        - np.log(1.7724538511680996)  # sqrt(pi)
-                                    )      
-                                else:
-                                    tmpvec[bstrt-1:bstp] = np.log(np.abs(y[bstrt-1:bstp, i - 1, j - 1, h - 1]))
-                                    tmpvec2[bstrt-1:bstp] = np.exp(rho[j - 1, comp_list[i - 1, h - 1] - 1] * tmpvec[bstrt-1:bstp])
-                                    
-                                    # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
-                                    z0[bstrt-1:bstp, j - 1] = (
-                                        np.log(alpha[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        + np.log(sbeta[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        - tmpvec2[bstrt-1:bstp]
-                                        - gammaln(1.0 + 1.0 / rho[j - 1, comp_list[i - 1, h - 1] - 1])
-                                        - np.log(2.0)
-                                    )'''
-                                '''if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1 and pdtype[i - 1, h - 1] == 0:
-                                    assert_almost_equal(tmpvec[bstrt-1], 0.1540647351688724)
-                                    assert_almost_equal(tmpvec[bstp-1], -1.3689579137330044)
-                                    assert_almost_equal(tmpvec2[bstrt-1], 1.2599815811899271)
-                                    assert_almost_equal(tmpvec2[bstp-1], 0.1282932178257068)
-                                    assert_almost_equal(z0[bstrt-1, j - 1], -2.9784591487238883)
-                                elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[bstrt-1, j-1], -2.6449740954101353)
-                                    assert_almost_equal(tmpvec2[bstrt-1], 0.96926517113281097)
-                                elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[bstrt-1, j-1], -1.7145368856186436)
-                                    assert_almost_equal(tmpvec2[bstrt-1], 0.038827961341319203)
-                                elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[bstrt-1, j-1], -3.4948228241366635, decimal=5) # -1.7717921977005058?
-                                elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 2:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[bstrt-1, j-1], -3.0835927875939735, decimal=4)
-                                elif iter == 6 and j == 3 and i == 1 and h == 1 and blk == 59:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(alpha[j - 1, comp_list[i - 1, h - 1] - 1], 0.15495651231642776, decimal=6)
-                                    assert_almost_equal(sbeta[j - 1, comp_list[i - 1, h - 1] - 1], 0.71882677666766215, decimal=5)
-                                    assert_almost_equal(y[bstrt-1, i - 1, j - 1, h - 1], -0.19508550829305665, decimal=4)
-                                    assert_almost_equal(z0[bstrt-1, j-1], -3.0829783288461443, decimal=5) 
-                                    assert_almost_equal(z0[bstp-1, j-1], -3.3956057493525247, decimal=5)
-                                elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[0, 0], -1.5394706440040244, decimal=4)
-                                elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 1:
-                                    # notice that for each j that rho line == 2.0
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[0, 1], -1.1670825576427757, decimal=4)
-                                    assert_almost_equal(z0[511, 1], -0.49427281377070059, decimal=4)
-                                    assert z0[808, 1] == 0
-                                elif iter == 13 and j == 1 and i == 1 and h == 1 and blk == 59:
-                                    assert rho[0, comp_list[i - 1, h - 1] - 1] == 2.0
-                                    assert pdtype[i - 1, h - 1] == 0
-                                    assert_almost_equal(z0[0, 0], -2.5174885607823292, decimal=4)
-                                elif iter == 13 and j == 2 and i == 1 and h == 1 and blk == 59:
-                                    assert rho[1, comp_list[i - 1, h - 1] - 1] == 2.0
-                                    assert_almost_equal(z0[0, 1], -0.45430836593563906, decimal=4)
-                                elif iter == 13 and j == 3 and i == 1 and h == 1 and blk == 59:
-                                    assert rho[2, comp_list[i - 1, h - 1] - 1] == 1.0
-                                    assert_almost_equal(z0[0, 2],-3.7895126283292315, decimal=3)'''
-                        case 2:
-                            raise NotImplementedError()
-                        case 3:
-                            raise NotImplementedError()
-                        case 4:
-                            raise NotImplementedError()
-                        case 1:
-                            raise NotImplementedError()
-                        case _:
-                            raise ValueError(
-                                f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
-                                "Expected values are 0, 1, 2, 3, or 4."
+                    assert_almost_equal(Ptmp[bstrt-1, h - 1], -67.139756607917107, decimal=7)
+                    assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -67.223775701513276, decimal=7)
+                    assert_almost_equal(Ptmp[bstp-1, h - 1], -67.472975297904512, decimal=7)
+                    assert Ptmp[bstp, h - 1] == 0.0
+                elif iter == 1 and i == 32 and h == 1 and blk == 58:
+                    assert_almost_equal(tmpvec[bstrt-1], -1.1087719699554954)
+                    assert_almost_equal(tmpvec[bstp-1], -1.3780550283587416)
+
+                    assert_almost_equal(Ptmp[bstrt-1, h - 1], -108.41191470660024, decimal=7)
+                    assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -108.61561241621847, decimal=7)
+                    assert_almost_equal(Ptmp[bstp-1, h - 1], -109.99481298816717, decimal=7)
+                    assert Ptmp[bstp, h - 1] == 0.0
+                elif iter == 1 and i == 32 and h == 1 and blk == 59:
+                    assert_almost_equal(tmpvec[bstrt-1], -1.3985628540654771)
+                    assert_almost_equal(tmpvec[bstp-1], -1.3117992430080818)
+
+                    assert_almost_equal(Ptmp[bstrt-1, h - 1], -111.08637839416761, decimal=7)
+                    assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -118.18897409407006, decimal=7)
+                    assert_almost_equal(Ptmp[bstp-1, h - 1], -111.60532918598989, decimal=7)
+                    assert Ptmp[bstp, h - 1] == 0.0
+                
+                # !--- get normalized z
+                for j, _ in enumerate(range(num_mix), start=1):
+                    # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
+                    result_1 = (
+                                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
                             )
-                        # end select
-                    # !--- end for j
-                    # !--- add the log likelihood of this component to the likelihood of this time point
-                    # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
-                    # this max call operates across num_mixtures
-                    # Pmax[bstrt-1:bstp] = np.max(z0[bstrt-1:bstp, :], axis=1)
-                    '''if iter == 1 and i == 1 and h == 1 and blk == 1:
-                        assert bstrt == 1
-                        assert bstp == 512
-                        assert_almost_equal(Pmax[bstrt-1], -1.8397475048612697)
-                        assert_almost_equal(Pmax[(bstp-1)//2], -1.7814295395506825)
-                        assert_almost_equal(Pmax[bstp-1], -1.8467707853596678)
-                        assert Pmax[bstp] == 0
-                    elif iter == 1 and i == 32 and h == 1 and blk == 59:
-                        assert bstrt == 1
-                        assert bstp == 808
-                        assert_almost_equal(Pmax[bstrt-1], -1.7145368856186436)
-                        assert_almost_equal(Pmax[(bstp-1)//2], -1.8670127260281211)
-                        assert_almost_equal(Pmax[bstp-1], -1.7888606743768181)
-                        assert Pmax[bstp] == 0'''
-                    
-                    '''ztmp[bstrt-1:bstp] = 0.0
-                    for j, _ in enumerate(range(num_mix), start=1):
-                        ztmp[bstrt-1:bstp] += np.exp(z0[bstrt-1:bstp, j - 1] - Pmax[bstrt-1:bstp])
-                        if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
-                            assert_almost_equal(ztmp[bstrt-1], 1.8787098696697053)
-                            assert_almost_equal(ztmp[bstp-1], 1.355797568009625)
-                            assert ztmp[bstp] == 0.0'''
-                    
-                    tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
-                    Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
-                    if iter == 1 and i == 1 and h == 1 and blk == 1:
-                        assert_almost_equal(tmpvec[bstrt-1], -1.2091622031269318)
-                        assert_almost_equal(tmpvec[(bstp-1)//2], -1.293181296723108)
-                        assert_almost_equal(tmpvec[bstp-1], -1.5423808931143423)
-                        assert tmpvec[bstp] == 0.0
-
-                        assert_almost_equal(Ptmp[bstrt-1, h - 1], -67.139756607917107, decimal=7)
-                        assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -67.223775701513276, decimal=7)
-                        assert_almost_equal(Ptmp[bstp-1, h - 1], -67.472975297904512, decimal=7)
-                        assert Ptmp[bstp, h - 1] == 0.0
-                    elif iter == 1 and i == 32 and h == 1 and blk == 58:
-                        assert_almost_equal(tmpvec[bstrt-1], -1.1087719699554954)
-                        assert_almost_equal(tmpvec[bstp-1], -1.3780550283587416)
-
-                        assert_almost_equal(Ptmp[bstrt-1, h - 1], -108.41191470660024, decimal=7)
-                        assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -108.61561241621847, decimal=7)
-                        assert_almost_equal(Ptmp[bstp-1, h - 1], -109.99481298816717, decimal=7)
-                        assert Ptmp[bstp, h - 1] == 0.0
-                    elif iter == 1 and i == 32 and h == 1 and blk == 59:
-                        assert_almost_equal(tmpvec[bstrt-1], -1.3985628540654771)
-                        assert_almost_equal(tmpvec[bstp-1], -1.3117992430080818)
-
-                        assert_almost_equal(Ptmp[bstrt-1, h - 1], -111.08637839416761, decimal=7)
-                        assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -118.18897409407006, decimal=7)
-                        assert_almost_equal(Ptmp[bstp-1, h - 1], -111.60532918598989, decimal=7)
-                        assert Ptmp[bstp, h - 1] == 0.0
-                    
-                    # !--- get normalized z
-                    for j, _ in enumerate(range(num_mix), start=1):
-                        # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-                        result_1 = (
-                                    1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                    result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
+                    # assert_almost_equal(result_1, result_2)
+                    with np.errstate(over='raise'):
+                        try:
+                            result = (
+                                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                            )
+                            # NOTE: line above, at iteration 9: RuntimeWarning: overflow encountered in exp 1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                            # NOTE: so lets use a more numerically stable formulation
+                            # NOTE: if this breaks a lot of our tests, maybe we can triage the formulation in the event of overflow
+                        except FloatingPointError as e:
+                            result = (
+                                np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
                                 )
-                        result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-                        # assert_almost_equal(result_1, result_2)
-                        with np.errstate(over='raise'):
-                            try:
-                                result = (
-                                    1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
-                                )
-                                # NOTE: line above, at iteration 9: RuntimeWarning: overflow encountered in exp 1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
-                                # NOTE: so lets use a more numerically stable formulation
-                                # NOTE: if this breaks a lot of our tests, maybe we can triage the formulation in the event of overflow
-                            except FloatingPointError as e:
-                                result = (
-                                    np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-                                    )
-                        z[bstrt-1:bstp, i - 1, j - 1, h - 1] = result_1 # TODO: change this back to result
-                        if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
-                            assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.17045278428961655)
-                            assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.73757323629665994)
-                            assert z[bstp, i - 1, j - 1, h - 1] == 0.0
-                        elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
-                            assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.21519684201479097)
-                            assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.72298823809331669)
-                            assert z[bstp, i - 1, j - 1, h - 1] == 0.0
-                        elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
-                            assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.72907838295502048)
-                            assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.057629436774909774)
-                            assert z[bstp, i - 1, j - 1, h - 1] == 0.0
-                        elif iter == 9 and j == 2 and i == 1 and h == 1 and blk == 11:
-                            assert bstrt == 1
-                            # So tmpvec and z0 should be the same as the fortran output.
-                            assert_almost_equal(tmpvec[0], -1.4350891208642027, decimal=4)
-                            assert_almost_equal(z0[0, 1], -2.45639839815304, decimal=4)
-                            assert_almost_equal(z[bstrt-1, 0, 1, 0], 0.3601231303397881, decimal=4)
-                    # end do (j)
-                # end do (i)
+                    z[bstrt-1:bstp, i - 1, j - 1, h - 1] = result_1 # TODO: change this back to result
+                    if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
+                        assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.17045278428961655)
+                        assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.73757323629665994)
+                        assert z[bstp, i - 1, j - 1, h - 1] == 0.0
+                    elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 58:
+                        assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.21519684201479097)
+                        assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.72298823809331669)
+                        assert z[bstp, i - 1, j - 1, h - 1] == 0.0
+                    elif iter == 1 and j == 3 and i == 32 and h == 1 and blk == 59:
+                        assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.72907838295502048)
+                        assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.057629436774909774)
+                        assert z[bstp, i - 1, j - 1, h - 1] == 0.0
+                    elif iter == 9 and j == 2 and i == 1 and h == 1 and blk == 11:
+                        assert bstrt == 1
+                        # So tmpvec and z0 should be the same as the fortran output.
+                        assert_almost_equal(tmpvec[0], -1.4350891208642027, decimal=4)
+                        assert_almost_equal(z0[0, 1], -2.45639839815304, decimal=4)
+                        assert_almost_equal(z[bstrt-1, 0, 1, 0], 0.3601231303397881, decimal=4)
+                # end do (j)
+            # end do (i)
         # end do (h)
 
         # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
