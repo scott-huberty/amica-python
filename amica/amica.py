@@ -327,90 +327,88 @@ def get_updates_and_likelihood():
                     assert_almost_equal(b[511, 31, 0], 1.0335229300770761, decimal=7)
                     assert_almost_equal(b[bstp, 0, 0], 0.0, decimal=7)
             
-                # !--- get y z
-                match pdftype:
-                    case 0:
-                        # Gaussian
-                        if iter == 1 and h == 1 and blk == 1:
-                                assert bstrt == 1
-                                assert bstp == 512
-                                assert y[bstrt-1:bstp, 0, 0, 0].shape == (512,)
-                                assert y[0, 0, 0, 0] == 0
-                                assert comp_list[0, 0] == 1
-                                assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
-                                assert_almost_equal(b[0, 0, 0], -0.18617958844276997)
-                                assert_almost_equal(mu[0, 0], -1.0009659467356704)
-                        assert np.all(pdtype == 0)
-                        
+                # !--- get probability
+                # select case (pdtype(i,h))
+                if pdftype == 0:
+                    # Gaussian
+                    if iter == 1 and h == 1 and blk == 1:
+                            assert bstrt == 1
+                            assert bstp == 512
+                            assert y[bstrt-1:bstp, 0, 0, 0].shape == (512,)
+                            assert y[0, 0, 0, 0] == 0
+                            assert comp_list[0, 0] == 1
+                            assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
+                            assert_almost_equal(b[0, 0, 0], -0.18617958844276997)
+                            assert_almost_equal(mu[0, 0], -1.0009659467356704)
+                    assert np.all(pdtype == 0)
+                    
+                    # !--- get y z
+                    #--------------------------FORTRAN CODE-------------------------
+                    # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
+                    #---------------------------------------------------------------
+                    # 1. Select the parameters for the current model and block
+                    sbeta_h = sbeta[:, comp_indicies]      # Shape: (num_mix, nw)
+                    mu_h = mu[:, comp_indicies]            # Shape: (num_mix, nw)
+                    b_slice = b[bstrt-1:bstp, :, h_index]  # Shape: (tblksize, nw)
+                    # 2. Explicitly align arrays for broadcasting
+                    sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
+                    mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
+                    b_br = b_slice[:, np.newaxis, :]        # Shape: (tblksize, 1, nw)
+                    # 3. Calculate and assign result
+                    b_mu_diff = b_br - mu_br  # Shape: (tblksize, nw, num_mix)
+                    # align for broadcasting
+                    b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (tblksize, num_mix, nw)
+                    y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
+                    y[bstrt-1:bstp, :, :, h_index] = y_update
+                    
+                    #--------------------------FORTRAN CODE-------------------------
+                    # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+                    # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
+                    # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
+                    #---------------------------------------------------------------
+                    # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
+                    # Note: y_slice is already this shape. The others are broadcast.
+                    y_slice = y[bstrt-1:bstp, :, :, h_index]
+                    alpha_h = alpha[:, comp_indicies]
+                    rho_h = rho[:, comp_indicies]
 
-                        #--------------------------FORTRAN CODE-------------------------
-                        # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
-                        #---------------------------------------------------------------
-                        # 1. Select the parameters for the current model and block
-                        sbeta_h = sbeta[:, comp_indicies]      # Shape: (num_mix, nw)
-                        mu_h = mu[:, comp_indicies]            # Shape: (num_mix, nw)
-                        b_slice = b[bstrt-1:bstp, :, h_index]  # Shape: (tblksize, nw)
-                        # 2. Explicitly align arrays for broadcasting
-                        sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
-                        mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
-                        b_br = b_slice[:, np.newaxis, :]        # Shape: (tblksize, 1, nw)
-                        # 3. Calculate and assign result
-                        b_mu_diff = b_br - mu_br  # Shape: (tblksize, nw, num_mix)
-                        # align for broadcasting
-                        b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (tblksize, num_mix, nw)
-                        y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
-                        y[bstrt-1:bstp, :, :, h_index] = y_update
+                    alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
+                    rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
 
-                        
-                        
-                        #--------------------------FORTRAN CODE-------------------------
-                        # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-                        # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
-                        # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
-                        #---------------------------------------------------------------
-                        # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
-                        # Note: y_slice is already this shape. The others are broadcast.
-                        y_slice = y[bstrt-1:bstp, :, :, h_index]
-                        alpha_h = alpha[:, comp_indicies]
-                        rho_h = rho[:, comp_indicies]
+                    # 2. Create the boolean masks for each condition
+                    is_rho1 = (np.isclose(rho_br, 1.0))
+                    is_rho2 = (np.isclose(rho_br, 2.0))
 
-                        alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
-                        rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
+                    # 3. Calculate the results for ALL THREE possible choices
+                    log_alpha_br = np.log(alpha_br)
+                    log_sbeta_br = np.log(sbeta_br)
 
-                        # 2. Create the boolean masks for each condition
-                        is_rho1 = (np.isclose(rho_br, 1.0))
-                        is_rho2 = (np.isclose(rho_br, 2.0))
+                    # Choice if rho == 1.0
+                    choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - np.log(2.0)
 
-                        # 3. Calculate the results for ALL THREE possible choices
-                        log_alpha_br = np.log(alpha_br)
-                        log_sbeta_br = np.log(sbeta_br)
+                    # Choice if rho == 2.0
+                    choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
 
-                        # Choice if rho == 1.0
-                        choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - np.log(2.0)
+                    # Default choice (the 'else' case)
+                    tmpvec_z0[bstrt-1:bstp, :, :] = np.log(np.abs(y_slice))
+                    log_abs_y = tmpvec_z0[bstrt-1:bstp, :, :]
+                    tmpvec2_z0[bstrt-1:bstp, :, :] = np.exp((rho_br) * log_abs_y)
+                    tmpvec2_slice = tmpvec2_z0[bstrt-1:bstp, :, :]
+                    gamma_log = gammaln(1.0 + 1.0 / rho_br)
+                    choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
 
-                        # Choice if rho == 2.0
-                        choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
-
-                        # Default choice (the 'else' case)
-                        tmpvec_z0[bstrt-1:bstp, :, :] = np.log(np.abs(y_slice))
-                        log_abs_y = tmpvec_z0[bstrt-1:bstp, :, :]
-                        tmpvec2_z0[bstrt-1:bstp, :, :] = np.exp((rho_br) * log_abs_y)
-                        tmpvec2_slice = tmpvec2_z0[bstrt-1:bstp, :, :]
-                        gamma_log = gammaln(1.0 + 1.0 / rho_br)
-                        choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
-
-                        # 4. Use np.select to build the final array from the choices based on the masks
-                        conditions = [is_rho1, is_rho2]
-                        choices = [choice_1, choice_2]
-                        z0_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
-                    case 1:
-                        raise NotImplementedError()
-                    case 2:
-                        raise NotImplementedError()
-                    case 3:
-                        raise NotImplementedError()
-                    case _:
-                        raise ValueError(f"Invalid pdftype {pdftype}")
+                    # 4. Use np.select to build the final array from the choices based on the masks
+                    conditions = [is_rho1, is_rho2]
+                    choices = [choice_1, choice_2]
+                    z0_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
+                elif pdftype == 1:
+                    raise NotImplementedError()
+                elif pdftype == 2:
+                    raise NotImplementedError()
+                elif pdftype == 3:
+                    raise NotImplementedError()
+                else:
+                    raise ValueError(f"Invalid pdftype {pdftype}")
                     
                 # Check a few values against the Fortran output
                 if iter == 1 and h == 1 and blk == 1:
@@ -473,6 +471,30 @@ def get_updates_and_likelihood():
                     assert_almost_equal(z0_all[0, 0, 2], -3.7895126283292315, decimal=3)
                     assert 1 == 0
 
+                
+                # end select
+                # !--- end for j
+                # !--- add the log likelihood of this component to the likelihood of this time point
+                # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+                # this max call operates across num_mixtures
+                Pmax_br[bstrt-1:bstp, :] = np.max(z0_all[bstrt-1:bstp, :, :], axis=-1)
+                if iter == 1 and h == 1 and blk == 1:
+                    # and i == 1
+                    assert bstrt == 1
+                    assert bstp == 512
+                    assert_almost_equal(Pmax_br[bstrt-1, 0], -1.8397475048612697)
+                    assert_almost_equal(Pmax_br[(bstp-1)//2, 0], -1.7814295395506825)
+                    assert_almost_equal(Pmax_br[bstp-1, 0], -1.8467707853596678)
+                    assert Pmax_br[bstp, 0] == 0
+                elif iter == 1 and h == 1 and blk == 59:
+                    # and i == 32 
+                    assert bstrt == 1
+                    assert bstp == 808
+                    assert_almost_equal(Pmax_br[bstrt-1, 31], -1.7145368856186436)
+                    assert_almost_equal(Pmax_br[(bstp-1)//2, 31], -1.8670127260281211)
+                    assert_almost_equal(Pmax_br[bstp-1, 31], -1.7888606743768181)
+                    assert Pmax_br[bstp, 31] == 0
+
                 for i, _ in enumerate(range(nw), start=1):
                     # !--- get probability
                     # select case (pdtype(i,h))
@@ -482,6 +504,7 @@ def get_updates_and_likelihood():
                                 tmpvec[bstrt-1:bstp] = tmpvec_z0[bstrt-1:bstp, i - 1, j - 1]
                                 tmpvec2[bstrt-1:bstp] = tmpvec2_z0[bstrt-1:bstp, i - 1, j - 1]
                                 z0[bstrt-1:bstp, j - 1] = z0_all[bstrt-1:bstp, i - 1, j - 1]
+                                Pmax[bstrt-1:bstp] = Pmax_br[bstrt-1:bstp, i - 1]
                                 # checking a few values against the Fortran output b4 the loop
                                 '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                                     assert bstrt == 1
@@ -618,8 +641,8 @@ def get_updates_and_likelihood():
                     # !--- add the log likelihood of this component to the likelihood of this time point
                     # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
                     # this max call operates across num_mixtures
-                    Pmax[bstrt-1:bstp] = np.max(z0[bstrt-1:bstp, :], axis=1)
-                    if iter == 1 and i == 1 and h == 1 and blk == 1:
+                    # Pmax[bstrt-1:bstp] = np.max(z0[bstrt-1:bstp, :], axis=1)
+                    '''if iter == 1 and i == 1 and h == 1 and blk == 1:
                         assert bstrt == 1
                         assert bstp == 512
                         assert_almost_equal(Pmax[bstrt-1], -1.8397475048612697)
@@ -632,7 +655,7 @@ def get_updates_and_likelihood():
                         assert_almost_equal(Pmax[bstrt-1], -1.7145368856186436)
                         assert_almost_equal(Pmax[(bstp-1)//2], -1.8670127260281211)
                         assert_almost_equal(Pmax[bstp-1], -1.7888606743768181)
-                        assert Pmax[bstp] == 0
+                        assert Pmax[bstp] == 0'''
                     
                     ztmp[bstrt-1:bstp] = 0.0
                     for j, _ in enumerate(range(num_mix), start=1):
@@ -2929,6 +2952,7 @@ if __name__ == "__main__":
         Ptmp = np.zeros((N1, num_models))
         P = np.zeros(N1)
         Pmax = np.zeros(N1)
+        Pmax_br = np.zeros((N1, nw)) # Python only
         tmpvec = np.zeros(N1)
         tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
         tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
