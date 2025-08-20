@@ -494,6 +494,23 @@ def get_updates_and_likelihood():
                     assert_almost_equal(Pmax_br[(bstp-1)//2, 31], -1.8670127260281211)
                     assert_almost_equal(Pmax_br[bstp-1, 31], -1.7888606743768181)
                     assert Pmax_br[bstp, 31] == 0
+                
+                
+                ztmp_br[bstrt-1:bstp, :] = 0.0
+                # Prepare Pmax for broadcasting against the 3D z0_all array
+                Pmax_br_exp = Pmax_br[bstrt-1:bstp, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
+                # Calculate the exponent term for all components and mixtures
+                exp_term = np.exp(z0_all[bstrt-1:bstp, :, :] - Pmax_br_exp)
+                # Sum the results over the mixture axis (axis=2)
+                ztmp_br[bstrt-1:bstp, :] += exp_term.sum(axis=-1)
+                
+                '''tmpvec_br = Pmax_br[bstrt-1:bstp, :] + np.log(ztmp_br[bstrt-1:bstp, :])
+                Ptmp_br[bstrt-1:bstp, ]
+                Ptmp_br[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+                if iter == 1 and h == 1 and blk == 1:
+                    # and j == 3 and i == 1 
+                    assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
+                    assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)'''
 
                 for i, _ in enumerate(range(nw), start=1):
                     # !--- get probability
@@ -505,6 +522,7 @@ def get_updates_and_likelihood():
                                 tmpvec2[bstrt-1:bstp] = tmpvec2_z0[bstrt-1:bstp, i - 1, j - 1]
                                 z0[bstrt-1:bstp, j - 1] = z0_all[bstrt-1:bstp, i - 1, j - 1]
                                 Pmax[bstrt-1:bstp] = Pmax_br[bstrt-1:bstp, i - 1]
+                                ztmp[bstrt-1:bstp] = ztmp_br[bstrt-1:bstp, i - 1]
                                 # checking a few values against the Fortran output b4 the loop
                                 '''if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
                                     assert bstrt == 1
@@ -657,13 +675,13 @@ def get_updates_and_likelihood():
                         assert_almost_equal(Pmax[bstp-1], -1.7888606743768181)
                         assert Pmax[bstp] == 0'''
                     
-                    ztmp[bstrt-1:bstp] = 0.0
+                    '''ztmp[bstrt-1:bstp] = 0.0
                     for j, _ in enumerate(range(num_mix), start=1):
                         ztmp[bstrt-1:bstp] += np.exp(z0[bstrt-1:bstp, j - 1] - Pmax[bstrt-1:bstp])
                         if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
                             assert_almost_equal(ztmp[bstrt-1], 1.8787098696697053)
                             assert_almost_equal(ztmp[bstp-1], 1.355797568009625)
-                            assert ztmp[bstp] == 0.0
+                            assert ztmp[bstp] == 0.0'''
                     
                     tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
                     Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
@@ -2944,12 +2962,14 @@ if __name__ == "__main__":
         u_mat = np.zeros((N1, nw, num_mix)) # Python only
         utmp = np.zeros(N1)
         ztmp = np.zeros(N1)
+        ztmp_br = np.zeros((N1, nw)) # Python only
         vtmp = np.zeros(N1)
         logab = np.zeros(N1)
         logab_mat = np.zeros((N1, nw, num_mix)) # Python only
         tmpy = np.zeros(N1)
         tmpy_mat = np.zeros((N1, nw, num_mix)) # Python only
         Ptmp = np.zeros((N1, num_models))
+        Ptmp_br = np.zeros((N1, nw, num_models)) # Python only
         P = np.zeros(N1)
         Pmax = np.zeros(N1)
         Pmax_br = np.zeros((N1, nw)) # Python only
