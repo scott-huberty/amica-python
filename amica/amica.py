@@ -229,7 +229,8 @@ def get_updates_and_likelihood():
             h_index = h - 1
             comp_indicies = comp_list[:, h_index] - 1
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
-            Ptmp[bstrt-1:bstp, h - 1] = Dsum[h_index] + np.log(gm[h_index]) + sldet
+            Ptmp[bstrt-1:bstp, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
+            Ptmp_br[bstrt-1:bstp, :, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
             if iter == 1 and h == 1 and blk == 1:
                 assert_almost_equal(Ptmp[bstp - 1, 0], -65.93059440479017, decimal=7)
                 assert_allclose(Ptmp[bstrt - 1:bstp, 0], -65.93059440479017, atol=1e-7)
@@ -496,8 +497,7 @@ def get_updates_and_likelihood():
                 assert_almost_equal(Pmax_br[(bstp-1)//2, 31], -1.8670127260281211)
                 assert_almost_equal(Pmax_br[bstp-1, 31], -1.7888606743768181)
                 assert Pmax_br[bstp, 31] == 0
-            
-            
+              
             ztmp_br[bstrt-1:bstp, :] = 0.0
             # Prepare Pmax for broadcasting against the 3D z0_all array
             Pmax_br_exp = Pmax_br[bstrt-1:bstp, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
@@ -506,13 +506,30 @@ def get_updates_and_likelihood():
             # Sum the results over the mixture axis (axis=2)
             ztmp_br[bstrt-1:bstp, :] += exp_term.sum(axis=-1)
             
-            '''tmpvec_br = Pmax_br[bstrt-1:bstp, :] + np.log(ztmp_br[bstrt-1:bstp, :])
-            Ptmp_br[bstrt-1:bstp, ]
-            Ptmp_br[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+            tmpvec_br = Pmax_br[bstrt-1:bstp, :] + np.log(ztmp_br[bstrt-1:bstp, :])
+            Ptmp_br[bstrt-1:bstp, :, h_index] += tmpvec_br
+            Ptmp[bstrt-1:bstp, h_index] += tmpvec_br.sum(axis=-1)
             if iter == 1 and h == 1 and blk == 1:
                 # and j == 3 and i == 1 
                 assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
-                assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)'''
+                assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)
+                # and i == 1 (j loop is done now)
+                assert_almost_equal(tmpvec_br[0,0 ], -1.2091622031269318)
+                assert_almost_equal(tmpvec_br[511//2, 0], -1.293181296723108)
+                assert_almost_equal(tmpvec_br[511, 0], -1.5423808931143423)
+                # assert tmpvec_br[511,0] == 0.0
+                assert_almost_equal(Ptmp_br[0, 0, 0], -67.139756607917107)
+                assert_almost_equal(Ptmp_br[511//2, 0, 0], -67.223775701513276)
+                assert_almost_equal(Ptmp_br[511, 0, 0], -67.472975297904512)
+                assert Ptmp[512, 0] == 0.0
+            elif iter == 1 and h == 1 and blk == 58:
+                # and i == 32 (j loop is done now)
+                assert_almost_equal(tmpvec_br[0, 31], -1.1087719699554954)
+                assert_almost_equal(tmpvec_br[511, 31], -1.3780550283587416)
+                assert_almost_equal(Ptmp[0, 0], -108.41191470660024, decimal=7)
+                assert_almost_equal(Ptmp[511//2, 0], -108.61561241621847, decimal=7)
+                assert_almost_equal(Ptmp[bstp-1, 0], -109.99481298816717, decimal=7)
+                # assert Ptmp[bstp, 0] == 0.0
 
             for i, _ in enumerate(range(nw), start=1):
                 # !--- get probability
@@ -686,33 +703,32 @@ def get_updates_and_likelihood():
                         assert ztmp[bstp] == 0.0'''
                 
                 tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
-                Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
-                if iter == 1 and i == 1 and h == 1 and blk == 1:
+                #Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+                '''if iter == 1 and i == 1 and h == 1 and blk == 1:
                     assert_almost_equal(tmpvec[bstrt-1], -1.2091622031269318)
                     assert_almost_equal(tmpvec[(bstp-1)//2], -1.293181296723108)
                     assert_almost_equal(tmpvec[bstp-1], -1.5423808931143423)
                     assert tmpvec[bstp] == 0.0
-
                     assert_almost_equal(Ptmp[bstrt-1, h - 1], -67.139756607917107, decimal=7)
                     assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -67.223775701513276, decimal=7)
                     assert_almost_equal(Ptmp[bstp-1, h - 1], -67.472975297904512, decimal=7)
-                    assert Ptmp[bstp, h - 1] == 0.0
-                elif iter == 1 and i == 32 and h == 1 and blk == 58:
+                    assert Ptmp[bstp, h - 1] == 0.0'''
+                '''elif iter == 1 and i == 32 and h == 1 and blk == 58:
                     assert_almost_equal(tmpvec[bstrt-1], -1.1087719699554954)
                     assert_almost_equal(tmpvec[bstp-1], -1.3780550283587416)
 
                     assert_almost_equal(Ptmp[bstrt-1, h - 1], -108.41191470660024, decimal=7)
                     assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -108.61561241621847, decimal=7)
                     assert_almost_equal(Ptmp[bstp-1, h - 1], -109.99481298816717, decimal=7)
-                    assert Ptmp[bstp, h - 1] == 0.0
-                elif iter == 1 and i == 32 and h == 1 and blk == 59:
+                    assert Ptmp[bstp, h - 1] == 0.0'''
+                '''elif iter == 1 and i == 32 and h == 1 and blk == 59:
                     assert_almost_equal(tmpvec[bstrt-1], -1.3985628540654771)
                     assert_almost_equal(tmpvec[bstp-1], -1.3117992430080818)
 
                     assert_almost_equal(Ptmp[bstrt-1, h - 1], -111.08637839416761, decimal=7)
                     assert_almost_equal(Ptmp[(bstp-1)//2, h - 1], -118.18897409407006, decimal=7)
                     assert_almost_equal(Ptmp[bstp-1, h - 1], -111.60532918598989, decimal=7)
-                    assert Ptmp[bstp, h - 1] == 0.0
+                    assert Ptmp[bstp, h - 1] == 0.0'''
                 
                 # !--- get normalized z
                 for j, _ in enumerate(range(num_mix), start=1):
