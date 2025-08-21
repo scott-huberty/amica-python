@@ -984,8 +984,94 @@ def get_updates_and_likelihood():
             if iter == 1 and h == 1 and blk == 1:
                 assert_almost_equal(u_mat[bstrt - 1, 0, 0], 0.29726705039895657)
                 assert_almost_equal(u_mat[bstp - 1, 0, 0], 0.031986885982993922)
+            
+            
             # !--- get fp, zfp
-            for i, _ in enumerate(range(nw), start=1):
+            if pdftype == 0:
+                assert np.all(pdtype == 0)  # sanity check
+                # NOTE: VECTORIZED
+                # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+                if iter == 6 and h == 1 and blk == 1:
+                    # and j == 3 and i == 1 
+                    assert rho[2, 0] == 1.0
+                rho_vals = rho[:, comp_indicies]  # shape: (num_mix, nw)
+                is_rho1 = (rho_vals == 1.0)  # shape: (num_mix, nw)
+                is_rho2 = (rho_vals == 2.0)  # shape: (num_mix, nw)
+
+                fp_choice_1 = np.sign(y[bstrt-1:bstp, :, :, h_index])  # shape: (block_size, nw, num_mix)
+                fp_choice_2 = y[bstrt-1:bstp, :, :, h_index] * 2.0  # shape: (block_size, nw, num_mix)
+                
+                tmpvec_fp[bstrt-1:bstp, :, :] = np.log(np.abs(y[bstrt-1:bstp, :, :, h_index]))  # + 1e-300) avoid log(0); shape: (block_size, nw, num_mix)
+                tmpvec2_fp[bstrt-1:bstp, :, :] = np.exp(
+                    (rho[:, comp_indicies] - 1.0).T[np.newaxis, :, :] * tmpvec_fp[bstrt-1:bstp, :, :]
+                )
+                fp_choice_default = (
+                    rho_vals.T[np.newaxis, :, :]  # shape: (1, num_mix, nw)
+                    * np.sign(y[bstrt-1:bstp, :, :, h_index])  # shape: (block_size, nw, num_mix)
+                    * tmpvec2_fp[bstrt-1:bstp, :, :]  # shape: (block_size, nw, num_mix)
+                )
+                conditions = [is_rho1.T, is_rho2.T]
+                choices = [fp_choice_1, fp_choice_2]
+                fp_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=fp_choice_default)
+            elif pdftype == 2:
+                raise NotImplementedError()
+            elif pdftype == 3:
+                raise NotImplementedError()
+            elif pdftype == 4:
+                raise NotImplementedError()
+            elif pdftype == 1:
+                raise NotImplementedError()
+            else:
+                raise ValueError(
+                    f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
+                    "Expected values are 0, 1, 2, 3, or 4."
+                )
+            if iter == 1 and h == 1 and blk == 1:
+                # and j == 1 and i == 1 
+                assert_almost_equal(tmpvec_fp[0, 0, 0], -0.24010849721367941)
+                assert_almost_equal(tmpvec_fp[511, 0, 0], 0.78783579259769021)
+                assert_almost_equal(tmpvec2_fp[0, 0, 0], 0.88687232382412851)
+                assert_almost_equal(tmpvec2_fp[511, 0, 0], 1.4827788020492549)
+                assert rho[0, 0] == 1.5  # this is set by the config file
+                assert_almost_equal(fp_all[0, 0, 0], 1.3303084857361926)
+                assert tmpvec_fp[512, 0, 0] == 0.0
+                assert tmpvec2_fp[512, 0, 0] == 0.0
+            elif iter == 5 and blk == 59:
+                # and i == 32 and j == 3
+                assert_almost_equal(fp_all[512, 31, 2], 0.65938585821435558)
+            elif iter == 6 and h == 1 and blk == 1:
+                # and j == 3 and i == 1 
+                np.testing.assert_equal(fp_all[:142, 0, 2], -1.0)
+                assert fp_all[142, 0, 2] == 1.0
+                np.testing.assert_equal(fp_all[475:512, 0, 2], 1.0)
+                # This is actually testing a leftover value from a previous iteration..
+                # this indice was touched by the last block of iteration 5.
+                # assert_almost_equal(fp[512], 0.65938585821435558)
+                # assert_almost_equal(fp_all[512, 31, 2], 0.65938585821435558)
+            elif iter == 6 and h == 1 and blk == 2:
+                # and j == 3 and i == 1 
+                np.testing.assert_equal(fp_all[:3, 0, 2], 1.0)
+                assert fp_all[3, 0, 2] == -1.0
+                assert fp_all[4, 0, 2] == -1.0
+                np.testing.assert_equal(fp_all[5:39, 0, 2], 1.0)
+            elif iter == 6 and h == 1 and blk == 59:
+                # and j == 3 and i == 1 
+                np.testing.assert_equal(fp_all[:58, 0, 2], -1.0)
+                assert fp_all[58, 0, 2] == 1.0
+                assert fp_all[59, 0, 2] == -1.0
+                np.testing.assert_equal(fp_all[60:84, 0, 2], -1.0)
+            elif iter == 13 and h == 1 and blk == 1:
+                # and j == 1 and i == 1 
+                assert_almost_equal(fp_all[0, 0, 0], -0.36683010780476027, decimal=4)
+            elif iter == 13 and h == 1 and blk == 59:
+                # and j == 2 and i == 1 
+                assert_almost_equal(fp_all[0, 0, 1], 0.97056106297026667, decimal=4)
+            elif iter == 50 and h == 1 and blk == 1:
+                # and j == 1 and i == 1 
+                # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=6 to decimal=5)
+                assert_almost_equal(tmpvec_br[0, 31], -0.94984637969343122, decimal=5)
+                # assert len(tmpvec[bstrt-1:bstp]) == 512
+            '''for i, _ in enumerate(range(nw), start=1):
                 i_index = i - 1
                 for j, _ in enumerate(range(num_mix), start=1):
                     j_index = j - 1
@@ -1017,12 +1103,12 @@ def get_updates_and_likelihood():
                                     * tmpvec2[bstrt-1:bstp]
                                 )
                                 if iter == 1 and j == 1 and i == 1 and h == 1 and blk == 1:
-                                    assert_almost_equal(tmpvec[bstrt-1], -0.24010849721367941, decimal=7)
-                                    assert_almost_equal(tmpvec[bstp-1], 0.78783579259769021, decimal=7)
-                                    assert_almost_equal(tmpvec2[bstrt-1], 0.88687232382412851, decimal=7)
-                                    assert_almost_equal(tmpvec2[bstp-1], 1.4827788020492549, decimal=7)
+                                    assert_almost_equal(tmpvec[bstrt-1], -0.24010849721367941)
+                                    assert_almost_equal(tmpvec[bstp-1], 0.78783579259769021)
+                                    assert_almost_equal(tmpvec2[bstrt-1], 0.88687232382412851)
+                                    assert_almost_equal(tmpvec2[bstp-1], 1.4827788020492549)
                                     assert rho[j - 1, comp_list[i - 1, h - 1] - 1] == 1.5  # this is set by the config file
-                                    assert_almost_equal(fp_all[bstrt-1, i_index, j_index], 1.3303084857361926, decimal=7)
+                                    assert_almost_equal(fp_all[bstrt-1, i_index, j_index], 1.3303084857361926)
                                     assert tmpvec[bstp] == 0.0
                                     assert tmpvec2[bstp] == 0.0
                             if iter == 6 and j == 3 and i == 1 and h == 1 and blk == 1:
@@ -1068,7 +1154,7 @@ def get_updates_and_likelihood():
                             )
                     # end match (pdtype[i - 1, h - 1])
                 # end do (j)
-            # end do (i)
+            # end do (i)'''
 
              # --- Vectorized calculation of ufp and g update ---
             assert u_mat.shape == fp_all.shape == (1024, 32, 3)  # max_block_size, nw, num_mix
@@ -1586,8 +1672,8 @@ def get_updates_and_likelihood():
             # end do (i)"""
             if iter == 1 and h == 1 and blk == 1:
                 # j is 3 and i is 32 by this point
-                assert j == 3
-                assert i == 32
+                #assert j == 3
+                #assert i == 32
                 assert_almost_equal(g[bstrt-1, 31], 0.16418191233361801)
                 assert_almost_equal(g[bstp-1, 31], 0.85384837260436275)
                 assert g[bstp, 31] == 0.0
@@ -1603,8 +1689,8 @@ def get_updates_and_likelihood():
                 assert_almost_equal(u_mat[bstp-1, 31, 2], 0.73097098274195338)
                 assert u_mat[bstp, 31, 2] == 0.0
                 assert_almost_equal(usum_mat[31,2], 160.17523004773722)
-                assert_almost_equal(tmpvec[bstrt-1], -1.1980485615954355)
-                assert_almost_equal(tmpvec2[bstp-1], 0.35040415659319712)
+                assert_almost_equal(tmpvec_fp[0,31,2], -1.1980485615954355)
+                assert_almost_equal(tmpvec2_fp[511,31,2], 0.35040415659319712)
                 assert tmpvec[bstp] == 0.0
                 assert tmpvec2[bstp] == 0.0
                 assert_almost_equal(ufp_all[bstrt-1, 31, 2], -0.45683868086905977)
@@ -1639,8 +1725,9 @@ def get_updates_and_likelihood():
         # end do (h)
     # end do (blk)'
     if iter == 1 and blk == 59:
-        assert j == 3
-        assert i == 32
+        # j is 3 and i is 32 by this point
+        # assert j == 3
+        # assert i == 32
         assert h == 1
         assert_allclose(pdtype, 0)
         assert_allclose(rho, 1.5)
@@ -1656,17 +1743,17 @@ def get_updates_and_likelihood():
         assert_almost_equal(dc_numer_tmp[31, 0], 0)
         assert dc_denom_tmp[31, 0] == 30504
         assert_allclose(v, 1)
-        assert_almost_equal(z[bstrt-1, 31, 2, 0], 0.72907838295502048, decimal=7)
-        assert_almost_equal(z[bstp-1, 31, 2, 0], 0.057629436774909774, decimal=7)
+        assert_almost_equal(z[bstrt-1, 31, 2, 0], 0.72907838295502048)
+        assert_almost_equal(z[bstp-1, 31, 2, 0], 0.057629436774909774)
         assert_almost_equal(u_mat[bstrt-1, 31, 2], 0.72907838295502048)
-        assert_almost_equal(u_mat[bstp-1, 31, 2], 0.057629436774909774, decimal=7)
+        assert_almost_equal(u_mat[bstp-1, 31, 2], 0.057629436774909774)
         assert u[bstp] == 0.0
-        assert_almost_equal(usum_mat[31, 2], 325.12075860737821, decimal=7)
-        assert_almost_equal(tmpvec[bstrt-1], -2.1657430925146017, decimal=7)
-        assert_almost_equal(tmpvec2[bstp-1], 1.3553626849082627, decimal=7)
+        assert_almost_equal(usum_mat[31, 2], 325.12075860737821)
+        assert_almost_equal(tmpvec_fp[0, 31, 2], -2.1657430925146017)
+        assert_almost_equal(tmpvec2_fp[807, 31, 2], 1.3553626849082627)
         assert tmpvec[bstp] == 0.0
         assert tmpvec2[bstp] == 0.0
-        assert_almost_equal(ufp_all[bstrt-1, 31, 2], 0.37032270799594241, decimal=7)
+        assert_almost_equal(ufp_all[bstrt-1, 31, 2], 0.37032270799594241)
         assert_almost_equal(dalpha_numer_tmp[2, 31], 9499.991274464508, decimal=5)
         assert dalpha_denom_tmp[2, 31] == 30504
         assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
@@ -3030,7 +3117,9 @@ if __name__ == "__main__":
         tmpvec = np.zeros(N1)
         tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
         tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
+        tmpvec_fp = np.zeros((N1, nw, num_mix)) # Python only
         tmpvec2 = np.zeros(N1)
+        tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
         tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
     print(f"{myrank + 1}: block size = {block_size}")
     # for seg, _ in enumerate(range(numsegs), start=1):
@@ -3123,14 +3212,14 @@ if __name__ == "__main__":
             assert_almost_equal(dc_numer_tmp[31, 0], 0)
             assert dc_denom_tmp[31, 0] == 30504
             assert_allclose(v, 1)
-            assert_almost_equal(z[1-1, 31, 2, 0], 0.72907838295502048, decimal=7)
-            assert_almost_equal(z[808-1, 31, 2, 0], 0.057629436774909774, decimal=7)
+            assert_almost_equal(z[1-1, 31, 2, 0], 0.72907838295502048)
+            assert_almost_equal(z[808-1, 31, 2, 0], 0.057629436774909774)
             assert_almost_equal(u_mat[0, 31, 2], 0.72907838295502048)
-            assert_almost_equal(u_mat[807, 31, 2], 0.057629436774909774, decimal=7)
+            assert_almost_equal(u_mat[807, 31, 2], 0.057629436774909774)
             assert u_mat[808, 31, 2] == 0.0
             # assert_almost_equal(usum, 325.12075860737821, decimal=7)
-            assert_almost_equal(tmpvec[1-1], -2.1657430925146017, decimal=7)
-            assert_almost_equal(tmpvec2[808-1], 1.3553626849082627, decimal=7)
+            assert_almost_equal(tmpvec_fp[0,31,2], -2.1657430925146017)
+            assert_almost_equal(tmpvec2_fp[807,31,2], 1.3553626849082627)
             assert tmpvec[808] == 0.0
             assert tmpvec2[808] == 0.0
             # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
@@ -3215,8 +3304,8 @@ if __name__ == "__main__":
             assert_almost_equal(z[0, 31, 2, 0], 0.71373487258192514)
             assert_almost_equal(u_mat[0, 31, 2], 0.71373487258192514)
             assert u[808] == 0.0
-            assert_almost_equal(tmpvec[0], -1.3567967124454048)
-            assert_almost_equal(tmpvec2[807], 1.3678868714057633)
+            assert_almost_equal(tmpvec_fp[0,31,2], -1.3567967124454048)
+            assert_almost_equal(tmpvec2_fp[807,31,2], 1.3678868714057633)
             #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
             assert_almost_equal(dalpha_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
             assert dalpha_denom_tmp[2, 31] == 30504
