@@ -2033,49 +2033,38 @@ if __name__ == "__main__":
         raise NotImplementedError()
     else:
         for h, _ in enumerate(range(num_models), start=1):
-            A[:, (h-1)*nw:h*nw] = 0.01 * (0.5 - WTMP)
+            h_index = h - 1
+            A[:, (h_index)*nw:h*nw] = 0.01 * (0.5 - WTMP)
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
-            for i, _ in enumerate(range(nw), start=1):
-                A[i-1, (h-1)*nw + i - 1] = 1.0
-                Anrmk = np.sqrt(
-                            np.sum(
-                                np.square(
-                                    A[:, (h-1) * nw + i - 1]
-                                    )
-                                )
-                        )
-                if h == 1:
-                    if i == 1:
-                        assert_almost_equal(Anrmk, 1.0001205115690768, decimal=7)
-                    elif i == 2:
-                        assert_almost_equal(Anrmk, 1.0001597653323635, decimal=7)
-                    elif i == 3:
-                        assert_almost_equal(Anrmk, 1.0001246023020249, decimal=7)
-                    elif i == 4:
-                        assert_almost_equal(Anrmk, 1.0001246214648813, decimal=7)
-                    elif i == 5:
-                        assert_almost_equal(Anrmk, 1.0001391792172245, decimal=7)
-                    elif i == 6:
-                        assert_almost_equal(Anrmk, 1.0001153695881879, decimal=7)
-                    elif i == 7:
-                        assert_almost_equal(Anrmk, 1.0001348988545486, decimal=7)
-                    elif i == 32:
-                        assert_almost_equal(Anrmk, 1.0001690977165658, decimal=7)
-                else:
-                    raise ValueError("Unexpected model index")
-                A[:, (h-1) * nw + i - 1] = A[:, (h-1) * nw + i - 1] / Anrmk
-                comp_list[i - 1, h - 1] = (h - 1) * nw + i
+            idx = np.arange(nw)
+            cols = h_index * nw + idx
+            A[idx, cols] = 1.0
+            Anrmk = np.linalg.norm(A[:, cols], axis=0)
             if h == 1:
-                assert_almost_equal(A[0, 0], 0.99987950295221151, decimal=7)
-                assert_almost_equal(A[0, 1], 0.0031751973942113266, decimal=7)
-                assert_almost_equal(A[0, 2], 0.0032972413345084516, decimal=7)
-                assert_almost_equal(A[0, 3], -0.0039658956397471655, decimal=7)
-                assert_almost_equal(A[0, 4], -0.003799613000692897, decimal=7)
-                assert_almost_equal(A[0, 5], 0.0028189089968969124, decimal=7)
-                assert_almost_equal(A[0, 6], -0.0049667241649223011, decimal=7)
-                assert_almost_equal(A[0, 7], -0.0049493288857340749, decimal=7)
-                assert_almost_equal(A[0, 31], 0.0033698692262480665, decimal=7)
+                assert_almost_equal(Anrmk[0], 1.0001205115690768)
+                assert_almost_equal(Anrmk[1], 1.0001597653323635)
+                assert_almost_equal(Anrmk[2], 1.0001246023020249)
+                assert_almost_equal(Anrmk[3], 1.0001246214648813)
+                assert_almost_equal(Anrmk[4], 1.0001391792172245)
+                assert_almost_equal(Anrmk[5], 1.0001153695881879)
+                assert_almost_equal(Anrmk[6], 1.0001348988545486)
+                assert_almost_equal(Anrmk[31], 1.0001690977165658)
+            else:
+                raise ValueError("Unexpected model index")
+            A[:, cols] /= Anrmk
+            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1) 
+
+            if h == 1:
+                assert_almost_equal(A[0, 0], 0.99987950295221151)
+                assert_almost_equal(A[0, 1], 0.0031751973942113266)
+                assert_almost_equal(A[0, 2], 0.0032972413345084516)
+                assert_almost_equal(A[0, 3], -0.0039658956397471655)
+                assert_almost_equal(A[0, 4], -0.003799613000692897)
+                assert_almost_equal(A[0, 5], 0.0028189089968969124)
+                assert_almost_equal(A[0, 6], -0.0049667241649223011)
+                assert_almost_equal(A[0, 7], -0.0049493288857340749)
+                assert_almost_equal(A[0, 31], 0.0033698692262480665)
 
                 assert_equal(comp_list[0, 0], 1)
                 assert_equal(comp_list[1, 0], 2)
