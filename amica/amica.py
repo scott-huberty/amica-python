@@ -797,7 +797,8 @@ def get_updates_and_likelihood():
             # 1. log of absolute value
             tmpy_mat[:, :, :] = np.abs(y[:, :, :, h_index])
             logab_mat[:, :, :] = np.log(tmpy_mat[:, :, :])
-            if iter == 1 and j == 1 and i == 1 and h == 1: # and blk == 1:
+            if iter == 1 and h == 1: # and blk == 1:
+                # and j == 1 and i == 1 
                 assert_almost_equal(logab_mat[0, 0, 0], -0.24010849721367941)
                 assert_almost_equal(logab_mat[511, 0, 0], 0.78783579259769021)
                 assert_almost_equal(tmpy_mat[0, 0, 0], 0.78654251876520975)
@@ -1998,9 +1999,8 @@ if __name__ == "__main__":
     if load_mu:
         raise NotImplementedError()
     else:
-        for ki, k in enumerate(range(num_comps), start=1):
-            for ji, j in enumerate(range(num_mix), start=1):
-                mu[j, k] = ji - 1 - (num_mix - 1) / 2
+        values = np.arange(num_mix) - (num_mix - 1) / 2
+        mu[:, :] = values[:, np.newaxis]
         assert mu.shape == (num_mix, num_comps) == (3, 32)
         np.testing.assert_allclose(mu[0, :], -1.0)
         np.testing.assert_allclose(mu[1, :], 0.0)
