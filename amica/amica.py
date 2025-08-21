@@ -1140,9 +1140,8 @@ def accum_updates_and_likelihood():
                     assert dgm_numer_tmp[h - 1] == 30504
                     assert_almost_equal(dA[0, 0, h - 1], -0.55242259109989911)
             
-            for i, _ in enumerate(range(nw), start=1):
-                # dA(i,i,h) = dA(i,i,h) + dble(1.0)
-                dA[i - 1, i - 1, h - 1] += 1.0
+            # dA(i,i,h) = dA(i,i,h) + dble(1.0)
+            np.fill_diagonal(dA[:, :, h_index], dA[:, :, h_index].diagonal() + 1.0)
             if iter == 1 and h == 1:
                 assert_almost_equal(dA[0, 0, h - 1], 0.44757740890010089)
             # if (print_debug) then
