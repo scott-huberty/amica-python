@@ -232,11 +232,7 @@ def get_updates_and_likelihood():
             # assert Ptmp[808, 0] == 0
         # !--- get b
         if update_c and update_A:
-            for i, _ in enumerate(range(nw), start=1):
-                b[:, i-1, h-1] = -1.0 * wc[i - 1, h -1]
-            # XXX: At least when max_threads=1, bstrt,bstp will always be 1,512 across all blocks
-            # XXX: except for the last block which will be 1,808
-
+            b[:, :, h_index] = (-1.0 * wc[:, h_index])[np.newaxis, :]
         else:
             # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
             raise NotImplementedError()
@@ -370,6 +366,7 @@ def get_updates_and_likelihood():
         # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
         # this max call operates across num_mixtures
         Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
+        # np.max(z0, axis=-1, out=Pmax_br)
         if iter == 1 and h == 1: # and blk == 1:
             # and i == 1
             assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
