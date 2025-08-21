@@ -403,7 +403,7 @@ def get_updates_and_likelihood():
                 # 4. Use np.select to build the final array from the choices based on the masks
                 conditions = [is_rho1, is_rho2]
                 choices = [choice_1, choice_2]
-                z0_all[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
+                z0[bstrt-1:bstp, :, :] = np.select(conditions, choices, default=choice_default)
             elif pdftype == 1:
                 raise NotImplementedError()
             elif pdftype == 2:
@@ -422,56 +422,56 @@ def get_updates_and_likelihood():
                 assert_almost_equal(tmpvec_z0[511, 0, 2], -1.3689579137330044)
                 assert_almost_equal(tmpvec2_z0[0, 0, 2], 1.2599815811899271)
                 assert_almost_equal(tmpvec2_z0[511, 0, 2], 0.1282932178257068)
-                assert_almost_equal(z0_all[0, 0, 2], -2.9784591487238883)
+                assert_almost_equal(z0[0, 0, 2], -2.9784591487238883)
             elif iter == 1 and h == 1 and blk == 5:
                 # j == 3 and i == 25 
                 assert_almost_equal(y[0, 24, 2, 0], -1.5830523099667171)
             elif iter == 1 and h == 1 and blk == 58:
                 # j == 3 and i == 32 
                 assert pdtype[i - 1, h - 1] == 0
-                assert_almost_equal(z0_all[0, 31, 2], -2.6449740954101353)
+                assert_almost_equal(z0[0, 31, 2], -2.6449740954101353)
                 assert_almost_equal(tmpvec2_z0[0, 31, 2], 0.96926517113281097)
             elif iter == 1 and h == 1 and blk == 59:
                 # j == 3 and i == 32 
                 assert pdtype[i - 1, h - 1] == 0
-                assert_almost_equal(z0_all[0, 31, 2], -1.7145368856186436)
+                assert_almost_equal(z0[0, 31, 2], -1.7145368856186436)
             elif iter == 6 and h == 1 and blk == 1:
                 # j == 3 and i == 1 
                 assert pdtype[0, 0] == 0
-                assert_almost_equal(z0_all[0, 0, 2], -3.4948228241366635, decimal=5) # -1.7717921977005058?
+                assert_almost_equal(z0[0, 0, 2], -3.4948228241366635, decimal=5) # -1.7717921977005058?
             elif iter == 6 and h == 1 and blk == 2:
                 # j == 3 and i == 1 
                 assert pdtype[0, 0] == 0
-                assert_almost_equal(z0_all[0, 0, 2], -3.0835927875939735, decimal=4)
+                assert_almost_equal(z0[0, 0, 2], -3.0835927875939735, decimal=4)
             elif iter == 6 and h == 1 and blk == 59:
                 # j == 3 and i == 1
                 assert pdtype[0, 0] == 0
                 assert_almost_equal(alpha[2, 0], 0.15495651231642776, decimal=6)
                 assert_almost_equal(sbeta[2, 0], 0.71882677666766215, decimal=5)
                 assert_almost_equal(y[0, 0, 2, 0], -0.19508550829305665, decimal=4)
-                assert_almost_equal(z0_all[0, 0, 2], -3.0829783288461443, decimal=5)
-                assert_almost_equal(z0_all[807, 0, 2], -3.3956057493525247, decimal=5)
+                assert_almost_equal(z0[0, 0, 2], -3.0829783288461443, decimal=5)
+                assert_almost_equal(z0[807, 0, 2], -3.3956057493525247, decimal=5)
             elif iter == 13 and h == 1 and blk == 1:
                 # j == 1 and i == 1 
                 assert pdtype[0, 0] == 0
-                assert_almost_equal(z0_all[0, 0, 0], -1.5394706440040244, decimal=4)
+                assert_almost_equal(z0[0, 0, 0], -1.5394706440040244, decimal=4)
                 # j == 2 and i == 1
                 # notice that for each j that rho line == 2.0
-                assert_almost_equal(z0_all[0, 0, 1], -1.1670825576427757, decimal=4)
-                assert_almost_equal(z0_all[511, 0,1], -0.49427281377070059, decimal=4)
-                assert z0_all[808, 0, 1] == 0
+                assert_almost_equal(z0[0, 0, 1], -1.1670825576427757, decimal=4)
+                assert_almost_equal(z0[511, 0,1], -0.49427281377070059, decimal=4)
+                assert z0[808, 0, 1] == 0
             elif iter == 13 and h == 1 and blk == 59:
                 # and j == 1 and i == 1 
                 assert rho[0, 0] == 2.0
                 assert pdtype[0, 0] == 0
-                assert_almost_equal(z0_all[0, 0, 0], -2.5174885607823292, decimal=4)
+                assert_almost_equal(z0[0, 0, 0], -2.5174885607823292, decimal=4)
             elif iter == 13 and h == 1 and blk == 59:
                 # and j == 2 and i == 1 
                 assert rho[1, 0] == 2.0
-                assert_almost_equal(z0_all[0, 0, 1], -0.45430836593563906, decimal=4)
+                assert_almost_equal(z0[0, 0, 1], -0.45430836593563906, decimal=4)
                 # j == 3 and i == 1
                 assert rho[2, 0] == 1.0
-                assert_almost_equal(z0_all[0, 0, 2], -3.7895126283292315, decimal=3)
+                assert_almost_equal(z0[0, 0, 2], -3.7895126283292315, decimal=3)
                 assert 1 == 0
 
             
@@ -480,7 +480,7 @@ def get_updates_and_likelihood():
             # !--- add the log likelihood of this component to the likelihood of this time point
             # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
             # this max call operates across num_mixtures
-            Pmax_br[bstrt-1:bstp, :] = np.max(z0_all[bstrt-1:bstp, :, :], axis=-1)
+            Pmax_br[bstrt-1:bstp, :] = np.max(z0[bstrt-1:bstp, :, :], axis=-1)
             if iter == 1 and h == 1 and blk == 1:
                 # and i == 1
                 assert bstrt == 1
@@ -499,10 +499,10 @@ def get_updates_and_likelihood():
                 assert Pmax_br[bstp, 31] == 0
               
             ztmp_br[bstrt-1:bstp, :] = 0.0
-            # Prepare Pmax for broadcasting against the 3D z0_all array
+            # Prepare Pmax for broadcasting against the 3D z0 array
             Pmax_br_exp = Pmax_br[bstrt-1:bstp, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
             # Calculate the exponent term for all components and mixtures
-            exp_term = np.exp(z0_all[bstrt-1:bstp, :, :] - Pmax_br_exp)
+            exp_term = np.exp(z0[bstrt-1:bstp, :, :] - Pmax_br_exp)
             # Sum the results over the mixture axis (axis=2)
             ztmp_br[bstrt-1:bstp, :] += exp_term.sum(axis=-1)
             
@@ -531,7 +531,42 @@ def get_updates_and_likelihood():
                 assert_almost_equal(Ptmp[bstp-1, 0], -109.99481298816717, decimal=7)
                 # assert Ptmp[bstp, 0] == 0.0
 
-            for i, _ in enumerate(range(nw), start=1):
+
+            #tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
+                #Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
+            # !--- get normalized z
+            # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
+            result_1 = (
+                1.0 / np.exp(tmpvec_br[bstrt-1:bstp, :, np.newaxis] - z0[bstrt-1:bstp, :, :])
+            )
+            z[bstrt-1:bstp, :, :, h_index] = result_1 # TODO: change this back to result
+            #result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
+            # assert_almost_equal(result_1, result_2)
+
+            if iter == 1 and h == 1 and blk == 1:
+                # and j == 3 and i == 1
+                assert_almost_equal(z[0, 0, 2, 0], 0.17045278428961655)
+                assert_almost_equal(z[511, 0, 2, 0], 0.73757323629665994)
+                assert z[bstp, 0, 2, 0] == 0.0
+            elif iter == 1 and h == 1 and blk == 58:
+                # and j == 3 and i == 32 
+                assert_almost_equal(z[0, 31, 2, 0], 0.21519684201479097)
+                assert_almost_equal(z[511, 31, 2, 0], 0.72298823809331669)
+                assert z[512, 31, 2, 0] == 0.0
+            elif iter == 1 and h == 1 and blk == 59:
+                # and j == 3 and i == 32 
+                assert_almost_equal(z[0, 31, 2, h - 1], 0.72907838295502048)
+                assert_almost_equal(z[807, 31, 2, 0], 0.057629436774909774)
+                assert z[bstp, 31, 2, 0] == 0.0
+            elif iter == 9 and h == 1 and blk == 11:
+                # and j == 2 and i == 1
+                assert bstrt == 1
+                # So tmpvec and z0 should be the same as the fortran output.
+                assert_almost_equal(tmpvec_br[0, 0], -1.4350891208642027, decimal=4)
+                assert_almost_equal(z0[0, 0, 1], -2.45639839815304, decimal=4)
+                assert_almost_equal(z[0, 0, 1, 0], 0.3601231303397881, decimal=4)
+            
+            """for i, _ in enumerate(range(nw), start=1):
                 # !--- get probability
                 # select case (pdtype(i,h))
                 match pdtype[i - 1, h - 1]:
@@ -702,7 +737,7 @@ def get_updates_and_likelihood():
                         assert_almost_equal(ztmp[bstp-1], 1.355797568009625)
                         assert ztmp[bstp] == 0.0'''
                 
-                tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
+                #tmpvec[bstrt-1:bstp] = Pmax[bstrt-1:bstp] + np.log(ztmp[bstrt-1:bstp])
                 #Ptmp[bstrt-1:bstp, h - 1] += tmpvec[bstrt-1:bstp]
                 '''if iter == 1 and i == 1 and h == 1 and blk == 1:
                     assert_almost_equal(tmpvec[bstrt-1], -1.2091622031269318)
@@ -731,27 +766,27 @@ def get_updates_and_likelihood():
                     assert Ptmp[bstp, h - 1] == 0.0'''
                 
                 # !--- get normalized z
-                for j, _ in enumerate(range(num_mix), start=1):
+                #for j, _ in enumerate(range(num_mix), start=1):
                     # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-                    result_1 = (
-                                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
-                            )
-                    result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-                    # assert_almost_equal(result_1, result_2)
-                    with np.errstate(over='raise'):
-                        try:
-                            result = (
-                                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
-                            )
-                            # NOTE: line above, at iteration 9: RuntimeWarning: overflow encountered in exp 1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
-                            # NOTE: so lets use a more numerically stable formulation
-                            # NOTE: if this breaks a lot of our tests, maybe we can triage the formulation in the event of overflow
-                        except FloatingPointError as e:
-                            result = (
-                                np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-                                )
-                    z[bstrt-1:bstp, i - 1, j - 1, h - 1] = result_1 # TODO: change this back to result
-                    if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
+                #    result_1 = (
+                #                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                #            )
+                #    result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
+                #    # assert_almost_equal(result_1, result_2)
+                #    with np.errstate(over='raise'):
+                #        try:
+                #            result = (
+                #                1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                #            )
+                #            # NOTE: line above, at iteration 9: RuntimeWarning: overflow encountered in exp 1.0 / np.exp(tmpvec[bstrt-1:bstp] - z0[bstrt-1:bstp, j - 1])
+                #            # NOTE: so lets use a more numerically stable formulation
+                #            # NOTE: if this breaks a lot of our tests, maybe we can triage the formulation in the event of overflow
+                #        except FloatingPointError as e:
+                #            result = (
+                #                np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
+                #                )
+                #    z[bstrt-1:bstp, i - 1, j - 1, h - 1] = result_1 # TODO: change this back to result
+                '''    if iter == 1 and j == 3 and i == 1 and h == 1 and blk == 1:
                         assert_almost_equal(z[bstrt-1, i - 1, j - 1, h - 1], 0.17045278428961655)
                         assert_almost_equal(z[bstp - 1, i - 1, j - 1, h - 1], 0.73757323629665994)
                         assert z[bstp, i - 1, j - 1, h - 1] == 0.0
@@ -768,7 +803,8 @@ def get_updates_and_likelihood():
                         # So tmpvec and z0 should be the same as the fortran output.
                         assert_almost_equal(tmpvec[0], -1.4350891208642027, decimal=4)
                         assert_almost_equal(z0[0, 1], -2.45639839815304, decimal=4)
-                        assert_almost_equal(z[bstrt-1, 0, 1, 0], 0.3601231303397881, decimal=4)
+                        assert_almost_equal(z[bstrt-1, 0, 1, 0], 0.3601231303397881, decimal=4)'''
+                        """
                 # end do (j)
             # end do (i)
         # end do (h)
@@ -1015,8 +1051,8 @@ def get_updates_and_likelihood():
                                 assert_almost_equal(fp_all[0, i_index, j_index], 0.97056106297026667, decimal=4)
                             elif iter == 50 and j == 1 and i == 1 and h == 1 and blk == 1:
                                 # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=6 to decimal=5)
-                                assert_almost_equal(tmpvec[0], -0.94984637969343122, decimal=5)
-                                assert len(tmpvec[bstrt-1:bstp]) == 512
+                                assert_almost_equal(tmpvec_br[0, 31], -0.94984637969343122, decimal=5)
+                                # assert len(tmpvec[bstrt-1:bstp]) == 512
                         case 2:
                             raise NotImplementedError()
                         case 3:
@@ -2971,8 +3007,8 @@ if __name__ == "__main__":
         v = np.zeros((N1, num_models)) 
         y = np.zeros((N1, nw, num_mix, num_models))
         z = np.zeros((N1, nw, num_mix, num_models))  # Allocate z
-        z0 = np.zeros((N1, num_mix))  # Allocate z0
-        z0_all = np.zeros((N1, nw, num_mix)) # Python only
+        # z0 = np.zeros((N1, num_mix))  # Allocate z0
+        z0 = np.zeros((N1, nw, num_mix)) # Python only
         fp = np.zeros(N1)
         fp_all = np.zeros((N1, nw, num_mix)) # Python only
         ufp = np.zeros(N1)
@@ -3119,7 +3155,7 @@ if __name__ == "__main__":
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             assert_almost_equal(fp_all[0, 31, 2], 0.50793264023957352)
-            assert_almost_equal(z0[0, 2], -1.7145368856186436)
+            assert_almost_equal(z0[0, 31, 2], -1.7145368856186436)
             
             # These shouldnt get updated until the start of newton_optimization
             
