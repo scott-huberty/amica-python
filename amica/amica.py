@@ -38,7 +38,6 @@ def get_unmixing_matrices(
         num_models,
         ):
     """Get unmixing matrices for AMICA."""
-    from scipy import linalg
     W = W.copy()
     if "iter" not in globals():
         # ugly hack to check if we are in the first iteration
@@ -1467,15 +1466,12 @@ if __name__ == "__main__":
     num_comps = None
     max_iter = 200
     pdftype = 0  # Default is 1 but in test file it is 0
-    num_blocks = 59  # Number of blocks, as per the Fortran code
-    lastblocksize = 296  # Size of the last block, as per the Fortran code
-    blk_size = 512  # Block size, as per the Fortran code
     nx = 32
     ldim = 30504
     lastdim = ldim
     pcakeep = nx
     mineig = 1.0e-15
-    S = np
+    S = np.zeros((nx, nx))
     Stmp_2 = np.zeros((nx, nx))
     fix_init = False
     myrank = 0
@@ -1537,11 +1533,6 @@ if __name__ == "__main__":
     # These variables are privately assigned to threads in the Fortran code.
     # This means that in the global context, they should keep their default value of 0.
     # or whatever value they have been assigned to in the global context
-    tblksize = 0
-    xstrt = 0
-    xstp = 0
-    bstrt = 0
-    bstp = 0
     LLinc = 0
     tmpsum = 0
     usum = 0
@@ -1777,11 +1768,6 @@ if __name__ == "__main__":
     # Apply the sphering matrix to the data (whitening)
     fieldsize = dataseg.shape[1]
     assert fieldsize == 30504
-    assert blk_size == 512
-    num_blocks = fieldsize // blk_size
-    assert num_blocks == 59
-    lastblocksize = fieldsize % blk_size
-    assert lastblocksize == 296
     # TODO: this is all very inefficient. We should be able to do this in one go with a single matrix multiplication
     # e.g. 
     
@@ -2243,9 +2229,6 @@ if __name__ == "__main__":
             
             # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
             # Meaning that globally (here) they should remain their globally assigned values
-            assert tblksize == 0
-            assert xstrt == 0
-            assert xstp == 0
             assert LLinc == 0
             assert tmpsum == 0
             assert usum == 0
@@ -2695,13 +2678,3 @@ plt.close(fig)
 fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
 fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
 plt.close(fig)
-    
-
-
-
-
-
-
-
-
-
