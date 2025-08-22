@@ -115,14 +115,14 @@ def get_updates_and_likelihood():
     else:
         raise NotImplementedError()
     if update_A and do_newton:
-        dbaralpha_numer_tmp[:] = 0.0
-        dbaralpha_denom_tmp[:] = 0.0
-        dkappa_numer_tmp[:] = 0.0
-        dkappa_denom_tmp[:] = 0.0
-        dlambda_numer_tmp[:] = 0.0
-        dlambda_denom_tmp[:] = 0.0
-        dsigma2_numer_tmp[:] = 0.0
-        dsigma2_denom_tmp[:] = 0.0
+        dbaralpha_numer[:] = 0.0
+        dbaralpha_denom[:] = 0.0
+        dkappa_numer[:] = 0.0
+        dkappa_denom[:] = 0.0
+        dlambda_numer[:] = 0.0
+        dlambda_denom[:] = 0.0
+        dsigma2_numer[:] = 0.0
+        dsigma2_denom[:] = 0.0
     elif not update_A and do_newton:
         raise NotImplementedError()
     if update_c:
@@ -501,8 +501,8 @@ def get_updates_and_likelihood():
             # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
             b_slice = b[:, :, h_index] # shape: (block_size, nw)
             tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
-            dsigma2_numer_tmp[:, h_index] += tmpsum_A_vec
-            dsigma2_denom_tmp[:, h_index] += vsum  # vsum is scalar, broadcasts to all
+            dsigma2_numer[:, h_index] += tmpsum_A_vec
+            dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
         elif not update_A and do_newton:
             raise NotImplementedError()
         if update_c:
@@ -527,7 +527,7 @@ def get_updates_and_likelihood():
         if iter == 1 and h == 1: # and blk == 1:
             # j=1, i=1
             assert_almost_equal(dgm_numer[0], 30504.0)
-            assert_almost_equal(dsigma2_denom_tmp[0, 0], 30504.0)
+            assert_almost_equal(dsigma2_denom[0, 0], 30504.0)
             assert_almost_equal(dc_denom[0, 0], 30504.0)
             assert_almost_equal(z[0,0,0,0], 0.29726705039895657)
 
@@ -660,8 +660,8 @@ def get_updates_and_likelihood():
             if do_newton and iter >= newt_start:
 
                 if iter == 50: # and blk == 1:
-                    assert np.all(dkappa_numer_tmp == 0.0)
-                    assert np.all(dkappa_denom_tmp == 0.0)
+                    assert np.all(dkappa_numer == 0.0)
+                    assert np.all(dkappa_denom == 0.0)
 
                 # --- FORTRAN ---
                 # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -675,8 +675,8 @@ def get_updates_and_likelihood():
                 ufp_fp_sums = np.sum(ufp_all[:, :, :] * fp_all[:, :, :], axis=0)
                 sbeta_vals = sbeta[:, comp_indices] ** 2
                 tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
-                dkappa_numer_tmp[:, :, h_index] += tmpsum_kappa
-                dkappa_denom_tmp[:, :, h_index] += usum_mat.T
+                dkappa_numer[:, :, h_index] += tmpsum_kappa
+                dkappa_denom[:, :, h_index] += usum_mat.T
                 
                 # 2. Lambda updates
                 # ---------------------------FORTRAN CODE---------------------------
@@ -691,8 +691,8 @@ def get_updates_and_likelihood():
                 tmpsum_dlambda = np.sum(
                     u_mat[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
                 )  # shape: (nw, num_mix)
-                dlambda_numer_tmp[:, :, h_index] += tmpsum_dlambda.T
-                dlambda_denom_tmp[:, :, h_index] += usum_mat.T
+                dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
+                dlambda_denom[:, :, h_index] += usum_mat.T
                 
 
                 # 3. (dbar)Alpha updates
@@ -859,9 +859,8 @@ def get_updates_and_likelihood():
             # assert g[bstp, 31] == 0.0
             # XXX: this gets tested against tmpsum_prod in the dorho block.
             # assert_almost_equal(tmpsum, -12.823594759742996)
-            assert dsigma2_denom_tmp[31, 0] == 30504 # 512
+            assert dsigma2_denom[31, 0] == 30504 # 512
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(dsigma2_numer_tmp[31, 0], 252.08067592707394)
             assert dc_denom[31, 0] == 30504 # 512
             assert_allclose(v, 1)  # v should be 1 for all elements in this block
             assert_almost_equal(z[0, 31, 2, 0], 0.55440169506960801)
@@ -912,9 +911,9 @@ def get_updates_and_likelihood():
         assert dgm_numer[0] == 30504
         # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
         # assert_almost_equal(tmpsum, -52.929467835976844)
-        assert dsigma2_denom_tmp[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-        assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
+        assert dsigma2_denom[31, 0] == 30504
+        assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
+        assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
         assert_almost_equal(dc_numer[31, 0], 0)
         assert dc_denom[31, 0] == 30504
         assert_allclose(v, 1)
@@ -1045,15 +1044,15 @@ def accum_updates_and_likelihood():
             # call MPI_REDUCE(dlambda_denom_tmp,dlambda_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
             # call MPI_REDUCE(dsigma2_numer_tmp,dsigma2_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
             # call MPI_REDUCE(dsigma2_denom_tmp,dsigma2_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            dbaralpha_numer[:, :, :] = dbaralpha_numer_tmp[:, :, :].copy()
-            dbaralpha_denom[:, :, :] = dbaralpha_denom_tmp[:, :, :].copy()
+            # dbaralpha_numer[:, :, :] = dbaralpha_numer_tmp[:, :, :].copy()
+            # dbaralpha_denom[:, :, :] = dbaralpha_denom_tmp[:, :, :].copy()
             assert dbaralpha_denom[0, 0, 0] == 30504
-            dkappa_numer[:, :, :] = dkappa_numer_tmp[:, :, :].copy()
-            dkappa_denom[:, :, :] = dkappa_denom_tmp[:, :, :].copy()
-            dlambda_numer[:, :, :] = dlambda_numer_tmp[:, :, :].copy()
-            dlambda_denom[:, :, :] = dlambda_denom_tmp[:, :, :].copy()
-            dsigma2_numer[:, :] = dsigma2_numer_tmp[:, :].copy()
-            dsigma2_denom[:, :] = dsigma2_denom_tmp[:, :].copy()
+            # dkappa_numer[:, :, :] = dkappa_numer_tmp[:, :, :].copy()
+            # dkappa_denom[:, :, :] = dkappa_denom_tmp[:, :, :].copy()
+            # dlambda_numer[:, :, :] = dlambda_numer_tmp[:, :, :].copy()
+            # dlambda_denom[:, :, :] = dlambda_denom_tmp[:, :, :].copy()
+            # dsigma2_numer[:, :] = dsigma2_numer_tmp[:, :].copy()
+            # dsigma2_denom[:, :] = dsigma2_denom_tmp[:, :].copy()
             # NOTE: This is the first newton iteration, and we are already pretty far from the expected values
             # NOTE: The differences are huge.
 
@@ -1880,21 +1879,13 @@ if __name__ == "__main__":
 
     if do_newton:
         dbaralpha_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dbaralpha_numer_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dbaralpha_denom = np.zeros((num_mix,nw,num_models), dtype=np.float64)
-        dbaralpha_denom_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dkappa_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dkappa_numer_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dkappa_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dkappa_denom_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dlambda_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_numer_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dlambda_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_denom_tmp = np.zeros((num_mix,nw,num_models), dtype=np.float64)
         dsigma2_numer = np.zeros((nw,num_models), dtype=np.float64)
-        dsigma2_numer_tmp = np.zeros((nw,num_models), dtype=np.float64)
         dsigma2_denom = np.zeros((nw,num_models), dtype=np.float64)
-        dsigma2_denom_tmp = np.zeros((nw,num_models), dtype=np.float64)
     else:
         raise NotImplementedError()
 
@@ -2207,9 +2198,9 @@ if __name__ == "__main__":
             # assert g[808, 31] == 0.0
             assert dgm_numer[0] == 30504
             # assert_almost_equal(tmpsum, -52.929467835976844)
-            assert dsigma2_denom_tmp[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-            assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
+            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
@@ -2260,12 +2251,12 @@ if __name__ == "__main__":
             assert vsum == 0
 
             # These should also not change until the start of newton_optimization
-            assert np.all(dkappa_numer_tmp == 0)
-            assert np.all(dkappa_denom_tmp == 0)
-            assert np.all(dlambda_numer_tmp == 0)
-            assert np.all(dlambda_denom_tmp == 0)
-            assert np.all(dbaralpha_numer_tmp == 0)
-            assert np.all(dbaralpha_denom_tmp == 0)
+            assert np.all(dkappa_numer == 0)
+            assert np.all(dkappa_denom == 0)
+            assert np.all(dlambda_numer == 0)
+            assert np.all(dlambda_denom == 0)
+            assert np.all(dbaralpha_numer == 0)
+            assert np.all(dbaralpha_denom == 0)
 
             # accum_updates_and_likelihood checks..
             # This should also give an idea of the vars that are assigned within that function.
@@ -2293,8 +2284,8 @@ if __name__ == "__main__":
             assert_almost_equal(g[-808, 0], 0.92578280732700213)
             assert_almost_equal(g[-1, 31], -0.57496468258661515)
             assert dgm_numer[0] == 30504
-            assert dsigma2_denom_tmp[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
@@ -2350,7 +2341,6 @@ if __name__ == "__main__":
             assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
 
             # This is the first iteration with newton optimization.
-            #assert_allclose(dkappa_numer[2,31,0], 18154.657956748808, atol=1.8)
             #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
             '''assert_allclose(dalpha_numer[0, 0], 7358.455587371981, atol=2.3)
             assert dalpha_denom[0, 0] == 30504
