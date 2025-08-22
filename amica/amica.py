@@ -1385,24 +1385,17 @@ def update_params():
         if iter == 1:
             assert_allclose(rho, 1.5)
             assert_allclose(rhotmp, 0)
-        for k, _ in enumerate(range(num_comps), start=1):
-            for j, _ in enumerate(range(num_mix), start=1):
-                rho[j - 1, k - 1] += (
-                    rholrate
-                    * (
-                        1.0
-                        - (
-                            rho[j - 1, k - 1]
-                            / psifun(
-                                1.0 + 1.0 / rho[j - 1, k - 1]
-                            )
-                        )
-                        * drho_numer[j - 1, k - 1]
-                        / drho_denom[j - 1, k - 1]
-                    )
-                )
-            # end for (j)
-        # end for (k)
+        # TODO: We should use spipy.special.digamma here
+        vectorized_psifun = np.vectorize(psifun)
+        rho[:, :] += (
+             rholrate
+             * (
+                 1.0
+                 - (rho / vectorized_psifun(1.0 + 1.0 / rho))
+                * drho_numer
+                / drho_denom
+            )
+        )
         rhotmp[:, :] = np.minimum(maxrho, rho)
         rho[:, :] = np.maximum(minrho, rhotmp)
         if iter == 1:
