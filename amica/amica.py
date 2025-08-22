@@ -8,7 +8,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
 # from pyAMICA.pyAMICA.amica_utils import psifun
 from scipy import linalg
-from scipy.special import gammaln, digamma
+from scipy.special import gammaln
 
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
@@ -1229,9 +1229,8 @@ def accum_updates_and_likelihood():
             assert zeta[0] == 1.0
             assert_almost_equal(dAK[0, 0], 0.44757153346268763)
             assert_almost_equal(dAK[31, 31], 0.3099478996731922)
-
-        assert_allclose(nd[iter - 1, :], 0)
         # nd(iter,:) = sum(dAk*dAk,1)
+        assert_allclose(nd[iter - 1, :], 0)
         nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
         # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
         # comp_used should be 32 length vector of True
@@ -1386,7 +1385,6 @@ def update_params():
         if iter == 1:
             assert_allclose(rho, 1.5)
             assert_allclose(rhotmp, 0)
-        rho_jnk = rho.copy()
         for k, _ in enumerate(range(num_comps), start=1):
             for j, _ in enumerate(range(num_mix), start=1):
                 rho[j - 1, k - 1] += (
@@ -1395,7 +1393,7 @@ def update_params():
                         1.0
                         - (
                             rho[j - 1, k - 1]
-                            / digamma(
+                            / psifun(
                                 1.0 + 1.0 / rho[j - 1, k - 1]
                             )
                         )
@@ -1405,23 +1403,14 @@ def update_params():
                 )
             # end for (j)
         # end for (k)
-        # assert 1 == 0
-        '''rho_jnk[:,:] += (
-            rholrate
-            * (
-                1.0
-                - (rho / digamma(1.0 + 1.0 / rho))
-            )
-            * drho_numer
-            / drho_denom
-        )'''
         rhotmp[:, :] = np.minimum(maxrho, rho)
         rho[:, :] = np.maximum(minrho, rhotmp)
         if iter == 1:
             assert maxrho == 2
             assert minrho == 1
-            assert_almost_equal(rhotmp[0, 0], 1.4573165687688203, 0)
+            assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
             assert not rhotmp[rhotmp == maxrho].any()
+            assert_almost_equal(rho[0, 0], 1.4573165687688203)
             assert not rho[rho == minrho].any()
     # end if (dorho)
 
