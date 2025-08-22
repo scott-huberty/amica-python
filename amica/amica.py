@@ -1222,14 +1222,13 @@ def accum_updates_and_likelihood():
                 assert_almost_equal(dAK[31, 31], 0.3099478996731922)
                 assert_allclose(zeta, 1.0)
         
-        for k, _ in enumerate(range(num_comps), start=1):
-            # dAk(:,k) = dAk(:,k) / zeta(k)
-            dAK[:, k - 1] /= zeta[k - 1]
-            if iter == 1 and h == 1 and k == 1:
-                assert num_comps == 32 # just a sanity check for indexing below
-                assert zeta[k - 1] == 1.0
-                assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-                assert_almost_equal(dAK[31, 31], 0.3099478996731922)
+        # dAk(:,k) = dAk(:,k) / zeta(k)
+        dAK[:,:] /= zeta  # Broadcasting division
+        if iter == 1 and h == 1:
+            assert num_comps == 32 # just a sanity check for indexing below
+            assert zeta[0] == 1.0
+            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
+            assert_almost_equal(dAK[31, 31], 0.3099478996731922)
         # nd(iter,:) = sum(dAk*dAk,1)
         assert_allclose(nd[iter - 1, :], 0)
         nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
