@@ -131,7 +131,7 @@ def get_updates_and_likelihood():
     else:
         raise NotImplementedError()
 
-    dA[:] = 0.0
+    dWtmp[:] = 0.0
     LLtmp = 0.0
     # !--------- loop over the segments ----------
 
@@ -892,7 +892,7 @@ def get_updates_and_likelihood():
             # assert i == 32 # i is 32 at this point
             Wtmp2[:, :, thrdnum] = 0.0
             Wtmp2[:, :, thrdnum] += np.dot(g[:, :].T, b[:, :, h - 1])
-            dA[:, :, h - 1] += Wtmp2[:, :, thrdnum]
+            dWtmp[:, :, h - 1] += Wtmp2[:, :, thrdnum]
         else:
             raise NotImplementedError()
     # end do (h)
@@ -943,7 +943,7 @@ def get_updates_and_likelihood():
         assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
         assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
         #assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-        assert_almost_equal(dA[31, 0, 0], 143.79140032913983, decimal=6)
+        assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
         assert_almost_equal(P[-1], -111.60532918598989)
         # assert P[bstp] == 0.0
         assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
@@ -1030,8 +1030,8 @@ def accum_updates_and_likelihood():
         # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         if iter == 1:
             assert_allclose(dA, 0)
-        assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
-        # dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
+        assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
+        dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
         if iter == 1:
             assert_almost_equal(dA[0, 0, 0], 16851.098718911322, decimal=5)
         
@@ -1892,6 +1892,7 @@ if __name__ == "__main__":
     Wtmp2 = np.zeros((nw, nw, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((nw, num_comps), dtype=np.float64)  # Derivative of A
     dA = np.zeros((nw, nw, num_models), dtype=np.float64)  # Derivative of A for each model
+    dWtmp = np.zeros((nw,nw,num_models), dtype=np.float64)
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
@@ -2230,7 +2231,7 @@ if __name__ == "__main__":
             assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-            assert_almost_equal(dA[31, 0, 0], 143.79140032913983, decimal=6)
+            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
             assert_almost_equal(P[-1], -111.60532918598989)
             # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
@@ -2302,7 +2303,7 @@ if __name__ == "__main__":
             assert_almost_equal(logab_mat[-808, 31, 2], -2.075346997788714)
             assert_almost_equal(tmpy_mat[-808, 31, 2], 0.12551286724858962)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
-            assert_almost_equal(dA[31, 0, 0], 264.40460848250513, decimal=5)
+            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
             assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
             # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
