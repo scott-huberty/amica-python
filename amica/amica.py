@@ -105,13 +105,13 @@ def get_updates_and_likelihood():
     else:
         raise NotImplementedError()
     if update_beta:
-        dbeta_numer_tmp[:] = 0.0
-        dbeta_denom_tmp[:] = 0.0
+        dbeta_numer[:] = 0.0
+        dbeta_denom[:] = 0.0
     else:
         raise NotImplementedError()
     if dorho:
-        drho_numer_tmp[:] = 0.0
-        drho_denom_tmp[:] = 0.0
+        drho_numer[:] = 0.0
+        drho_denom[:] = 0.0
     else:
         raise NotImplementedError()
     if update_A and do_newton:
@@ -765,7 +765,7 @@ def get_updates_and_likelihood():
             # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
             # ----------------------------------------------------------------------
             # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
-            dbeta_numer_tmp[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
+            dbeta_numer[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
@@ -776,15 +776,13 @@ def get_updates_and_likelihood():
                 tmpsum_dbeta_denom = np.sum(
                     ufp_all[:, :, :] * y[:, :, :, h_index], axis=0
                 )
-                dbeta_denom_tmp[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
+                dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
             else:
                 raise NotImplementedError()
         elif not update_beta:
             raise NotImplementedError()
         #if iter == 1 and h == 1: # and blk == 1:
         #    assert_almost_equal(tmpsum_dbeta_denom[0, 0], 144.06646473063475, decimal=7)
-        #    assert_almost_equal(dbeta_numer_tmp[0, 0], 150.7126774891847)
-        #    assert_almost_equal(dbeta_denom_tmp[0, 0], 144.06646473063475)
         if dorho:
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -844,8 +842,8 @@ def get_updates_and_likelihood():
                 * logab_mat[:, :, :]
             , axis=0
             )
-            drho_numer_tmp[:, comp_indices] += tmpsum_prod.T
-            drho_denom_tmp[:, comp_indices] += usum_mat.T
+            drho_numer[:, comp_indices] += tmpsum_prod.T
+            drho_denom[:, comp_indices] += usum_mat.T
             
             if update_beta and np.any(rho[:, comp_indices] > 2.0):
                 raise NotImplementedError()
@@ -881,14 +879,10 @@ def get_updates_and_likelihood():
             # NOTE: either I have a bug or that test no longer makes sense
             assert dalpha_denom[2, 31] == 30504 # == 512
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(dbeta_numer_tmp[2, 31], 160.17523004773722)
-            # assert_almost_equal(dbeta_denom_tmp[2, 31], 118.34565948511747)
             assert_almost_equal(y[511, 31, 2, 0], 0.12278307295778981)
             assert_almost_equal(logab_mat[0, 31, 2], -1.7970728423931532)
             assert_almost_equal(tmpy_mat[0, 31, 2], 0.16578345297235644)
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(drho_numer_tmp[2, 31], -12.823594759742996)
-            # assert_almost_equal(drho_denom_tmp[2, 31], 160.17523004773722)
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         if update_A:
@@ -942,13 +936,13 @@ def get_updates_and_likelihood():
         assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
         assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
         assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
+        assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
+        assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
         assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
         assert_almost_equal(logab_mat[-808, 31,2], -3.2486146387719028)
         assert_almost_equal(tmpy_mat[-808, 31, 2], 0.038827961341319203)
-        assert_almost_equal(drho_numer_tmp[2, 31], 469.83886293477855, decimal=5)
-        assert_almost_equal(drho_denom_tmp[2, 31], 9499.991274464508, decimal=5)
+        assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
+        assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
         #assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
         assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
         assert_almost_equal(P[-1], -111.60532918598989)
@@ -1003,10 +997,10 @@ def accum_updates_and_likelihood():
     if update_beta:
         # call MPI_REDUCE(dbeta_numer_tmp,dbeta_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dbeta_denom_tmp,dbeta_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert dbeta_numer_tmp.shape == dbeta_numer.shape == (num_mix, num_comps)
-        assert dbeta_denom_tmp.shape == dbeta_denom.shape == (num_mix, num_comps)
-        dbeta_numer[:, :] = dbeta_numer_tmp[:, :].copy()
-        dbeta_denom[:, :] = dbeta_denom_tmp[:, :].copy()
+        assert dbeta_numer.shape == (num_mix, num_comps)
+        assert dbeta_denom.shape == (num_mix, num_comps)
+        # dbeta_numer[:, :] = dbeta_numer_tmp[:, :].copy()
+        # dbeta_denom[:, :] = dbeta_denom_tmp[:, :].copy()
         if iter == 1:
             assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
@@ -1014,10 +1008,10 @@ def accum_updates_and_likelihood():
     if dorho:
         # call MPI_REDUCE(drho_numer_tmp,drho_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(drho_denom_tmp,drho_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert drho_numer_tmp.shape == drho_numer.shape == (num_mix, num_comps)
-        assert drho_denom_tmp.shape == drho_denom.shape == (num_mix, num_comps)
-        drho_numer[:, :] = drho_numer_tmp[:, :].copy()
-        drho_denom[:, :] = drho_denom_tmp[:, :].copy()
+        assert drho_numer.shape == (num_mix, num_comps)
+        assert drho_denom.shape == (num_mix, num_comps)
+        # drho_numer[:, :] = drho_numer_tmp[:, :].copy()
+        # drho_denom[:, :] = drho_denom_tmp[:, :].copy()
         if iter == 1:
             assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
             assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
@@ -1943,8 +1937,6 @@ if __name__ == "__main__":
     if update_beta:
         dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
         dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dbeta_numer_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dbeta_denom_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
     else:
         raise NotImplementedError()
     
@@ -1953,8 +1945,6 @@ if __name__ == "__main__":
         rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
         drho_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
         drho_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-        drho_numer_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
-        drho_denom_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
@@ -2244,13 +2234,13 @@ if __name__ == "__main__":
             assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
             assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
             assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-            assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
+            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
             assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
             assert_almost_equal(logab_mat[-808, 31,2], -3.2486146387719028,)
             assert_almost_equal(tmpy_mat[-808, 31, 2], 0.038827961341319203)
-            assert_almost_equal(drho_numer_tmp[2, 31], 469.83886293477855, decimal=5)
-            assert_almost_equal(drho_denom_tmp[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
+            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
             assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
             assert_almost_equal(P[-1], -111.60532918598989)
