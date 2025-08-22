@@ -348,10 +348,11 @@ def get_updates_and_likelihood():
         #--------------------------FORTRAN CODE-------------------------
         # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
         #---------------------------------------------------------------
-        result_1 = (
-            1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-        )
-        z[:, :, :, h_index] = result_1 # TODO: change this back to result
+        # result_1 = (
+        #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
+        # )
+        #z[:, :, :, h_index] = result_1 # TODO: change this back to result
+        np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
         # TODO: use the calculation below it is equivalent and more numerically stable
         #result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
         # assert_almost_equal(result_1, result_2)
