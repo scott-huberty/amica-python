@@ -8,7 +8,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
 # from pyAMICA.pyAMICA.amica_utils import psifun
 from scipy import linalg
-from scipy.special import gammaln
+from scipy.special import gammaln, psi
 
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
@@ -1385,13 +1385,11 @@ def update_params():
         if iter == 1:
             assert_allclose(rho, 1.5)
             assert_allclose(rhotmp, 0)
-        # TODO: We should use spipy.special.digamma here
-        vectorized_psifun = np.vectorize(psifun)
         rho[:, :] += (
              rholrate
              * (
                  1.0
-                 - (rho / vectorized_psifun(1.0 + 1.0 / rho))
+                 - (rho / psi(1.0 + 1.0 / rho))
                 * drho_numer
                 / drho_denom
             )
