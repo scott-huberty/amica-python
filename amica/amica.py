@@ -1127,6 +1127,7 @@ def accum_updates_and_likelihood():
         no_newt = False
 
         for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
             # if (print_debug) then
             # print *, 'dA ', h, ' = '; call flush(6)
             if do_reject:
@@ -1205,17 +1206,22 @@ def accum_updates_and_likelihood():
         dAK[:] = 0.0
         zeta[:] = 0.0
         for h, _ in enumerate(range(num_models), start=1):
-            for i, _ in enumerate(range(nw)):
-                # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
-                dAK[:, comp_list[i - 1, h - 1] - 1] += gm[h - 1] * dA[:, i - 1, h - 1]
-                # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
-                zeta[comp_list[i - 1, h - 1] - 1] += gm[h - 1]
+            h_index = h - 1
+            # NOTE: I had an indexing bug in the looped version of this code.
+            # But it didn't seem to affect the results.
+            # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
+            # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
+            comp_indices = comp_list[:, h - 1] - 1
+            source_columns = gm[h - 1] * dA[:, :, h - 1]
+            np.add.at(dAK, (slice(None), comp_indices), source_columns)
+            np.add.at(zeta, comp_indices, gm[h - 1])
+
             if iter == 1 and h == 1:
-                assert gm[h - 1] == 1.0  # just a sanity check
+                assert gm[h_index] == 1.0  # just a sanity check
                 assert_almost_equal(dAK[0, 0], 0.44757153346268763)
                 assert_almost_equal(dAK[31, 31], 0.3099478996731922)
                 assert_allclose(zeta, 1.0)
-            
+        
         for k, _ in enumerate(range(num_comps), start=1):
             # dAk(:,k) = dAk(:,k) / zeta(k)
             dAK[:, k - 1] /= zeta[k - 1]
