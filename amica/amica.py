@@ -528,7 +528,7 @@ def get_updates_and_likelihood():
             # j=1, i=1
             assert_almost_equal(dgm_numer[0], 30504.0)
             assert_almost_equal(dsigma2_denom_tmp[0, 0], 30504.0)
-            assert_almost_equal(dc_denom_tmp[0, 0], 30504.0)
+            assert_almost_equal(dc_denom[0, 0], 30504.0)
             assert_almost_equal(z[0,0,0,0], 0.29726705039895657)
 
         
@@ -862,7 +862,7 @@ def get_updates_and_likelihood():
             assert dsigma2_denom_tmp[31, 0] == 30504 # 512
             # NOTE: either I have a bug or that test no longer makes sense
             # assert_almost_equal(dsigma2_numer_tmp[31, 0], 252.08067592707394)
-            assert dc_denom_tmp[31, 0] == 30504 # 512
+            assert dc_denom[31, 0] == 30504 # 512
             assert_allclose(v, 1)  # v should be 1 for all elements in this block
             assert_almost_equal(z[0, 31, 2, 0], 0.55440169506960801)
             assert_almost_equal(z[511, 31, 2, 0], 0.73097098274195338)
@@ -916,7 +916,7 @@ def get_updates_and_likelihood():
         assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
         assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
         assert_almost_equal(dc_numer[31, 0], 0)
-        assert dc_denom_tmp[31, 0] == 30504
+        assert dc_denom[31, 0] == 30504
         assert_allclose(v, 1)
         assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
         assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
@@ -2212,7 +2212,7 @@ if __name__ == "__main__":
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
             assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom_tmp[31, 0] == 30504
+            assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
             assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
@@ -2297,7 +2297,7 @@ if __name__ == "__main__":
             assert dsigma2_denom_tmp[31, 0] == 30504
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom_tmp[31, 0] == 30504
+            assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
             assert_almost_equal(u_mat[-808, 31, 2], 0.71373487258192514)
