@@ -95,8 +95,8 @@ def get_updates_and_likelihood():
     assert num_thrds == 1
     dgm_numer[:] = 0.0
     if update_alpha:
-        dalpha_numer_tmp[:] = 0.0
-        dalpha_denom_tmp[:] = 0.0
+        dalpha_numer[:] = 0.0
+        dalpha_denom[:] = 0.0
     else:
         raise NotImplementedError()
     if update_mu:
@@ -606,7 +606,6 @@ def get_updates_and_likelihood():
 
         elif iter == 50 and h == 1: # and blk == 1:
             # and j == 1 and i == 1 
-            # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=6 to decimal=5)
             assert_almost_equal(tmpvec_br[0, 31], -0.94984637969343122, decimal=4)
             # assert len(tmpvec[bstrt-1:bstp]) == 512
 
@@ -722,8 +721,8 @@ def get_updates_and_likelihood():
             # That propogate to several other variables due to a dependency chan
             # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
             comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-            dalpha_numer_tmp[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
-            dalpha_denom_tmp[:, comp_indices] += vsum  # shape: (num_mix, nw)
+            dalpha_numer[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
+            dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
         elif not update_alpha:
             raise NotImplementedError()
         if update_mu:
@@ -880,8 +879,7 @@ def get_updates_and_likelihood():
             # assert tmpvec2[bstp] == 0.0
             assert_almost_equal(ufp_all[0, 31, 2], -0.45683868086905977)
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(dalpha_numer_tmp[2, 31], 160.17523004773722)
-            assert dalpha_denom_tmp[2, 31] == 30504 # == 512
+            assert dalpha_denom[2, 31] == 30504 # == 512
             # NOTE: either I have a bug or that test no longer makes sense
             # assert_almost_equal(dmu_numer_tmp[2, 31], -124.02147867289848)
             #assert_almost_equal(dmu_denom_tmp[2, 31], 493.41343536243517, decimal=6) # XXX: watch this for numerical stability
@@ -939,8 +937,8 @@ def get_updates_and_likelihood():
         #assert tmpvec[bstp] == 0.0
         #assert tmpvec2[bstp] == 0.0
         assert_almost_equal(ufp_all[-808, 31, 2], 0.37032270799594241)
-        assert_almost_equal(dalpha_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-        assert dalpha_denom_tmp[2, 31] == 30504
+        assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
+        assert dalpha_denom[2, 31] == 30504
         assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
         assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
         assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
@@ -985,10 +983,10 @@ def accum_updates_and_likelihood():
     if update_alpha:
         # call MPI_REDUCE(dalpha_numer_tmp,dalpha_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dalpha_denom_tmp,dalpha_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert dalpha_numer_tmp.shape == dalpha_numer.shape == (num_mix, num_comps)
-        assert dalpha_denom_tmp.shape == dalpha_denom.shape == (num_mix, num_comps)
-        dalpha_numer[:, :] = dalpha_numer_tmp[:, :].copy()
-        dalpha_denom[:, :] = dalpha_denom_tmp[:, :].copy()
+        assert dalpha_numer.shape == (num_mix, num_comps)
+        assert dalpha_denom.shape == (num_mix, num_comps)
+        # dalpha_numer[:, :] = dalpha_numer_tmp[:, :].copy()
+        # dalpha_denom[:, :] = dalpha_denom_tmp[:, :].copy()
         if iter == 1:
             assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
             assert dalpha_denom[0, 0] == 30504
@@ -1285,7 +1283,6 @@ def update_params():
 
     if update_alpha:
         assert alpha.shape == (num_mix, num_comps)
-        # NOTE: with the vectorization of dalpha_numer_tmp, we lose some precision which propogates to this caluclation and all calculations that depend on alpha.
         alpha[:, :] = dalpha_numer / dalpha_denom
         if iter == 1:
             assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
@@ -1311,7 +1308,6 @@ def update_params():
                 assert rholrate0 == .05
                 assert newtrate == 1
                 assert newt_ramp == 10
-                # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=5 to decimal=4)
                 assert_almost_equal(dAK[0, 0], 0.020958681999945186, decimal=4)
                 # NOTE: Vectorizing the dorho block loses 1 order of magnitude precision (decimal=5 to decimal=4)
                 assert_almost_equal(A[0, 0], 0.96757837792896018, decimal=4)
@@ -1935,8 +1931,6 @@ if __name__ == "__main__":
     if update_alpha:
         dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
         dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dalpha_numer_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dalpha_denom_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
 
     mu = np.zeros((num_mix, num_comps))
     mutmp = np.zeros((num_mix, num_comps))
@@ -2247,8 +2241,8 @@ if __name__ == "__main__":
             # assert tmpvec[808] == 0.0
             # assert tmpvec2[808] == 0.0
             # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
-            assert_almost_equal(dalpha_numer_tmp[2, 31], 9499.991274464508, decimal=5)
-            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
+            assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
             assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
             assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
@@ -2327,8 +2321,8 @@ if __name__ == "__main__":
             assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
             assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
             #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
-            assert_almost_equal(dalpha_numer_tmp[2, 31], 9221.7061911138153, decimal=4)
-            assert dalpha_denom_tmp[2, 31] == 30504
+            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
+            assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
             assert_almost_equal(y[-1, 31, 2, 0], -1.8067399375706592)
             assert_almost_equal(logab_mat[-808, 31, 2], -2.075346997788714)
@@ -2602,7 +2596,6 @@ if __name__ == "__main__":
     alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
     alpha_f = alpha_f.reshape((32, 3))
     alpha_f = alpha_f.T
-    # NOTE: with the vectorization of dalpha_numer_tmp, we lose 1 order of magnitude precision (decimal=2 to decimal=1)
     assert_almost_equal(alpha, alpha_f, decimal=2)
 
     c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
