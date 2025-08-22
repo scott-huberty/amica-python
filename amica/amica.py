@@ -100,8 +100,8 @@ def get_updates_and_likelihood():
     else:
         raise NotImplementedError()
     if update_mu:
-        dmu_numer_tmp[:] = 0.0
-        dmu_denom_tmp[:] = 0.0
+        dmu_numer[:] = 0.0
+        dmu_denom[:] = 0.0
     else:
         raise NotImplementedError()
     if update_beta:
@@ -734,7 +734,7 @@ def get_updates_and_likelihood():
             # -----------------------------------------------------------------------
             # XXX: Some error in each sum across 59 blocks
             tmpsum_mu = ufp_all[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            dmu_numer_tmp[:, comp_indices] += tmpsum_mu.T
+            dmu_numer[:, comp_indices] += tmpsum_mu.T
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -752,7 +752,7 @@ def get_updates_and_likelihood():
                 tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
                 
                 # TODO: below can we recover some numerical imprecision by vectorizing instead of looping over chunks and summing?
-                dmu_denom_tmp[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
+                dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
             else:
                 raise NotImplementedError()
                 # Let's tackle this when we actually hit this with some data
@@ -881,8 +881,6 @@ def get_updates_and_likelihood():
             # NOTE: either I have a bug or that test no longer makes sense
             assert dalpha_denom[2, 31] == 30504 # == 512
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(dmu_numer_tmp[2, 31], -124.02147867289848)
-            #assert_almost_equal(dmu_denom_tmp[2, 31], 493.41343536243517, decimal=6) # XXX: watch this for numerical stability
             # assert_almost_equal(dbeta_numer_tmp[2, 31], 160.17523004773722)
             # assert_almost_equal(dbeta_denom_tmp[2, 31], 118.34565948511747)
             assert_almost_equal(y[511, 31, 2, 0], 0.12278307295778981)
@@ -939,11 +937,11 @@ def get_updates_and_likelihood():
         assert_almost_equal(ufp_all[-808, 31, 2], 0.37032270799594241)
         assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
         assert dalpha_denom[2, 31] == 30504
-        assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-        assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
+        assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
         assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-        assert_almost_equal(dmu_denom_tmp[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-        assert_almost_equal(dmu_denom_tmp[0, 0], 22471.172722479747, decimal=3)
+        assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
         assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
         assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
         assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
@@ -994,10 +992,10 @@ def accum_updates_and_likelihood():
     if update_mu:
         # call MPI_REDUCE(dmu_numer_tmp,dmu_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dmu_denom_tmp,dmu_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert dmu_numer_tmp.shape == dmu_numer.shape == (num_mix, num_comps)
-        assert dmu_denom_tmp.shape == dmu_denom.shape == (num_mix, num_comps)
-        dmu_numer[:, :] = dmu_numer_tmp[:, :].copy()
-        dmu_denom[:, :] = dmu_denom_tmp[:, :].copy()
+        assert dmu_numer.shape == (num_mix, num_comps)
+        assert dmu_denom.shape == (num_mix, num_comps)
+        # dmu_numer[:, :] = dmu_numer_tmp[:, :].copy()
+        # dmu_denom[:, :] = dmu_denom_tmp[:, :].copy()
         if iter == 1:
             assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
             assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
@@ -1936,9 +1934,7 @@ if __name__ == "__main__":
     mutmp = np.zeros((num_mix, num_comps))
     if update_mu:
         dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dmu_numer_tmp = np.zeros((num_mix, num_comps), dtype=np.float64) 
         dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dmu_denom_tmp = np.zeros((num_mix, num_comps), dtype=np.float64)
     else:
         raise NotImplementedError()
     
@@ -2243,11 +2239,11 @@ if __name__ == "__main__":
             # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
             assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
             assert dalpha_denom[2, 31] == 30504
-            assert_almost_equal(dmu_numer_tmp[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-            assert_almost_equal(dmu_numer_tmp[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
             assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-            assert_almost_equal(dmu_denom_tmp[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-            assert_almost_equal(dmu_denom_tmp[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
             assert_almost_equal(dbeta_numer_tmp[2, 31], 9499.991274464508, decimal=5)
             assert_almost_equal(dbeta_denom_tmp[2, 31], 8739.8711658999582, decimal=6)
             assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
