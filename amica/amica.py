@@ -583,19 +583,19 @@ def get_updates_and_likelihood():
             
             # Method 1:  einsum (memory friendly)
             # On a test file, this is 6x faster than vectorization.
-            #comp_idx = comp_list[:, h - 1] - 1  # (nw,)
-            #S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
-            #g_update = np.einsum('tnj,nj->tn', ufp_all[:, :, :], S_T, optimize=True)
-            #g[:, :] += g_update
+            comp_idx = comp_list[:, h - 1] - 1  # (nw,)
+            S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
+            g_update = np.einsum('tnj,nj->tn', ufp_all[:, :, :], S_T, optimize=True)
+            g[:, :] += g_update
 
             # Method 2: Fully vectorized (more complex but maximum performance)
             # TODO: Vectorize this
-            i_indices, j_indices = np.meshgrid(np.arange(nw), np.arange(num_mix), indexing='ij')
-            comp_indices = comp_list[i_indices, h_index] - 1  # Shape: (nw, num_mix)
-            sbeta_vals = sbeta[j_indices, comp_indices]  # Shape: (nw, num_mix)
+            #i_indices, j_indices = np.meshgrid(np.arange(nw), np.arange(num_mix), indexing='ij')
+            #comp_indices = comp_list[i_indices, h_index] - 1  # Shape: (nw, num_mix)
+            #sbeta_vals = sbeta[j_indices, comp_indices]  # Shape: (nw, num_mix)
             # Sum over j dimension
-            g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp_all[:, :, :], axis=2)
-            g[:, :] += g_update
+            #g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp_all[:, :, :], axis=2)
+            #g[:, :] += g_update
 
             # Method 3: Fully vectorized (more complex but maximum performance)
             # 1. Prepare sbeta for broadcasting.
