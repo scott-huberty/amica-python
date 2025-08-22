@@ -2079,8 +2079,8 @@ if __name__ == "__main__":
     # XXX: Seems like the Fortran code duplicated this step?
     else:
         for h, _ in enumerate(range(num_models), start=1):
-            for i, _ in enumerate(range(nw), start=1):
-                comp_list[i - 1, h - 1] = (h - 1) * nw + i
+            h_index = h - 1
+            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1)
         if h == 1:
             assert_equal(comp_list[0, 0], 1)
             assert_equal(comp_list[1, 0], 2)
@@ -2163,6 +2163,7 @@ if __name__ == "__main__":
     while iter <= max_iter:
         # !----- get determinants
         for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
             Wtmp = W[:, :, h - 1].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
             assert Wtmp.shape == (nw, nw) == (32, 32)
             if iter == 1 and h == 1:
@@ -2196,15 +2197,18 @@ if __name__ == "__main__":
                 assert_almost_equal(wr[0], 1.9998793803957402)
             elif iter == 2 and h == 1:
                 assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
-            
-            Dtemp[h - 1] = 0.0
-            for i, _ in enumerate(range(nw), start=1):
-                if Wtmp[i - 1, i - 1] != 0.0:
-                    Dtemp[h - 1] += np.log(np.abs(Wtmp[i - 1, i - 1]))
-                else:
-                    print(f"Model {h} determinant is zero!")
-                    Dtemp[h - 1] += minlog
-                    raise ValueError("Determinant is zero. Raising explicitly for now")
+
+            # TODO: can we use np.linalg.slogdet here?
+            Dtemp[h_index] = 0.0
+            # log determinant from the diagonal of Wtmp
+            diag_Wtmp = np.diagonal(Wtmp)
+            if np.any(diag_Wtmp == 0.0):
+                print(f"Model {h} determinant is zero!")
+                Dtemp[h_index] += minlog
+                Dtemp[h_index] = minlog
+                raise ValueError("Determinant is zero. Raising explicitly for now")
+            else:
+                Dtemp[h_index] += np.sum(np.log(np.abs(diag_Wtmp)))
             if h == 1 and iter == 1:
                 assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
             elif h == 1 and iter == 2:
