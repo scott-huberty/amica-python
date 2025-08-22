@@ -307,8 +307,8 @@ def get_updates_and_likelihood():
         # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
         # this max call operates across num_mixtures
         #---------------------------------------------------------------
-        Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
-        # np.max(z0, axis=-1, out=Pmax_br) # TODO: use this form to avoid extra memory allocation
+        # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
+        np.max(z0, axis=-1, out=Pmax_br)
         if iter == 1 and h == 1: # and blk == 1:
             # and i == 1
             assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
