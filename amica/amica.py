@@ -126,8 +126,8 @@ def get_updates_and_likelihood():
     elif not update_A and do_newton:
         raise NotImplementedError()
     if update_c:
-        dc_numer_tmp[:] = 0.0
-        dc_denom_tmp[:] = 0.0
+        dc_numer[:] = 0.0
+        dc_denom[:] = 0.0
     else:
         raise NotImplementedError()
 
@@ -519,8 +519,8 @@ def get_updates_and_likelihood():
                     # tmpsum_c_vec = data_slice @ v_slice 
                 # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
                 # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
-                dc_numer_tmp[:, h_index] += tmpsum_c_vec
-                dc_denom_tmp[:, h_index] += vsum  # # vsum is scalar, broadcasts
+                dc_numer[:, h_index] += tmpsum_c_vec
+                dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
         else:
             raise NotImplementedError()
         # NOTE: either I have a bug or the numerator values now will match the last blocks value not the first..
@@ -915,7 +915,7 @@ def get_updates_and_likelihood():
         assert dsigma2_denom_tmp[31, 0] == 30504
         assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
         assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
-        assert_almost_equal(dc_numer_tmp[31, 0], 0)
+        assert_almost_equal(dc_numer[31, 0], 0)
         assert dc_denom_tmp[31, 0] == 30504
         assert_allclose(v, 1)
         assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
@@ -1019,10 +1019,10 @@ def accum_updates_and_likelihood():
     if update_c:
         # call MPI_REDUCE(dc_numer_tmp,dc_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert dc_numer_tmp.shape == dc_numer.shape == (nw, num_models)
-        assert dc_denom_tmp.shape == dc_denom.shape == (nw, num_models)
-        dc_numer[:, :] = dc_numer_tmp[:, :].copy()
-        dc_denom[:, :] = dc_denom_tmp[:, :].copy()
+        assert dc_numer.shape == (nw, num_models)
+        assert dc_denom.shape == (nw, num_models)
+        # dc_numer[:, :] = dc_numer_tmp[:, :].copy()
+        # dc_denom[:, :] = dc_denom_tmp[:, :].copy()
         if iter == 1:
             assert_almost_equal(dc_numer[0, 0],  0, decimal=7)
             assert dc_denom[0, 0] == 30504
@@ -1898,8 +1898,6 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError()
 
-    dc_numer_tmp = np.zeros((nw,num_models), dtype=np.float64)
-    dc_denom_tmp = np.zeros((nw,num_models), dtype=np.float64)
     Wtmp2 = np.zeros((nw, nw, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((nw, num_comps), dtype=np.float64)  # Derivative of A
     dA = np.zeros((nw, nw, num_models), dtype=np.float64)  # Derivative of A for each model
@@ -2213,7 +2211,7 @@ if __name__ == "__main__":
             assert dsigma2_denom_tmp[31, 0] == 30504
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
             assert_almost_equal(dsigma2_numer_tmp[0, 0], 30517.927488143538, decimal=6)
-            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom_tmp[31, 0] == 30504
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
@@ -2298,7 +2296,7 @@ if __name__ == "__main__":
             assert dgm_numer[0] == 30504
             assert dsigma2_denom_tmp[31, 0] == 30504
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
-            assert_almost_equal(dc_numer_tmp[31, 0], 0)
+            assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom_tmp[31, 0] == 30504
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
