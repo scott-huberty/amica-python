@@ -93,7 +93,7 @@ def get_seg_list(raw):
 @line_profiler.profile
 def get_updates_and_likelihood():
     assert num_thrds == 1
-    dgm_numer_tmp[:] = 0.0
+    dgm_numer[:] = 0.0
     if update_alpha:
         dalpha_numer_tmp[:] = 0.0
         dalpha_denom_tmp[:] = 0.0
@@ -483,7 +483,7 @@ def get_updates_and_likelihood():
         # vsum = sum( v(bstrt:bstp,h) )
         # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
         vsum = v[:, h_index].sum()
-        dgm_numer_tmp[h_index] += vsum
+        dgm_numer[h_index] += vsum
 
         if update_A:
             # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
@@ -526,7 +526,7 @@ def get_updates_and_likelihood():
         # NOTE: either I have a bug or the numerator values now will match the last blocks value not the first..
         if iter == 1 and h == 1: # and blk == 1:
             # j=1, i=1
-            assert_almost_equal(dgm_numer_tmp[0], 30504.0)
+            assert_almost_equal(dgm_numer[0], 30504.0)
             assert_almost_equal(dsigma2_denom_tmp[0, 0], 30504.0)
             assert_almost_equal(dc_denom_tmp[0, 0], 30504.0)
             assert_almost_equal(z[0,0,0,0], 0.29726705039895657)
@@ -919,7 +919,7 @@ def get_updates_and_likelihood():
         assert_almost_equal(g[-808, 0], 0.19658642673900478)
         assert_almost_equal(g[-1, 31], -0.22482758905985217)
         #assert g[bstp, 31] == 0.0
-        assert dgm_numer_tmp[0] == 30504
+        assert dgm_numer[0] == 30504
         # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
         # assert_almost_equal(tmpsum, -52.929467835976844)
         assert dsigma2_denom_tmp[31, 0] == 30504
@@ -977,8 +977,8 @@ def accum_updates_and_likelihood():
     # ...
 
     # call MPI_REDUCE(dgm_numer_tmp,dgm_numer,num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    assert dgm_numer_tmp.shape == dgm_numer.shape == (num_models,)
-    dgm_numer[:] = dgm_numer_tmp[:].copy()  # That MPI_REDUCE operation takes dgm_numer_tmp and accumulates it into dgm_numer
+    assert dgm_numer.shape == (num_models,)
+    # dgm_numer[:] = dgm_numer_tmp[:].copy()  # That MPI_REDUCE operation takes dgm_numer_tmp and accumulates it into dgm_numer
     if iter == 1:
         assert_almost_equal(dgm_numer[0], 30504, decimal=6)
 
@@ -1136,9 +1136,9 @@ def accum_updates_and_likelihood():
             else:
                 # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
                 assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
-                dA[:, :, h - 1] *= -1.0 / dgm_numer_tmp[h - 1]
+                dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
                 if iter == 1 and h == 1:
-                    assert dgm_numer_tmp[h - 1] == 30504
+                    assert dgm_numer[h - 1] == 30504
                     assert_almost_equal(dA[0, 0, h - 1], -0.55242259109989911)
             
             # dA(i,i,h) = dA(i,i,h) + dble(1.0)
@@ -1888,7 +1888,6 @@ if __name__ == "__main__":
 
     comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     # These are all passed to get_updates_and_likelihood
-    dgm_numer_tmp = np.zeros(num_models, dtype=np.float64)
     dgm_numer = np.zeros(num_models, dtype=np.float64)
 
     if do_newton:
@@ -2229,7 +2228,7 @@ if __name__ == "__main__":
             assert_almost_equal(g[-808, 0], 0.19658642673900478)
             assert_almost_equal(g[-1, 31], -0.22482758905985217)
             # assert g[808, 31] == 0.0
-            assert dgm_numer_tmp[0] == 30504
+            assert dgm_numer[0] == 30504
             # assert_almost_equal(tmpsum, -52.929467835976844)
             assert dsigma2_denom_tmp[31, 0] == 30504
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
@@ -2316,7 +2315,7 @@ if __name__ == "__main__":
             assert_almost_equal(rho[0, 0], 1.4573165687688203)
             assert_almost_equal(g[-808, 0], 0.92578280732700213)
             assert_almost_equal(g[-1, 31], -0.57496468258661515)
-            assert dgm_numer_tmp[0] == 30504
+            assert dgm_numer[0] == 30504
             assert dsigma2_denom_tmp[31, 0] == 30504
             assert_almost_equal(dsigma2_numer_tmp[31, 0], 30519.2998249066, decimal=6)
             assert_almost_equal(dc_numer_tmp[31, 0], 0)
