@@ -701,8 +701,8 @@ def get_updates_and_likelihood():
                 # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
                 # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
                 # ------------------------------------------------------------------
-                dbaralpha_numer_tmp[:, :, h_index] += usum_mat.T
-                dbaralpha_denom_tmp[:,:, h_index] += vsum
+                dbaralpha_numer[:, :, h_index] += usum_mat.T
+                dbaralpha_denom[:,:, h_index] += vsum
 
             # end if (do_newton and iter >= newt_start)
             elif not do_newton and iter >= newt_start:
