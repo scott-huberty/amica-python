@@ -307,6 +307,10 @@ def get_updates_and_likelihood():
         # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
         # this max call operates across num_mixtures
         #---------------------------------------------------------------
+        # TODO: we could use scipy.special.logsumexp here to get rid of some intermediate arrays
+        # But oddly enough, it seems to be 2x slower than the manual approach below
+        # (~30 seconds vs ~15 seconds across 200 iterations)
+        # TODO: So profile that more and make a decision.
         # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
         np.max(z0, axis=-1, out=Pmax_br)
         if iter == 1 and h == 1: # and blk == 1:
@@ -321,7 +325,8 @@ def get_updates_and_likelihood():
         # Calculate the exponent term for all components and mixtures
         exp_term = np.exp(z0[:, :, :] - Pmax_br_exp)
         # Sum the results over the mixture axis (axis=2)
-        ztmp_br[:, :] += exp_term.sum(axis=-1)
+        np.sum(exp_term, axis=-1, out=ztmp_br)
+        # ztmp_br[:, :] += exp_term.sum(axis=-1)
         
         tmpvec_br = Pmax_br[:, :] + np.log(ztmp_br[:, :])
         Ptmp_br[:, :, h_index] += tmpvec_br
