@@ -98,6 +98,13 @@ def get_seg_list(raw):
 @line_profiler.profile
 def get_updates_and_likelihood():
     assert num_thrds == 1
+    ########### INITIALIZE VARIABLES #############
+    b = np.empty((N1, nw, num_models))
+    y = np.empty((N1, nw, num_mix, num_models))
+    v = np.empty((N1, num_models))  # posterior probability for each model
+    z = np.empty((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
+    Ptmp = np.empty((N1, num_models))
+
     dgm_numer[:] = 0.0
     if update_alpha:
         dalpha_numer[:] = 0.0
@@ -155,8 +162,7 @@ def get_updates_and_likelihood():
     tblksize = int(bsize / num_thrds)
     # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
     '''
-        
-    Ptmp = np.empty((N1, num_models))
+
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         comp_indicies = comp_list[:, h_index] - 1
@@ -273,7 +279,8 @@ def get_updates_and_likelihood():
             # So it might be better to go back to a for loop.
             conditions = [is_rho1, is_rho2]
             choices = [choice_1, choice_2]
-            z0[:, :, :] = np.select(conditions, choices, default=choice_default)
+            z0 = np.select(conditions, choices, default=choice_default)
+            assert z0.shape == (N1, nw, num_mix)
         elif pdftype == 1:
             raise NotImplementedError()
         elif pdftype == 2:
@@ -380,7 +387,8 @@ def get_updates_and_likelihood():
     # vtmp(bstrt:bstp) = dble(0.0)
     # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
     #---------------------------------------------------------------
-    Pmax[:] = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
+    Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
+    assert Pmax.shape == (N1,)
     vtmp = np.zeros(N1) # candidate for out parameter
     if iter == 1: # blk == 1:
         assert_almost_equal(Pmax[0], -117.47213530812164)
@@ -403,7 +411,8 @@ def get_updates_and_likelihood():
     # TODO: just use either np.logaddexp.reduce(Ptmp, axis=1)
     # or scipy.special.logsumexp(Ptmp, axis=1)
     # to get P directly (avoids vtmp and Pmax)
-    P[:] = Pmax[:] + np.log(vtmp[:]) # TODO: out parameter?
+    P = Pmax[:] + np.log(vtmp[:])
+    assert P.shape == (N1,) # Per-sample total log-likelihood across models.
     LLinc = np.sum(P[:])
     LLtmp += LLinc
     if iter == 1: # and blk == 1:
@@ -456,7 +465,7 @@ def get_updates_and_likelihood():
             #--------------------------FORTRAN CODE-------------------------
             # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
             #---------------------------------------------------------------
-            g[:, :] = 0.0
+            g = np.zeros((N1, nw))
         else:
             raise NotImplementedError()
         
@@ -512,7 +521,8 @@ def get_updates_and_likelihood():
         z_slice = z[:, :, :, h_index]  # shape: (block_size, nw, num_mix)
         # Reshape v_slice for broadcasting over z_slice
         v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-        u[:, :, :] = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+        u = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+        assert u.shape == (N1, nw, num_mix)
         usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
         assert usum.shape == (32, 3)  # nw, num_mix
         if iter == 1 and h == 1: # and blk == 1:
@@ -549,7 +559,8 @@ def get_updates_and_likelihood():
             )
             conditions = [is_rho1.T, is_rho2.T]
             choices = [fp_choice_1, fp_choice_2]
-            fp[:, :, :] = np.select(conditions, choices, default=fp_choice_default)
+            fp = np.select(conditions, choices, default=fp_choice_default)
+            assert fp.shape == (N1, nw, num_mix)
         elif pdftype == 2:
             raise NotImplementedError()
         elif pdftype == 3:
@@ -590,7 +601,8 @@ def get_updates_and_likelihood():
         # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
         # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
         #---------------------------------------------------------------
-        ufp[:, :, :] = u * fp
+        ufp = u * fp
+        assert ufp.shape == (N1, nw, num_mix)
         
 
         # !--- get g
@@ -889,10 +901,12 @@ def get_updates_and_likelihood():
         assert_allclose(v, 1)
         assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
         assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
+        assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
         assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
         assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
         assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
         assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
+        assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
         assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
         assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
         assert dalpha_denom[2, 31] == 30504
@@ -913,10 +927,17 @@ def get_updates_and_likelihood():
         assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
         # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
     elif iter == 2:
+        assert_almost_equal(g[-808, 0], 0.92578280732700213)
+        assert_almost_equal(g[-1, 31], -0.57496468258661515)
+        assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
+        assert_allclose(v, 1)
+        assert_almost_equal(y[-1, 31, 2, 0], -1.8067399375706592)
+        assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
         assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
         assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
         assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
         assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
+        assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
     
     
     # In Fortran, the OMP parallel region is closed here
@@ -2053,16 +2074,15 @@ if __name__ == "__main__":
         # call allocate_blocks
         N1 = dataseg.shape[-1] # 2 * block_size * num_thrds
         # assert N1 == 1024 # 10240
-        b = np.zeros((N1, nw, num_models))  # Allocate b
-        g = np.zeros((N1, nw))  # Allocate g
-        v = np.zeros((N1, num_models)) # posterior probability for each model
-        y = np.zeros((N1, nw, num_mix, num_models))
-        z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
+        # b = np.zeros((N1, nw, num_models))  # Allocate b
+        # v = np.zeros((N1, num_models)) # posterior probability for each model
+        # y = np.zeros((N1, nw, num_mix, num_models))
+        # z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
         # z0 = np.zeros((N1, num_mix))  # Allocate z0
-        z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
-        fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
+        # fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        #u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         # utmp = np.zeros(N1)
         # ztmp = np.zeros((N1, nw)) # shape is (N1) in Fortran
         # vtmp = np.zeros(N1)
@@ -2070,8 +2090,8 @@ if __name__ == "__main__":
         # tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         # Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
         # Ptmp_br = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
-        P = np.zeros(N1) # Per-sample total log-likelihood across models.
-        Pmax = np.zeros(N1)
+        # P = np.zeros(N1) # Per-sample total log-likelihood across models.
+        # Pmax = np.zeros(N1)
         # Pmax_br = np.zeros((N1, nw)) # Python only
         # tmpvec = np.zeros(N1)
         # tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
@@ -2086,7 +2106,7 @@ if __name__ == "__main__":
     assert blk_size == 512
 
 
-    v[:, :] = 1.0 / num_models
+    # v[:, :] = 1.0 / num_models
     leave = False
 
     print(f"{myrank+1} : entering the main loop ...")
@@ -2164,8 +2184,6 @@ if __name__ == "__main__":
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             assert_allclose(pdtype, 0)
             assert_allclose(rho, 1.5)
-            assert_almost_equal(g[-808, 0], 0.19658642673900478)
-            assert_almost_equal(g[-1, 31], -0.22482758905985217)
             # assert g[808, 31] == 0.0
             assert dgm_numer[0] == 30504
             # assert_almost_equal(tmpsum, -52.929467835976844)
@@ -2174,11 +2192,6 @@ if __name__ == "__main__":
             assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom[31, 0] == 30504
-            assert_allclose(v, 1)
-            assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
-            assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
-            assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
-            assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
             # assert u[808, 31, 2] == 0.0
             # assert_almost_equal(usum, 325.12075860737821, decimal=7)
             # assert tmpvec[808] == 0.0
@@ -2193,18 +2206,13 @@ if __name__ == "__main__":
             assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
             assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
             assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
-            assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
             
             assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
             assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-            assert_almost_equal(P[-1], -111.60532918598989)
-            # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-            assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
-            assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
             
             # These shouldnt get updated until the start of newton_optimization
             
@@ -2246,25 +2254,18 @@ if __name__ == "__main__":
         elif iter == 2:
             assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
             assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert_almost_equal(g[-808, 0], 0.92578280732700213)
-            assert_almost_equal(g[-1, 31], -0.57496468258661515)
             assert dgm_numer[0] == 30504
             assert dsigma2_denom[31, 0] == 30504
             assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom[31, 0] == 30504
-            assert_allclose(v, 1)
-            assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
-            assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
             # assert u[808, 31, 2] == 0.0
             #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
             assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
             assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
-            assert_almost_equal(y[-1, 31, 2, 0], -1.8067399375706592)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-            assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
             # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
 
