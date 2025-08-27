@@ -315,17 +315,17 @@ def get_updates_and_likelihood():
         # But its probably better to use the scipy function for clarity and maintainability.
         # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
         # Get the logsumexp across the mixtures (robust to overflow/underflow)
-        ztmp_br[:, :] = 0.0
+        ztmp[:, :] = 0.0
         np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
         # shift for numerical stability
         centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
         # Now take the exponential
         exp_term = np.exp(centered_responsibilities)
         # Sum the results over the mixture axis (axis=2)
-        np.sum(exp_term, axis=-1, out=ztmp_br)
-        # ztmp_br[:, :] += exp_term.sum(axis=-1)
+        np.sum(exp_term, axis=-1, out=ztmp)
+        # ztmp[:, :] += exp_term.sum(axis=-1)
         
-        tmpvec_br = Pmax_br[:, :] + np.log(ztmp_br[:, :])
+        tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
         Ptmp_br[:, :, h_index] += tmpvec_br
         Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
         if iter == 1 and h == 1: # and blk == 1:
@@ -333,8 +333,8 @@ def get_updates_and_likelihood():
             assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
             assert_almost_equal(Pmax_br[(511)//2, 0], -1.7814295395506825)
             assert_almost_equal(Pmax_br[511, 0], -1.8467707853596678)  
-            assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
-            assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)
+            assert_almost_equal(ztmp[0, 0], 1.8787098696697053)
+            assert_almost_equal(ztmp[511, 0], 1.355797568009625)
             # and i == 1 (j loop is done now)
             assert_almost_equal(tmpvec_br[0,0 ], -1.2091622031269318)
             assert_almost_equal(tmpvec_br[511//2, 0], -1.293181296723108)
@@ -425,6 +425,8 @@ def get_updates_and_likelihood():
         #--------------------------FORTRAN CODE-------------------------
         # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
         #---------------------------------------------------------------
+        # TODO: use softmax across models once we vectorize across models.
+        # responsibilities over models per sample
         v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
         # v[:, :] = softmax(Ptmp, axis=1)
         if h == 1:
@@ -504,12 +506,12 @@ def get_updates_and_likelihood():
         z_slice = z[:, :, :, h_index]  # shape: (block_size, nw, num_mix)
         # Reshape v_slice for broadcasting over z_slice
         v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-        u_mat[:, :, :] = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
-        usum_mat = u_mat[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-        assert usum_mat.shape == (32, 3)  # nw, num_mix
+        u[:, :, :] = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+        usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
+        assert usum.shape == (32, 3)  # nw, num_mix
         if iter == 1 and h == 1: # and blk == 1:
-            assert_almost_equal(u_mat[0, 0, 0], 0.29726705039895657)
-            assert_almost_equal(u_mat[511, 0, 0], 0.031986885982993922)
+            assert_almost_equal(u[0, 0, 0], 0.29726705039895657)
+            assert_almost_equal(u[511, 0, 0], 0.031986885982993922)
         
         # !--- get fp, zfp
         if pdftype == 0:
@@ -538,7 +540,7 @@ def get_updates_and_likelihood():
             )
             conditions = [is_rho1.T, is_rho2.T]
             choices = [fp_choice_1, fp_choice_2]
-            fp_all[:, :, :] = np.select(conditions, choices, default=fp_choice_default)
+            fp[:, :, :] = np.select(conditions, choices, default=fp_choice_default)
         elif pdftype == 2:
             raise NotImplementedError()
         elif pdftype == 3:
@@ -559,15 +561,15 @@ def get_updates_and_likelihood():
             assert_almost_equal(tmpvec2_fp[0, 0, 0], 0.88687232382412851)
             assert_almost_equal(tmpvec2_fp[511, 0, 0], 1.4827788020492549)
             assert rho[0, 0] == 1.5  # this is set by the config file
-            assert_almost_equal(fp_all[0, 0, 0], 1.3303084857361926)
+            assert_almost_equal(fp[0, 0, 0], 1.3303084857361926)
         elif iter == 6 and h == 1: # and blk == 1:
             # and j == 3 and i == 1 
-            np.testing.assert_equal(fp_all[:142, 0, 2], -1.0)
-            assert fp_all[142, 0, 2] == 1.0
-            np.testing.assert_equal(fp_all[475:512, 0, 2], 1.0)
+            np.testing.assert_equal(fp[:142, 0, 2], -1.0)
+            assert fp[142, 0, 2] == 1.0
+            np.testing.assert_equal(fp[475:512, 0, 2], 1.0)
         elif iter == 13 and h == 1: # and blk == 1:
             # and j == 1 and i == 1 
-            assert_almost_equal(fp_all[0, 0, 0], -0.36683010780476027, decimal=3)
+            assert_almost_equal(fp[0, 0, 0], -0.36683010780476027, decimal=3)
 
         elif iter == 50 and h == 1: # and blk == 1:
             # and j == 1 and i == 1 
@@ -579,7 +581,7 @@ def get_updates_and_likelihood():
         # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
         # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
         #---------------------------------------------------------------
-        ufp_all = u_mat * fp_all
+        ufp[:, :, :] = u * fp
         
 
         # !--- get g
@@ -594,7 +596,7 @@ def get_updates_and_likelihood():
             # On a test file, this is 6x faster than vectorization.
             comp_idx = comp_list[:, h - 1] - 1  # (nw,)
             S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
-            g_update = np.einsum('tnj,nj->tn', ufp_all[:, :, :], S_T, optimize=True)
+            g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
             g[:, :] += g_update
 
             # Method 2: Fully vectorized (more complex but maximum performance)
@@ -603,24 +605,24 @@ def get_updates_and_likelihood():
             #comp_indices = comp_list[i_indices, h_index] - 1  # Shape: (nw, num_mix)
             #sbeta_vals = sbeta[j_indices, comp_indices]  # Shape: (nw, num_mix)
             # Sum over j dimension
-            #g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp_all[:, :, :], axis=2)
+            #g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp[:, :, :], axis=2)
             #g[:, :] += g_update
 
             # Method 3: Fully vectorized (more complex but maximum performance)
             # 1. Prepare sbeta for broadcasting.
             # Select the sbeta values for the current model h.
             # sbeta_h = sbeta[:, comp_list[:, h_index] - 1]  # Shape: (num_mix, nw)
-            # Transpose and add a new axis to align with ufp_all's dimensions.
+            # Transpose and add a new axis to align with ufp's dimensions.
             # sbeta_br = sbeta_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
             # 2. Calculate the update term for all i and j at once.
-            # This works because ufp_all and sbeta_br are now broadcast-compatible.
-            # g_update = sbeta_br * ufp_all[bstrt-1:bstp, :, :] # Shape: (tblksize, nw, num_mix)
+            # This works because ufp and sbeta_br are now broadcast-compatible.
+            # g_update = sbeta_br * ufp[bstrt-1:bstp, :, :] # Shape: (tblksize, nw, num_mix)
             # 3. Sum the update terms across the mixture axis (j) and update g.
             # This collapses the num_mix dimension, creating the final update matrix for g.
             # g[bstrt-1:bstp, :] += np.sum(g_update, axis=2)
 
             # Method 4: Using broadcasting
-            # g_update = (ufp_all[bstrt-1:bstp, :, :] * S_T[None, :, :]).sum(axis=2)
+            # g_update = (ufp[bstrt-1:bstp, :, :] * S_T[None, :, :]).sum(axis=2)
             # g[bstrt-1:bstp, :] += g_update
 
             # --- Vectorized Newton-Raphson Updates ---
@@ -639,11 +641,11 @@ def get_updates_and_likelihood():
 
                 comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
                 # 1. Kappa updates
-                ufp_fp_sums = np.sum(ufp_all[:, :, :] * fp_all[:, :, :], axis=0)
+                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
                 sbeta_vals = sbeta[:, comp_indices] ** 2
                 tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
                 dkappa_numer[:, :, h_index] += tmpsum_kappa
-                dkappa_denom[:, :, h_index] += usum_mat.T
+                dkappa_denom[:, :, h_index] += usum.T
                 
                 # 2. Lambda updates
                 # ---------------------------FORTRAN CODE---------------------------
@@ -653,13 +655,13 @@ def get_updates_and_likelihood():
                 # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
                 # ------------------------------------------------------------------
                 tmpvec_mat_dlambda[:, :, :] = (
-                    fp_all[:, :, :] * y[:, :, :, h_index] - 1.0
+                    fp[:, :, :] * y[:, :, :, h_index] - 1.0
                 )
                 tmpsum_dlambda = np.sum(
-                    u_mat[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
+                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
                 )  # shape: (nw, num_mix)
                 dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
-                dlambda_denom[:, :, h_index] += usum_mat.T
+                dlambda_denom[:, :, h_index] += usum.T
                 
 
                 # 3. (dbar)Alpha updates
@@ -668,7 +670,7 @@ def get_updates_and_likelihood():
                 # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
                 # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
                 # ------------------------------------------------------------------
-                dbaralpha_numer[:, :, h_index] += usum_mat.T
+                dbaralpha_numer[:, :, h_index] += usum.T
                 dbaralpha_denom[:,:, h_index] += vsum
 
             # end if (do_newton and iter >= newt_start)
@@ -688,7 +690,7 @@ def get_updates_and_likelihood():
             # That propogate to several other variables due to a dependency chan
             # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
             comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-            dalpha_numer[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
+            dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
             dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
         elif not update_alpha:
             raise NotImplementedError()
@@ -700,7 +702,7 @@ def get_updates_and_likelihood():
             # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
             # -----------------------------------------------------------------------
             # XXX: Some error in each sum across 59 blocks
-            tmpsum_mu = ufp_all[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
+            tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
             dmu_numer[:, comp_indices] += tmpsum_mu.T
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
@@ -713,7 +715,7 @@ def get_updates_and_likelihood():
             # -----------------------------------------------------------------------
             if np.all(rho[:, comp_indices] <= 2.0):
                 # shape : (nw, num_mix)
-                mu_denom_sum = np.sum(ufp_all[:, :, :] / y[:, :, :, h_index], axis=0)
+                mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :, h_index], axis=0)
 
                 # shape (num_mix, nw)
                 tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
@@ -730,7 +732,7 @@ def get_updates_and_likelihood():
             # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
             # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
             # ----------------------------------------------------------------------
-            dbeta_numer[:, comp_indices] += usum_mat.T  # shape: (num_mix, nw)
+            dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
@@ -739,7 +741,7 @@ def get_updates_and_likelihood():
             # ----------------------------------------------------------------------
             if np.all(rho[:, comp_indices] <= 2.0):
                 tmpsum_dbeta_denom = np.sum(
-                    ufp_all[:, :, :] * y[:, :, :, h_index], axis=0
+                    ufp[:, :, :] * y[:, :, :, h_index], axis=0
                 )
                 dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
             else:
@@ -756,29 +758,29 @@ def get_updates_and_likelihood():
             # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
             # ----------------------------------------------------------------------
             # 1. log of absolute value
-            tmpy_mat[:, :, :] = np.abs(y[:, :, :, h_index])
-            logab_mat[:, :, :] = np.log(tmpy_mat[:, :, :])
+            tmpy[:, :, :] = np.abs(y[:, :, :, h_index])
+            logab[:, :, :] = np.log(tmpy[:, :, :])
             if iter == 1 and h == 1: # and blk == 1:
                 # and j == 1 and i == 1 
-                assert_almost_equal(logab_mat[0, 0, 0], -0.24010849721367941)
-                assert_almost_equal(logab_mat[511, 0, 0], 0.78783579259769021)
-                assert_almost_equal(tmpy_mat[0, 0, 0], 0.78654251876520975)
-                assert_almost_equal(tmpy_mat[511, 0, 0], 2.1986329758066234)
-                #assert tmpy_mat[512, 0, 0] == 0.0
+                assert_almost_equal(logab[0, 0, 0], -0.24010849721367941)
+                assert_almost_equal(logab[511, 0, 0], 0.78783579259769021)
+                assert_almost_equal(tmpy[0, 0, 0], 0.78654251876520975)
+                assert_almost_equal(tmpy[511, 0, 0], 2.1986329758066234)
+                #assert tmpy[512, 0, 0] == 0.0
             # 2. Exponentiation with rho
             rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
             rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
             # shape: (max_block_size, nw, num_mix)
-            tmpy_mat[:, :, :] = np.exp(
-                rho_vals_br * logab_mat[:, :, :]
+            tmpy[:, :, :] = np.exp(
+                rho_vals_br * logab[:, :, :]
             )
             # shape: (max_block_size, nw, num_mix)
-            logab_mat[:, :, :] = np.log(tmpy_mat[:, :, :])
+            logab[:, :, :] = np.log(tmpy[:, :, :])
             if iter == 1 and h == 1: # and blk == 1:
-                assert_almost_equal(tmpy_mat[0, 0, 0], 0.69756279140378474)
-                assert_almost_equal(tmpy_mat[511, 0, 0], 3.2600863700125342)
-                assert_almost_equal(logab_mat[0, 0, 0], -0.3601627458205191)
-                assert_almost_equal(logab_mat[511, 0, 0], 1.1817536888965354)
+                assert_almost_equal(tmpy[0, 0, 0], 0.69756279140378474)
+                assert_almost_equal(tmpy[511, 0, 0], 3.2600863700125342)
+                assert_almost_equal(logab[0, 0, 0], -0.3601627458205191)
+                assert_almost_equal(logab[511, 0, 0], 1.1817536888965354)
             
             # -------------------------------FORTRAN--------------------------------
             # where (tmpy(bstrt:bstp) < epsdble)
@@ -786,11 +788,12 @@ def get_updates_and_likelihood():
                     # end where
             # ----------------------------------------------------------------------
             # Set values below epsdble to 0.0
-            logab_mat[:, :, :][tmpy_mat[:, :, :] < epsdble] = 0.0
+            # TODO: change to logab[tmpy < epsdble]
+            logab[:, :, :][tmpy[:, :, :] < epsdble] = 0.0
             if iter == 1 and h == 1: # and blk == 1:
-                assert_almost_equal(logab_mat[0, 0, 0], -0.3601627458205191)
-                assert_almost_equal(logab_mat[511, 0, 0], 1.1817536888965354)
-            
+                assert_almost_equal(logab[0, 0, 0], -0.3601627458205191)
+                assert_almost_equal(logab[511, 0, 0], 1.1817536888965354)
+                assert np.all(logab[tmpy < epsdble] == 0.0)
             # -------------------------------FORTRAN--------------------------------
             # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
             # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
@@ -799,13 +802,13 @@ def get_updates_and_likelihood():
             # ----------------------------------------------------------------------
             #tmpsum = np.sum(u[bstrt-1:bstp] * tmpy[bstrt-1:bstp] * logab[bstrt-1:bstp])
             tmpsum_prod = np.sum(
-                u_mat[:, :, :]
-                * tmpy_mat[:, :, :]
-                * logab_mat[:, :, :]
+                u[:, :, :]
+                * tmpy[:, :, :]
+                * logab[:, :, :]
             , axis=0
             )
             drho_numer[:, comp_indices] += tmpsum_prod.T
-            drho_denom[:, comp_indices] += usum_mat.T
+            drho_denom[:, comp_indices] += usum.T
             
             if update_beta and np.any(rho[:, comp_indices] > 2.0):
                 raise NotImplementedError()
@@ -823,21 +826,21 @@ def get_updates_and_likelihood():
             assert_allclose(v, 1)  # v should be 1 for all elements in this block
             assert_almost_equal(z[0, 31, 2, 0], 0.55440169506960801)
             assert_almost_equal(z[511, 31, 2, 0], 0.73097098274195338)
-            assert_almost_equal(u_mat[0, 31, 2], 0.55440169506960801)
-            assert_almost_equal(u_mat[511, 31, 2], 0.73097098274195338)
+            assert_almost_equal(u[0, 31, 2], 0.55440169506960801)
+            assert_almost_equal(u[511, 31, 2], 0.73097098274195338)
             # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(usum_mat[31,2], 160.17523004773722)
+            # assert_almost_equal(usum[31,2], 160.17523004773722)
             assert_almost_equal(tmpvec_fp[0,31,2], -1.1980485615954355)
             assert_almost_equal(tmpvec2_fp[511,31,2], 0.35040415659319712)
             # assert tmpvec[bstp] == 0.0
             # assert tmpvec2[bstp] == 0.0
-            assert_almost_equal(ufp_all[0, 31, 2], -0.45683868086905977)
+            assert_almost_equal(ufp[0, 31, 2], -0.45683868086905977)
             # NOTE: either I have a bug or that test no longer makes sense
             assert dalpha_denom[2, 31] == 30504 # == 512
             # NOTE: either I have a bug or that test no longer makes sense
             assert_almost_equal(y[511, 31, 2, 0], 0.12278307295778981)
-            assert_almost_equal(logab_mat[0, 31, 2], -1.7970728423931532)
-            assert_almost_equal(tmpy_mat[0, 31, 2], 0.16578345297235644)
+            assert_almost_equal(logab[0, 31, 2], -1.7970728423931532)
+            assert_almost_equal(tmpy[0, 31, 2], 0.16578345297235644)
             # NOTE: either I have a bug or that test no longer makes sense
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
@@ -875,11 +878,11 @@ def get_updates_and_likelihood():
         assert_allclose(v, 1)
         assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
         assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
-        assert_almost_equal(u_mat[-808, 31, 2], 0.72907838295502048)
-        assert_almost_equal(u_mat[-1, 31, 2], 0.057629436774909774)
+        assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
+        assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
         assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
         assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
-        assert_almost_equal(ufp_all[-808, 31, 2], 0.37032270799594241)
+        assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
         assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
         assert dalpha_denom[2, 31] == 30504
         assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
@@ -890,8 +893,8 @@ def get_updates_and_likelihood():
         assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
         assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
         assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
-        assert_almost_equal(logab_mat[-808, 31,2], -3.2486146387719028)
-        assert_almost_equal(tmpy_mat[-808, 31, 2], 0.038827961341319203)
+        assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
+        assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
         assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
         assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
         assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
@@ -2041,19 +2044,14 @@ if __name__ == "__main__":
         z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
         # z0 = np.zeros((N1, num_mix))  # Allocate z0
         z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
-        fp = np.zeros(N1)
-        fp_all = np.zeros((N1, nw, num_mix)) # Python only
-        ufp = np.zeros(N1)
-        u = np.zeros(N1)
-        u_mat = np.zeros((N1, nw, num_mix)) # Python only
+        fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         utmp = np.zeros(N1)
-        ztmp = np.zeros(N1)
-        ztmp_br = np.zeros((N1, nw)) # Python only
+        ztmp = np.zeros((N1, nw)) # shape is (N1) in Fortran
         vtmp = np.zeros(N1)
-        logab = np.zeros(N1)
-        logab_mat = np.zeros((N1, nw, num_mix)) # Python only
-        tmpy = np.zeros(N1)
-        tmpy_mat = np.zeros((N1, nw, num_mix)) # Python only
+        logab = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
         Ptmp_br = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
         P = np.zeros(N1) # Per-sample total log-likelihood across models.
@@ -2163,9 +2161,9 @@ if __name__ == "__main__":
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
             assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
-            assert_almost_equal(u_mat[-808, 31, 2], 0.72907838295502048)
-            assert_almost_equal(u_mat[-1, 31, 2], 0.057629436774909774)
-            # assert u_mat[808, 31, 2] == 0.0
+            assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
+            assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
+            # assert u[808, 31, 2] == 0.0
             # assert_almost_equal(usum, 325.12075860737821, decimal=7)
             assert_almost_equal(tmpvec_fp[-808,31,2], -2.1657430925146017)
             assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3553626849082627)
@@ -2182,8 +2180,8 @@ if __name__ == "__main__":
             assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
             assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
             assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
-            assert_almost_equal(logab_mat[-808, 31,2], -3.2486146387719028,)
-            assert_almost_equal(tmpy_mat[-808, 31, 2], 0.038827961341319203)
+            assert_almost_equal(logab[-808, 31,2], -3.2486146387719028,)
+            assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
             assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
@@ -2192,7 +2190,7 @@ if __name__ == "__main__":
             # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-            assert_almost_equal(fp_all[-808, 31, 2], 0.50793264023957352)
+            assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
             assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
             
             # These shouldnt get updated until the start of newton_optimization
@@ -2244,8 +2242,8 @@ if __name__ == "__main__":
             assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
             assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
-            assert_almost_equal(u_mat[-808, 31, 2], 0.71373487258192514)
-            assert u[808] == 0.0
+            assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
+            # assert u[808, 31, 2] == 0.0
             assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
             assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
             #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
@@ -2253,8 +2251,8 @@ if __name__ == "__main__":
             assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
             assert_almost_equal(y[-1, 31, 2, 0], -1.8067399375706592)
-            assert_almost_equal(logab_mat[-808, 31, 2], -2.075346997788714)
-            assert_almost_equal(tmpy_mat[-808, 31, 2], 0.12551286724858962)
+            assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
+            assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
             assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
