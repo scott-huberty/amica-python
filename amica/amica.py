@@ -264,6 +264,8 @@ def get_updates_and_likelihood():
             choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
 
             # 4. Use np.select to build the final array from the choices based on the masks
+            # NOTE: this is ~ a 10 second operation for 200 iterations
+            # So it might be better to go back to a for loop.
             conditions = [is_rho1, is_rho2]
             choices = [choice_1, choice_2]
             z0[:, :, :] = np.select(conditions, choices, default=choice_default)
@@ -310,20 +312,15 @@ def get_updates_and_likelihood():
         # TODO: we could use scipy.special.logsumexp here to get rid of some intermediate arrays
         # But oddly enough, it seems to be 2x slower than the manual approach below
         # (~30 seconds vs ~15 seconds across 200 iterations)
-        # TODO: So profile that more and make a decision.
+        # But its probably better to use the scipy function for clarity and maintainability.
         # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
-        np.max(z0, axis=-1, out=Pmax_br)
-        if iter == 1 and h == 1: # and blk == 1:
-            # and i == 1
-            assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
-            assert_almost_equal(Pmax_br[(511)//2, 0], -1.7814295395506825)
-            assert_almost_equal(Pmax_br[511, 0], -1.8467707853596678)
-        
+        # Get the logsumexp across the mixtures (robust to overflow/underflow)
         ztmp_br[:, :] = 0.0
-        # Prepare Pmax for broadcasting against the 3D z0 array
-        Pmax_br_exp = Pmax_br[:, :, np.newaxis]  # Shape: (tblksize, num_models, 1)
-        # Calculate the exponent term for all components and mixtures
-        exp_term = np.exp(z0[:, :, :] - Pmax_br_exp)
+        np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
+        # shift for numerical stability
+        centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
+        # Now take the exponential
+        exp_term = np.exp(centered_responsibilities)
         # Sum the results over the mixture axis (axis=2)
         np.sum(exp_term, axis=-1, out=ztmp_br)
         # ztmp_br[:, :] += exp_term.sum(axis=-1)
@@ -333,6 +330,9 @@ def get_updates_and_likelihood():
         Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
         if iter == 1 and h == 1: # and blk == 1:
             # and j == 3 and i == 1 
+            assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
+            assert_almost_equal(Pmax_br[(511)//2, 0], -1.7814295395506825)
+            assert_almost_equal(Pmax_br[511, 0], -1.8467707853596678)  
             assert_almost_equal(ztmp_br[0, 0], 1.8787098696697053)
             assert_almost_equal(ztmp_br[511, 0], 1.355797568009625)
             # and i == 1 (j loop is done now)
@@ -348,10 +348,12 @@ def get_updates_and_likelihood():
         #--------------------------FORTRAN CODE-------------------------
         # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
         #---------------------------------------------------------------
+        # NOTE: This deviates from the Fortran code for numerical stability
         # result_1 = (
         #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
         # )
         #z[:, :, :, h_index] = result_1 # TODO: change this back to result
+        # TODO: is it possible to just use softmax here? Do we need Pmax, P etc?
         np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
         # TODO: use the calculation below it is equivalent and more numerically stable
         #result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
@@ -2033,11 +2035,11 @@ if __name__ == "__main__":
         # assert N1 == 1024 # 10240
         b = np.zeros((N1, nw, num_models))  # Allocate b
         g = np.zeros((N1, nw))  # Allocate g
-        v = np.zeros((N1, num_models)) 
+        v = np.zeros((N1, num_models)) # posterior probability for each model
         y = np.zeros((N1, nw, num_mix, num_models))
-        z = np.zeros((N1, nw, num_mix, num_models))  # Allocate z
+        z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
         # z0 = np.zeros((N1, num_mix))  # Allocate z0
-        z0 = np.zeros((N1, nw, num_mix)) # Python only
+        z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
         fp = np.zeros(N1)
         fp_all = np.zeros((N1, nw, num_mix)) # Python only
         ufp = np.zeros(N1)
@@ -2051,9 +2053,9 @@ if __name__ == "__main__":
         logab_mat = np.zeros((N1, nw, num_mix)) # Python only
         tmpy = np.zeros(N1)
         tmpy_mat = np.zeros((N1, nw, num_mix)) # Python only
-        Ptmp = np.zeros((N1, num_models))
-        Ptmp_br = np.zeros((N1, nw, num_models)) # Python only
-        P = np.zeros(N1)
+        Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
+        Ptmp_br = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
+        P = np.zeros(N1) # Per-sample total log-likelihood across models.
         Pmax = np.zeros(N1)
         Pmax_br = np.zeros((N1, nw)) # Python only
         tmpvec = np.zeros(N1)
