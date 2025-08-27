@@ -8,7 +8,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
 # from pyAMICA.pyAMICA.amica_utils import psifun
 from scipy import linalg
-from scipy.special import gammaln, psi
+from scipy.special import gammaln, psi, softmax
 
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
@@ -426,6 +426,7 @@ def get_updates_and_likelihood():
         # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
         #---------------------------------------------------------------
         v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
+        # v[:, :] = softmax(Ptmp, axis=1)
         if h == 1:
             assert v[0, h_index] == 1
             assert v[511, h_index] == 1
