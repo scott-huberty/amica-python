@@ -319,9 +319,9 @@ def get_updates_and_likelihood():
         # np.sum(exp_term, axis=-1, out=ztmp)
         # ztmp[:, :] += exp_term.sum(axis=-1)
         
-        # tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
-        tmpvec_br = np.logaddexp.reduce(z0, axis=-1)
-        Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
+        # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
+        component_loglik = np.logaddexp.reduce(z0, axis=-1)
+        Ptmp[:, h_index] += component_loglik.sum(axis=-1)
         # !--- get normalized z
         #--------------------------FORTRAN CODE-------------------------
         # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
