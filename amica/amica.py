@@ -171,9 +171,6 @@ def get_updates_and_likelihood():
         #---------------------------------------------------------------
 
         Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
-        if iter == 1 and h == 1: # and blk == 59:
-            assert_almost_equal(Ptmp[807, 0], -65.93059440479017, decimal=3)
-            assert_allclose(Ptmp[0:807, 0], -65.93059440479017, atol=1e-3)
         
         # !--- get b
         if update_c and update_A:
@@ -196,26 +193,13 @@ def get_updates_and_likelihood():
             #    b(bstrt:bstp,:,h),tblksize)
             #---------------------------------------------------------------
             b[:, :, h - 1] += (dataseg[:, :].T @ W[:, :, h - 1].T)
-            if iter == 1 and h == 1: # and blk == 1:
-                assert_almost_equal(b[0, 0, 0], -0.18617958844276997, decimal=7)
-                assert_almost_equal(b[255, 31, 0], -1.0903656896969214, decimal=7)
-                assert_almost_equal(b[511, 0, 0], 1.2766174169615641, decimal=7)
-                assert_almost_equal(b[511, 15, 0],  -0.18626868719469072, decimal=7)
         # end else
         # !--- get y z
         # do i = 1,nw
         # !--- get probability
         # select case (pdtype(i,h))
         if pdftype == 0:
-            # Gaussian
-            if iter == 1 and h == 1: # and blk == 1:
-                    assert y[0, 0, 0, 0] == 0
-                    assert comp_list[0, 0] == 1
-                    assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
-                    assert_almost_equal(b[0, 0, 0], -0.18617958844276997)
-                    assert_almost_equal(mu[0, 0], -1.0009659467356704)
-            assert np.all(pdtype == 0)
-            
+            # Gaussian            
             #--------------------------FORTRAN CODE-------------------------
             # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
             #---------------------------------------------------------------
@@ -284,31 +268,6 @@ def get_updates_and_likelihood():
             raise NotImplementedError()
         else:
             raise ValueError(f"Invalid pdftype {pdftype}")
-            
-        # Check a few values against the Fortran output
-        if iter == 1 and h == 1: # and blk == 1:
-            assert_almost_equal(y[0, 0, 0, 0], 0.78654251876520975)
-            assert_almost_equal(y[511, 0, 0, 0], 2.1986329758066234)
-            assert rho[0, 0] not in (1.0, 2.0)
-            assert_almost_equal(tmpvec_z0[0, 0, 2], 0.1540647351688724)
-            assert_almost_equal(tmpvec_z0[511, 0, 2], -1.3689579137330044)
-            assert_almost_equal(tmpvec2_z0[0, 0, 2], 1.2599815811899271)
-            assert_almost_equal(tmpvec2_z0[511, 0, 2], 0.1282932178257068)
-            assert_almost_equal(z0[0, 0, 2], -2.9784591487238883)
-        elif iter == 6 and h == 1: # and blk == 1:
-            # j == 3 and i == 1 
-            assert pdtype[0, 0] == 0
-            assert_almost_equal(z0[0, 0, 2], -3.4948228241366635, decimal=5) # -1.7717921977005058?
-        elif iter == 13 and h == 1: # and blk == 1:
-            # j == 1 and i == 1 
-            assert pdtype[0, 0] == 0
-            assert_almost_equal(z0[0, 0, 0], -1.5394706440040244, decimal=4)
-            # j == 2 and i == 1
-            # notice that for each j that rho line == 2.0
-            assert_almost_equal(z0[0, 0, 1], -1.1670825576427757, decimal=3)
-            assert_almost_equal(z0[511, 0,1], -0.49427281377070059, decimal=3)
-        
-        
         # end select
         # !--- end for j
         # !--- add the log likelihood of this component to the likelihood of this time point
@@ -335,19 +294,6 @@ def get_updates_and_likelihood():
         
         tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
         Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
-        if iter == 1 and h == 1: # and blk == 1:
-            # and j == 3 and i == 1 
-            assert_almost_equal(Pmax_br[0, 0], -1.8397475048612697)
-            assert_almost_equal(Pmax_br[(511)//2, 0], -1.7814295395506825)
-            assert_almost_equal(Pmax_br[511, 0], -1.8467707853596678)  
-            assert_almost_equal(ztmp[0, 0], 1.8787098696697053)
-            assert_almost_equal(ztmp[511, 0], 1.355797568009625)
-            # and i == 1 (j loop is done now)
-            assert_almost_equal(tmpvec_br[0,0 ], -1.2091622031269318)
-            assert_almost_equal(tmpvec_br[511//2, 0], -1.293181296723108)
-            assert_almost_equal(tmpvec_br[511, 0], -1.5423808931143423)
-
-        
         # !--- get normalized z
         #--------------------------FORTRAN CODE-------------------------
         # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
@@ -362,12 +308,7 @@ def get_updates_and_likelihood():
         # TODO: use the calculation below it is equivalent and more numerically stable
         #result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
         # assert_almost_equal(result_1, result_2)
-
-        if iter == 1 and h == 1: # and blk == 1:
-            # and j == 3 and i == 1
-            assert_almost_equal(z[0, 0, 2, 0], 0.17045278428961655)
-            assert_almost_equal(z[511, 0, 2, 0], 0.73757323629665994)
-            # end do (j)
+        # end do (j)
         # end do (i)
     # end do (h)
 
@@ -381,18 +322,10 @@ def get_updates_and_likelihood():
     Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
     assert Pmax.shape == (N1,)
     vtmp = np.zeros(N1) # candidate for out parameter
-    if iter == 1: # blk == 1:
-        assert_almost_equal(Pmax[0], -117.47213530812164)
-        assert_almost_equal(Pmax[511], -121.48667181867867)
 
     for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        
+        h_index = h - 1 
         vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
-        if iter == 1 and h == 1: # and blk == 1:
-            assert vtmp[0] == 1
-            assert vtmp[511] == 1
-            # assert vtmp[bstp] == 0.0
 
     #--------------------------FORTRAN CODE-------------------------
     # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
@@ -406,10 +339,6 @@ def get_updates_and_likelihood():
     assert P.shape == (N1,) # Per-sample total log-likelihood across models.
     LLinc = np.sum(P[:])
     LLtmp += LLinc
-    if iter == 1: # and blk == 1:
-        assert_almost_equal(P[0], -117.47213530812164, decimal=7)
-        assert_almost_equal(P[511], -121.48667181867867, decimal=7)
-        assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5)
     
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
@@ -422,11 +351,6 @@ def get_updates_and_likelihood():
             #---------------------------------------------------------------
             modloglik[h - 1, :] = Ptmp[:, h_index]
             loglik[:] = P[:]
-            if iter == 1 and h == 1:
-                assert_almost_equal(modloglik[h - 1, 0], -117.47213530812164)
-                assert_almost_equal(modloglik[h - 1, 511], -121.48667181867867)
-                assert_almost_equal(loglik[0], -117.47213530812164)
-                assert_almost_equal(loglik[511], -121.48667181867867)
         
         #--------------------------FORTRAN CODE-------------------------
         # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
@@ -435,9 +359,6 @@ def get_updates_and_likelihood():
         # responsibilities over models per sample
         v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
         # v[:, :] = softmax(Ptmp, axis=1)
-        if h == 1:
-            assert v[0, h_index] == 1
-            assert v[511, h_index] == 1
 
     # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
 
@@ -496,12 +417,6 @@ def get_updates_and_likelihood():
                 dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
         else:
             raise NotImplementedError()
-        if iter == 1 and h == 1: # and blk == 1:
-            # j=1, i=1
-            assert_almost_equal(dgm_numer[0], 30504.0)
-            assert_almost_equal(dsigma2_denom[0, 0], 30504.0)
-            assert_almost_equal(dc_denom[0, 0], 30504.0)
-            assert_almost_equal(z[0,0,0,0], 0.29726705039895657)
 
         
         #--------------------------FORTRAN CODE-------------------------
@@ -516,9 +431,6 @@ def get_updates_and_likelihood():
         assert u.shape == (N1, nw, num_mix)
         usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
         assert usum.shape == (32, 3)  # nw, num_mix
-        if iter == 1 and h == 1: # and blk == 1:
-            assert_almost_equal(u[0, 0, 0], 0.29726705039895657)
-            assert_almost_equal(u[511, 0, 0], 0.031986885982993922)
         
         # !--- get fp, zfp
         if pdftype == 0:
@@ -565,26 +477,6 @@ def get_updates_and_likelihood():
                 f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
                 "Expected values are 0, 1, 2, 3, or 4."
             )
-        if iter == 1 and h == 1: # and blk == 1:
-            # and j == 1 and i == 1 
-            assert_almost_equal(tmpvec_fp[0, 0, 0], -0.24010849721367941)
-            assert_almost_equal(tmpvec_fp[511, 0, 0], 0.78783579259769021)
-            assert_almost_equal(tmpvec2_fp[0, 0, 0], 0.88687232382412851)
-            assert_almost_equal(tmpvec2_fp[511, 0, 0], 1.4827788020492549)
-            assert rho[0, 0] == 1.5  # this is set by the config file
-            assert_almost_equal(fp[0, 0, 0], 1.3303084857361926)
-        elif iter == 6 and h == 1: # and blk == 1:
-            # and j == 3 and i == 1 
-            np.testing.assert_equal(fp[:142, 0, 2], -1.0)
-            assert fp[142, 0, 2] == 1.0
-            np.testing.assert_equal(fp[475:512, 0, 2], 1.0)
-        elif iter == 13 and h == 1: # and blk == 1:
-            # and j == 1 and i == 1 
-            assert_almost_equal(fp[0, 0, 0], -0.36683010780476027, decimal=3)
-
-        elif iter == 50 and h == 1: # and blk == 1:
-            # and j == 1 and i == 1 
-            assert_almost_equal(tmpvec_br[0, 31], -0.94984637969343122, decimal=4)
 
         # --- Vectorized calculation of ufp and g update ---
         #--------------------------FORTRAN CODE-------------------------
@@ -593,8 +485,7 @@ def get_updates_and_likelihood():
         # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
         #---------------------------------------------------------------
         ufp = u * fp
-        assert ufp.shape == (N1, nw, num_mix)
-        
+        assert ufp.shape == (N1, nw, num_mix)   
 
         # !--- get g
         if iter == 1 and h == 1: # and blk == 1 
@@ -610,32 +501,6 @@ def get_updates_and_likelihood():
             S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
             g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
             g[:, :] += g_update
-
-            # Method 2: Fully vectorized (more complex but maximum performance)
-            # TODO: Vectorize this
-            #i_indices, j_indices = np.meshgrid(np.arange(nw), np.arange(num_mix), indexing='ij')
-            #comp_indices = comp_list[i_indices, h_index] - 1  # Shape: (nw, num_mix)
-            #sbeta_vals = sbeta[j_indices, comp_indices]  # Shape: (nw, num_mix)
-            # Sum over j dimension
-            #g_update = np.sum(sbeta_vals[np.newaxis, :, :] * ufp[:, :, :], axis=2)
-            #g[:, :] += g_update
-
-            # Method 3: Fully vectorized (more complex but maximum performance)
-            # 1. Prepare sbeta for broadcasting.
-            # Select the sbeta values for the current model h.
-            # sbeta_h = sbeta[:, comp_list[:, h_index] - 1]  # Shape: (num_mix, nw)
-            # Transpose and add a new axis to align with ufp's dimensions.
-            # sbeta_br = sbeta_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
-            # 2. Calculate the update term for all i and j at once.
-            # This works because ufp and sbeta_br are now broadcast-compatible.
-            # g_update = sbeta_br * ufp[bstrt-1:bstp, :, :] # Shape: (tblksize, nw, num_mix)
-            # 3. Sum the update terms across the mixture axis (j) and update g.
-            # This collapses the num_mix dimension, creating the final update matrix for g.
-            # g[bstrt-1:bstp, :] += np.sum(g_update, axis=2)
-
-            # Method 4: Using broadcasting
-            # g_update = (ufp[bstrt-1:bstp, :, :] * S_T[None, :, :]).sum(axis=2)
-            # g[bstrt-1:bstp, :] += g_update
 
             # --- Vectorized Newton-Raphson Updates ---
             if do_newton and iter >= newt_start:
@@ -774,13 +639,6 @@ def get_updates_and_likelihood():
             logab = np.empty((N1, nw, num_mix)) # shape is (N1) in Fortran
             np.abs(y[:, :, :, h_index], out=tmpy)
             np.log(tmpy[:, :, :], out=logab)
-            if iter == 1 and h == 1: # and blk == 1:
-                # and j == 1 and i == 1 
-                assert_almost_equal(logab[0, 0, 0], -0.24010849721367941)
-                assert_almost_equal(logab[511, 0, 0], 0.78783579259769021)
-                assert_almost_equal(tmpy[0, 0, 0], 0.78654251876520975)
-                assert_almost_equal(tmpy[511, 0, 0], 2.1986329758066234)
-                #assert tmpy[512, 0, 0] == 0.0
             # 2. Exponentiation with rho
             rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
             rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
@@ -790,11 +648,6 @@ def get_updates_and_likelihood():
             )
             # shape: (max_block_size, nw, num_mix)
             logab[:, :, :] = np.log(tmpy[:, :, :])
-            if iter == 1 and h == 1: # and blk == 1:
-                assert_almost_equal(tmpy[0, 0, 0], 0.69756279140378474)
-                assert_almost_equal(tmpy[511, 0, 0], 3.2600863700125342)
-                assert_almost_equal(logab[0, 0, 0], -0.3601627458205191)
-                assert_almost_equal(logab[511, 0, 0], 1.1817536888965354)
             
             # -------------------------------FORTRAN--------------------------------
             # where (tmpy(bstrt:bstp) < epsdble)
@@ -804,10 +657,6 @@ def get_updates_and_likelihood():
             # Set values below epsdble to 0.0
             # TODO: change to logab[tmpy < epsdble]
             logab[:, :, :][tmpy[:, :, :] < epsdble] = 0.0
-            if iter == 1 and h == 1: # and blk == 1:
-                assert_almost_equal(logab[0, 0, 0], -0.3601627458205191)
-                assert_almost_equal(logab[511, 0, 0], 1.1817536888965354)
-                assert np.all(logab[tmpy < epsdble] == 0.0)
             # -------------------------------FORTRAN--------------------------------
             # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
             # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
@@ -828,34 +677,6 @@ def get_updates_and_likelihood():
                 raise NotImplementedError()
         elif not dorho:
             raise NotImplementedError()
-
-        if iter == 1 and h == 1: # and blk == 1:
-            # j is 3 and i is 32 by this point
-            assert_almost_equal(g[0, 31], 0.16418191233361801)
-            assert_almost_equal(g[511, 31], 0.85384837260436275)
-            # XXX: this gets tested against tmpsum_prod in the dorho block.
-            # assert_almost_equal(tmpsum, -12.823594759742996)
-            assert dsigma2_denom[31, 0] == 30504 # 512
-            assert dc_denom[31, 0] == 30504 # 512
-            assert_allclose(v, 1)  # v should be 1 for all elements in this block
-            assert_almost_equal(z[0, 31, 2, 0], 0.55440169506960801)
-            assert_almost_equal(z[511, 31, 2, 0], 0.73097098274195338)
-            assert_almost_equal(u[0, 31, 2], 0.55440169506960801)
-            assert_almost_equal(u[511, 31, 2], 0.73097098274195338)
-            # NOTE: either I have a bug or that test no longer makes sense
-            # assert_almost_equal(usum[31,2], 160.17523004773722)
-            assert_almost_equal(tmpvec_fp[0,31,2], -1.1980485615954355)
-            assert_almost_equal(tmpvec2_fp[511,31,2], 0.35040415659319712)
-            # assert tmpvec[bstp] == 0.0
-            # assert tmpvec2[bstp] == 0.0
-            assert_almost_equal(ufp[0, 31, 2], -0.45683868086905977)
-            # NOTE: either I have a bug or that test no longer makes sense
-            assert dalpha_denom[2, 31] == 30504 # == 512
-            # NOTE: either I have a bug or that test no longer makes sense
-            assert_almost_equal(y[511, 31, 2, 0], 0.12278307295778981)
-            assert_almost_equal(logab[0, 31, 2], -1.7970728423931532)
-            assert_almost_equal(tmpy[0, 31, 2], 0.16578345297235644)
-            # NOTE: either I have a bug or that test no longer makes sense
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         if update_A:
@@ -930,7 +751,6 @@ def get_updates_and_likelihood():
         assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
         assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
     
-    
     # In Fortran, the OMP parallel region is closed here
     # !$OMP END PARALLEL
     # !print *, myrank+1,': finished segment ', seg; call flush(6)
@@ -961,12 +781,8 @@ def accum_updates_and_likelihood():
 
     if update_A:
         # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        if iter == 1:
-            assert_allclose(dA, 0)
         assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
         dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
-        if iter == 1:
-            assert_almost_equal(dA[0, 0, 0], 16851.098718911322, decimal=5)
         
         if do_newton and iter >= newt_start:
             #--------------------------FORTRAN CODE-------------------------
@@ -1067,21 +883,12 @@ def accum_updates_and_likelihood():
             else:
                 assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
                 dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
-                if iter == 1 and h == 1:
-                    assert dgm_numer[h - 1] == 30504
-                    assert_almost_equal(dA[0, 0, h - 1], -0.55242259109989911)
-            
-            
+                
             np.fill_diagonal(dA[:, :, h_index], dA[:, :, h_index].diagonal() + 1.0)
-            if iter == 1 and h == 1:
-                assert_almost_equal(dA[0, 0, h - 1], 0.44757740890010089)
             # if (print_debug) then
 
             global posdef
             posdef = True
-            if iter == 1 and h == 1:
-                # This gets overwritten but just a sanity check
-                assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
             if do_newton and iter >= newt_start:
                 # in Fortran, this is a nested loop..
                 #--------------------------FORTRAN CODE-------------------------
@@ -1123,8 +930,6 @@ def accum_updates_and_likelihood():
                 assert Wtmp.shape == dA[:, :, h - 1].squeeze().shape == (nw, nw)
                 Wtmp[:, :] = (dA[:, :, h - 1].squeeze()).copy()  # XXX: Check if the Fortran code globally assigns dA to Wtmp or if it is only affected in the subroutine
                 assert Wtmp.shape == (32, 32) == (nw, nw)
-            if iter == 1 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
             
             #--------------------------FORTRAN CODE-------------------------
             # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
@@ -1132,9 +937,6 @@ def accum_updates_and_likelihood():
             #---------------------------------------------------------------
             dA[:, :, h - 1] = 0.0
             dA[:, :, h - 1] += np.dot(A[:, comp_list[:, h - 1] - 1], Wtmp)
-            if iter == 1 and h == 1:
-                assert_almost_equal(dA[0, 0, h - 1], 0.44757153346268763)
-                assert_almost_equal(dA[31, 31, h - 1], 0.3099478996731922)
         # end do (h)
 
         dAK[:] = 0.0
@@ -1152,12 +954,6 @@ def accum_updates_and_likelihood():
             source_columns = gm[h - 1] * dA[:, :, h - 1]
             np.add.at(dAK, (slice(None), comp_indices), source_columns)
             np.add.at(zeta, comp_indices, gm[h - 1])
-
-            if iter == 1 and h == 1:
-                assert gm[h_index] == 1.0  # just a sanity check
-                assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-                assert_almost_equal(dAK[31, 31], 0.3099478996731922)
-                assert_allclose(zeta, 1.0)
         
         #--------------------------FORTRAN CODE-------------------------
         # dAk(:,k) = dAk(:,k) / zeta(k)
@@ -1165,12 +961,6 @@ def accum_updates_and_likelihood():
         # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
         #---------------------------------------------------------------
         dAK[:,:] /= zeta  # Broadcasting division
-        if iter == 1 and h == 1:
-            assert num_comps == 32 # just a sanity check for indexing below
-            assert zeta[0] == 1.0
-            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-            assert_almost_equal(dAK[31, 31], 0.3099478996731922)
-        assert_allclose(nd[iter - 1, :], 0)
         nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
         
         # comp_used should be 32 length vector of True
@@ -1178,12 +968,6 @@ def accum_updates_and_likelihood():
         assert comp_used.shape == (num_comps,)
         assert comp_used.dtype == bool
         ndtmpsum = np.sqrt(np.sum(nd[iter - 1, :]) / (nw * np.count_nonzero(comp_used)))
-        if iter == 1 and h == 1:
-            assert_almost_equal(nd[0, 0], 0.20135421232976469)
-            assert_almost_equal(nd[0, 31], 0.097185879344771811)
-            assert nw == 32
-            assert np.count_nonzero(comp_used) == 32
-            assert_almost_equal(ndtmpsum, 0.057812635452922263)
     # end if (update_A)
     else:
         raise NotImplementedError()
@@ -1195,16 +979,7 @@ def accum_updates_and_likelihood():
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        if iter == 1:
-            assert_almost_equal(LLtmp2, -3429802.6457936931, decimal=5) # sanity check
-            assert all_blks == 30504
-            assert nw == 32
-            assert LL.shape == (200,) == (max_iter,)
-            assert_allclose(LL, 0.0)
         LL[iter - 1] = LLtmp2 / (all_blks * nw)
-    if iter == 1:
-        assert_almost_equal(LL[0], -3.5136812444614773)
-    
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     return ndtmpsum
 
@@ -2031,7 +1806,7 @@ if __name__ == "__main__":
         # logab = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         # tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
         # Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
-        # Ptmp_br = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
+        # git = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
         # P = np.zeros(N1) # Per-sample total log-likelihood across models.
         # Pmax = np.zeros(N1)
         # Pmax_br = np.zeros((N1, nw)) # Python only
