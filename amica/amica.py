@@ -1871,10 +1871,10 @@ if __name__ == "__main__":
     while iter <= max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
-        # The original Fortran code computed log|det(W)| indirectly via QR factorization
+        # The Fortran code computed log|det(W)| indirectly via QR factorization
         # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
         # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
-        # ===========================================================================
+        # ==============================================================================
         
         # !----- get determinants
         #--------------------------------FORTRAN CODE------------------------------
@@ -1910,11 +1910,10 @@ if __name__ == "__main__":
                 assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
                 assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
                 assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
-            lwork = 5 * nx * nx
-            assert lwork == 5120
-
-            if iter == 2 and h == 1:
+            elif iter == 2 and h == 1:
                 assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
+            lwork = 5 * nx * nx
+            assert lwork == 5120            
 
 
             # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
@@ -2087,8 +2086,8 @@ if __name__ == "__main__":
 
         if (iter % outstep) == 0:
             print(
-                f"Iteration {iter}, lrate = {lrate:.3f}, LL = {LL[iter - 1]} "
-                f"nd = {ndtmpsum}, D = {Dsum.max()} {Dsum.min()} "
+                f"Iteration {iter}, lrate = {lrate:.3f}, LL = {LL[iter - 1]:.3f}, "
+                f"nd = {ndtmpsum:.3f}, D = {Dsum.max():.3f} {Dsum.min():.3f} "
                 f"took {t0:.2f} seconds"
                 )
             c1 = time.time()
