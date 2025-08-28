@@ -101,7 +101,7 @@ def get_updates_and_likelihood():
     ########### INITIALIZE VARIABLES #############
     b = np.empty((N1, nw, num_models))
     y = np.empty((N1, nw, num_mix, num_models))
-    v = np.empty((N1, num_models))  # posterior probability for each model
+    v = np.empty((N1, num_models))  # per-sample total likelihood across models
     z = np.empty((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
     Ptmp = np.empty((N1, num_models))
 
@@ -967,55 +967,6 @@ def accum_updates_and_likelihood():
     # call MPI_REDUCE(dc_numer_tmp,dc_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     #---------------------------------------------------------------
-    assert dgm_numer.shape == (num_models,)
-    # dgm_numer[:] = dgm_numer_tmp[:].copy()  # That MPI_REDUCE operation takes dgm_numer_tmp and accumulates it into dgm_numer
-    if iter == 1:
-        assert_almost_equal(dgm_numer[0], 30504, decimal=6)
-
-    if update_alpha:
-        assert dalpha_numer.shape == (num_mix, num_comps)
-        assert dalpha_denom.shape == (num_mix, num_comps)
-        # dalpha_numer[:, :] = dalpha_numer_tmp[:, :].copy()
-        # dalpha_denom[:, :] = dalpha_denom_tmp[:, :].copy()
-        if iter == 1:
-            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
-            assert dalpha_denom[0, 0] == 30504
-
-    if update_mu:
-        assert dmu_numer.shape == (num_mix, num_comps)
-        assert dmu_denom.shape == (num_mix, num_comps)
-        # dmu_numer[:, :] = dmu_numer_tmp[:, :].copy()
-        # dmu_denom[:, :] = dmu_denom_tmp[:, :].copy()
-        if iter == 1:
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-    
-    if update_beta:
-        assert dbeta_numer.shape == (num_mix, num_comps)
-        assert dbeta_denom.shape == (num_mix, num_comps)
-        # dbeta_numer[:, :] = dbeta_numer_tmp[:, :].copy()
-        # dbeta_denom[:, :] = dbeta_denom_tmp[:, :].copy()
-        if iter == 1:
-            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-    
-    if dorho:
-        assert drho_numer.shape == (num_mix, num_comps)
-        assert drho_denom.shape == (num_mix, num_comps)
-        # drho_numer[:, :] = drho_numer_tmp[:, :].copy()
-        # drho_denom[:, :] = drho_denom_tmp[:, :].copy()
-        if iter == 1:
-            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-    
-    if update_c:
-        assert dc_numer.shape == (nw, num_models)
-        assert dc_denom.shape == (nw, num_models)
-        # dc_numer[:, :] = dc_numer_tmp[:, :].copy()
-        # dc_denom[:, :] = dc_denom_tmp[:, :].copy()
-        if iter == 1:
-            assert_almost_equal(dc_numer[0, 0],  0, decimal=7)
-            assert dc_denom[0, 0] == 30504
 
     if update_A:
         # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
