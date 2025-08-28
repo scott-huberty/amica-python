@@ -308,18 +308,19 @@ def get_updates_and_likelihood():
         # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
         # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
         # Get the logsumexp across the mixtures (robust to overflow/underflow)
-        ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
-        Pmax_br = np.empty((N1, nw))
-        np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
+        # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
+        # Pmax_br = np.empty((N1, nw))
+        # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
         # shift for numerical stability
-        centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
+        # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
         # Now take the exponential
-        exp_term = np.exp(centered_responsibilities)
+        # exp_term = np.exp(centered_responsibilities)
         # Sum the results over the mixture axis (axis=2)
-        np.sum(exp_term, axis=-1, out=ztmp)
+        # np.sum(exp_term, axis=-1, out=ztmp)
         # ztmp[:, :] += exp_term.sum(axis=-1)
         
-        tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
+        # tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
+        tmpvec_br = np.logaddexp.reduce(z0, axis=-1)
         Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
         # !--- get normalized z
         #--------------------------FORTRAN CODE-------------------------
@@ -328,7 +329,8 @@ def get_updates_and_likelihood():
         # NOTE: This deviates slightly from the Fortran code for numerical stability.
         #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
         # # TODO: Consider softmax across mixtures to avoid explicit Pmax/P.
-        np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
+        # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
+        z[:, :, :, h_index] = softmax(z0, axis=-1)
         # end do (j)
         # end do (i)
     # end do (h)
@@ -341,13 +343,13 @@ def get_updates_and_likelihood():
     # vtmp(bstrt:bstp) = dble(0.0)
     # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
     #---------------------------------------------------------------
-    Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
-    assert Pmax.shape == (N1,)
-    vtmp = np.zeros(N1) # candidate for out parameter
+    # Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
+    # assert Pmax.shape == (N1,)
+    # vtmp = np.zeros(N1) # candidate for out parameter
 
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1 
-        vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
+        # vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
 
     #--------------------------FORTRAN CODE-------------------------
     # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
@@ -355,7 +357,8 @@ def get_updates_and_likelihood():
     # LLtmp = LLtmp + LLinc
     #---------------------------------------------------------------
     # TODO: np.logaddexp.reduce or scipy.special.logsumexp could compute P directly
-    P = Pmax[:] + np.log(vtmp[:])
+    # P = Pmax[:] + np.log(vtmp[:])
+    P = np.logaddexp.reduce(Ptmp, axis=1)
     assert P.shape == (N1,) # Per-sample total log-likelihood across models.
     LLinc = np.sum(P[:])
     LLtmp += LLinc
@@ -378,8 +381,8 @@ def get_updates_and_likelihood():
         #---------------------------------------------------------------
          # TODO: Consider softmax across models once vectorized across h.
         # responsibilities over models per sample
-        v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
-        # v[:, :] = softmax(Ptmp, axis=1)
+        # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
+    v[:, :] = softmax(Ptmp, axis=1)
 
     # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
 
