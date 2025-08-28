@@ -328,7 +328,6 @@ def get_updates_and_likelihood():
         #---------------------------------------------------------------
         # NOTE: This deviates slightly from the Fortran code for numerical stability.
         #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-        # # TODO: Consider softmax across mixtures to avoid explicit Pmax/P.
         # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
         z[:, :, :, h_index] = softmax(z0, axis=-1)
         # end do (j)
@@ -382,6 +381,7 @@ def get_updates_and_likelihood():
          # TODO: Consider softmax across models once vectorized across h.
         # responsibilities over models per sample
         # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
+    # responsibilities over models per sample
     v[:, :] = softmax(Ptmp, axis=1)
 
     # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
@@ -1599,6 +1599,8 @@ if __name__ == "__main__":
 
     Dtemp = np.zeros(num_models, dtype=np.float64)
     Dsum = np.zeros(num_models, dtype=np.float64)
+    # Track determinant sign per model for completeness (not used in likelihood)
+    Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
     c = np.zeros((nw, num_models))
     dc_numer = np.zeros((nw,num_models), dtype=np.float64)
@@ -1867,10 +1869,39 @@ if __name__ == "__main__":
     c1 = time.time()
 
     while iter <= max_iter:
+        # ============================== Subsection ====================================
+        # === Update the unmixing matrices and compute the determinants ===
+        # The original Fortran code computed log|det(W)| indirectly via QR factorization
+        # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
+        # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
+        # ===========================================================================
+        
         # !----- get determinants
+        #--------------------------------FORTRAN CODE------------------------------
+        # do h = 1,num_models
+        #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+        # ....
+        #    call DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+        # ...
+        # Dtemp(h) = dble(0.0)
+        # do i = 1,nw
+        # ...
+        #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
+        # ------------------------------------------------------------------------
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
-            Wtmp = W[:, :, h - 1].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+            # Use slogdet on the original unmixing matrix to get sign and log|det|
+            sign, logabsdet = np.linalg.slogdet(W[:, :, h_index])
+            if sign == 0:
+                print(f"Model {h} determinant is zero!")
+                Dtemp[h_index] = minlog
+                raise ValueError("Determinant is zero. Raising explicitly for now")
+            else:
+                Dtemp[h_index] = logabsdet
+                Dsign[h_index] = 1 if sign > 0 else -1
+
+            # Copy for QR decomposition checks below (mirrors Fortran workflow)
+            Wtmp = W[:, :, h_index].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
             assert Wtmp.shape == (nw, nw) == (32, 32)
             if iter == 1 and h == 1:
                 assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
@@ -1904,17 +1935,7 @@ if __name__ == "__main__":
             elif iter == 2 and h == 1:
                 assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
 
-            # TODO: can we use np.linalg.slogdet here?
-            Dtemp[h_index] = 0.0
-            # log determinant from the diagonal of Wtmp
-            diag_Wtmp = np.diagonal(Wtmp)
-            if np.any(diag_Wtmp == 0.0):
-                print(f"Model {h} determinant is zero!")
-                Dtemp[h_index] += minlog
-                Dtemp[h_index] = minlog
-                raise ValueError("Determinant is zero. Raising explicitly for now")
-            else:
-                Dtemp[h_index] += np.sum(np.log(np.abs(diag_Wtmp)))
+            # Determinant computed above via slogdet (sign stored in Dsign)
             if h == 1 and iter == 1:
                 assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
             elif h == 1 and iter == 2:
