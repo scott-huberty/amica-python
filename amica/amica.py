@@ -100,8 +100,8 @@ def get_updates_and_likelihood():
     assert num_thrds == 1
     ########### INITIALIZE VARIABLES #############
     b = np.empty((N1, nw, num_models))
-    y = np.empty((N1, nw, num_mix, num_models))
     v = np.empty((N1, num_models))  # per-sample total likelihood across models
+    y = np.empty((N1, nw, num_mix, num_models))
     z = np.empty((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
     Ptmp = np.empty((N1, num_models))
 
@@ -169,13 +169,8 @@ def get_updates_and_likelihood():
         #--------------------------FORTRAN CODE-------------------------
         # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
         #---------------------------------------------------------------
-        # NOTE: Ptmp_br no longer has a dimesnion for num_models. it did initially.
-        Ptmp_br = np.empty((N1, nw))
 
         Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
-        np.add(Dsum[h_index], np.log(gm[h_index]), out=Ptmp_br)
-        np.add(Ptmp_br, sldet, out=Ptmp_br)
-        assert Ptmp_br.shape == (N1, nw)
         if iter == 1 and h == 1: # and blk == 59:
             assert_almost_equal(Ptmp[807, 0], -65.93059440479017, decimal=3)
             assert_allclose(Ptmp[0:807, 0], -65.93059440479017, atol=1e-3)
@@ -339,7 +334,6 @@ def get_updates_and_likelihood():
         # ztmp[:, :] += exp_term.sum(axis=-1)
         
         tmpvec_br = Pmax_br[:, :] + np.log(ztmp[:, :])
-        Ptmp_br += tmpvec_br
         Ptmp[:, h_index] += tmpvec_br.sum(axis=-1)
         if iter == 1 and h == 1: # and blk == 1:
             # and j == 3 and i == 1 
@@ -352,9 +346,6 @@ def get_updates_and_likelihood():
             assert_almost_equal(tmpvec_br[0,0 ], -1.2091622031269318)
             assert_almost_equal(tmpvec_br[511//2, 0], -1.293181296723108)
             assert_almost_equal(tmpvec_br[511, 0], -1.5423808931143423)
-            assert_almost_equal(Ptmp_br[0, 0], -67.139756607917107)
-            assert_almost_equal(Ptmp_br[511//2, 0], -67.223775701513276)
-            assert_almost_equal(Ptmp_br[511, 0], -67.472975297904512)
 
         
         # !--- get normalized z
