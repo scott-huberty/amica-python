@@ -97,8 +97,21 @@ def get_seg_list(raw):
 
 @line_profiler.profile
 def get_updates_and_likelihood():
+    """Get updates and likelihood for AMICA.
+    
+    Purpose:
+        - E-step: compute per-model/per-component log-likelihoods and responsibilities.
+        - M-step: accumulate sufficient statistics (update numerators/denominators)
+        for parameters like `A`, `mu`, `sbeta`, and `rho`.
+    Notes
+    - This function mirrors the original Fortran implementation. Fortran reference
+        comment blocks are kept verbatim alongside the equivalent Python.
+    """
     assert num_thrds == 1
-    ########### INITIALIZE VARIABLES #############
+    # === Section: Initialize Accumulators & Buffers ===
+    # Initialize arrays for likelihood computations and parameter updates
+    # Set up numerator/denominator accumulators for gradient updates
+    #-------------------------------------------------------------------------------
     b = np.empty((N1, nw, num_models))
     v = np.empty((N1, num_models))  # per-sample total likelihood across models
     y = np.empty((N1, nw, num_mix, num_models))
@@ -162,14 +175,21 @@ def get_updates_and_likelihood():
     tblksize = int(bsize / num_thrds)
     # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
     '''
-
+    
+    # === Section: E-step per Model ===
+    # - Transform data via unmixing (b = W^T @ X)
+    # - Evaluate source densities (per component and mixture)
+    # - Aggregate mixture likelihoods with log-sum-exp
+    # - Compute normalized responsibilities within each component
+    #---------------------------------------------------------------------------------
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         comp_indicies = comp_list[:, h_index] - 1
+
+        # --- Subsection: Baseline terms and unmixing ---
         #--------------------------FORTRAN CODE-------------------------
         # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
         #---------------------------------------------------------------
-
         Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
         
         # !--- get b
@@ -194,6 +214,10 @@ def get_updates_and_likelihood():
             #---------------------------------------------------------------
             b[:, :, h - 1] += (dataseg[:, :].T @ W[:, :, h - 1].T)
         # end else
+       
+        # --- Subsection: Source density and mixture log-likelihood (z0) ---
+        # Compute scaled sources y and per-mixture log-densities z0 for each component.
+        # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
         # !--- get y z
         # do i = 1,nw
         # !--- get probability
@@ -218,6 +242,8 @@ def get_updates_and_likelihood():
             y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
             y[:, :, :, h_index] = y_update
             
+            #------------------Mixture Log-Likelihood for each component----------------
+
             #--------------------------FORTRAN CODE-------------------------
             # if (rho(j,comp_list(i,h)) == dble(1.0)) then
             # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
@@ -233,6 +259,7 @@ def get_updates_and_likelihood():
             rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
 
             # 2. Create the boolean masks for each condition
+            # e.g. rho=1 is Laplacian, rho=2 is Gaussian, else is generalized Gaussian.
             is_rho1 = (np.isclose(rho_br, 1.0))
             is_rho2 = (np.isclose(rho_br, 2.0))
 
@@ -253,11 +280,12 @@ def get_updates_and_likelihood():
             gamma_log = gammaln(1.0 + 1.0 / rho_br)
             choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
 
-            # 4. Use np.select to build the final array from the choices based on the masks
-            # NOTE: this is ~ a 10 second operation for 200 iterations
-            # So it might be better to go back to a for loop.
+            # 4. Build final array from the choices using the masks.
+            # NOTE: This takes ~10s for 200 iters on the test file; a loop may be faster.
             conditions = [is_rho1, is_rho2]
             choices = [choice_1, choice_2]
+            # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
+            # and p(y) is the probability of the scaled source y.
             z0 = np.select(conditions, choices, default=choice_default)
             assert z0.shape == (N1, nw, num_mix)
         elif pdftype == 1:
@@ -270,15 +298,14 @@ def get_updates_and_likelihood():
             raise ValueError(f"Invalid pdftype {pdftype}")
         # end select
         # !--- end for j
-        # !--- add the log likelihood of this component to the likelihood of this time point
+
+        # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
+        # Add the log-likelihood of this component across mixtures and normalize to z.
         #--------------------------FORTRAN CODE-------------------------
         # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
         # this max call operates across num_mixtures
         #---------------------------------------------------------------
-        # TODO: we could use scipy.special.logsumexp here to get rid of some intermediate arrays
-        # But oddly enough, it seems to be 2x slower than the manual approach below
-        # (~30 seconds vs ~15 seconds across 200 iterations)
-        # But its probably better to use the scipy function for clarity and maintainability.
+        # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
         # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
         # Get the logsumexp across the mixtures (robust to overflow/underflow)
         ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
@@ -298,20 +325,15 @@ def get_updates_and_likelihood():
         #--------------------------FORTRAN CODE-------------------------
         # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
         #---------------------------------------------------------------
-        # NOTE: This deviates from the Fortran code for numerical stability
-        # result_1 = (
+        # NOTE: This deviates slightly from the Fortran code for numerical stability.
         #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-        # )
-        #z[:, :, :, h_index] = result_1 # TODO: change this back to result
-        # TODO: is it possible to just use softmax here? Do we need Pmax, P etc?
+        # # TODO: Consider softmax across mixtures to avoid explicit Pmax/P.
         np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
-        # TODO: use the calculation below it is equivalent and more numerically stable
-        #result_2 = np.exp(z0[bstrt-1:bstp, j - 1] - tmpvec[bstrt-1:bstp])
-        # assert_almost_equal(result_1, result_2)
         # end do (j)
         # end do (i)
     # end do (h)
 
+    # === Section: Across-model Responsibilities and Total Log-Likelihood ===
     #--------------------------FORTRAN CODE-------------------------
     # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
     # !--- get LL, v
@@ -332,9 +354,7 @@ def get_updates_and_likelihood():
     # LLinc = sum( P(bstrt:bstp) )
     # LLtmp = LLtmp + LLinc
     #---------------------------------------------------------------
-    # TODO: just use either np.logaddexp.reduce(Ptmp, axis=1)
-    # or scipy.special.logsumexp(Ptmp, axis=1)
-    # to get P directly (avoids vtmp and Pmax)
+    # TODO: np.logaddexp.reduce or scipy.special.logsumexp could compute P directly
     P = Pmax[:] + np.log(vtmp[:])
     assert P.shape == (N1,) # Per-sample total log-likelihood across models.
     LLinc = np.sum(P[:])
@@ -352,10 +372,11 @@ def get_updates_and_likelihood():
             modloglik[h - 1, :] = Ptmp[:, h_index]
             loglik[:] = P[:]
         
+        #---------------Total Log-Likelihood and Model Responsibilities-----------------
         #--------------------------FORTRAN CODE-------------------------
         # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
         #---------------------------------------------------------------
-        # TODO: use softmax across models once we vectorize across models.
+         # TODO: Consider softmax across models once vectorized across h.
         # responsibilities over models per sample
         v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
         # v[:, :] = softmax(Ptmp, axis=1)
@@ -487,6 +508,9 @@ def get_updates_and_likelihood():
         ufp = u * fp
         assert ufp.shape == (N1, nw, num_mix)   
 
+        # === Subsection: Accumulate Statistics for Parameter Updates ===
+        # Build per-parameter numerators/denominators (sufficient statistics) used
+        # later when applying updates to A, alpha, mu, beta, rho, and c.
         # !--- get g
         if iter == 1 and h == 1: # and blk == 1 
             assert g[0, 0] == 0.0
@@ -495,8 +519,7 @@ def get_updates_and_likelihood():
             # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
             #---------------------------------------------------------------
             
-            # Method 1:  einsum (memory friendly)
-            # On a test file, this is 6x faster than vectorization.
+            # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
             comp_idx = comp_list[:, h - 1] - 1  # (nw,)
             S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
             g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
@@ -517,14 +540,14 @@ def get_updates_and_likelihood():
                 #---------------------------------------------------------------
 
                 comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
-                # 1. Kappa updates
+                # 1) Kappa updates (curvature terms for A)
                 ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
                 sbeta_vals = sbeta[:, comp_indices] ** 2
                 tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
                 dkappa_numer[:, :, h_index] += tmpsum_kappa
                 dkappa_denom[:, :, h_index] += usum.T
                 
-                # 2. Lambda updates
+                # 2) Lambda updates
                 # ---------------------------FORTRAN CODE---------------------------
                 # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
                 # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
@@ -541,7 +564,7 @@ def get_updates_and_likelihood():
                 dlambda_denom[:, :, h_index] += usum.T
                 
 
-                # 3. (dbar)Alpha updates
+                # 3) (dbar)Alpha updates
                 # ---------------------------FORTRAN CODE---------------------------
                 # for (i = 1, nw) ... for (j = 1, num_mix)
                 # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
@@ -557,6 +580,7 @@ def get_updates_and_likelihood():
         else:
             raise NotImplementedError()
 
+        # Alpha (mixture weights)
         if update_alpha:
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -571,6 +595,7 @@ def get_updates_and_likelihood():
             dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
         elif not update_alpha:
             raise NotImplementedError()
+        # Mu (location)
         if update_mu:
             # 1. update numerator
             # -------------------------------FORTRAN--------------------------------
@@ -603,6 +628,7 @@ def get_updates_and_likelihood():
                 # So that we can compare the result against the Fortran output.
         elif not update_mu:
             raise NotImplementedError()
+        # Beta (scale/precision)
         if update_beta:
             # 1. update numerator
             # -------------------------------FORTRAN--------------------------------
@@ -626,6 +652,7 @@ def get_updates_and_likelihood():
         elif not update_beta:
             raise NotImplementedError()
         
+        # Rho (shape parameter of generalized Gaussian)
         if dorho:
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -1013,6 +1040,8 @@ def update_params():
             assert dc_denom[0, 0] == 30504
             assert_almost_equal(c[0, 0], 0)
     
+    # === Section: Apply Parameter Updates & Rescale ===
+    # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
     global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if update_A and (iter < share_start or (iter % share_iter > 5)):
