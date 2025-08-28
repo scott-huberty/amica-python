@@ -758,13 +758,12 @@ def get_updates_and_likelihood():
     # XXX: Later we'll figure out which variables we actually need to return
     # For now literally return any variable that has been assigned or updated
     # In alphabetical order
-    return LLtmp
 
-@line_profiler.profile
-def accum_updates_and_likelihood():
+    #---------------------------- accum_updates_and_likelihood------------------------
+    # Everything below ports the Fortran function
+    #---------------------------------------------------------------------------------
     # !--- add to the cumulative dtmps
     # ...
-
     #--------------------------FORTRAN CODE-------------------------
     # call MPI_REDUCE(dgm_numer_tmp,dgm_numer,num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     # call MPI_REDUCE(dalpha_numer_tmp,dalpha_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
@@ -981,7 +980,7 @@ def accum_updates_and_likelihood():
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         LL[iter - 1] = LLtmp2 / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
-    return ndtmpsum
+    return LLtmp, ndtmpsum
 
 
 def update_params():
@@ -1891,8 +1890,7 @@ if __name__ == "__main__":
         Dsum = Dtemp.copy()
         
         # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
-        LLtmp = get_updates_and_likelihood()
-        ndtmpsum = accum_updates_and_likelihood()
+        LLtmp, ndtmpsum = get_updates_and_likelihood()
 
         # XXX: checking get_updates_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
