@@ -2019,53 +2019,12 @@ if __name__ == "__main__":
 
             # This is the first iteration with newton optimization.
             #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
-            '''assert_allclose(dalpha_numer[0, 0], 7358.455587371981, atol=2.3)
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dlambda_numer[2, 31, 0], 12781.052993351612, decimal=0)
-            assert_almost_equal(dlambda_denom[2, 31, 0], 8873.0781815692208, decimal=0)
-            assert_almost_equal(dbaralpha_numer[2, 31, 0], 8873.0781815692208, decimal=0)
-            assert dbaralpha_denom[2, 31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30627.050414988473, decimal=2)
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(lambda_[31, 0], 1.999712575384778, decimal=3)
-            assert_almost_equal(kappa[31, 0], 1.934993986251285, decimal=3)
-            assert_almost_equal(baralpha[2, 31, 0], 0.2908824475993057, decimal=4)'''
         elif iter == 51:
             assert_almost_equal(nd[0, 0], 0.20135421232976469)
 
             # accum_updates_and_likelihood checks..
-            '''assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], -10.832650902288606, decimal=0)
-            assert_allclose(dmu_denom[0, 0], 32177.109448796087, atol=18)
-            assert_allclose(dbeta_numer[0, 0], 7363.6689390720639, atol=2.1)
-            assert_allclose(dbeta_denom[0, 0], 7347.4789931268888, atol=2.5)
-            assert_allclose(drho_numer[0, 0], 103.44667822536218, atol=1.2)
-            assert_allclose(drho_denom[0, 0], 7363.6689390720639, atol=2.1)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert_almost_equal(dc_denom[0, 0], 30504)
-            assert no_newt is False
-            assert_almost_equal(ndtmpsum, 0.0073389825605663503, decimal=6)
-            assert_almost_equal(dA[31, 31, 0], 0.0097612643283371426, decimal=5)
-            assert_almost_equal(dAK[0, 0], 0.02073372161888665, decimal=4)'''
             assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
-
-            '''# This is the second iteration with newton optimization.
-            assert_allclose(dkappa_numer[2,31,0], 18220.944183088388, atol=.95)
-            assert_allclose(dkappa_denom[2,31,0], 8874.8603597611218, atol=1.1)
-            assert_allclose(dalpha_numer[0, 0], 7363.6689390720639, atol=2.1)
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dlambda_numer[2, 31, 0], 12757.121968441179, decimal=0)
-            assert_almost_equal(dlambda_denom[2, 31, 0], 8874.8603597611218, decimal=0)
-            assert_almost_equal(dbaralpha_numer[2, 31, 0], 8874.8603597611218, decimal=0)
-            assert dbaralpha_denom[2, 31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30628.831839164774, decimal=2)
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(lambda_[31, 0], 1.9994560610191709, decimal=3)
-            assert_almost_equal(kappa[31, 0], 1.9359511444613011, decimal=3)
-            assert_almost_equal(baralpha[2, 31, 0], 0.29094087200895363, decimal=4)
-            assert lrate == 0.1'''
-            
-        
+             
         # !----- display log likelihood of data
         # if (seg_rank == 0) then
         c2 = time.time()
