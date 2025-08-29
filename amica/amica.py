@@ -869,13 +869,6 @@ def _core_amica(
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
             # These shouldnt get updated until the start of newton_optimization
-            
-            # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
-            # Meaning that globally (here) they should remain their globally assigned values
-            assert LLinc == 0
-            assert tmpsum == 0
-            assert usum == 0
-            assert vsum == 0
 
             # These should also not change until the start of newton_optimization
             assert np.all(dkappa_numer == 0)
@@ -2506,14 +2499,6 @@ if __name__ == "__main__":
     numdecs = 0
     maxdecs = 3 # XXX: Default is 5 but somehow it is 3. Need to figure out why.
 
-    # These variables are privately assigned to threads in the Fortran code.
-    # This means that in the global context, they should keep their default value of 0.
-    # or whatever value they have been assigned to in the global context
-    LLinc = 0
-    tmpsum = 0
-    usum = 0
-    vsum = 0
-    tmpsum = 0
 
     # load_sphere = False
     do_sphere = True
