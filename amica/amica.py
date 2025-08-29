@@ -13,7 +13,7 @@ from scipy.special import gammaln, psi, softmax
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
 
-import warnings
+from state import AmicaConfig, get_initial_state
 
 import line_profiler
 # Configure all warnings to be treated as errors
@@ -27,17 +27,341 @@ thrdnum = THRDNUM
 num_thrds = NUM_THRDS
 thrdnum = THRDNUM
 
+
+def amica(
+        X,
+        *,
+        n_components=None,
+        n_models=1,
+        n_mixtures=1,
+        whiten=True,
+        centering=True,
+        max_iter=500,
+        tol=1e-7,
+        lrate=0.05,
+        rholrate=0.05,
+        do_newton=True,
+        newt_start=50,
+        newtrate=1,
+        newt_ramp=10,
+        random_state=None,
+):
+    """Perform Adaptive Mixture Independent Component Analysis (AMICA).
+    
+    Parameters
+    ----------
+    X : array-like, shape (n_samples, n_features)
+        Training data, where n_samples is the number of samples and
+        n_features is the number of features.
+    n_components : int, optional
+        Number of components to extract. If None, all components are used.
+    n_mixtures: int, optional
+        Number of mixtures to use in the AMICA algorithm.
+    whiten : boolean, optional
+        If True perform an initial whitening of the data.
+        If False, the data is assumed to have already been
+        preprocessed: it should be centered, normed and white,
+        otherwise you will get incorrect results.
+        In this case the parameter n_components will be ignored.
+    centering : bool, optional
+        If True, X is mean corrected.
+    n_mixtures : int, optional
+        Number of mixtures to use in the AMICA algorithm.
+        Default is 1.
+    max_iter : int, optional
+        Maximum number of iterations to perform. Default is 500.
+    random_state : int, RandomState instance or None, optional (default=None)
+        Used to perform a random initialization when w_init is not provided.
+        If int, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used
+        by `np.random`.
+    """
+    # random_state = check_random_state(random_state)
+    '''config = AmicaConfig(
+        n_features=X.shape[1],
+        n_components=n_components if n_components is not None else X.shape[1],
+        n_models=n_models,
+        n_mixtures=n_mixtures,
+        max_iter=max_iter,
+        tol=tol,
+        lrate=lrate,
+        rholrate=rholrate,
+        do_newton=do_newton,
+        newt_start=newt_start,
+        newtrate=newtrate,
+        newt_ramp=newt_ramp,
+    )
+    amica_state = get_initial_state(config)'''
+
+    dataseg = X
+    # !---------------------------- get the mean --------------------------------
+    print("getting the mean ...")
+    meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
+    assert_almost_equal(meantmp[0], -113139.76889015333)
+    mean = meantmp / dataseg.shape[1]  # Divide by number of time points to get mean
+    assert_almost_equal(mean[0], -3.7090141912586323)
+    assert_almost_equal(mean[1], -6.7516788952437894)
+    assert_almost_equal(mean[2], 2.5880450259870105)
+    # We did in two steps what we could have done in one:
+    np.testing.assert_array_almost_equal(mean, dataseg.mean(axis=1))
+
+    # !--- subtract the mean
+    dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
+    assert_almost_equal(dataseg[0, 0], -32.088471160303868)
+    assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
+    assert_almost_equal(dataseg[2, 0], -29.36477079502998)
+
+    # !------------------------ sphere the data -------------------------------
+    print(" Getting the covariance matrix ...")
+    # call DSCAL(nx*nx,dble(0.0),Stmp,1)
+    # Compute the covariance matrix
+    # The Fortran code processes the data in blocks
+    # and appears to only update the lower triangular part of the covariance matrix
+    # But in practice, you usually want to compute the full covariance matrix?
+    # e.g. Stmp = np.cov(dataseg)
+
+    # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
+    X = dataseg.copy()
+    full_cov = X @ X.T
+    Stmp_2[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
+   
+    S = Stmp_2.copy()  # Copy the lower triangular part to S
+    np.testing.assert_almost_equal(S[0, 0], 45778661.956294745, decimal=6)
+    cnt = 30504 # Number of time points, as per the Fortran code
+    # Normalize the covariance matrix by dividing by the number of samples
+    # S is the final covariance matrix
+    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1) 
+    S /= cnt
+    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
+
+    # Better approach: vectorized.
+    Stmp = np.zeros((nx, nx))
+    full_cov = dataseg @ dataseg.T
+    # The fortran code only computes the lower triangle for efficiency
+    # So lets set the upper triangle to zero for consistency    
+    Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
+    np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
+
+    #### Do Eigenvalue Decomposition ####
+    lwork = 10 * nx * nx  # Work array size, as per Fortran code
+    eigs = np.zeros(nx)
+    eigv = np.zeros(nx)
+    print(f"doing eig nx = {nx}, lwork = {lwork}")
+    # call DCOPY(nx*nx,S,1,Stmp,1)
+    Stmp = S.copy()  # Copy S to Stmp
+    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
+    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
+
+    # call DSYEV('V','L',nx,Stmp,nx,eigs,work,lwork,info)
+    eigs, eigv = np.linalg.eigh(Stmp)  # Eigenvalue decomposition
+    assert eigs.ndim == 1
+    assert len(eigs) == 32
+    assert eigv.shape == (32, 32) # in Fortran, eigv is 32 and is used to store the reversed eigenvalues
+    # eigv is == to Stmp in the Fortran code
+    np.testing.assert_almost_equal(abs(eigv[0][0]), 0.01141531781264421, decimal=7)
+    np.testing.assert_almost_equal(abs(eigv[0][1]), 0.022133957340276893, decimal=7)
+    np.testing.assert_almost_equal(abs(eigv[1][0]), abs(-0.00048653972579690302), decimal=7)
+    np.testing.assert_almost_equal(eigs[0], 4.8799005132501803, decimal=7)
+    np.testing.assert_almost_equal(eigs[1], 6.9201197127079803, decimal=7)
+    np.testing.assert_almost_equal(eigs[2], 7.6562147928880702, decimal=7)
+    lowest_eigs = np.sort(eigs)[:3]
+    want_low_eigs = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
+    biggest_eigs = np.sort(eigs)[-3:][::-1]
+    want_big_eigs = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
+    np.testing.assert_array_almost_equal(
+        lowest_eigs,
+        want_low_eigs
+    )
+    np.testing.assert_array_almost_equal(
+        biggest_eigs,
+        want_big_eigs        
+    )
+    print(f"minimum eigenvalues: {lowest_eigs}")
+    print(f"maximum eigenvalues: {biggest_eigs}")
+    
+    numeigs = min(pcakeep, sum(eigs > mineig))
+    assert numeigs == nx == 32
+    print(f"num eigs kept: {numeigs}")
+
+    if load_sphere:
+        raise NotImplementedError()
+    else:
+        # !--- get the sphering matrix
+        print("Getting the sphering matrix ...")
+        # reverse the order of eigenvectors
+        Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
+        np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
+        eigv = np.sort(eigs)[::-1]
+        np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
+        np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
+
+    # do sphere
+    if do_sphere:
+        # This is a duplicate of the previous step
+        print(f"doing eig nx = {nx}, lwork = {lwork}")
+        assert S.shape == (nx, nx) == (32, 32)
+        np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
+        Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
+
+        eigs, eigvecs = np.linalg.eigh(Stmp)  # eigvecs: columns are eigenvectors
+        Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
+
+        min_eigs = eigs[:min(nx//2, 3)]
+        max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
+        print(f"minimum eigenvalues: {min_eigs}")
+        print(f"maximum eigenvalues: {max_eigs}")
+
+        min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
+        max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
+        np.testing.assert_array_almost_equal(
+            min_eigs,
+            min_eigs_fortran
+        )
+        np.testing.assert_array_almost_equal(
+            max_eigs,
+            max_eigs_fortran
+        )
+
+        numeigs = min(pcakeep, sum(eigs > mineig))
+        print(f"num eigs kept: {numeigs}")
+        assert numeigs == nx == 32
+
+        Stmp2 = np.zeros((numeigs, nx))
+        assert Stmp2.shape == (numeigs, nx) == (32, 32)
+        eigv = np.zeros(nx)
+        assert eigv.shape == (nx,) == (32,)
+        eigv = np.flip(eigs) # Reverse the eigenvalues
+        Stmp2 = np.flip(Stmp[:, :nx], axis=1).T  # Reverse the order of eigenvectors (columns)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729)
+        np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
+
+        Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
+        sldet = 0.0 # Logarithm of the determinant, initialized to zero
+        sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
+        Stmp2 /= sqrt_eigv
+        non_finite_check = ~np.isfinite(Stmp2)
+        if non_finite_check.any():
+            non_finite_indices = np.where(non_finite_check)[0]
+            unique_rows_with_non_finite = np.unique(non_finite_indices)
+            for i in unique_rows_with_non_finite:
+                print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
+            raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
+        sldet -= 0.5 * np.sum(np.log(eigv))
+
+        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
+        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
+
+        if numeigs == nx:
+            # call DSCAL(nx*nx,dble(0.0),S,1) 
+            if do_approx_sphere:
+                raise NotImplementedError()
+            else:
+                # call DCOPY(nx*nx,Stmp2,1,S,1)  
+                S = Stmp.T @ Stmp2
+        else:
+            # if (do_approx_sphere) then
+            raise NotImplementedError()
+        np.testing.assert_almost_equal(S[0, 0], 0.043377346952119616, decimal=7)
+    else:
+        # !--- just normalize by the channel variances (don't sphere)
+        raise NotImplementedError()
+   
+    print("Sphering the data...")
+
+    # Apply the sphering matrix to the data (whitening)
+    fieldsize = dataseg.shape[1]
+    assert fieldsize == 30504
+    # TODO: this is all very inefficient. We should be able to do this in one go with a single matrix multiplication
+    # e.g. 
+    
+    # -------------------- FORTRAN CODE ---------------------------------------
+    # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
+    # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
+    # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
+    # -------------------------------------------------------------------------
+    X = dataseg.copy() # TODO: unnecessary copy?
+    xtmp = np.zeros(shape=((nx, dataseg.shape[1])))
+    xtmp[:, :] = S @ X # Apply the sphering matrix
+    dataseg[:, :] = xtmp[:, :]
+
+    # Lets check dataseg
+    assert_almost_equal(dataseg[0, 0], -0.18746213684159407, decimal=7)
+    assert_almost_equal(dataseg[0, 1], -0.15889933957961194, decimal=7)
+    assert_almost_equal(dataseg[1, 0], 0.44527165614822528, decimal=7)
+    assert_almost_equal(dataseg[-1, -1], -0.79980176796607527, decimal=7)
+    assert_almost_equal(dataseg[0, 15252], 0.78073780455880826, decimal=7)
+    assert_almost_equal(dataseg[0, 29696], 0.31586289746943713, decimal=7)
+    assert_almost_equal(dataseg[0, 29700], 0.34534557250740822, decimal=7)
+    assert_almost_equal(dataseg[15, 29701], 1.2248470873789368, decimal=7)
+    assert_almost_equal(dataseg[31, 0],0.70942796672956288, decimal=7)
+    assert_almost_equal(dataseg[20, 29710], 0.26516668950937816, decimal=7)
+    assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
+
+    nw = numeigs # Number of weights, as per Fortran code
+    
+    # ! get the pseudoinverse of S
+    # Compute the pseudo-inverse of the sphering matrix (for later use?)
+    assert S.shape == (nx, nx) == (32, 32)
+    # assert S[0, 0] == 0.043377346952119616
+    # call DCOPY(nx*nx,S,1,Stmp2,1)
+    Stmp2 = S.copy()
+    Spinv = np.zeros((nx, numeigs))
+    assert Spinv.shape == (nx, nw) == (32, 32)
+    sUtmp = np.zeros((numeigs, numeigs))
+    assert sUtmp.shape == (32, 32)
+    sVtmp = np.zeros((numeigs, nx))
+    assert sVtmp.shape == (32, 32)
+    print(f"numeigs = {numeigs}, nw = {nw}")
+    
+    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
+    sUtmp, eigs, sVtmp = np.linalg.svd(Stmp2, full_matrices=False)
+    assert sUtmp.shape == (nx, nw) == (32, 32)
+    assert sVtmp.shape == (nw, nx) == (32, 32)
+    assert_almost_equal(abs(sUtmp[0, 0]), 0.011415317812644162)
+    assert_almost_equal(abs(sUtmp[0, 1]), 0.022133957340276716)
+    assert_almost_equal(abs(sVtmp[0, 0]),  0.011415317812644188)
+    assert_almost_equal(abs(sVtmp[0, 1]), 0.0004865397257969421)
+    assert_almost_equal(eigs[0], 0.45268334)
+
+    sVtmp[:numeigs, :] /= eigs[:numeigs, np.newaxis]  # Normalize eigenvectors by eigenvalues
+    assert_almost_equal(abs(sVtmp[0, 0]), 0.025217004224530888)
+    assert_almost_equal(abs(sVtmp[31, 31]), 12.0494339875739)
+    # Explicitly index to ensure the shape remains (nx, nw)
+    # call DGEMM('T','T',nx,numeigs,numeigs,dble(1.0),sVtmp,numeigs,sUtmp,numeigs,dble(0.0),Spinv,nx)
+    Spinv[:, :] = sVtmp.T @ sUtmp.T  # Pseudo-inverse of the sphering matrix
+    assert_almost_equal(Spinv[0, 0], 33.11301219430311)
+
+    # if (seg_rank == 0 .and. print_debug) then
+    #    print *, 'S = '; call flush(6)
+    #   call matout(S(1:2,1:2),2,2)
+    #   print *, 'Sphered data = '; call flush(6)
+    gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
+        X=dataseg,
+        max_iter=200,
+        tol=1e-7,
+        lrate=lrate,
+        rholrate=rholrate,
+        newtrate=newtrate,
+        nw=nw,
+        sldet=sldet,
+        )
+    return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
+
+
 def _core_amica(
         X,
         *,
         max_iter=2000,
         tol=1e-7,
-        num_comps=None,
+        n_components=None,
         lrate=0.05,
         rholrate=0.05,
-        lrate0=0.05,
-        rholrate0=0.05,
         newtrate=1.0,
+        nw=None,
+        sldet=0.0
 ):
     """Runs the AMICA algorithm.
     
@@ -55,10 +379,15 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
+    lrate0 = lrate
+    rholrate0 = rholrate
+    num_comps = n_components
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
     if num_comps is None:
         num_comps = nx * num_models
+    if nw is None: # This deviates from Fortran
+        nw = num_comps
 
     Dtemp = np.zeros(num_models, dtype=np.float64)
     Dsum = np.zeros(num_models, dtype=np.float64)
@@ -409,6 +738,8 @@ def _core_amica(
         LLtmp, ndtmpsum = get_updates_and_likelihood(
             X=dataseg,
             iter=iter,
+            nw=nw,
+            sldet=sldet,
             num_comps=num_comps,
             dgm_numer=dgm_numer,
             dalpha_numer=dalpha_numer,
@@ -861,6 +1192,8 @@ def get_updates_and_likelihood(
     X,
     *,
     iter,
+    nw,
+    sldet,
     num_comps,
     dgm_numer,
     dalpha_numer,
@@ -1883,7 +2216,7 @@ def update_params(
             assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
 
     if update_c:
-        assert c.shape == (nw, num_models)
+        # assert c.shape == (nw, num_models)
         c[:, :] = dc_numer / dc_denom
         if iter == 1:
             assert_almost_equal(dc_numer[0, 0], 0)
@@ -2076,7 +2409,7 @@ if __name__ == "__main__":
     lastdim = ldim
     pcakeep = nx
     mineig = 1.0e-15
-    S = np.zeros((nx, nx))
+    # S = np.zeros((nx, nx))
     Stmp_2 = np.zeros((nx, nx))
     fix_init = False
     myrank = 0
@@ -2126,7 +2459,7 @@ if __name__ == "__main__":
     numrestarts = 0
     maxrestarts = 3
     minlrate = 1.000000e-08 # Program Default is 1.0e-12 but config uses 1.0e-08
-    min_nd = 1.0e-7
+    min_nd = 1.0e-7 # tol
     lrate0 = 0.05 # this is set to the user-passed lrate value in the Fortran code
     lratefact = 0.5
     rholrate = 0.05
@@ -2193,260 +2526,13 @@ if __name__ == "__main__":
     #    end do
     # end if
 
-    # !---------------------------- get the mean --------------------------------
-    print("getting the mean ...")
-    meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
-    assert_almost_equal(meantmp[0], -113139.76889015333)
-    mean = meantmp / dataseg.shape[1]  # Divide by number of time points to get mean
-    assert_almost_equal(mean[0], -3.7090141912586323)
-    assert_almost_equal(mean[1], -6.7516788952437894)
-    assert_almost_equal(mean[2], 2.5880450259870105)
-    # We did in two steps what we could have done in one:
-    np.testing.assert_array_almost_equal(mean, dataseg.mean(axis=1))
 
-    # !--- subtract the mean
-    dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
-    assert_almost_equal(dataseg[0, 0], -32.088471160303868)
-    assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
-    assert_almost_equal(dataseg[2, 0], -29.36477079502998)
-
-    # !------------------------ sphere the data -------------------------------
-    print(" Getting the covariance matrix ...")
-    # call DSCAL(nx*nx,dble(0.0),Stmp,1)
-    # Compute the covariance matrix
-    # The Fortran code processes the data in blocks
-    # and appears to only update the lower triangular part of the covariance matrix
-    # But in practice, you usually want to compute the full covariance matrix?
-    # e.g. Stmp = np.cov(dataseg)
-
-    # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
-    X = dataseg.copy()
-    full_cov = X @ X.T
-    Stmp_2[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-   
-    S = Stmp_2.copy()  # Copy the lower triangular part to S
-    np.testing.assert_almost_equal(S[0, 0], 45778661.956294745, decimal=6)
-    cnt = 30504 # Number of time points, as per the Fortran code
-    # Normalize the covariance matrix by dividing by the number of samples
-    # S is the final covariance matrix
-    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1) 
-    S /= cnt
-    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-
-    # Better approach: vectorized.
-    Stmp = np.zeros((nx, nx))
-    full_cov = dataseg @ dataseg.T
-    # The fortran code only computes the lower triangle for efficiency
-    # So lets set the upper triangle to zero for consistency    
-    Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-    np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
-
-
-    #### Do Eigenvalue Decomposition ####
-    lwork = 10 * nx * nx  # Work array size, as per Fortran code
-    eigs = np.zeros(nx)
-    eigv = np.zeros(nx)
-    print(f"doing eig nx = {nx}, lwork = {lwork}")
-    # call DCOPY(nx*nx,S,1,Stmp,1)
-    Stmp = S.copy()  # Copy S to Stmp
-    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
-    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
-
-    # call DSYEV('V','L',nx,Stmp,nx,eigs,work,lwork,info)
-    eigs, eigv = np.linalg.eigh(Stmp)  # Eigenvalue decomposition
-    assert eigs.ndim == 1
-    assert len(eigs) == 32
-    assert eigv.shape == (32, 32) # in Fortran, eigv is 32 and is used to store the reversed eigenvalues
-    # eigv is == to Stmp in the Fortran code
-    np.testing.assert_almost_equal(abs(eigv[0][0]), 0.01141531781264421, decimal=7)
-    np.testing.assert_almost_equal(abs(eigv[0][1]), 0.022133957340276893, decimal=7)
-    np.testing.assert_almost_equal(abs(eigv[1][0]), abs(-0.00048653972579690302), decimal=7)
-    np.testing.assert_almost_equal(eigs[0], 4.8799005132501803, decimal=7)
-    np.testing.assert_almost_equal(eigs[1], 6.9201197127079803, decimal=7)
-    np.testing.assert_almost_equal(eigs[2], 7.6562147928880702, decimal=7)
-    lowest_eigs = np.sort(eigs)[:3]
-    want_low_eigs = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-    biggest_eigs = np.sort(eigs)[-3:][::-1]
-    want_big_eigs = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-    np.testing.assert_array_almost_equal(
-        lowest_eigs,
-        want_low_eigs
-    )
-    np.testing.assert_array_almost_equal(
-        biggest_eigs,
-        want_big_eigs        
-    )
-    print(f"minimum eigenvalues: {lowest_eigs}")
-    print(f"maximum eigenvalues: {biggest_eigs}")
-    
-    numeigs = min(pcakeep, sum(eigs > mineig))
-    assert numeigs == nx == 32
-    print(f"num eigs kept: {numeigs}")
-
-    if load_sphere:
-        raise NotImplementedError()
-    else:
-        # !--- get the sphering matrix
-        print("Getting the sphering matrix ...")
-        # reverse the order of eigenvectors
-        Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
-        np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
-        eigv = np.sort(eigs)[::-1]
-        np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
-        np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
-
-    # do sphere
-    if do_sphere:
-        # This is a duplicate of the previous step
-        print(f"doing eig nx = {nx}, lwork = {lwork}")
-        assert S.shape == (nx, nx) == (32, 32)
-        np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-        Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
-
-        eigs, eigvecs = np.linalg.eigh(Stmp)  # eigvecs: columns are eigenvectors
-        Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
-
-        min_eigs = eigs[:min(nx//2, 3)]
-        max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
-        print(f"minimum eigenvalues: {min_eigs}")
-        print(f"maximum eigenvalues: {max_eigs}")
-
-        min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-        max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-        np.testing.assert_array_almost_equal(
-            min_eigs,
-            min_eigs_fortran
-        )
-        np.testing.assert_array_almost_equal(
-            max_eigs,
-            max_eigs_fortran
-        )
-
-        numeigs = min(pcakeep, sum(eigs > mineig))
-        print(f"num eigs kept: {numeigs}")
-        assert numeigs == nx == 32
-
-        Stmp2 = np.zeros((numeigs, nx))
-        assert Stmp2.shape == (numeigs, nx) == (32, 32)
-        eigv = np.zeros(nx)
-        assert eigv.shape == (nx,) == (32,)
-        eigv = np.flip(eigs) # Reverse the eigenvalues
-        Stmp2 = np.flip(Stmp[:, :nx], axis=1).T  # Reverse the order of eigenvectors (columns)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729)
-        np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
-
-        Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-        sldet = 0.0 # Logarithm of the determinant, initialized to zero
-        sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
-        Stmp2 /= sqrt_eigv
-        non_finite_check = ~np.isfinite(Stmp2)
-        if non_finite_check.any():
-            non_finite_indices = np.where(non_finite_check)[0]
-            unique_rows_with_non_finite = np.unique(non_finite_indices)
-            for i in unique_rows_with_non_finite:
-                print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
-            raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-        sldet -= 0.5 * np.sum(np.log(eigv))
-
-        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
-
-        if numeigs == nx:
-            # call DSCAL(nx*nx,dble(0.0),S,1) 
-            if do_approx_sphere:
-                raise NotImplementedError()
-            else:
-                # call DCOPY(nx*nx,Stmp2,1,S,1)  
-                S = Stmp.T @ Stmp2
-        else:
-            # if (do_approx_sphere) then
-            raise NotImplementedError()
-        np.testing.assert_almost_equal(S[0, 0], 0.043377346952119616, decimal=7)
-    else:
-        # !--- just normalize by the channel variances (don't sphere)
-        raise NotImplementedError()
-   
-    print("Sphering the data...")
-
-    # Apply the sphering matrix to the data (whitening)
-    fieldsize = dataseg.shape[1]
-    assert fieldsize == 30504
-    # TODO: this is all very inefficient. We should be able to do this in one go with a single matrix multiplication
-    # e.g. 
-    
-    # -------------------- FORTRAN CODE ---------------------------------------
-    # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
-    # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
-    # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
-    # -------------------------------------------------------------------------
-    X = dataseg.copy() # TODO: unnecessary copy?
-    xtmp = np.zeros(shape=((nx, dataseg.shape[1])))
-    xtmp[:, :] = S @ X # Apply the sphering matrix
-    dataseg[:, :] = xtmp[:, :]
-
-    # Lets check dataseg
-    assert_almost_equal(dataseg[0, 0], -0.18746213684159407, decimal=7)
-    assert_almost_equal(dataseg[0, 1], -0.15889933957961194, decimal=7)
-    assert_almost_equal(dataseg[1, 0], 0.44527165614822528, decimal=7)
-    assert_almost_equal(dataseg[-1, -1], -0.79980176796607527, decimal=7)
-    assert_almost_equal(dataseg[0, 15252], 0.78073780455880826, decimal=7)
-    assert_almost_equal(dataseg[0, 29696], 0.31586289746943713, decimal=7)
-    assert_almost_equal(dataseg[0, 29700], 0.34534557250740822, decimal=7)
-    assert_almost_equal(dataseg[15, 29701], 1.2248470873789368, decimal=7)
-    assert_almost_equal(dataseg[31, 0],0.70942796672956288, decimal=7)
-    assert_almost_equal(dataseg[20, 29710], 0.26516668950937816, decimal=7)
-    assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
-
-    nw = numeigs # Number of weights, as per Fortran code
-    
-    # ! get the pseudoinverse of S
-    # Compute the pseudo-inverse of the sphering matrix (for later use?)
-    assert S.shape == (nx, nx) == (32, 32)
-    # assert S[0, 0] == 0.043377346952119616
-    # call DCOPY(nx*nx,S,1,Stmp2,1)
-    Stmp2 = S.copy()
-    Spinv = np.zeros((nx, numeigs))
-    assert Spinv.shape == (nx, nw) == (32, 32)
-    sUtmp = np.zeros((numeigs, numeigs))
-    assert sUtmp.shape == (32, 32)
-    sVtmp = np.zeros((numeigs, nx))
-    assert sVtmp.shape == (32, 32)
-    print(f"numeigs = {numeigs}, nw = {nw}")
-    
-    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
-    sUtmp, eigs, sVtmp = np.linalg.svd(Stmp2, full_matrices=False)
-    assert sUtmp.shape == (nx, nw) == (32, 32)
-    assert sVtmp.shape == (nw, nx) == (32, 32)
-    assert_almost_equal(abs(sUtmp[0, 0]), 0.011415317812644162)
-    assert_almost_equal(abs(sUtmp[0, 1]), 0.022133957340276716)
-    assert_almost_equal(abs(sVtmp[0, 0]),  0.011415317812644188)
-    assert_almost_equal(abs(sVtmp[0, 1]), 0.0004865397257969421)
-    assert_almost_equal(eigs[0], 0.45268334)
-
-    sVtmp[:numeigs, :] /= eigs[:numeigs, np.newaxis]  # Normalize eigenvectors by eigenvalues
-    assert_almost_equal(abs(sVtmp[0, 0]), 0.025217004224530888)
-    assert_almost_equal(abs(sVtmp[31, 31]), 12.0494339875739)
-    # Explicitly index to ensure the shape remains (nx, nw)
-    # call DGEMM('T','T',nx,numeigs,numeigs,dble(1.0),sVtmp,numeigs,sUtmp,numeigs,dble(0.0),Spinv,nx)
-    Spinv[:, :] = sVtmp.T @ sUtmp.T  # Pseudo-inverse of the sphering matrix
-    assert_almost_equal(Spinv[0, 0], 33.11301219430311)
-
-    # if (seg_rank == 0 .and. print_debug) then
-    #    print *, 'S = '; call flush(6)
-    #   call matout(S(1:2,1:2),2,2)
-    #   print *, 'Sphered data = '; call flush(6)
-
-
-    gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
+    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica(
         X=dataseg,
         max_iter=200,
         tol=1e-7,
         lrate=lrate,
         rholrate=rholrate,
-        lrate0=lrate0,
-        rholrate0=rholrate0,
         newtrate=newtrate,
         )
 
