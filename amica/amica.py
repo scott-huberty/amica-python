@@ -31,11 +31,12 @@ thrdnum = THRDNUM
 def amica(
         X,
         *,
+        whiten=True,
+        centering=True,
         n_components=None,
         n_models=1,
         n_mixtures=3,
-        whiten=True,
-        centering=True,
+        pdftype=0,
         max_iter=500,
         tol=1e-7,
         lrate=0.05,
@@ -44,6 +45,7 @@ def amica(
         newt_start=50,
         newtrate=1,
         newt_ramp=10,
+        do_reject=False,
         random_state=None,
 ):
     """Perform Adaptive Mixture Independent Component Analysis (AMICA).
@@ -96,6 +98,8 @@ def amica(
 
     if n_models > 1:
         raise NotImplementedError("n_models > 1 not yet supported")
+    if do_reject:
+        raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X
     # !---------------------------- get the mean --------------------------------
     print("getting the mean ...")
@@ -356,6 +360,8 @@ def amica(
         n_models=n_models,
         n_mixtures=n_mixtures,
         max_iter=200,
+        pdftype=pdftype,
+        do_reject=do_reject,
         tol=1e-7,
         lrate=lrate,
         rholrate=rholrate,
@@ -375,6 +381,8 @@ def _core_amica(
         n_models=1,
         n_mixtures=3,
         max_iter=2000,
+        pdftype=0,
+        do_reject=False,
         tol=1e-7,
         lrate=0.05,
         rholrate=0.05,
@@ -765,6 +773,8 @@ def _core_amica(
             nw=num_comps,
             n_models=num_models,
             n_mixtures=num_mix,
+            pdftype=pdftype,
+            do_reject=do_reject,
             sldet=sldet,
             num_comps=num_comps,
             dgm_numer=dgm_numer,
@@ -1048,6 +1058,7 @@ def _core_amica(
             lrate, rholrate = update_params(
                 iter=iter,
                 n_models=num_models,
+                do_reject=do_reject,
                 lrate=lrate,
                 rholrate=rholrate,
                 lrate0=lrate0,
@@ -1224,6 +1235,8 @@ def get_updates_and_likelihood(
     nw,
     n_models,
     n_mixtures,
+    pdftype,
+    do_reject,
     sldet,
     num_comps,
     dgm_numer,
@@ -2201,6 +2214,7 @@ def update_params(
         *,
         iter,
         n_models,
+        do_reject,
         lrate,
         rholrate,
         lrate0,
@@ -2443,7 +2457,7 @@ if __name__ == "__main__":
     # num_models = 1
     # num_mix = 3
     # max_iter = 200
-    pdftype = 0  # Default is 1 but in test file it is 0
+    # pdftype = 0  # Default is 1 but in test file it is 0
     nx = 32
     # num_comps = nx * num_models
     ldim = 30504
@@ -2473,7 +2487,7 @@ if __name__ == "__main__":
     # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
     epsdble = 1.0e-16
     update_c = True
-    do_reject = False
+    # do_reject = False
     maxrej = 3
     rejstart = 2
     rejint = 3
