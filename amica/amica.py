@@ -10,6 +10,37 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 from scipy import linalg
 from scipy.special import gammaln, psi, softmax
 
+from constants import (
+    mineig,
+    dorho,
+    rho0,
+    minlog,
+    epsdble,
+    maxrej,
+    rejstart,
+    rejint,
+    doscaling,
+    share_comps,
+    share_start,
+    share_iter,
+    minrho,
+    maxrho,
+    invsigmin,
+    invsigmax,
+    use_min_dll,
+    use_grad_norm,
+    min_dll,
+    maxincs,
+    outstep,
+    restartiter,
+    numrestarts,
+    maxrestarts,
+    minlrate,
+    min_nd,
+    lratefact,
+    rholratefact
+)
+
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
 
@@ -682,6 +713,7 @@ def _core_amica(
         # tmpvec2 = np.zeros(N1)
         # tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
         # tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
+    myrank = 0
     print(f"{myrank + 1}: block size = {block_size}")
     # for seg, _ in enumerate(range(numsegs), start=1):
     blk_size = min(dataseg.shape[-1], block_size)
@@ -2432,70 +2464,23 @@ def update_params(
 
 
 if __name__ == "__main__":
-    # num_models = 1
-    # num_mix = 3
-    # max_iter = 200
-    # pdftype = 0  # Default is 1 but in test file it is 0
-    # nx = 32
-    # num_comps = nx * num_models
-    # ldim = 30504
-    # lastdim = ldim
-    # pcakeep = nx
-    mineig = 1.0e-15
-    # S = np.zeros((nx, nx))
-    # Stmp_2 = np.zeros((nx, nx))
     fix_init = False
-    myrank = 0
-    seed_array = 12345 + myrank # For reproducibility
+    seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
-    rho0 = 1.5
-    minlog = -1500  # XXX: -np.inf ?
-    # Passed to get_updates_and_likelihood
-    # update_gm = True
-    # update_alpha = True
-    # update_mu = True
-    # update_beta = True
-    # update_c = True
-    dorho = True
-    # update_A = True
-    # do_newton = True
-    # newt_start = 50  # the default in the Fortran code is 20 but the doc says 50 and the distributed config file has 50 
-    # newt_ramp = 10
     no_newt = False
     # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
-    epsdble = 1.0e-16
     # do_reject = False
-    maxrej = 3
-    rejstart = 2
-    rejint = 3
-    lrate = 0.05 # default of program is 0.1 but config file set it to 0.05
-    doscaling = True
-    share_comps = False
-    share_start = 100
-    share_iter = 100
-    minrho = 1.0
-    maxrho = 2.0
-    invsigmin = 0.0 # default is 0.001 but config file set it to 0.0
-    invsigmax = 100 # default is 1000.0 but config file set it to 100
+    # lrate = 0.05 # default of program is 0.1 but config file set it to 0.05
+    
+    
     startover = False
-    use_min_dll = True
-    use_grad_norm = True
-    min_dll = 1.000000e-09
     numincs = 0
-    maxincs = 5
 
-    outstep = 1
-    restartiter = 10
-    numrestarts = 0
-    maxrestarts = 3
-    minlrate = 1.000000e-08 # Program Default is 1.0e-12 but config uses 1.0e-08
-    min_nd = 1.0e-7 # tol
-    lrate0 = 0.05 # this is set to the user-passed lrate value in the Fortran code
-    lratefact = 0.5
-    rholrate = 0.05
-    rholrate0 = 0.05
-    rholratefact = 0.5 # Default is 0.1 but test config uses 0.5
+    # lrate0 = 0.05 # this is set to the user-passed lrate value in the Fortran code
+    # rholrate = 0.05
+    # rholrate0 = 0.05
+    
     numdecs = 0
     maxdecs = 3 # XXX: Default is 5 but somehow it is 3. Need to figure out why.
 
@@ -2555,8 +2540,8 @@ if __name__ == "__main__":
         X=dataseg,
         max_iter=200,
         tol=1e-7,
-        lrate=lrate,
-        rholrate=rholrate,
+        lrate=0.05,
+        rholrate=0.05,
         newtrate=1.0,
         )
 
