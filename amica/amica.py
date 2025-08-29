@@ -11,6 +11,7 @@ from scipy import linalg
 from scipy.special import gammaln, psi, softmax
 
 from constants import (
+    fix_init,
     mineig,
     dorho,
     rho0,
@@ -31,6 +32,7 @@ from constants import (
     use_grad_norm,
     min_dll,
     maxincs,
+    maxdecs,
     outstep,
     restartiter,
     numrestarts,
@@ -38,7 +40,17 @@ from constants import (
     minlrate,
     min_nd,
     lratefact,
-    rholratefact
+    rholratefact,
+    load_gm,
+    load_A,
+    load_mu,
+    load_sbeta,
+    load_beta,
+    load_rho,
+    load_c,
+    load_alpha,
+    do_opt_block,
+    do_approx_sphere,
 )
 
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
@@ -127,11 +139,14 @@ def amica(
     )
     amica_state = get_initial_state(config)'''
 
+    # Init
     if n_models > 1:
         raise NotImplementedError("n_models > 1 not yet supported")
     if do_reject:
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X
+    do_mean = True if centering else False
+    do_sphere = True if whiten else False
     # !---------------------------- get the mean --------------------------------
     nx = dataseg.shape[0]  # Number of channels
     # TODO: n_components gets set twice. Thats an anti-pattern.
@@ -806,7 +821,7 @@ def _core_amica(
         Dsum = Dtemp.copy()
         
         # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
-        LLtmp, ndtmpsum = get_updates_and_likelihood(
+        LLtmp, ndtmpsum, no_newt = get_updates_and_likelihood(
             X=dataseg,
             iter=iter,
             nw=num_comps,
@@ -863,6 +878,10 @@ def _core_amica(
             lambda_=lambda_,
             sigma2=sigma2,
         )
+        # init
+        startover = False
+        numincs = 0
+        numdecs = 0
         # XXX: checking get_updates_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
         # Iteration 1 checks that are values were set globally and are correct form baseline
@@ -1099,6 +1118,7 @@ def _core_amica(
                 newt_start=newt_start,
                 newtrate=newtrate,
                 newt_ramp=newt_ramp,
+                no_newt=no_newt,
                 gm=gm,
                 dgm_numer=dgm_numer,
                 alpha=alpha,
@@ -2109,7 +2129,7 @@ def get_updates_and_likelihood(
         raise NotImplementedError()  # pragma no cover 
 
     nd[iter - 1, :] = 0
-    global no_newt
+    # global no_newt
     no_newt = False
 
     for h, _ in enumerate(range(num_models), start=1):
@@ -2221,7 +2241,7 @@ def get_updates_and_likelihood(
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         LL[iter - 1] = LLtmp2 / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
-    return LLtmp, ndtmpsum
+    return LLtmp, ndtmpsum, no_newt
 
 
 def update_params(
@@ -2237,6 +2257,7 @@ def update_params(
         newt_start,
         newtrate,
         newt_ramp,
+        no_newt,
         gm,
         dgm_numer,
         alpha,
@@ -2464,42 +2485,21 @@ def update_params(
 
 
 if __name__ == "__main__":
-    fix_init = False
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
-    no_newt = False
+    # no_newt = False
     # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
     # do_reject = False
     # lrate = 0.05 # default of program is 0.1 but config file set it to 0.05
-    
-    
-    startover = False
-    numincs = 0
 
     # lrate0 = 0.05 # this is set to the user-passed lrate value in the Fortran code
     # rholrate = 0.05
     # rholrate0 = 0.05
-    
-    numdecs = 0
-    maxdecs = 3 # XXX: Default is 5 but somehow it is 3. Need to figure out why.
 
 
     # load_sphere = False
-    do_sphere = True
-    do_approx_sphere = False
-    
-    load_gm = False
-    load_A = False
-    load_mu = False
-    load_sbeta = False
-    load_beta = False
-    load_rho = False
-    load_c = False
-    load_alpha = False
-    # load_comp_list = False
-    do_opt_block = False
-    # load_rej = False
+    # do_sphere = True
 
     # !-------------------- GET THE DATA ------------------------
     fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
