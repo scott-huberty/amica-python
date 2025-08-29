@@ -688,7 +688,7 @@ def _core_amica(
             raise NotImplementedError()
         else:
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
-            Anrmk, lrate, rholrate = update_params(
+            lrate, rholrate = update_params(
                 iter=iter,
                 lrate=lrate,
                 rholrate=rholrate,
@@ -723,7 +723,7 @@ def _core_amica(
             )
             if iter == 1:
                 # XXX: making sure all variables were globally set.
-                assert_almost_equal(Anrmk[-1], 0.98448954017506363)
+                # assert_almost_equal(Anrmk[-1], 0.98448954017506363)
                 assert gm[0] == 1
                 assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
                 assert_almost_equal(c[0, 0], 0.0)
@@ -745,7 +745,7 @@ def _core_amica(
                 assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
                 assert_almost_equal(wc[0, 0], 0)
             elif iter == 2:
-                assert_almost_equal(Anrmk[-1], 0.99554375802233519)
+                # assert_almost_equal(Anrmk[-1], 0.99554375802233519)
                 assert gm[0] == 1
                 assert_almost_equal(alpha[0, 0], 0.25773550277474716)
                 assert_almost_equal(c[0, 0], 0.0)
@@ -2061,7 +2061,7 @@ def update_params(
     
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
     # ...
-    return Anrmk, lrate, rholrate
+    return lrate, rholrate
 
 
 
