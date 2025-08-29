@@ -94,6 +94,8 @@ def amica(
     )
     amica_state = get_initial_state(config)'''
 
+    if n_models > 1:
+        raise NotImplementedError("n_models > 1 not yet supported")
     dataseg = X
     # !---------------------------- get the mean --------------------------------
     print("getting the mean ...")
@@ -339,6 +341,12 @@ def amica(
     #   call matout(S(1:2,1:2),2,2)
     #   print *, 'Sphered data = '; call flush(6)
     if n_components is None:
+        # TODO
+        # In the Fortran code n_components == nw IF num_models == 1
+        # if num_models > 1, num_comps is nw*num_models
+        # Arrays like A(nw, num_comps), and alpha/mu/sbeta/rho(:, num_comps) use this.
+        # Indexing: comp_list(i,h) = (h-1)*nw + i ranges up to nw*num_models.
+        # So for num_model > 1, we should refactor those arrays to have a num_models dim.
         n_components = nw
     elif n_components > nw:
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
@@ -401,6 +409,7 @@ def _core_amica(
     dc_denom = np.zeros((num_comps, num_models), dtype=np.float64)
     wc = np.zeros((num_comps, num_models))
     Wtmp = np.zeros((num_comps, num_comps))
+    # TODO: I think this should have a num_models dimension
     A = np.zeros((num_comps, num_comps))
     comp_list = np.zeros((num_comps, num_models), dtype=int)
     W = np.zeros((num_comps, num_comps, num_models))  # Weights for each model
@@ -526,6 +535,7 @@ def _core_amica(
     else:
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
+            # TODO: if A has a num_models dimension, this fancy indexing isnt needed
             A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
