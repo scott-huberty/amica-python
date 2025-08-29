@@ -359,7 +359,10 @@ def amica(
         tol=1e-7,
         lrate=lrate,
         rholrate=rholrate,
+        do_newton=do_newton,
+        newt_start=newt_start,
         newtrate=newtrate,
+        newt_ramp=newt_ramp,
         sldet=sldet,
         )
     return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
@@ -375,7 +378,10 @@ def _core_amica(
         tol=1e-7,
         lrate=0.05,
         rholrate=0.05,
+        do_newton=True,
+        newt_start=50,
         newtrate=1.0,
+        newt_ramp=10,
         sldet=0.0
 ):
     """Runs the AMICA algorithm.
@@ -1046,6 +1052,8 @@ def _core_amica(
                 rholrate=rholrate,
                 lrate0=lrate0,
                 rholrate0=rholrate0,
+                do_newton=do_newton,
+                newt_start=newt_start,
                 newtrate=newtrate,
                 newt_ramp=newt_ramp,
                 gm=gm,
@@ -1250,6 +1258,10 @@ def get_updates_and_likelihood(
     LL,
     comp_used,
     # Only required for newton optimization
+    do_newton=True,
+    newt_start=50,
+    newtrate=1.0,
+    newt_ramp=10,
     dbaralpha_numer=None,
     dbaralpha_denom=None,
     dkappa_numer=None,
@@ -2193,6 +2205,8 @@ def update_params(
         rholrate,
         lrate0,
         rholrate0,
+        do_newton,
+        newt_start,
         newtrate,
         newt_ramp,
         gm,
@@ -2428,7 +2442,7 @@ def update_params(
 if __name__ == "__main__":
     # num_models = 1
     # num_mix = 3
-    max_iter = 200
+    # max_iter = 200
     pdftype = 0  # Default is 1 but in test file it is 0
     nx = 32
     # num_comps = nx * num_models
@@ -2452,11 +2466,11 @@ if __name__ == "__main__":
     update_beta = True
     dorho = True
     update_A = True
-    do_newton = True
-    newt_start = 50  # the default in the Fortran code is 20 but the doc says 50 and the distributed config file has 50 
-    newt_ramp = 10
+    # do_newton = True
+    # newt_start = 50  # the default in the Fortran code is 20 but the doc says 50 and the distributed config file has 50 
+    # newt_ramp = 10
     no_newt = False
-    newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
+    # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
     epsdble = 1.0e-16
     update_c = True
     do_reject = False
@@ -2560,7 +2574,7 @@ if __name__ == "__main__":
         tol=1e-7,
         lrate=lrate,
         rholrate=rholrate,
-        newtrate=newtrate,
+        newtrate=1.0,
         )
 
     # call write_output
