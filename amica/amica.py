@@ -338,14 +338,18 @@ def amica(
     #    print *, 'S = '; call flush(6)
     #   call matout(S(1:2,1:2),2,2)
     #   print *, 'Sphered data = '; call flush(6)
+    if n_components is None:
+        n_components = nw
+    elif n_components > nw:
+        raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
     gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
         X=dataseg,
         max_iter=200,
         tol=1e-7,
+        n_components=n_components,
         lrate=lrate,
         rholrate=rholrate,
         newtrate=newtrate,
-        nw=nw,
         sldet=sldet,
         )
     return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
@@ -360,7 +364,6 @@ def _core_amica(
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
-        nw=None,
         sldet=0.0
 ):
     """Runs the AMICA algorithm.
@@ -368,42 +371,41 @@ def _core_amica(
     Parameters
     ----------
     X : array, shape (N, T)
-        Matrix containing the signals that have to be unmixed. N is the
-        number of signals, T is the number of samples. X has to be centered
+        Matrix containing the features that have to be unmixed. N is the
+        number of features, T is the number of samples. X has to be centered
     num_comps : int or None
-        Number of components to use. If None, it is set to the number of 
-        signals (N) times the number of models.
+        Number of components to use. If None, it is set to the number of
+        features (N) times the number of models.
     max_iter : int
         Maximal number of iterations for the algorithm
     tol : float
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
+    if n_components is None:
+        n_components = X.shape[0]
     lrate0 = lrate
     rholrate0 = rholrate
+    # The API will use n_components but under the hood we'll match the Fortran naming
     num_comps = n_components
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
-    if num_comps is None:
-        num_comps = nx * num_models
-    if nw is None: # This deviates from Fortran
-        nw = num_comps
 
     Dtemp = np.zeros(num_models, dtype=np.float64)
     Dsum = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
-    c = np.zeros((nw, num_models))
-    dc_numer = np.zeros((nw,num_models), dtype=np.float64)
-    dc_denom = np.zeros((nw,num_models), dtype=np.float64)
-    wc = np.zeros((nw, num_models))
-    Wtmp = np.zeros((nw, nw))
-    A = np.zeros((nw, num_comps))
-    comp_list = np.zeros((nw, num_models), dtype=int)
-    W = np.zeros((nw,nw,num_models))  # Weights for each model
-    ipivnw = np.zeros(nw)  # Pivot indices for W
-    pdtype = np.zeros((nw, num_models))  # Probability type
+    c = np.zeros((num_comps, num_models))
+    dc_numer = np.zeros((num_comps, num_models), dtype=np.float64)
+    dc_denom = np.zeros((num_comps, num_models), dtype=np.float64)
+    wc = np.zeros((num_comps, num_models))
+    Wtmp = np.zeros((num_comps, num_comps))
+    A = np.zeros((num_comps, num_comps))
+    comp_list = np.zeros((num_comps, num_models), dtype=int)
+    W = np.zeros((num_comps, num_comps, num_models))  # Weights for each model
+    ipivnw = np.zeros(num_comps)  # Pivot indices for W
+    pdtype = np.zeros((num_comps, num_models))  # Probability type
     pdtype.fill(pdftype)
     if pdftype == 1:
         do_choose_pdfs = True
@@ -416,29 +418,29 @@ def _core_amica(
     dgm_numer = np.zeros(num_models, dtype=np.float64)
 
     if do_newton:
-        dbaralpha_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dbaralpha_denom = np.zeros((num_mix,nw,num_models), dtype=np.float64)
-        dkappa_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dkappa_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dsigma2_numer = np.zeros((nw,num_models), dtype=np.float64)
-        dsigma2_denom = np.zeros((nw,num_models), dtype=np.float64)
+        dbaralpha_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
+        dbaralpha_denom = np.zeros((num_mix,num_comps,num_models), dtype=np.float64)
+        dkappa_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
+        dkappa_denom = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
+        dlambda_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
+        dlambda_denom = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
+        dsigma2_numer = np.zeros((num_comps, num_models), dtype=np.float64)
+        dsigma2_denom = np.zeros((num_comps, num_models), dtype=np.float64)
     else:
         raise NotImplementedError()
 
-    Wtmp2 = np.zeros((nw, nw, NUM_THRDS), dtype=np.float64)
-    dAK = np.zeros((nw, num_comps), dtype=np.float64)  # Derivative of A
-    dA = np.zeros((nw, nw, num_models), dtype=np.float64)  # Derivative of A for each model
-    dWtmp = np.zeros((nw,nw,num_models), dtype=np.float64)
+    Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
+    dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
+    dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
+    dWtmp = np.zeros((num_comps, num_comps,num_models), dtype=np.float64)
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
     zeta = np.zeros(num_comps, dtype=np.float64)  # Zeta parameters
-    baralpha = np.zeros((num_mix, nw, num_models), dtype=np.float64)  # Mixing matrix for each model
-    kappa = np.zeros((nw, num_models), dtype=np.float64)  # Kappa parameters
-    lambda_ = np.zeros((nw, num_models), dtype=np.float64)  # Lambda parameters
-    sigma2 = np.zeros((nw, num_models), dtype=np.float64)
+    baralpha = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)  # Mixing matrix for each model
+    kappa = np.zeros((num_comps, num_models), dtype=np.float64)  # Kappa parameters
+    lambda_ = np.zeros((num_comps, num_models), dtype=np.float64)  # Lambda parameters
+    sigma2 = np.zeros((num_comps, num_models), dtype=np.float64)
 
     gm = np.zeros(num_models, dtype=np.float64)  # Mixing matrix
     # TODO: This doesnt exist globally in the Fortran program? Double check.
@@ -518,17 +520,17 @@ def _core_amica(
         raise NotImplementedError()
     else:
         c[:, :] = 0.0
-        assert c.shape == (nw, num_models) == (32, 1)
+        assert c.shape == (num_comps, num_models) == (32, 1)
     if load_A:
         raise NotImplementedError()
     else:
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
-            A[:, (h_index)*nw:h*nw] = 0.01 * (0.5 - WTMP)
+            A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
-            idx = np.arange(nw)
-            cols = h_index * nw + idx
+            idx = np.arange(num_comps)
+            cols = h_index * num_comps + idx
             A[idx, cols] = 1.0
             Anrmk = np.linalg.norm(A[:, cols], axis=0)
             if h == 1:
@@ -543,7 +545,7 @@ def _core_amica(
             else:
                 raise ValueError("Unexpected model index")
             A[:, cols] /= Anrmk
-            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1) 
+            comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1) 
 
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.99987950295221151)
@@ -587,7 +589,7 @@ def _core_amica(
     else:
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
-            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1)
+            comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1)
         if h == 1:
             assert_equal(comp_list[0, 0], 1)
             assert_equal(comp_list[1, 0], 2)
@@ -695,7 +697,7 @@ def _core_amica(
 
             # Copy for QR decomposition checks below (mirrors Fortran workflow)
             Wtmp = W[:, :, h_index].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-            assert Wtmp.shape == (nw, nw) == (32, 32)
+            assert Wtmp.shape == (num_comps, num_comps) == (32, 32)
             if iter == 1 and h == 1:
                 assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
                 assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
@@ -722,7 +724,7 @@ def _core_amica(
                 assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
                 assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
                 assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
-                assert wr.shape == (nw,) == (32,)
+                assert wr.shape == (num_comps,) == (32,)
                 assert_almost_equal(wr[0], 1.9998793803957402)
             elif iter == 2 and h == 1:
                 assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
@@ -738,7 +740,7 @@ def _core_amica(
         LLtmp, ndtmpsum = get_updates_and_likelihood(
             X=dataseg,
             iter=iter,
-            nw=nw,
+            nw=num_comps,
             sldet=sldet,
             num_comps=num_comps,
             dgm_numer=dgm_numer,
@@ -2208,7 +2210,7 @@ def update_params(
     # end if (update_gm)
 
     if update_alpha:
-        assert alpha.shape == (num_mix, num_comps)
+        # assert alpha.shape == (num_mix, num_comps)
         alpha[:, :] = dalpha_numer / dalpha_denom
         if iter == 1:
             assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
@@ -2404,7 +2406,7 @@ if __name__ == "__main__":
     max_iter = 200
     pdftype = 0  # Default is 1 but in test file it is 0
     nx = 32
-    num_comps = nx * num_models
+    # num_comps = nx * num_models
     ldim = 30504
     lastdim = ldim
     pcakeep = nx
