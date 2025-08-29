@@ -56,7 +56,7 @@ from constants import (
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
 
-from state import AmicaConfig, get_initial_state
+from state import AmicaConfig, AmicaState, get_initial_state
 
 import line_profiler
 # Configure all warnings to be treated as errors
@@ -143,7 +143,6 @@ def amica(
     # Step 2: Create initial state (this will eventually replace manual initialization)
     state = get_initial_state(config)
     
-    # TODO: Step 3 will be _run_amica_iterations(X, config, state) - for now, continue with existing code
     # random_state = check_random_state(random_state)
 
     # Init
@@ -422,10 +421,10 @@ def amica(
         n_components=n_components,
         n_models=n_models,
         n_mixtures=n_mixtures,
-        max_iter=200,
+        max_iter=max_iter,
         pdftype=pdftype,
         do_reject=do_reject,
-        tol=1e-7,
+        tol=tol,
         lrate=lrate,
         rholrate=rholrate,
         do_newton=do_newton,
@@ -440,6 +439,7 @@ def amica(
 def _core_amica(
         X,
         *,
+        sldet,
         n_components=None,
         n_models=1,
         n_mixtures=3,
@@ -453,7 +453,6 @@ def _core_amica(
         newt_start=50,
         newtrate=1.0,
         newt_ramp=10,
-        sldet=0.0
 ):
     """Runs the AMICA algorithm.
     
