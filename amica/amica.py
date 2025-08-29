@@ -27,9 +27,770 @@ thrdnum = THRDNUM
 num_thrds = NUM_THRDS
 thrdnum = THRDNUM
 
+def _core_amica(
+        X,
+        *,
+        max_iter=2000,
+        tol=1e-7,
+        num_comps=None,
+        lrate=0.05,
+        rholrate=0.05,
+        lrate0=0.05,
+        rholrate0=0.05,
+        newtrate=1.0,
+):
+    """Runs the AMICA algorithm.
+    
+    Parameters
+    ----------
+    X : array, shape (N, T)
+        Matrix containing the signals that have to be unmixed. N is the
+        number of signals, T is the number of samples. X has to be centered
+    num_comps : int or None
+        Number of components to use. If None, it is set to the number of 
+        signals (N) times the number of models.
+    max_iter : int
+        Maximal number of iterations for the algorithm
+    tol : float
+        Tolerance for convergence. Iterations stop when the change in log-likelihood
+        is less than tol.
+    """
+    # !-------------------- ALLOCATE VARIABLES ---------------------
+    print("Allocating variables ...")
+    if num_comps is None:
+        num_comps = nx * num_models
+
+    Dtemp = np.zeros(num_models, dtype=np.float64)
+    Dsum = np.zeros(num_models, dtype=np.float64)
+    # Track determinant sign per model for completeness (not used in likelihood)
+    Dsign = np.zeros(num_models, dtype=np.int8)
+    LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
+    c = np.zeros((nw, num_models))
+    dc_numer = np.zeros((nw,num_models), dtype=np.float64)
+    dc_denom = np.zeros((nw,num_models), dtype=np.float64)
+    wc = np.zeros((nw, num_models))
+    Wtmp = np.zeros((nw, nw))
+    A = np.zeros((nw, num_comps))
+    comp_list = np.zeros((nw, num_models), dtype=int)
+    W = np.zeros((nw,nw,num_models))  # Weights for each model
+    ipivnw = np.zeros(nw)  # Pivot indices for W
+    pdtype = np.zeros((nw, num_models))  # Probability type
+    pdtype.fill(pdftype)
+    if pdftype == 1:
+        do_choose_pdfs = True
+        numchpdf = 0
+    else:
+        do_choose_pdfs = False
+
+    comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
+    # These are all passed to get_updates_and_likelihood
+    dgm_numer = np.zeros(num_models, dtype=np.float64)
+
+    if do_newton:
+        dbaralpha_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
+        dbaralpha_denom = np.zeros((num_mix,nw,num_models), dtype=np.float64)
+        dkappa_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
+        dkappa_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
+        dlambda_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
+        dlambda_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
+        dsigma2_numer = np.zeros((nw,num_models), dtype=np.float64)
+        dsigma2_denom = np.zeros((nw,num_models), dtype=np.float64)
+    else:
+        raise NotImplementedError()
+
+    Wtmp2 = np.zeros((nw, nw, NUM_THRDS), dtype=np.float64)
+    dAK = np.zeros((nw, num_comps), dtype=np.float64)  # Derivative of A
+    dA = np.zeros((nw, nw, num_models), dtype=np.float64)  # Derivative of A for each model
+    dWtmp = np.zeros((nw,nw,num_models), dtype=np.float64)
+    # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
+    nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
+
+    zeta = np.zeros(num_comps, dtype=np.float64)  # Zeta parameters
+    baralpha = np.zeros((num_mix, nw, num_models), dtype=np.float64)  # Mixing matrix for each model
+    kappa = np.zeros((nw, num_models), dtype=np.float64)  # Kappa parameters
+    lambda_ = np.zeros((nw, num_models), dtype=np.float64)  # Lambda parameters
+    sigma2 = np.zeros((nw, num_models), dtype=np.float64)
+
+    gm = np.zeros(num_models, dtype=np.float64)  # Mixing matrix
+    # TODO: This doesnt exist globally in the Fortran program? Double check.
+    loglik = np.zeros(lastdim, dtype=np.float64)  # Log likelihood
+    modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
+    assert modloglik.shape == (1, 30504)
+
+    alpha = np.zeros((num_mix, num_comps))  # Mixing matrix
+    if update_alpha:
+        dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+        dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+
+    mu = np.zeros((num_mix, num_comps))
+    mutmp = np.zeros((num_mix, num_comps))
+    if update_mu:
+        dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+        dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    else:
+        raise NotImplementedError()
+    
+    sbeta = np.zeros((num_mix, num_comps))
+    # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
+    if update_beta:
+        dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+        dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    else:
+        raise NotImplementedError()
+    
+    rho = np.zeros((num_mix, num_comps))  # Rho parameters
+    if dorho:
+        rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
+        drho_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+        drho_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+
+    # !------------------- INITIALIZE VARIABLES ----------------------
+    # print *, myrank+1, ': Initializing variables ...'; call flush(6);
+    # if (seg_rank == 0) then
+    print("Initializing variables ...")
+
+    if load_gm:
+        raise NotImplementedError()
+    else:
+        gm[:] = int(1.0 / num_models)
+    if load_alpha:
+        raise NotImplementedError()
+    else:
+        alpha[:num_mix, :] = 1.0 / num_mix
+    if load_mu:
+        raise NotImplementedError()
+    else:
+        values = np.arange(num_mix) - (num_mix - 1) / 2
+        mu[:, :] = values[:, np.newaxis]
+        assert mu.shape == (num_mix, num_comps) == (3, 32)
+        np.testing.assert_allclose(mu[0, :], -1.0)
+        np.testing.assert_allclose(mu[1, :], 0.0)
+        np.testing.assert_allclose(mu[2, :], 1.0)
+        if not fix_init:
+            mutmp = MUTMP.copy()
+            mu[:num_mix, :] = mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
+            assert_almost_equal(mu[0, 0], -1.0009659467356704, decimal=7)
+            assert_almost_equal(mu[2, 31], 0.99866076686138183, decimal=7)
+    if load_beta:
+        raise NotImplementedError()
+    else:
+        if fix_init:
+            raise NotImplementedError()
+        else:
+            sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
+            assert_almost_equal(sbeta[0, 0], 0.96533589542801645, decimal=7)
+            assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
+    if load_rho:
+        raise NotImplementedError()
+    else:
+        rho[:num_mix, :] = rho0
+        np.testing.assert_allclose(rho, 1.5)
+    if load_c:
+        raise NotImplementedError()
+    else:
+        c[:, :] = 0.0
+        assert c.shape == (nw, num_models) == (32, 1)
+    if load_A:
+        raise NotImplementedError()
+    else:
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            A[:, (h_index)*nw:h*nw] = 0.01 * (0.5 - WTMP)
+            if h == 1:
+                assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
+            idx = np.arange(nw)
+            cols = h_index * nw + idx
+            A[idx, cols] = 1.0
+            Anrmk = np.linalg.norm(A[:, cols], axis=0)
+            if h == 1:
+                assert_almost_equal(Anrmk[0], 1.0001205115690768)
+                assert_almost_equal(Anrmk[1], 1.0001597653323635)
+                assert_almost_equal(Anrmk[2], 1.0001246023020249)
+                assert_almost_equal(Anrmk[3], 1.0001246214648813)
+                assert_almost_equal(Anrmk[4], 1.0001391792172245)
+                assert_almost_equal(Anrmk[5], 1.0001153695881879)
+                assert_almost_equal(Anrmk[6], 1.0001348988545486)
+                assert_almost_equal(Anrmk[31], 1.0001690977165658)
+            else:
+                raise ValueError("Unexpected model index")
+            A[:, cols] /= Anrmk
+            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1) 
+
+            if h == 1:
+                assert_almost_equal(A[0, 0], 0.99987950295221151)
+                assert_almost_equal(A[0, 1], 0.0031751973942113266)
+                assert_almost_equal(A[0, 2], 0.0032972413345084516)
+                assert_almost_equal(A[0, 3], -0.0039658956397471655)
+                assert_almost_equal(A[0, 4], -0.003799613000692897)
+                assert_almost_equal(A[0, 5], 0.0028189089968969124)
+                assert_almost_equal(A[0, 6], -0.0049667241649223011)
+                assert_almost_equal(A[0, 7], -0.0049493288857340749)
+                assert_almost_equal(A[0, 31], 0.0033698692262480665)
+
+                assert_equal(comp_list[0, 0], 1)
+                assert_equal(comp_list[1, 0], 2)
+                assert_equal(comp_list[2, 0], 3)
+                assert_equal(comp_list[3, 0], 4)
+                assert_equal(comp_list[4, 0], 5)
+                assert_equal(comp_list[5, 0], 6)
+                assert_equal(comp_list[6, 0], 7)
+                assert_equal(comp_list[31, 0], 32)
+            else:
+                raise ValueError("Unexpected model index")
+    # end load_A
+    iterating = True if "iter" in locals() else False
+    W, wc = get_unmixing_matrices(
+        iterating=iterating,
+        c=c,
+        wc=wc,
+        A=A,
+        comp_list=comp_list,
+        W=W,
+        num_models=num_models,
+    )
+    assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
+
+
+    # load_comp_list
+    if load_comp_list:
+        raise NotImplementedError()
+    # XXX: Seems like the Fortran code duplicated this step?
+    else:
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1)
+        if h == 1:
+            assert_equal(comp_list[0, 0], 1)
+            assert_equal(comp_list[1, 0], 2)
+            assert_equal(comp_list[2, 0], 3)
+            assert_equal(comp_list[3, 0], 4)
+            assert_equal(comp_list[4, 0], 5)
+            assert_equal(comp_list[5, 0], 6)
+            assert_equal(comp_list[6, 0], 7)
+            assert_equal(comp_list[31, 0], 32)
+        else:
+            raise NotImplementedError("Unexpected model index")
+        comp_used[:] = True
+    
+    # if (print_debug) then
+    #  print *, 'data ='; call flush(6)
+
+    if load_rej:
+        raise NotImplementedError()    
+
+    # !-------------------- Determine optimal block size -------------------
+    block_size = 512 # Default of program is 128 but test config uses 512
+    max_thrds = 1 # Default of program is 24, test file config uses 10, but lets set it to 1 for simplicity
+    num_thrds = max_thrds
+    if do_opt_block:
+        raise NotImplementedError()
+    else:
+        # call allocate_blocks
+        N1 = dataseg.shape[-1] # 2 * block_size * num_thrds
+        # assert N1 == 1024 # 10240
+        # b = np.zeros((N1, nw, num_models))  # Allocate b
+        # v = np.zeros((N1, num_models)) # posterior probability for each model
+        # y = np.zeros((N1, nw, num_mix, num_models))
+        # z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
+        # z0 = np.zeros((N1, num_mix))  # Allocate z0
+        # z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
+        # fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        #u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # utmp = np.zeros(N1)
+        # ztmp = np.zeros((N1, nw)) # shape is (N1) in Fortran
+        # vtmp = np.zeros(N1)
+        # logab = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
+        # Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
+        # git = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
+        # P = np.zeros(N1) # Per-sample total log-likelihood across models.
+        # Pmax = np.zeros(N1)
+        # Pmax_br = np.zeros((N1, nw)) # Python only
+        # tmpvec = np.zeros(N1)
+        # tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
+        # tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
+        # tmpvec_fp = np.zeros((N1, nw, num_mix)) # Python only
+        # tmpvec2 = np.zeros(N1)
+        # tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
+        # tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
+    print(f"{myrank + 1}: block size = {block_size}")
+    # for seg, _ in enumerate(range(numsegs), start=1):
+    blk_size = min(dataseg.shape[-1], block_size)
+    assert blk_size == 512
+
+
+    # v[:, :] = 1.0 / num_models
+    leave = False
+
+    print(f"{myrank+1} : entering the main loop ...")
+
+    # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+    iter = 1
+    numrej = 0
+
+    c1 = time.time()
+
+    while iter <= max_iter:
+        # ============================== Subsection ====================================
+        # === Update the unmixing matrices and compute the determinants ===
+        # The Fortran code computed log|det(W)| indirectly via QR factorization
+        # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
+        # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
+        # ==============================================================================
+        
+        # !----- get determinants
+        #--------------------------------FORTRAN CODE------------------------------
+        # do h = 1,num_models
+        #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+        # ....
+        #    call DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+        # ...
+        # Dtemp(h) = dble(0.0)
+        # do i = 1,nw
+        # ...
+        #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
+        # ------------------------------------------------------------------------
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            # Use slogdet on the original unmixing matrix to get sign and log|det|
+            sign, logabsdet = np.linalg.slogdet(W[:, :, h_index])
+            if sign == 0:
+                print(f"Model {h} determinant is zero!")
+                Dtemp[h_index] = minlog
+                raise ValueError("Determinant is zero. Raising explicitly for now")
+            else:
+                Dtemp[h_index] = logabsdet
+                Dsign[h_index] = 1 if sign > 0 else -1
+
+            # Copy for QR decomposition checks below (mirrors Fortran workflow)
+            Wtmp = W[:, :, h_index].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+            assert Wtmp.shape == (nw, nw) == (32, 32)
+            if iter == 1 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
+                assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
+                assert_almost_equal(Wtmp[0, 2], -0.0032916117077828426, decimal=7)
+                assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
+                assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
+                assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
+            elif iter == 2 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
+            lwork = 5 * nx * nx
+            assert lwork == 5120            
+
+
+            # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+            # Use LAPACK-style QR decomposition  
+            # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
+            (Wtmp, wr), tau_matrix = linalg.qr(Wtmp, mode='raw')
+            if iter == 1 and h == 1:
+                assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
+                assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
+                assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
+                assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
+                assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
+                assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
+                assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
+                assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
+                assert wr.shape == (nw,) == (32,)
+                assert_almost_equal(wr[0], 1.9998793803957402)
+            elif iter == 2 and h == 1:
+                assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
+
+            # Determinant computed above via slogdet (sign stored in Dsign)
+            if h == 1 and iter == 1:
+                assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
+            elif h == 1 and iter == 2:
+                assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
+        Dsum = Dtemp.copy()
+        
+        # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
+        LLtmp, ndtmpsum = get_updates_and_likelihood(
+            X=dataseg,
+            iter=iter,
+            num_comps=num_comps,
+            dgm_numer=dgm_numer,
+            dalpha_numer=dalpha_numer,
+            dalpha_denom=dalpha_denom,
+            dmu_numer=dmu_numer,
+            dmu_denom=dmu_denom,
+            dbeta_numer=dbeta_numer,
+            dbeta_denom=dbeta_denom,
+            drho_numer=drho_numer,
+            drho_denom=drho_denom,
+            dWtmp=dWtmp,
+            comp_list=comp_list,
+            gm=gm,
+            Dsum=Dsum,
+            wc=wc,
+            W=W,
+            alpha=alpha,
+            rho=rho,
+            sbeta=sbeta,
+            mu=mu,
+            modloglik=modloglik,
+            loglik=loglik,
+            pdtype=pdtype,
+            Wtmp2=Wtmp2,
+            Wtmp=Wtmp,
+            A=A,
+            dA=dA,
+            dAK=dAK,
+            zeta=zeta,
+            nd=nd,
+            LL=LL,
+            comp_used=comp_used,
+            # Only required for newton optimization
+            dbaralpha_numer=dbaralpha_numer,
+            dbaralpha_denom=dbaralpha_denom,
+            dkappa_numer=dkappa_numer,
+            dkappa_denom=dkappa_denom,
+            dlambda_numer=dlambda_numer,
+            dlambda_denom=dlambda_denom,
+            dsigma2_numer=dsigma2_numer,
+            dsigma2_denom=dsigma2_denom,
+            dc_numer=dc_numer,
+            dc_denom=dc_denom,
+            baralpha=baralpha,
+            kappa=kappa,
+            lambda_=lambda_,
+            sigma2=sigma2,
+        )
+        # XXX: checking get_updates_and_likelihood set things globally
+        # This should also give an idea of the vars that are assigned within that function.
+        # Iteration 1 checks that are values were set globally and are correct form baseline
+        if iter == 1:
+            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            assert_allclose(pdtype, 0)
+            assert_allclose(rho, 1.5)
+            # assert g[808, 31] == 0.0
+            assert dgm_numer[0] == 30504
+            # assert_almost_equal(tmpsum, -52.929467835976844)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
+            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
+            assert_almost_equal(dc_numer[31, 0], 0)
+            assert dc_denom[31, 0] == 30504
+            # assert u[808, 31, 2] == 0.0
+            # assert_almost_equal(usum, 325.12075860737821, decimal=7)
+            # assert tmpvec[808] == 0.0
+            # assert tmpvec2[808] == 0.0
+            # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
+            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
+            assert dalpha_denom[2, 31] == 30504
+            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
+            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
+            
+            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
+            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+            # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
+            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
+            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
+            
+            # These shouldnt get updated until the start of newton_optimization
+            
+            # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
+            # Meaning that globally (here) they should remain their globally assigned values
+            assert LLinc == 0
+            assert tmpsum == 0
+            assert usum == 0
+            assert vsum == 0
+
+            # These should also not change until the start of newton_optimization
+            assert np.all(dkappa_numer == 0)
+            assert np.all(dkappa_denom == 0)
+            assert np.all(dlambda_numer == 0)
+            assert np.all(dlambda_denom == 0)
+            assert np.all(dbaralpha_numer == 0)
+            assert np.all(dbaralpha_denom == 0)
+
+            # accum_updates_and_likelihood checks..
+            # This should also give an idea of the vars that are assigned within that function.
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert dc_denom[0, 0] == 30504
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.057812635452922263)
+            assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
+            assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
+            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
+            assert_almost_equal(LL[0], -3.5136812444614773)
+        # Iteration 2 checks that our values were set globablly and updated based on the first iteration
+        elif iter == 2:
+            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
+            assert_almost_equal(rho[0, 0], 1.4573165687688203)
+            assert dgm_numer[0] == 30504
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
+            assert_almost_equal(dc_numer[31, 0], 0)
+            assert dc_denom[31, 0] == 30504
+            # assert u[808, 31, 2] == 0.0
+            #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
+            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
+            assert dalpha_denom[2, 31] == 30504
+            assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
+            # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
+            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
+            # assert P[808] == 0.0
+            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
+
+            # accum_updates_and_likelihood checks..
+            assert dgm_numer[0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
+            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
+            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert dc_denom[0, 0] == 30504
+            assert no_newt is False
+            assert_almost_equal(ndtmpsum, 0.02543823967703519)
+            # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
+            assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
+            assert_almost_equal(dAK[0, 0], 0.32313767684058614)
+            assert_almost_equal(LL[1], -3.4687938365664754)
+        # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
+        elif iter == 6:
+            assert_almost_equal(rho[0, 0], 1.6596808063060098, decimal=6)
+            assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
+        # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
+        elif iter == 13:
+            assert rho[0, 0] == 2
+            assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
+        # Iteration 49 is the last iteration before Newton optimization starts
+        elif iter == 49:
+            assert_almost_equal(LL[48], -3.4413377213179359, decimal=5)
+        elif iter == 50:
+            # This is the first iteration with newton optimization.
+            assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
+
+            # This is the first iteration with newton optimization.
+            #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
+        elif iter == 51:
+            assert_almost_equal(nd[0, 0], 0.20135421232976469)
+
+            # accum_updates_and_likelihood checks..
+            assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
+             
+        # !----- display log likelihood of data
+        # if (seg_rank == 0) then
+        c2 = time.time()
+        t0 = c2 - c1
+        #  if (mod(iter,outstep) == 0) then
+
+        if (iter % outstep) == 0:
+            print(
+                f"Iteration {iter}, lrate = {lrate:.3f}, LL = {LL[iter - 1]:.3f}, "
+                f"nd = {ndtmpsum:.3f}, D = {Dsum.max():.3f} {Dsum.min():.3f} "
+                f"took {t0:.2f} seconds"
+                )
+            c1 = time.time()
+
+        # !----- check whether likelihood is increasing
+        # if (seg_rank == 0) then
+        # ! if we get a NaN early, try to reinitialize and startover a few times 
+        if (iter <= restartiter and np.isnan(LL[iter - 1])):
+            if numrestarts > maxrestarts:
+                leave = True
+                raise RuntimeError()
+            else:
+                raise NotImplementedError()
+        # end if
+        if iter == 2:
+            assert not np.isnan(LL[iter - 1])
+            assert not (LL[iter - 1] < LL[iter - 2])
+        if iter > 1:
+            if np.isnan(LL[iter - 1]) and iter > restartiter:
+                leave = True
+                raise RuntimeError(f"Got NaN! Exiting")
+            if (LL[iter - 1] < LL[iter - 2]):
+                assert 1 == 0
+                print("Likelihood decreasing!")
+                if (lrate < minlrate) or (ndtmpsum <= min_nd):
+                    leave = True
+                    print("minimum change threshold met, exiting loop")
+                else:
+                    lrate *= lratefact
+                    rholrate *= rholratefact
+                    numdecs += 1
+                    if numdecs >= maxdecs:
+                        lrate0 *= lrate0 * lratefact
+                        if iter == 2:
+                            assert 1 == 0
+                        if iter > newt_start:
+                            raise NotImplementedError()
+                            rholrate0 *= rholratefact
+                        if do_newton and iter > newt_start:
+                            print("Reducing maximum Newton lrate")
+                            newtrate *= lratefact
+                            assert 1 == 0 # stop to check that value
+                        numdecs = 0
+                    # end if (numdecs >= maxdecs)
+                # end if (lrate vs minlrate)
+            # end if LL
+            if use_min_dll:
+                if (LL[iter - 1] - LL[iter - 2]) < min_dll:
+                    numincs += 1
+                    assert 1 == 0
+                    if numincs > maxincs:
+                        leave = True
+                        print(
+                            f"Exiting because likelihood increasing by less than {min_dll} "
+                            f"for more than {maxincs} iterations ..."
+                            )
+                        assert 1 == 0
+                else:
+                    numincs = 0
+                if iter == 2:
+                    assert numincs == 0
+            else:
+                raise NotImplementedError() # pragma no cover
+            if use_grad_norm:
+                if ndtmpsum < min_nd:
+                    leave = True
+                    print(
+                        f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
+                    )
+                    assert 1 == 0
+                if iter == 2:
+                    assert leave is False
+            else:
+                raise NotImplementedError() # pragma no cover
+        # end if (iter > 1)
+        if do_newton and (iter == newt_start):
+            print("Starting Newton ... setting numdecs to 0")
+
+        # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
+        # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
+
+        if leave:
+            assert 1 == 0  # Stop to check that exit condition is correct
+            exit()
+        if startover:
+            raise NotImplementedError()
+        else:
+            # !----- do updates: gm, alpha, mu, sbeta, rho, W
+            Anrmk, lrate, rholrate = update_params(
+                iter=iter,
+                lrate=lrate,
+                rholrate=rholrate,
+                lrate0=lrate0,
+                rholrate0=rholrate0,
+                newtrate=newtrate,
+                newt_ramp=newt_ramp,
+                gm=gm,
+                dgm_numer=dgm_numer,
+                alpha=alpha,
+                dalpha_numer=dalpha_numer,
+                dalpha_denom=dalpha_denom,
+                c=c,
+                dc_numer=dc_numer,
+                dc_denom=dc_denom,
+                dAK=dAK,
+                A=A,
+                dmu_numer=dmu_numer,
+                dmu_denom=dmu_denom,
+                mu=mu,
+                sbeta=sbeta,
+                dbeta_numer=dbeta_numer,
+                dbeta_denom=dbeta_denom,
+                rho=rho,
+                rhotmp=rhotmp,
+                drho_numer=drho_numer,
+                drho_denom=drho_denom,
+                W=W,
+                wc=wc,
+                comp_list=comp_list,
+                Anrmk=Anrmk,
+            )
+            if iter == 1:
+                # XXX: making sure all variables were globally set.
+                assert_almost_equal(Anrmk[-1], 0.98448954017506363)
+                assert gm[0] == 1
+                assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
+                assert_almost_equal(c[0, 0], 0.0)
+                assert posdef is True
+                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(lrate, 0.05)
+                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(rholrate, 0.05)
+                assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
+                assert maxrho == 2
+                assert minrho == 1
+                assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(rho[0, 0], 1.4573165687688203)
+                assert not rho[rho == minrho].any()
+                assert_almost_equal(A[31, 31], 0.99984153789378194)
+                assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
+                assert_almost_equal(mu[0, 31], -0.8568024781696123)
+                assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
+                assert_almost_equal(wc[0, 0], 0)
+            elif iter == 2:
+                assert_almost_equal(Anrmk[-1], 0.99554375802233519)
+                assert gm[0] == 1
+                assert_almost_equal(alpha[0, 0], 0.25773550277474716)
+                assert_almost_equal(c[0, 0], 0.0)
+                assert posdef is True
+                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(lrate, 0.05)
+                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(rholrate, 0.05)
+                assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
+                assert maxrho == 2
+                assert minrho == 1
+                assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(rho[0, 0], 1.5062036957555023)
+                assert not rhotmp[rhotmp == maxrho].any()
+                assert_almost_equal(A[31, 31], 0.99985752877785194)
+                assert_almost_equal(sbeta[0, 0], 1.07570700640128)
+                assert_almost_equal(mu[0, 0], -0.53783126597732789)
+                assert_almost_equal(W[0, 0, 0], 1.0002289118030874)
+                assert_almost_equal(wc[0, 0], 0)
+
+            # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
+
+            # !----- write history if it's a specified step
+            # if (do_history .and. mod(iter,histstep) == 0) then
+
+            # !----- reject data
+            if (
+                do_reject
+                and (maxrej > 0)
+                and (
+                    iter == rejstart
+                    or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
+                )
+            ):
+                raise NotImplementedError()
+            
+            iter += 1
+        # end if/else
+    # end while
+    return gm, mu, rho, sbeta, W, A, c, alpha, LL
 
 def get_unmixing_matrices(
         *,
+        iterating,
         c,
         wc,
         A,
@@ -39,11 +800,11 @@ def get_unmixing_matrices(
         ):
     """Get unmixing matrices for AMICA."""
     W = W.copy()
-    if "iter" not in globals():
+    if not iterating:
         # ugly hack to check if we are in the first iteration
         # All these shoudl be true first time get_unmixing_matrices is called which is before the iteration starts
-        assert_almost_equal(A[0, comp_list[0, 0] - 1], 0.99987950295221151, decimal=7)
-        assert_almost_equal(A[2, comp_list[2, 0] - 1], 0.99987541322177442, decimal=7)
+        assert_almost_equal(A[0, comp_list[0, 0] - 1], 0.99987950295221151)
+        assert_almost_equal(A[2, comp_list[2, 0] - 1], 0.99987541322177442)
 
     for h, _ in enumerate(range(num_models), start=1):
 
@@ -51,10 +812,10 @@ def get_unmixing_matrices(
         # call DCOPY(nw*nw,A(:,comp_list(:,h)),1,W(:,:,h),1)
         #---------------------------------------------------------------
         W[:, :, h - 1] = A[:, comp_list[:, h - 1] - 1].copy()
-        if "iter" not in globals():
-            assert_almost_equal(W[0, 0, h - 1], 0.99987950295221151, decimal=7)
-            assert_almost_equal(W[2, 2, h - 1], 0.99987541322177442, decimal=7)
-            assert_almost_equal(W[31, 31, h - 1], 0.99983093087263752, decimal=7)
+        if not iterating:
+            assert_almost_equal(W[0, 0, h - 1], 0.99987950295221151)
+            assert_almost_equal(W[2, 2, h - 1], 0.99987541322177442)
+            assert_almost_equal(W[31, 31, h - 1], 0.99983093087263752)
 
         #--------------------------FORTRAN CODE-------------------------
         # call DGETRF(nw,nw,W(:,:,h),nw,ipivnw,info)
@@ -69,12 +830,12 @@ def get_unmixing_matrices(
             print(f"Matrix W[:,:,{h-1}] is singular!")
             raise e
 
-        if "iter" not in globals():
-            assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
-            assert_almost_equal(W[5, 10, 0], 0.00024088142376377521, decimal=7)
-            assert_almost_equal(W[5, 30, 0], 0.00045275279060370794, decimal=7)
-            assert_almost_equal(W[15, 29, 0], -0.0012173272878070241, decimal=7)
-            assert_almost_equal(W[25, 5, 0], 0.0022362764540665224, decimal=7)
+        if not iterating:
+            assert_almost_equal(W[0, 0, 0], 1.0000898173968631)
+            assert_almost_equal(W[5, 10, 0], 0.00024088142376377521)
+            assert_almost_equal(W[5, 30, 0], 0.00045275279060370794)
+            assert_almost_equal(W[15, 29, 0], -0.0012173272878070241)
+            assert_almost_equal(W[25, 5, 0], 0.0022362764540665224)
             assert_almost_equal(W[25, 15, 0], 0.0048541279923070843, decimal=7)
             assert_almost_equal(W[31, 31, 0], 1.0001435790123032, decimal=7)
 
@@ -82,7 +843,7 @@ def get_unmixing_matrices(
         # call DGEMV('N',nw,nw,dble(1.0),W(:,:,h),nw,c(:,h),1,dble(0.0),wc(:,h),1)
         #---------------------------------------------------------------
         wc[:, h - 1] = W[:, :, h - 1] @ c[:, h - 1]
-        if "iter" not in globals():
+        if not iterating:
             assert_allclose(wc[:, 0], 0)
         return W, wc
 
@@ -96,7 +857,58 @@ def get_seg_list(raw):
 
 
 @line_profiler.profile
-def get_updates_and_likelihood():
+def get_updates_and_likelihood(
+    X,
+    *,
+    iter,
+    num_comps,
+    dgm_numer,
+    dalpha_numer,
+    dalpha_denom,
+    dmu_numer,
+    dmu_denom,
+    dbeta_numer,
+    dbeta_denom,
+    drho_numer,
+    drho_denom,
+    dWtmp,
+    comp_list,
+    gm,
+    Dsum,
+    wc,
+    W,
+    alpha,
+    rho,
+    sbeta,
+    mu,
+    modloglik,
+    loglik,
+    pdtype,
+    Wtmp2,
+    Wtmp,
+    A,
+    dA,
+    dAK,
+    zeta,
+    nd,
+    LL,
+    comp_used,
+    # Only required for newton optimization
+    dbaralpha_numer=None,
+    dbaralpha_denom=None,
+    dkappa_numer=None,
+    dkappa_denom=None,
+    dlambda_numer=None,
+    dlambda_denom=None,
+    dsigma2_numer=None,
+    dsigma2_denom=None,
+    dc_numer=None,
+    dc_denom=None,
+    baralpha=None,
+    kappa=None,
+    lambda_=None,
+    sigma2=None,
+):
     """Get updates and likelihood for AMICA.
     
     Purpose:
@@ -112,6 +924,8 @@ def get_updates_and_likelihood():
     # Initialize arrays for likelihood computations and parameter updates
     # Set up numerator/denominator accumulators for gradient updates
     #-------------------------------------------------------------------------------
+    N1 = X.shape[-1]
+    assert N1 == 30504  # number of samples in data segment
     b = np.empty((N1, nw, num_models))
     v = np.empty((N1, num_models))  # per-sample total likelihood across models
     y = np.empty((N1, nw, num_mix, num_models))
@@ -1013,7 +1827,40 @@ def get_updates_and_likelihood():
     return LLtmp, ndtmpsum
 
 
-def update_params():
+def update_params(
+        *,
+        iter,
+        lrate,
+        rholrate,
+        lrate0,
+        rholrate0,
+        newtrate,
+        newt_ramp,
+        gm,
+        dgm_numer,
+        alpha,
+        dalpha_numer,
+        dalpha_denom,
+        c,
+        dc_numer,
+        dc_denom,
+        dAK,
+        A,
+        dmu_numer,
+        dmu_denom,
+        mu,
+        sbeta,
+        dbeta_numer,
+        dbeta_denom,
+        rho,
+        rhotmp,
+        drho_numer,
+        drho_denom,
+        W,
+        wc,
+        comp_list,
+        Anrmk,
+):
     # if (seg_rank == 0) then
     if update_gm:
         if do_reject:
@@ -1046,7 +1893,7 @@ def update_params():
     # === Section: Apply Parameter Updates & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
-    global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
+    # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if update_A and (iter < share_start or (iter % share_iter > 5)):
         if do_newton and (not no_newt) and (iter >= newt_start):
             if iter == 50:
@@ -1157,7 +2004,6 @@ def update_params():
         # column and scale the corresponding columns in mu and sbeta, but only if the
         # norm is positive.
         # NOTE: this shadows a global variable Anrmk
-        global Anrmk
         Anrmk = np.linalg.norm(A, axis=0)
         positive_mask = Anrmk > 0
         if positive_mask.all():
@@ -1198,6 +2044,7 @@ def update_params():
     
     # global W, wc
     W[:, :, :], wc[:, :] = get_unmixing_matrices(
+        iterating=True,
         c=c,
         wc=wc,
         A=A,
@@ -1214,17 +2061,17 @@ def update_params():
     
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
     # ...
-    return
+    return Anrmk, lrate, rholrate
 
 
 
 if __name__ == "__main__":
     num_models = 1
     num_mix = 3
-    num_comps = None
     max_iter = 200
     pdftype = 0  # Default is 1 but in test file it is 0
     nx = 32
+    num_comps = nx * num_models
     ldim = 30504
     lastdim = ldim
     pcakeep = nx
@@ -1592,656 +2439,16 @@ if __name__ == "__main__":
     #   print *, 'Sphered data = '; call flush(6)
 
 
-    # !-------------------- ALLOCATE VARIABLES ---------------------
-    print("Allocating variables ...")
-    if num_comps is None:
-        num_comps = nx * num_models
-
-    Dtemp = np.zeros(num_models, dtype=np.float64)
-    Dsum = np.zeros(num_models, dtype=np.float64)
-    # Track determinant sign per model for completeness (not used in likelihood)
-    Dsign = np.zeros(num_models, dtype=np.int8)
-    LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
-    c = np.zeros((nw, num_models))
-    dc_numer = np.zeros((nw,num_models), dtype=np.float64)
-    dc_denom = np.zeros((nw,num_models), dtype=np.float64)
-    wc = np.zeros((nw, num_models))
-    Wtmp = np.zeros((nw, nw))
-    A = np.zeros((nw, num_comps))
-    comp_list = np.zeros((nw, num_models), dtype=int)
-    W = np.zeros((nw,nw,num_models))  # Weights for each model
-    ipivnw = np.zeros(nw)  # Pivot indices for W
-    pdtype = np.zeros((nw, num_models))  # Probability type
-    pdtype.fill(pdftype)
-    if pdftype == 1:
-        do_choose_pdfs = True
-        numchpdf = 0
-    else:
-        do_choose_pdfs = False
-
-    comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
-    # These are all passed to get_updates_and_likelihood
-    dgm_numer = np.zeros(num_models, dtype=np.float64)
-
-    if do_newton:
-        dbaralpha_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dbaralpha_denom = np.zeros((num_mix,nw,num_models), dtype=np.float64)
-        dkappa_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dkappa_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_numer = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dlambda_denom = np.zeros((num_mix, nw, num_models), dtype=np.float64)
-        dsigma2_numer = np.zeros((nw,num_models), dtype=np.float64)
-        dsigma2_denom = np.zeros((nw,num_models), dtype=np.float64)
-    else:
-        raise NotImplementedError()
-
-    Wtmp2 = np.zeros((nw, nw, NUM_THRDS), dtype=np.float64)
-    dAK = np.zeros((nw, num_comps), dtype=np.float64)  # Derivative of A
-    dA = np.zeros((nw, nw, num_models), dtype=np.float64)  # Derivative of A for each model
-    dWtmp = np.zeros((nw,nw,num_models), dtype=np.float64)
-    # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
-    nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
-
-    zeta = np.zeros(num_comps, dtype=np.float64)  # Zeta parameters
-    baralpha = np.zeros((num_mix, nw, num_models), dtype=np.float64)  # Mixing matrix for each model
-    kappa = np.zeros((nw, num_models), dtype=np.float64)  # Kappa parameters
-    lambda_ = np.zeros((nw, num_models), dtype=np.float64)  # Lambda parameters
-    sigma2 = np.zeros((nw, num_models), dtype=np.float64)
-
-    gm = np.zeros(num_models, dtype=np.float64)  # Mixing matrix
-    # TODO: This doesnt exist globally in the Fortran program? Double check.
-    loglik = np.zeros(lastdim, dtype=np.float64)  # Log likelihood
-    modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
-    assert modloglik.shape == (1, 30504)
-
-    alpha = np.zeros((num_mix, num_comps))  # Mixing matrix
-    if update_alpha:
-        dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-
-    mu = np.zeros((num_mix, num_comps))
-    mutmp = np.zeros((num_mix, num_comps))
-    if update_mu:
-        dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-    else:
-        raise NotImplementedError()
-    
-    sbeta = np.zeros((num_mix, num_comps))
-    # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
-    if update_beta:
-        dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-    else:
-        raise NotImplementedError()
-    
-    rho = np.zeros((num_mix, num_comps))  # Rho parameters
-    if dorho:
-        rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
-        drho_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        drho_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-
-    # !------------------- INITIALIZE VARIABLES ----------------------
-    # print *, myrank+1, ': Initializing variables ...'; call flush(6);
-    # if (seg_rank == 0) then
-    print("Initializing variables ...")
-
-    if load_gm:
-        raise NotImplementedError()
-    else:
-        gm[:] = int(1.0 / num_models)
-    if load_alpha:
-        raise NotImplementedError()
-    else:
-        alpha[:num_mix, :] = 1.0 / num_mix
-    if load_mu:
-        raise NotImplementedError()
-    else:
-        values = np.arange(num_mix) - (num_mix - 1) / 2
-        mu[:, :] = values[:, np.newaxis]
-        assert mu.shape == (num_mix, num_comps) == (3, 32)
-        np.testing.assert_allclose(mu[0, :], -1.0)
-        np.testing.assert_allclose(mu[1, :], 0.0)
-        np.testing.assert_allclose(mu[2, :], 1.0)
-        if not fix_init:
-            mutmp = MUTMP.copy()
-            mu[:num_mix, :] = mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
-            assert_almost_equal(mu[0, 0], -1.0009659467356704, decimal=7)
-            assert_almost_equal(mu[2, 31], 0.99866076686138183, decimal=7)
-    if load_beta:
-        raise NotImplementedError()
-    else:
-        if fix_init:
-            raise NotImplementedError()
-        else:
-            sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
-            assert_almost_equal(sbeta[0, 0], 0.96533589542801645, decimal=7)
-            assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
-    if load_rho:
-        raise NotImplementedError()
-    else:
-        rho[:num_mix, :] = rho0
-        np.testing.assert_allclose(rho, 1.5)
-    if load_c:
-        raise NotImplementedError()
-    else:
-        c[:, :] = 0.0
-        assert c.shape == (nw, num_models) == (32, 1)
-    if load_A:
-        raise NotImplementedError()
-    else:
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            A[:, (h_index)*nw:h*nw] = 0.01 * (0.5 - WTMP)
-            if h == 1:
-                assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
-            idx = np.arange(nw)
-            cols = h_index * nw + idx
-            A[idx, cols] = 1.0
-            Anrmk = np.linalg.norm(A[:, cols], axis=0)
-            if h == 1:
-                assert_almost_equal(Anrmk[0], 1.0001205115690768)
-                assert_almost_equal(Anrmk[1], 1.0001597653323635)
-                assert_almost_equal(Anrmk[2], 1.0001246023020249)
-                assert_almost_equal(Anrmk[3], 1.0001246214648813)
-                assert_almost_equal(Anrmk[4], 1.0001391792172245)
-                assert_almost_equal(Anrmk[5], 1.0001153695881879)
-                assert_almost_equal(Anrmk[6], 1.0001348988545486)
-                assert_almost_equal(Anrmk[31], 1.0001690977165658)
-            else:
-                raise ValueError("Unexpected model index")
-            A[:, cols] /= Anrmk
-            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1) 
-
-            if h == 1:
-                assert_almost_equal(A[0, 0], 0.99987950295221151)
-                assert_almost_equal(A[0, 1], 0.0031751973942113266)
-                assert_almost_equal(A[0, 2], 0.0032972413345084516)
-                assert_almost_equal(A[0, 3], -0.0039658956397471655)
-                assert_almost_equal(A[0, 4], -0.003799613000692897)
-                assert_almost_equal(A[0, 5], 0.0028189089968969124)
-                assert_almost_equal(A[0, 6], -0.0049667241649223011)
-                assert_almost_equal(A[0, 7], -0.0049493288857340749)
-                assert_almost_equal(A[0, 31], 0.0033698692262480665)
-
-                assert_equal(comp_list[0, 0], 1)
-                assert_equal(comp_list[1, 0], 2)
-                assert_equal(comp_list[2, 0], 3)
-                assert_equal(comp_list[3, 0], 4)
-                assert_equal(comp_list[4, 0], 5)
-                assert_equal(comp_list[5, 0], 6)
-                assert_equal(comp_list[6, 0], 7)
-                assert_equal(comp_list[31, 0], 32)
-            else:
-                raise ValueError("Unexpected model index")
-    # end load_A
-    
-    W, wc = get_unmixing_matrices(
-        c=c,
-        wc=wc,
-        A=A,
-        comp_list=comp_list,
-        W=W,
-        num_models=num_models,
-    )
-    assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
-
-
-    # load_comp_list
-    if load_comp_list:
-        raise NotImplementedError()
-    # XXX: Seems like the Fortran code duplicated this step?
-    else:
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            comp_list[:, h_index] = h_index * nw + np.arange(1, nw + 1)
-        if h == 1:
-            assert_equal(comp_list[0, 0], 1)
-            assert_equal(comp_list[1, 0], 2)
-            assert_equal(comp_list[2, 0], 3)
-            assert_equal(comp_list[3, 0], 4)
-            assert_equal(comp_list[4, 0], 5)
-            assert_equal(comp_list[5, 0], 6)
-            assert_equal(comp_list[6, 0], 7)
-            assert_equal(comp_list[31, 0], 32)
-        else:
-            raise NotImplementedError("Unexpected model index")
-        comp_used[:] = True
-    
-    # if (print_debug) then
-    #  print *, 'data ='; call flush(6)
-
-    if load_rej:
-        raise NotImplementedError()    
-
-    # !-------------------- Determine optimal block size -------------------
-    block_size = 512 # Default of program is 128 but test config uses 512
-    max_thrds = 1 # Default of program is 24, test file config uses 10, but lets set it to 1 for simplicity
-    num_thrds = max_thrds
-    if do_opt_block:
-        raise NotImplementedError()
-    else:
-        # call allocate_blocks
-        N1 = dataseg.shape[-1] # 2 * block_size * num_thrds
-        # assert N1 == 1024 # 10240
-        # b = np.zeros((N1, nw, num_models))  # Allocate b
-        # v = np.zeros((N1, num_models)) # posterior probability for each model
-        # y = np.zeros((N1, nw, num_mix, num_models))
-        # z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
-        # z0 = np.zeros((N1, num_mix))  # Allocate z0
-        # z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
-        # fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        #u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # utmp = np.zeros(N1)
-        # ztmp = np.zeros((N1, nw)) # shape is (N1) in Fortran
-        # vtmp = np.zeros(N1)
-        # logab = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
-        # git = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
-        # P = np.zeros(N1) # Per-sample total log-likelihood across models.
-        # Pmax = np.zeros(N1)
-        # Pmax_br = np.zeros((N1, nw)) # Python only
-        # tmpvec = np.zeros(N1)
-        # tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec_fp = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec2 = np.zeros(N1)
-        # tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
-    print(f"{myrank + 1}: block size = {block_size}")
-    # for seg, _ in enumerate(range(numsegs), start=1):
-    blk_size = min(dataseg.shape[-1], block_size)
-    assert blk_size == 512
-
-
-    # v[:, :] = 1.0 / num_models
-    leave = False
-
-    print(f"{myrank+1} : entering the main loop ...")
-
-    # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-    iter = 1
-    numrej = 0
-
-    c1 = time.time()
-
-    while iter <= max_iter:
-        # ============================== Subsection ====================================
-        # === Update the unmixing matrices and compute the determinants ===
-        # The Fortran code computed log|det(W)| indirectly via QR factorization
-        # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
-        # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
-        # ==============================================================================
-        
-        # !----- get determinants
-        #--------------------------------FORTRAN CODE------------------------------
-        # do h = 1,num_models
-        #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-        # ....
-        #    call DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-        # ...
-        # Dtemp(h) = dble(0.0)
-        # do i = 1,nw
-        # ...
-        #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
-        # ------------------------------------------------------------------------
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            # Use slogdet on the original unmixing matrix to get sign and log|det|
-            sign, logabsdet = np.linalg.slogdet(W[:, :, h_index])
-            if sign == 0:
-                print(f"Model {h} determinant is zero!")
-                Dtemp[h_index] = minlog
-                raise ValueError("Determinant is zero. Raising explicitly for now")
-            else:
-                Dtemp[h_index] = logabsdet
-                Dsign[h_index] = 1 if sign > 0 else -1
-
-            # Copy for QR decomposition checks below (mirrors Fortran workflow)
-            Wtmp = W[:, :, h_index].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-            assert Wtmp.shape == (nw, nw) == (32, 32)
-            if iter == 1 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
-                assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
-                assert_almost_equal(Wtmp[0, 2], -0.0032916117077828426, decimal=7)
-                assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
-                assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
-                assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
-            elif iter == 2 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
-            lwork = 5 * nx * nx
-            assert lwork == 5120            
-
-
-            # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-            # Use LAPACK-style QR decomposition  
-            # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
-            (Wtmp, wr), tau_matrix = linalg.qr(Wtmp, mode='raw')
-            if iter == 1 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
-                assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
-                assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
-                assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
-                assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
-                assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
-                assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
-                assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
-                assert wr.shape == (nw,) == (32,)
-                assert_almost_equal(wr[0], 1.9998793803957402)
-            elif iter == 2 and h == 1:
-                assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
-
-            # Determinant computed above via slogdet (sign stored in Dsign)
-            if h == 1 and iter == 1:
-                assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
-            elif h == 1 and iter == 2:
-                assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
-        Dsum = Dtemp.copy()
-        
-        # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
-        LLtmp, ndtmpsum = get_updates_and_likelihood()
-
-        # XXX: checking get_updates_and_likelihood set things globally
-        # This should also give an idea of the vars that are assigned within that function.
-        # Iteration 1 checks that are values were set globally and are correct form baseline
-        if iter == 1:
-            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-            assert_allclose(pdtype, 0)
-            assert_allclose(rho, 1.5)
-            # assert g[808, 31] == 0.0
-            assert dgm_numer[0] == 30504
-            # assert_almost_equal(tmpsum, -52.929467835976844)
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom[31, 0] == 30504
-            # assert u[808, 31, 2] == 0.0
-            # assert_almost_equal(usum, 325.12075860737821, decimal=7)
-            # assert tmpvec[808] == 0.0
-            # assert tmpvec2[808] == 0.0
-            # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
-            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
-            assert dalpha_denom[2, 31] == 30504
-            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
-            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
-            
-            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
-            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
-            # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-            
-            # These shouldnt get updated until the start of newton_optimization
-            
-            # In Fortran These variables are privately assigned to threads in OMP Parralel regions of get_likelihoods..
-            # Meaning that globally (here) they should remain their globally assigned values
-            assert LLinc == 0
-            assert tmpsum == 0
-            assert usum == 0
-            assert vsum == 0
-
-            # These should also not change until the start of newton_optimization
-            assert np.all(dkappa_numer == 0)
-            assert np.all(dkappa_denom == 0)
-            assert np.all(dlambda_numer == 0)
-            assert np.all(dlambda_denom == 0)
-            assert np.all(dbaralpha_numer == 0)
-            assert np.all(dbaralpha_denom == 0)
-
-            # accum_updates_and_likelihood checks..
-            # This should also give an idea of the vars that are assigned within that function.
-            assert dgm_numer[0] == 30504
-            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert dc_denom[0, 0] == 30504
-            assert no_newt is False
-            assert_almost_equal(ndtmpsum, 0.057812635452922263)
-            assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
-            assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
-            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-            assert_almost_equal(LL[0], -3.5136812444614773)
-        # Iteration 2 checks that our values were set globablly and updated based on the first iteration
-        elif iter == 2:
-            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
-            assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert dgm_numer[0] == 30504
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom[31, 0] == 30504
-            # assert u[808, 31, 2] == 0.0
-            #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
-            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
-            assert dalpha_denom[2, 31] == 30504
-            assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
-            # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
-            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-            # assert P[808] == 0.0
-            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
-
-            # accum_updates_and_likelihood checks..
-            assert dgm_numer[0] == 30504
-            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert dc_denom[0, 0] == 30504
-            assert no_newt is False
-            assert_almost_equal(ndtmpsum, 0.02543823967703519)
-            # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
-            assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
-            assert_almost_equal(dAK[0, 0], 0.32313767684058614)
-            assert_almost_equal(LL[1], -3.4687938365664754)
-        # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
-        elif iter == 6:
-            assert_almost_equal(rho[0, 0], 1.6596808063060098, decimal=6)
-            assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
-        # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
-        elif iter == 13:
-            assert rho[0, 0] == 2
-            assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
-        # Iteration 49 is the last iteration before Newton optimization starts
-        elif iter == 49:
-            assert_almost_equal(LL[48], -3.4413377213179359, decimal=5)
-        elif iter == 50:
-            # This is the first iteration with newton optimization.
-            assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
-
-            # This is the first iteration with newton optimization.
-            #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
-        elif iter == 51:
-            assert_almost_equal(nd[0, 0], 0.20135421232976469)
-
-            # accum_updates_and_likelihood checks..
-            assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
-             
-        # !----- display log likelihood of data
-        # if (seg_rank == 0) then
-        c2 = time.time()
-        t0 = c2 - c1
-        # assert t0 < 2
-        #  if (mod(iter,outstep) == 0) then
-
-        if (iter % outstep) == 0:
-            print(
-                f"Iteration {iter}, lrate = {lrate:.3f}, LL = {LL[iter - 1]:.3f}, "
-                f"nd = {ndtmpsum:.3f}, D = {Dsum.max():.3f} {Dsum.min():.3f} "
-                f"took {t0:.2f} seconds"
-                )
-            c1 = time.time()
-
-        # !----- check whether likelihood is increasing
-        # if (seg_rank == 0) then
-        # ! if we get a NaN early, try to reinitialize and startover a few times 
-        if (iter <= restartiter and np.isnan(LL[iter - 1])):
-            if numrestarts > maxrestarts:
-                leave = True
-                raise RuntimeError()
-            else:
-                raise NotImplementedError()
-        # end if
-        if iter == 2:
-            assert not np.isnan(LL[iter - 1])
-            assert not (LL[iter - 1] < LL[iter - 2])
-        if iter > 1:
-            if np.isnan(LL[iter - 1]) and iter > restartiter:
-                leave = True
-                raise RuntimeError(f"Got NaN! Exiting")
-            if (LL[iter - 1] < LL[iter - 2]):
-                assert 1 == 0
-                print("Likelihood decreasing!")
-                if (lrate < minlrate) or (ndtmpsum <= min_nd):
-                    leave = True
-                    print("minimum change threshold met, exiting loop")
-                else:
-                    lrate *= lratefact
-                    rholrate *= rholratefact
-                    numdecs += 1
-                    if numdecs >= maxdecs:
-                        lrate0 *= lrate0 * lratefact
-                        if iter == 2:
-                            assert 1 == 0
-                        if iter > newt_start:
-                            raise NotImplementedError()
-                            rholrate0 *= rholratefact
-                        if do_newton and iter > newt_start:
-                            print("Reducing maximum Newton lrate")
-                            newtrate *= lratefact
-                            assert 1 == 0 # stop to check that value
-                        numdecs = 0
-                    # end if (numdecs >= maxdecs)
-                # end if (lrate vs minlrate)
-            # end if LL
-            if use_min_dll:
-                if (LL[iter - 1] - LL[iter - 2]) < min_dll:
-                    numincs += 1
-                    assert 1 == 0
-                    if numincs > maxincs:
-                        leave = True
-                        print(
-                            f"Exiting because likelihood increasing by less than {min_dll} "
-                            f"for more than {maxincs} iterations ..."
-                            )
-                        assert 1 == 0
-                else:
-                    numincs = 0
-                if iter == 2:
-                    assert numincs == 0
-            else:
-                raise NotImplementedError() # pragma no cover
-            if use_grad_norm:
-                if ndtmpsum < min_nd:
-                    leave = True
-                    print(
-                        f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
-                    )
-                    assert 1 == 0
-                if iter == 2:
-                    assert leave is False
-            else:
-                raise NotImplementedError() # pragma no cover
-        # end if (iter > 1)
-        if do_newton and (iter == newt_start):
-            print("Starting Newton ... setting numdecs to 0")
-
-        # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
-        # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
-
-        if leave:
-            assert 1 == 0  # Stop to check that exit condition is correct
-            exit()
-        if startover:
-            raise NotImplementedError()
-        else:
-            # !----- do updates: gm, alpha, mu, sbeta, rho, W
-            update_params()
-            if iter == 1:
-                # XXX: making sure all variables were globally set.
-                assert_almost_equal(Anrmk[-1], 0.98448954017506363)
-                assert gm[0] == 1
-                assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
-                assert_almost_equal(c[0, 0], 0.0)
-                assert posdef is True
-                assert_almost_equal(lrate0, 0.05)
-                assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(rholrate0, 0.05)
-                assert_almost_equal(rholrate, 0.05)
-                assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
-                assert maxrho == 2
-                assert minrho == 1
-                assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
-                assert not rhotmp[rhotmp == maxrho].any()
-                assert_almost_equal(rho[0, 0], 1.4573165687688203)
-                assert not rho[rho == minrho].any()
-                assert_almost_equal(A[31, 31], 0.99984153789378194)
-                assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
-                assert_almost_equal(mu[0, 31], -0.8568024781696123)
-                assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
-                assert_almost_equal(wc[0, 0], 0)
-            elif iter == 2:
-                assert_almost_equal(Anrmk[-1], 0.99554375802233519)
-                assert gm[0] == 1
-                assert_almost_equal(alpha[0, 0], 0.25773550277474716)
-                assert_almost_equal(c[0, 0], 0.0)
-                assert posdef is True
-                assert_almost_equal(lrate0, 0.05)
-                assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(rholrate0, 0.05)
-                assert_almost_equal(rholrate, 0.05)
-                assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
-                assert maxrho == 2
-                assert minrho == 1
-                assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
-                assert not rhotmp[rhotmp == maxrho].any()
-                assert_almost_equal(rho[0, 0], 1.5062036957555023)
-                assert not rhotmp[rhotmp == maxrho].any()
-                assert_almost_equal(A[31, 31], 0.99985752877785194)
-                assert_almost_equal(sbeta[0, 0], 1.07570700640128)
-                assert_almost_equal(mu[0, 0], -0.53783126597732789)
-                assert_almost_equal(W[0, 0, 0], 1.0002289118030874)
-                assert_almost_equal(wc[0, 0], 0)
-
-            # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
-
-            # !----- write history if it's a specified step
-            # if (do_history .and. mod(iter,histstep) == 0) then
-
-            # !----- reject data
-            if (
-                do_reject
-                and (maxrej > 0)
-                and (
-                    iter == rejstart
-                    or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
-                )
-            ):
-                raise NotImplementedError()
-            
-            iter += 1
-        # end if/else
-    # end while
+    gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
+        X=dataseg,
+        max_iter=200,
+        tol=1e-7,
+        lrate=lrate,
+        rholrate=rholrate,
+        lrate0=lrate0,
+        rholrate0=rholrate0,
+        newtrate=newtrate,
+        )
 
     # call write_output
     # The final comparison with Fortran saved outputs.
