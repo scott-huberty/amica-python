@@ -122,13 +122,14 @@ def amica(
         If None, the random number generator is the RandomState instance used
         by `np.random`.
     """
-    # random_state = check_random_state(random_state)
-    '''config = AmicaConfig(
-        n_features=X.shape[1],
-        n_components=n_components if n_components is not None else X.shape[1],
+    # Step 1: Create config and state objects (new dataclass approach)
+    config = AmicaConfig(
+        n_features=X.shape[0],  # Number of channels (corrected from X.shape[1])
+        n_components=n_components if n_components is not None else X.shape[0],
         n_models=n_models,
         n_mixtures=n_mixtures,
         max_iter=max_iter,
+        pdftype=pdftype,
         tol=tol,
         lrate=lrate,
         rholrate=rholrate,
@@ -136,8 +137,14 @@ def amica(
         newt_start=newt_start,
         newtrate=newtrate,
         newt_ramp=newt_ramp,
+        do_reject=do_reject,
     )
-    amica_state = get_initial_state(config)'''
+    
+    # Step 2: Create initial state (this will eventually replace manual initialization)
+    state = get_initial_state(config)
+    
+    # TODO: Step 3 will be _run_amica_iterations(X, config, state) - for now, continue with existing code
+    # random_state = check_random_state(random_state)
 
     # Init
     if n_models > 1:
