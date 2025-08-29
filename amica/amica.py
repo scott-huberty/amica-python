@@ -33,7 +33,7 @@ def amica(
         *,
         n_components=None,
         n_models=1,
-        n_mixtures=1,
+        n_mixtures=3,
         whiten=True,
         centering=True,
         max_iter=500,
@@ -352,9 +352,11 @@ def amica(
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
     gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
         X=dataseg,
+        n_components=n_components,
+        n_models=n_models,
+        n_mixtures=n_mixtures,
         max_iter=200,
         tol=1e-7,
-        n_components=n_components,
         lrate=lrate,
         rholrate=rholrate,
         newtrate=newtrate,
@@ -366,9 +368,11 @@ def amica(
 def _core_amica(
         X,
         *,
+        n_components=None,
+        n_models=1,
+        n_mixtures=3,
         max_iter=2000,
         tol=1e-7,
-        n_components=None,
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
@@ -396,6 +400,8 @@ def _core_amica(
     rholrate0 = rholrate
     # The API will use n_components but under the hood we'll match the Fortran naming
     num_comps = n_components
+    num_models = n_models
+    num_mix = n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
 
@@ -751,6 +757,8 @@ def _core_amica(
             X=dataseg,
             iter=iter,
             nw=num_comps,
+            n_models=num_models,
+            n_mixtures=num_mix,
             sldet=sldet,
             num_comps=num_comps,
             dgm_numer=dgm_numer,
@@ -1033,6 +1041,7 @@ def _core_amica(
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
             lrate, rholrate = update_params(
                 iter=iter,
+                n_models=num_models,
                 lrate=lrate,
                 rholrate=rholrate,
                 lrate0=lrate0,
@@ -1205,6 +1214,8 @@ def get_updates_and_likelihood(
     *,
     iter,
     nw,
+    n_models,
+    n_mixtures,
     sldet,
     num_comps,
     dgm_numer,
@@ -1265,6 +1276,8 @@ def get_updates_and_likelihood(
         comment blocks are kept verbatim alongside the equivalent Python.
     """
     assert num_thrds == 1
+    num_models = n_models
+    num_mix = n_mixtures
     # === Section: Initialize Accumulators & Buffers ===
     # Initialize arrays for likelihood computations and parameter updates
     # Set up numerator/denominator accumulators for gradient updates
@@ -2175,6 +2188,7 @@ def get_updates_and_likelihood(
 def update_params(
         *,
         iter,
+        n_models,
         lrate,
         rholrate,
         lrate0,
@@ -2206,6 +2220,7 @@ def update_params(
         comp_list,
         Anrmk,
 ):
+    num_models = n_models
     # if (seg_rank == 0) then
     if update_gm:
         if do_reject:
@@ -2411,8 +2426,8 @@ def update_params(
 
 
 if __name__ == "__main__":
-    num_models = 1
-    num_mix = 3
+    # num_models = 1
+    # num_mix = 3
     max_iter = 200
     pdftype = 0  # Default is 1 but in test file it is 0
     nx = 32
