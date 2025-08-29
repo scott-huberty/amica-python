@@ -102,6 +102,10 @@ def amica(
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X
     # !---------------------------- get the mean --------------------------------
+    nx = dataseg.shape[0]  # Number of channels
+    # TODO: n_components gets set twice. Thats an anti-pattern.
+    if n_components is None:
+        n_components = nx
     print("getting the mean ...")
     meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
     assert_almost_equal(meantmp[0], -113139.76889015333)
@@ -119,6 +123,8 @@ def amica(
     assert_almost_equal(dataseg[2, 0], -29.36477079502998)
 
     # !------------------------ sphere the data -------------------------------
+    Stmp = np.zeros((nx, nx))
+    Stmp_2 = np.zeros((nx, nx))
     print(" Getting the covariance matrix ...")
     # call DSCAL(nx*nx,dble(0.0),Stmp,1)
     # Compute the covariance matrix
@@ -142,7 +148,6 @@ def amica(
     np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
 
     # Better approach: vectorized.
-    Stmp = np.zeros((nx, nx))
     full_cov = dataseg @ dataseg.T
     # The fortran code only computes the lower triangle for efficiency
     # So lets set the upper triangle to zero for consistency    
@@ -186,6 +191,11 @@ def amica(
     print(f"minimum eigenvalues: {lowest_eigs}")
     print(f"maximum eigenvalues: {biggest_eigs}")
     
+    # wrappers for the fortran program either set pcakeep to nchans
+    # or to nchans-1 in case of an average reference.
+    pcakeep = n_components
+    assert isinstance(pcakeep, int)
+    # TODO: use np.linalg.matrix_rank?
     numeigs = min(pcakeep, sum(eigs > mineig))
     assert numeigs == nx == 32
     print(f"num eigs kept: {numeigs}")
@@ -473,6 +483,7 @@ def _core_amica(
 
     gm = np.zeros(num_models, dtype=np.float64)  # Mixing matrix
     # TODO: This doesnt exist globally in the Fortran program? Double check.
+    lastdim = X.shape[1]
     loglik = np.zeros(lastdim, dtype=np.float64)  # Log likelihood
     modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
     assert modloglik.shape == (1, 30504)
@@ -737,8 +748,8 @@ def _core_amica(
                 assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
             elif iter == 2 and h == 1:
                 assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
-            lwork = 5 * nx * nx
-            assert lwork == 5120            
+            # lwork = 5 * nx * nx
+            # assert lwork == 5120            
 
 
             # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
@@ -2458,14 +2469,14 @@ if __name__ == "__main__":
     # num_mix = 3
     # max_iter = 200
     # pdftype = 0  # Default is 1 but in test file it is 0
-    nx = 32
+    # nx = 32
     # num_comps = nx * num_models
-    ldim = 30504
-    lastdim = ldim
-    pcakeep = nx
+    # ldim = 30504
+    # lastdim = ldim
+    # pcakeep = nx
     mineig = 1.0e-15
     # S = np.zeros((nx, nx))
-    Stmp_2 = np.zeros((nx, nx))
+    # Stmp_2 = np.zeros((nx, nx))
     fix_init = False
     myrank = 0
     seed_array = 12345 + myrank # For reproducibility
