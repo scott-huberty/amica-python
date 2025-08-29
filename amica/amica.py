@@ -200,18 +200,18 @@ def amica(
     assert numeigs == nx == 32
     print(f"num eigs kept: {numeigs}")
 
-    if load_sphere:
-        raise NotImplementedError()
-    else:
-        # !--- get the sphering matrix
-        print("Getting the sphering matrix ...")
-        # reverse the order of eigenvectors
-        Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
-        np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
-        eigv = np.sort(eigs)[::-1]
-        np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
-        np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
+    # if load_sphere:
+    #    raise NotImplementedError()
+    # else:
+    # !--- get the sphering matrix
+    print("Getting the sphering matrix ...")
+    # reverse the order of eigenvectors
+    Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
+    np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
+    eigv = np.sort(eigs)[::-1]
+    np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
+    np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
+    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
 
     # do sphere
     if do_sphere:
@@ -489,25 +489,22 @@ def _core_amica(
     assert modloglik.shape == (1, 30504)
 
     alpha = np.zeros((num_mix, num_comps))  # Mixing matrix
-    if update_alpha:
-        dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    # if update_alpha:
+    dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
 
     mu = np.zeros((num_mix, num_comps))
     mutmp = np.zeros((num_mix, num_comps))
-    if update_mu:
-        dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-    else:
-        raise NotImplementedError()
+    # if update_mu:
+    dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    
     
     sbeta = np.zeros((num_mix, num_comps))
     # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
-    if update_beta:
-        dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
-    else:
-        raise NotImplementedError()
+    # if update_beta:
+    dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
     
     rho = np.zeros((num_mix, num_comps))  # Rho parameters
     if dorho:
@@ -624,31 +621,30 @@ def _core_amica(
 
 
     # load_comp_list
-    if load_comp_list:
-        raise NotImplementedError()
+    # if load_comp_list:
+    #    raise NotImplementedError()
     # XXX: Seems like the Fortran code duplicated this step?
+    for h, _ in enumerate(range(num_models), start=1):
+        h_index = h - 1
+        comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1)
+    if h == 1:
+        assert_equal(comp_list[0, 0], 1)
+        assert_equal(comp_list[1, 0], 2)
+        assert_equal(comp_list[2, 0], 3)
+        assert_equal(comp_list[3, 0], 4)
+        assert_equal(comp_list[4, 0], 5)
+        assert_equal(comp_list[5, 0], 6)
+        assert_equal(comp_list[6, 0], 7)
+        assert_equal(comp_list[31, 0], 32)
     else:
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1)
-        if h == 1:
-            assert_equal(comp_list[0, 0], 1)
-            assert_equal(comp_list[1, 0], 2)
-            assert_equal(comp_list[2, 0], 3)
-            assert_equal(comp_list[3, 0], 4)
-            assert_equal(comp_list[4, 0], 5)
-            assert_equal(comp_list[5, 0], 6)
-            assert_equal(comp_list[6, 0], 7)
-            assert_equal(comp_list[31, 0], 32)
-        else:
-            raise NotImplementedError("Unexpected model index")
-        comp_used[:] = True
+        raise NotImplementedError("Unexpected model index")
+    comp_used[:] = True
     
     # if (print_debug) then
     #  print *, 'data ='; call flush(6)
 
-    if load_rej:
-        raise NotImplementedError()    
+    # if load_rej:
+    #    raise NotImplementedError()    
 
     # !-------------------- Determine optimal block size -------------------
     block_size = 512 # Default of program is 128 but test config uses 512
@@ -1327,27 +1323,25 @@ def get_updates_and_likelihood(
     Ptmp = np.empty((N1, num_models))
 
     dgm_numer[:] = 0.0
-    if update_alpha:
-        dalpha_numer[:] = 0.0
-        dalpha_denom[:] = 0.0
-    else:
-        raise NotImplementedError()
-    if update_mu:
-        dmu_numer[:] = 0.0
-        dmu_denom[:] = 0.0
-    else:
-        raise NotImplementedError()
-    if update_beta:
-        dbeta_numer[:] = 0.0
-        dbeta_denom[:] = 0.0
-    else:
-        raise NotImplementedError()
+    # if update_alpha:
+    dalpha_numer[:] = 0.0
+    dalpha_denom[:] = 0.0
+    
+    # if update_mu:
+    dmu_numer[:] = 0.0
+    dmu_denom[:] = 0.0
+
+    # if update_beta:
+    dbeta_numer[:] = 0.0
+    dbeta_denom[:] = 0.0
+    # else:
+    #    raise NotImplementedError()
     if dorho:
         drho_numer[:] = 0.0
         drho_denom[:] = 0.0
     else:
         raise NotImplementedError()
-    if update_A and do_newton:
+    if do_newton:
         dbaralpha_numer[:] = 0.0
         dbaralpha_denom[:] = 0.0
         dkappa_numer[:] = 0.0
@@ -1356,13 +1350,11 @@ def get_updates_and_likelihood(
         dlambda_denom[:] = 0.0
         dsigma2_numer[:] = 0.0
         dsigma2_denom[:] = 0.0
-    elif not update_A and do_newton:
+    elif do_newton:
         raise NotImplementedError()
-    if update_c:
-        dc_numer[:] = 0.0
-        dc_denom[:] = 0.0
-    else:
-        raise NotImplementedError()
+    # if update_c:
+    dc_numer[:] = 0.0
+    dc_denom[:] = 0.0
 
     dWtmp[:] = 0.0
     LLtmp = 0.0
@@ -1401,13 +1393,11 @@ def get_updates_and_likelihood(
         Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
         
         # !--- get b
-        if update_c and update_A:
-            b[:, :, h_index] = (-1.0 * wc[:, h_index])[np.newaxis, :]
-        else:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
-            #---------------------------------------------------------------
-            raise NotImplementedError()
+        # if update_c and update_A:
+        #--------------------------FORTRAN CODE-------------------------
+        # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
+        #---------------------------------------------------------------
+        b[:, :, h_index] = (-1.0 * wc[:, h_index])[np.newaxis, :]
         if do_reject:
             #--------------------------FORTRAN CODE-------------------------
             # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
@@ -1605,18 +1595,16 @@ def get_updates_and_likelihood(
         vsum = v[:, h_index].sum()
         dgm_numer[h_index] += vsum
 
-        if update_A:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
-            #---------------------------------------------------------------
-            g = np.zeros((N1, nw))
-        else:
-            raise NotImplementedError()
+        # if update_A:
+        #--------------------------FORTRAN CODE-------------------------
+        # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
+        #---------------------------------------------------------------
+        g = np.zeros((N1, nw))
         
         # NOTE: VECTORIZED
         # for do (i = 1, nw)
         v_slice = v[:, h_index] # # shape: (block_size,)
-        if update_A and do_newton:
+        if do_newton:
             #--------------------------FORTRAN CODE-------------------------
             # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
             # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
@@ -1627,29 +1615,27 @@ def get_updates_and_likelihood(
             tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
             dsigma2_numer[:, h_index] += tmpsum_A_vec
             dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
-        elif not update_A and do_newton:
+        elif not do_newton:
             raise NotImplementedError()
-        if update_c:
-                if do_reject:
-                    raise NotImplementedError()
-                    # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
-                else:
-                    #--------------------------FORTRAN CODE-------------------------
-                    # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
-                    #---------------------------------------------------------------
-                    # # Vectorized update for dc
-                    data_slice = dataseg[:, :]
-                    assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
-                    tmpsum_c_vec = np.sum(data_slice * v_slice[np.newaxis, :], axis=1)
-                    # OR...(mathematicaly equivalent but not numerically stable):
-                    # tmpsum_c_vec = data_slice @ v_slice 
-                # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
-                # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
-                dc_numer[:, h_index] += tmpsum_c_vec
-                dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
+        # if update_c:
+        if do_reject:
+            raise NotImplementedError()
+            # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
         else:
-            raise NotImplementedError()
-
+            #--------------------------FORTRAN CODE-------------------------
+            # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
+            #---------------------------------------------------------------
+            # # Vectorized update for dc
+            data_slice = dataseg[:, :]
+            assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
+            tmpsum_c_vec = np.sum(data_slice * v_slice[np.newaxis, :], axis=1)
+            # OR...(mathematicaly equivalent but not numerically stable):
+            # tmpsum_c_vec = data_slice @ v_slice 
+        # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
+        # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
+        dc_numer[:, h_index] += tmpsum_c_vec
+        dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
+        
         
         #--------------------------FORTRAN CODE-------------------------
         # for do (j = 1, num_mix)
@@ -1725,143 +1711,139 @@ def get_updates_and_likelihood(
         # !--- get g
         if iter == 1 and h == 1: # and blk == 1 
             assert g[0, 0] == 0.0
-        if update_A:
+        # if update_A:
+        #--------------------------FORTRAN CODE-------------------------
+        # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
+        #---------------------------------------------------------------
+        
+        # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
+        comp_idx = comp_list[:, h - 1] - 1  # (nw,)
+        S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
+        g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
+        g[:, :] += g_update
+
+        # --- Vectorized Newton-Raphson Updates ---
+        if do_newton and iter >= newt_start:
+
+            if iter == 50: # and blk == 1:
+                assert np.all(dkappa_numer == 0.0)
+                assert np.all(dkappa_denom == 0.0)
+
             #--------------------------FORTRAN CODE-------------------------
-            # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
+            # for (i = 1, nw) ... for (j = 1, num_mix)
+            # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
+            # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
+            # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
             #---------------------------------------------------------------
+
+            comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
+            # 1) Kappa updates (curvature terms for A)
+            ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
+            sbeta_vals = sbeta[:, comp_indices] ** 2
+            tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
+            dkappa_numer[:, :, h_index] += tmpsum_kappa
+            dkappa_denom[:, :, h_index] += usum.T
             
-            # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
-            comp_idx = comp_list[:, h - 1] - 1  # (nw,)
-            S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
-            g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
-            g[:, :] += g_update
+            # 2) Lambda updates
+            # ---------------------------FORTRAN CODE---------------------------
+            # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
+            # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
+            # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
+            # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
+            # ------------------------------------------------------------------
+            tmpvec_mat_dlambda = (
+                fp[:, :, :] * y[:, :, :, h_index] - 1.0
+            )
+            tmpsum_dlambda = np.sum(
+                u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
+            )  # shape: (nw, num_mix)
+            dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
+            dlambda_denom[:, :, h_index] += usum.T
+            
 
-            # --- Vectorized Newton-Raphson Updates ---
-            if do_newton and iter >= newt_start:
+            # 3) (dbar)Alpha updates
+            # ---------------------------FORTRAN CODE---------------------------
+            # for (i = 1, nw) ... for (j = 1, num_mix)
+            # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
+            # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
+            # ------------------------------------------------------------------
+            dbaralpha_numer[:, :, h_index] += usum.T
+            dbaralpha_denom[:,:, h_index] += vsum
 
-                if iter == 50: # and blk == 1:
-                    assert np.all(dkappa_numer == 0.0)
-                    assert np.all(dkappa_denom == 0.0)
-
-                #--------------------------FORTRAN CODE-------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
-                # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
-                # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
-                #---------------------------------------------------------------
-
-                comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
-                # 1) Kappa updates (curvature terms for A)
-                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-                sbeta_vals = sbeta[:, comp_indices] ** 2
-                tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
-                dkappa_numer[:, :, h_index] += tmpsum_kappa
-                dkappa_denom[:, :, h_index] += usum.T
-                
-                # 2) Lambda updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
-                # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
-                # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
-                # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
-                # ------------------------------------------------------------------
-                tmpvec_mat_dlambda = (
-                    fp[:, :, :] * y[:, :, :, h_index] - 1.0
-                )
-                tmpsum_dlambda = np.sum(
-                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
-                )  # shape: (nw, num_mix)
-                dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
-                dlambda_denom[:, :, h_index] += usum.T
-                
-
-                # 3) (dbar)Alpha updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
-                # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
-                # ------------------------------------------------------------------
-                dbaralpha_numer[:, :, h_index] += usum.T
-                dbaralpha_denom[:,:, h_index] += vsum
-
-            # end if (do_newton and iter >= newt_start)
-            elif not do_newton and iter >= newt_start:
-                raise NotImplementedError()
-        # end if (update_A)
-        else:
+        # end if (do_newton and iter >= newt_start)
+        elif not do_newton and iter >= newt_start:
             raise NotImplementedError()
+        # end if (update_A)
 
         # Alpha (mixture weights)
-        if update_alpha:
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
-            # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
-            # -----------------------------------------------------------------------
-            # NOTE: the vectorization of this variable results in some numerical differences
-            # That propogate to several other variables due to a dependency chan
-            # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
-            comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-            dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
-            dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
-        elif not update_alpha:
-            raise NotImplementedError()
-        # Mu (location)
-        if update_mu:
-            # 1. update numerator
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # tmpsum = sum( ufp(bstrt:bstp) )
-            # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
-            # -----------------------------------------------------------------------
-            # XXX: Some error in each sum across 59 blocks
-            tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            dmu_numer[:, comp_indices] += tmpsum_mu.T
-            # 2. update denominator
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
-            # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
-            # else
-            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
-            # -----------------------------------------------------------------------
-            if np.all(rho[:, comp_indices] <= 2.0):
-                # shape : (nw, num_mix)
-                mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :, h_index], axis=0)
+        # if update_alpha:
+        # -------------------------------FORTRAN--------------------------------
+        # for (i = 1, nw) ... for (j = 1, num_mix)
+        # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
+        # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
+        # -----------------------------------------------------------------------
+        # NOTE: the vectorization of this variable results in some numerical differences
+        # That propogate to several other variables due to a dependency chan
+        # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
+        comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
+        dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
+        dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
 
-                # shape (num_mix, nw)
-                tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
-                dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
-            else:
-                raise NotImplementedError()
-                # Let's tackle this when we actually hit this with some data
-                # So that we can compare the result against the Fortran output.
-        elif not update_mu:
+        # Mu (location)
+        # if update_mu:
+        # 1. update numerator
+        # -------------------------------FORTRAN--------------------------------
+        # for (i = 1, nw) ... for (j = 1, num_mix)
+        # tmpsum = sum( ufp(bstrt:bstp) )
+        # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
+        # -----------------------------------------------------------------------
+        # XXX: Some error in each sum across 59 blocks
+        tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
+        dmu_numer[:, comp_indices] += tmpsum_mu.T
+        # 2. update denominator
+        # -------------------------------FORTRAN--------------------------------
+        # for (i = 1, nw) ... for (j = 1, num_mix)
+        # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+        # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
+        # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
+        # else
+        # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
+        # -----------------------------------------------------------------------
+        if np.all(rho[:, comp_indices] <= 2.0):
+            # shape : (nw, num_mix)
+            mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :, h_index], axis=0)
+
+            # shape (num_mix, nw)
+            tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
+            dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
+        else:
             raise NotImplementedError()
+            # Let's tackle this when we actually hit this with some data
+            # So that we can compare the result against the Fortran output.
+        # end if (update mu)
+
         # Beta (scale/precision)
-        if update_beta:
-            # 1. update numerator
-            # -------------------------------FORTRAN--------------------------------
-            # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
-            # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
-            # ----------------------------------------------------------------------
-            dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
-            # 2. update denominator
-            # -------------------------------FORTRAN--------------------------------
-            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-            # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
-            # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
-            # ----------------------------------------------------------------------
-            if np.all(rho[:, comp_indices] <= 2.0):
-                tmpsum_dbeta_denom = np.sum(
-                    ufp[:, :, :] * y[:, :, :, h_index], axis=0
-                )
-                dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
-            else:
-                raise NotImplementedError()
-        elif not update_beta:
+        # if update_beta:
+        # 1. update numerator
+        # -------------------------------FORTRAN--------------------------------
+        # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
+        # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
+        # ----------------------------------------------------------------------
+        dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
+        # 2. update denominator
+        # -------------------------------FORTRAN--------------------------------
+        # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+        # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+        # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
+        # ----------------------------------------------------------------------
+        if np.all(rho[:, comp_indices] <= 2.0):
+            tmpsum_dbeta_denom = np.sum(
+                ufp[:, :, :] * y[:, :, :, h_index], axis=0
+            )
+            dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
+        else:
             raise NotImplementedError()
+        # end if (update beta)
         
         # Rho (shape parameter of generalized Gaussian)
         if dorho:
@@ -1911,24 +1893,22 @@ def get_updates_and_likelihood(
             drho_numer[:, comp_indices] += tmpsum_prod.T
             drho_denom[:, comp_indices] += usum.T
             
-            if update_beta and np.any(rho[:, comp_indices] > 2.0):
+            if np.any(rho[:, comp_indices] > 2.0):
                 raise NotImplementedError()
         elif not dorho:
             raise NotImplementedError()
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-        if update_A:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
-            # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
-            #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
-            # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
-            #---------------------------------------------------------------
-            Wtmp2[:, :, thrdnum] = 0.0
-            Wtmp2[:, :, thrdnum] += np.dot(g[:, :].T, b[:, :, h - 1])
-            dWtmp[:, :, h - 1] += Wtmp2[:, :, thrdnum]
-        else:
-            raise NotImplementedError()
+        # if update_A:
+        #--------------------------FORTRAN CODE-------------------------
+        # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
+        # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
+        #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
+        # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
+        #---------------------------------------------------------------
+        Wtmp2[:, :, thrdnum] = 0.0
+        Wtmp2[:, :, thrdnum] += np.dot(g[:, :].T, b[:, :, h - 1])
+        dWtmp[:, :, h - 1] += Wtmp2[:, :, thrdnum]
     # end do (h)
     # end do (blk)'
     if iter == 1: # and blk == 59:
@@ -2016,198 +1996,196 @@ def get_updates_and_likelihood(
     # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     #---------------------------------------------------------------
 
-    if update_A:
-        # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
-        dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
-        
-        if do_newton and iter >= newt_start:
-            #--------------------------FORTRAN CODE-------------------------
-            # call MPI_REDUCE(dbaralpha_numer_tmp,dbaralpha_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dbaralpha_denom_tmp,dbaralpha_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dkappa_numer_tmp,dkappa_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dkappa_denom_tmp,dkappa_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dlambda_numer_tmp,dlambda_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dlambda_denom_tmp,dlambda_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dsigma2_numer_tmp,dsigma2_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # call MPI_REDUCE(dsigma2_denom_tmp,dsigma2_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-            # dbaralpha_numer[:, :, :] = dbaralpha_numer_tmp[:, :, :].copy()
-            # dbaralpha_denom[:, :, :] = dbaralpha_denom_tmp[:, :, :].copy()
-            #---------------------------------------------------------------
-            assert dbaralpha_denom[0, 0, 0] == 30504
-            # dkappa_numer[:, :, :] = dkappa_numer_tmp[:, :, :].copy()
-            # dkappa_denom[:, :, :] = dkappa_denom_tmp[:, :, :].copy()
-            # dlambda_numer[:, :, :] = dlambda_numer_tmp[:, :, :].copy()
-            # dlambda_denom[:, :, :] = dlambda_denom_tmp[:, :, :].copy()
-            # dsigma2_numer[:, :] = dsigma2_numer_tmp[:, :].copy()
-            # dsigma2_denom[:, :] = dsigma2_denom_tmp[:, :].copy()
-            # NOTE: This is the first newton iteration, and we are already pretty far from the expected values
-            # NOTE: The differences are huge.
+    # if update_A:
+    # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+    assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
+    dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
+    
+    if do_newton and iter >= newt_start:
+        #--------------------------FORTRAN CODE-------------------------
+        # call MPI_REDUCE(dbaralpha_numer_tmp,dbaralpha_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dbaralpha_denom_tmp,dbaralpha_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dkappa_numer_tmp,dkappa_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dkappa_denom_tmp,dkappa_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dlambda_numer_tmp,dlambda_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dlambda_denom_tmp,dlambda_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dsigma2_numer_tmp,dsigma2_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # call MPI_REDUCE(dsigma2_denom_tmp,dsigma2_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
+        # dbaralpha_numer[:, :, :] = dbaralpha_numer_tmp[:, :, :].copy()
+        # dbaralpha_denom[:, :, :] = dbaralpha_denom_tmp[:, :, :].copy()
+        #---------------------------------------------------------------
+        assert dbaralpha_denom[0, 0, 0] == 30504
+        # dkappa_numer[:, :, :] = dkappa_numer_tmp[:, :, :].copy()
+        # dkappa_denom[:, :, :] = dkappa_denom_tmp[:, :, :].copy()
+        # dlambda_numer[:, :, :] = dlambda_numer_tmp[:, :, :].copy()
+        # dlambda_denom[:, :, :] = dlambda_denom_tmp[:, :, :].copy()
+        # dsigma2_numer[:, :] = dsigma2_numer_tmp[:, :].copy()
+        # dsigma2_denom[:, :] = dsigma2_denom_tmp[:, :].copy()
+        # NOTE: This is the first newton iteration, and we are already pretty far from the expected values
+        # NOTE: The differences are huge.
 
 
     # if (seg_rank == 0) then
-    if update_A:
-        if do_newton and iter >= newt_start:
+    # if update_A:
+    if do_newton and iter >= newt_start:
+        #--------------------------FORTRAN CODE-------------------------
+        # baralpha = dbaralpha_numer / dbaralpha_denom
+        # sigma2 = dsigma2_numer / dsigma2_denom
+        # kappa = dble(0.0)
+        # lambda = dble(0.0)
+        #---------------------------------------------------------------
+        baralpha[:, :, :] = dbaralpha_numer / dbaralpha_denom
+        sigma2[:, :] = dsigma2_numer / dsigma2_denom
+        kappa[:, :] = 0.0
+        lambda_[:, :] = 0.0
+        for h, _ in enumerate(range(num_models), start=1):
+            h_idx = h - 1  # For easier indexing
+            # NOTE: VECTORIZED
+            # In Fortran, this is a nested for loop...
+            # for do (h = 1, num_models)
+            # for do j = 1, num_mix
+
+            # These 6 variables don't exist in Fortran.
+            baralpha_h = baralpha[:, :, h_idx]
+            dkappa_numer_h = dkappa_numer[:, :, h_idx]
+            dkappa_denom_h = dkappa_denom[:, :, h_idx]
+            dlambda_numer_h = dlambda_numer[:, :, h_idx]
+            dlambda_denom_h = dlambda_denom[:, :, h_idx]
+            # Get the component indices for this model 'h'
+            comp_indices_h = comp_list[:, h_idx] - 1 # shape (nw,)
+
+            # Calculate dkap for all mixtures 
+            # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
+            # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
+            dkap = dkappa_numer_h / dkappa_denom_h
+            # --- Update kappa ---
+            # Calculate all update terms and sum along the mixture axis
+            kappa_update = np.sum(baralpha_h * dkap, axis=0)
+            kappa[:, h_idx] += kappa_update
+
+            # --- Update lambda_ ---
             #--------------------------FORTRAN CODE-------------------------
-            # baralpha = dbaralpha_numer / dbaralpha_denom
-            # sigma2 = dsigma2_numer / dsigma2_denom
-            # kappa = dble(0.0)
-            # lambda = dble(0.0)
+            # lambda(i,h) = lambda(i,h) + ...
+            #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
             #---------------------------------------------------------------
-            baralpha[:, :, :] = dbaralpha_numer / dbaralpha_denom
-            sigma2[:, :] = dsigma2_numer / dsigma2_denom
-            kappa[:, :] = 0.0
-            lambda_[:, :] = 0.0
-            for h, _ in enumerate(range(num_models), start=1):
-                h_idx = h - 1  # For easier indexing
-                # NOTE: VECTORIZED
-                # In Fortran, this is a nested for loop...
-                # for do (h = 1, num_models)
-                # for do j = 1, num_mix
+            # mu_selected will have shape (num_mix, nw)
+            mu_selected = mu[:, comp_indices_h]
 
-                # These 6 variables don't exist in Fortran.
-                baralpha_h = baralpha[:, :, h_idx]
-                dkappa_numer_h = dkappa_numer[:, :, h_idx]
-                dkappa_denom_h = dkappa_denom[:, :, h_idx]
-                dlambda_numer_h = dlambda_numer[:, :, h_idx]
-                dlambda_denom_h = dlambda_denom[:, :, h_idx]
-                # Get the component indices for this model 'h'
-                comp_indices_h = comp_list[:, h_idx] - 1 # shape (nw,)
+            # Calculate the full lambda update term
+            lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
+            lambda_update = np.sum(baralpha_h * lambda_inner_term, axis=0)
+            lambda_[:, h_idx] += lambda_update
+            # end do (j)
+            # end do (i)
+        # end do (h)
+        # if (print_debug) then
+    # end if (do_newton .and. iter >= newt_start)
+    elif not do_newton and iter >= newt_start:
+        raise NotImplementedError()  # pragma no cover 
 
-                # Calculate dkap for all mixtures 
-                # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
-                # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
-                dkap = dkappa_numer_h / dkappa_denom_h
-                # --- Update kappa ---
-                # Calculate all update terms and sum along the mixture axis
-                kappa_update = np.sum(baralpha_h * dkap, axis=0)
-                kappa[:, h_idx] += kappa_update
+    nd[iter - 1, :] = 0
+    global no_newt
+    no_newt = False
 
-                # --- Update lambda_ ---
-                #--------------------------FORTRAN CODE-------------------------
-                # lambda(i,h) = lambda(i,h) + ...
-                #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
-                #---------------------------------------------------------------
-                # mu_selected will have shape (num_mix, nw)
-                mu_selected = mu[:, comp_indices_h]
+    for h, _ in enumerate(range(num_models), start=1):
+        h_index = h - 1
+        #--------------------------FORTRAN CODE-------------------------
+        # if (print_debug) then
+        # print *, 'dA ', h, ' = '; call flush(6)
+        # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
+        # dA(i,i,h) = dA(i,i,h) + dble(1.0)
+        #---------------------------------------------------------------
+        if do_reject:
+            raise NotImplementedError()
+        else:
+            assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
+            dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
+            
+        np.fill_diagonal(dA[:, :, h_index], dA[:, :, h_index].diagonal() + 1.0)
+        # if (print_debug) then
 
-                # Calculate the full lambda update term
-                lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
-                lambda_update = np.sum(baralpha_h * lambda_inner_term, axis=0)
-                lambda_[:, h_idx] += lambda_update
-                # end do (j)
-                # end do (i)
-            # end do (h)
-            # if (print_debug) then
+        global posdef
+        posdef = True
+        if do_newton and iter >= newt_start:
+            # in Fortran, this is a nested loop..
+            #--------------------------FORTRAN CODE-------------------------
+            # do i = 1,nw ... do k = 1,nw
+            # if (i == k) then
+            # Wtmp(i,i) = dA(i,i,h) / lambda(i,h)
+            # else
+            # sk1 = sigma2(i,h) * kappa(k,h)
+            # sk2 = sigma2(k,h) * kappa(i,h)
+            #---------------------------------------------------------------
+            # on-diagonal elements
+            np.fill_diagonal(Wtmp, dA[:, :, h - 1].diagonal() / lambda_[:, h - 1])
+            # off-diagonal elements
+            i_indices, k_indices = np.meshgrid(np.arange(nw), np.arange(num_comps), indexing='ij')
+            off_diag_mask = i_indices != k_indices
+            assert np.any(off_diag_mask)  # Ensure there are off-diagonal elements
+            sk1 = sigma2[i_indices, h-1] * kappa[k_indices, h-1]
+            sk2 = sigma2[k_indices, h-1] * kappa[i_indices, h-1]
+            positive_mask = (sk1 * sk2 > 0.0)
+            if np.any(~positive_mask):
+                posdef = False
+                no_newt = True
+                # This is a placeholder to see if this condition is hit
+                assert 1 == 0
+            condition_mask = positive_mask & off_diag_mask
+            if np.any(condition_mask):
+                # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
+                numerator = sk1 * dA[i_indices, k_indices, h-1] - dA[k_indices, i_indices, h-1]
+                denominator = sk1 * sk2 - 1.0
+                Wtmp[condition_mask] = (numerator / denominator)[condition_mask]
+            # end if (i == k)
+            # end do (k)
+            # end do (i)
         # end if (do_newton .and. iter >= newt_start)
         elif not do_newton and iter >= newt_start:
-            raise NotImplementedError()  # pragma no cover 
-
-        nd[iter - 1, :] = 0
-        global no_newt
-        no_newt = False
-
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            #--------------------------FORTRAN CODE-------------------------
-            # if (print_debug) then
-            # print *, 'dA ', h, ' = '; call flush(6)
-            # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
-            # dA(i,i,h) = dA(i,i,h) + dble(1.0)
-            #---------------------------------------------------------------
-            if do_reject:
-                raise NotImplementedError()
-            else:
-                assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
-                dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
-                
-            np.fill_diagonal(dA[:, :, h_index], dA[:, :, h_index].diagonal() + 1.0)
-            # if (print_debug) then
-
-            global posdef
-            posdef = True
-            if do_newton and iter >= newt_start:
-                # in Fortran, this is a nested loop..
-                #--------------------------FORTRAN CODE-------------------------
-                # do i = 1,nw ... do k = 1,nw
-                # if (i == k) then
-                # Wtmp(i,i) = dA(i,i,h) / lambda(i,h)
-                # else
-                # sk1 = sigma2(i,h) * kappa(k,h)
-                # sk2 = sigma2(k,h) * kappa(i,h)
-                #---------------------------------------------------------------
-                # on-diagonal elements
-                np.fill_diagonal(Wtmp, dA[:, :, h - 1].diagonal() / lambda_[:, h - 1])
-                # off-diagonal elements
-                i_indices, k_indices = np.meshgrid(np.arange(nw), np.arange(num_comps), indexing='ij')
-                off_diag_mask = i_indices != k_indices
-                assert np.any(off_diag_mask)  # Ensure there are off-diagonal elements
-                sk1 = sigma2[i_indices, h-1] * kappa[k_indices, h-1]
-                sk2 = sigma2[k_indices, h-1] * kappa[i_indices, h-1]
-                positive_mask = (sk1 * sk2 > 0.0)
-                if np.any(~positive_mask):
-                    posdef = False
-                    no_newt = True
-                    # This is a placeholder to see if this condition is hit
-                    assert 1 == 0
-                condition_mask = positive_mask & off_diag_mask
-                if np.any(condition_mask):
-                    # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
-                    numerator = sk1 * dA[i_indices, k_indices, h-1] - dA[k_indices, i_indices, h-1]
-                    denominator = sk1 * sk2 - 1.0
-                    Wtmp[condition_mask] = (numerator / denominator)[condition_mask]
-                # end if (i == k)
-                # end do (k)
-                # end do (i)
-            # end if (do_newton .and. iter >= newt_start)
-            elif not do_newton and iter >= newt_start:
-                raise NotImplementedError()  # pragma no cover
-            if ((not do_newton) or (not posdef) or (iter < newt_start)):
-                #  Wtmp = dA(:,:,h)
-                assert Wtmp.shape == dA[:, :, h - 1].squeeze().shape == (nw, nw)
-                Wtmp[:, :] = (dA[:, :, h - 1].squeeze()).copy()  # XXX: Check if the Fortran code globally assigns dA to Wtmp or if it is only affected in the subroutine
-                assert Wtmp.shape == (32, 32) == (nw, nw)
-            
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
-            # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
-            #---------------------------------------------------------------
-            dA[:, :, h - 1] = 0.0
-            dA[:, :, h - 1] += np.dot(A[:, comp_list[:, h - 1] - 1], Wtmp)
-        # end do (h)
-
-        dAK[:] = 0.0
-        zeta[:] = 0.0
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            # NOTE: I had an indexing bug in the looped version of this code.
-            # But it didn't seem to affect the results.
-            
-            #--------------------------FORTRAN CODE-------------------------
-            # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
-            # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
-            #---------------------------------------------------------------
-            comp_indices = comp_list[:, h - 1] - 1
-            source_columns = gm[h - 1] * dA[:, :, h - 1]
-            np.add.at(dAK, (slice(None), comp_indices), source_columns)
-            np.add.at(zeta, comp_indices, gm[h - 1])
+            raise NotImplementedError()  # pragma no cover
+        if ((not do_newton) or (not posdef) or (iter < newt_start)):
+            #  Wtmp = dA(:,:,h)
+            assert Wtmp.shape == dA[:, :, h - 1].squeeze().shape == (nw, nw)
+            Wtmp[:, :] = (dA[:, :, h - 1].squeeze()).copy()  # XXX: Check if the Fortran code globally assigns dA to Wtmp or if it is only affected in the subroutine
+            assert Wtmp.shape == (32, 32) == (nw, nw)
         
         #--------------------------FORTRAN CODE-------------------------
-        # dAk(:,k) = dAk(:,k) / zeta(k)
-        # nd(iter,:) = sum(dAk*dAk,1)
-        # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
+        # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
+        # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
         #---------------------------------------------------------------
-        dAK[:,:] /= zeta  # Broadcasting division
-        nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
+        dA[:, :, h - 1] = 0.0
+        dA[:, :, h - 1] += np.dot(A[:, comp_list[:, h - 1] - 1], Wtmp)
+    # end do (h)
+
+    dAK[:] = 0.0
+    zeta[:] = 0.0
+    for h, _ in enumerate(range(num_models), start=1):
+        h_index = h - 1
+        # NOTE: I had an indexing bug in the looped version of this code.
+        # But it didn't seem to affect the results.
         
-        # comp_used should be 32 length vector of True
-        assert isinstance(comp_used, np.ndarray)
-        assert comp_used.shape == (num_comps,)
-        assert comp_used.dtype == bool
-        ndtmpsum = np.sqrt(np.sum(nd[iter - 1, :]) / (nw * np.count_nonzero(comp_used)))
+        #--------------------------FORTRAN CODE-------------------------
+        # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
+        # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
+        #---------------------------------------------------------------
+        comp_indices = comp_list[:, h - 1] - 1
+        source_columns = gm[h - 1] * dA[:, :, h - 1]
+        np.add.at(dAK, (slice(None), comp_indices), source_columns)
+        np.add.at(zeta, comp_indices, gm[h - 1])
+    
+    #--------------------------FORTRAN CODE-------------------------
+    # dAk(:,k) = dAk(:,k) / zeta(k)
+    # nd(iter,:) = sum(dAk*dAk,1)
+    # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
+    #---------------------------------------------------------------
+    dAK[:,:] /= zeta  # Broadcasting division
+    nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
+    
+    # comp_used should be 32 length vector of True
+    assert isinstance(comp_used, np.ndarray)
+    assert comp_used.shape == (num_comps,)
+    assert comp_used.dtype == bool
+    ndtmpsum = np.sqrt(np.sum(nd[iter - 1, :]) / (nw * np.count_nonzero(comp_used)))
     # end if (update_A)
-    else:
-        raise NotImplementedError()
     
     # if (seg_rank == 0) then
     if do_reject:
@@ -2261,39 +2239,39 @@ def update_params(
 ):
     num_models = n_models
     # if (seg_rank == 0) then
-    if update_gm:
-        if do_reject:
-            raise NotImplementedError()
-            # gm = dgm_numer / dble(numgoodsum)
-        else:
-            gm[:] = dgm_numer / all_blks 
-            if iter == 1:
-                assert dgm_numer == 30504
-                assert all_blks == 30504
-                assert gm[0] == 1
+    # if update_gm:
+    if do_reject:
+        raise NotImplementedError()
+        # gm = dgm_numer / dble(numgoodsum)
+    else:
+        gm[:] = dgm_numer / all_blks 
+        if iter == 1:
+            assert dgm_numer == 30504
+            assert all_blks == 30504
+            assert gm[0] == 1
     # end if (update_gm)
 
-    if update_alpha:
-        # assert alpha.shape == (num_mix, num_comps)
-        alpha[:, :] = dalpha_numer / dalpha_denom
-        if iter == 1:
-            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
+    # if update_alpha:
+    # assert alpha.shape == (num_mix, num_comps)
+    alpha[:, :] = dalpha_numer / dalpha_denom
+    if iter == 1:
+        assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
+        assert dalpha_denom[0, 0] == 30504
+        assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
 
-    if update_c:
-        # assert c.shape == (nw, num_models)
-        c[:, :] = dc_numer / dc_denom
-        if iter == 1:
-            assert_almost_equal(dc_numer[0, 0], 0)
-            assert dc_denom[0, 0] == 30504
-            assert_almost_equal(c[0, 0], 0)
+    # if update_c:
+    # assert c.shape == (nw, num_models)
+    c[:, :] = dc_numer / dc_denom
+    if iter == 1:
+        assert_almost_equal(dc_numer[0, 0], 0)
+        assert dc_denom[0, 0] == 30504
+        assert_almost_equal(c[0, 0], 0)
     
     # === Section: Apply Parameter Updates & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
     # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
-    if update_A and (iter < share_start or (iter % share_iter > 5)):
+    if (iter < share_start or (iter % share_iter > 5)):
         if do_newton and (not no_newt) and (iter >= newt_start):
             if iter == 50:
                 assert lrate == .05
@@ -2340,36 +2318,32 @@ def update_params(
         # end if do_newton
     # end if (update_A)
 
-    if update_mu:
-        mu[:, :] += dmu_numer / dmu_denom
-        if iter == 1:
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(mu[0, 0], -0.69355607517402873)
-    else:
-        raise NotImplementedError()
+    # if update_mu:
+    mu[:, :] += dmu_numer / dmu_denom
+    if iter == 1:
+        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+        assert_almost_equal(mu[0, 0], -0.69355607517402873)
     
-    if update_beta:
-        if iter == 1:
-            assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
-            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-            assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
-            assert invsigmax == 100
-            assert invsigmin == 0
-        sbeta[:, :] *= np.sqrt(dbeta_numer / dbeta_denom)
-        sbetatmp[:, :] = np.minimum(invsigmax, sbeta)
-        if iter == 1:
-            assert_almost_equal(sbeta[0, 0], 0.90848309104731939)
-            assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
-            assert not sbetatmp[sbetatmp == 100].any()
-        sbeta[:, :] = np.maximum(invsigmin, sbetatmp)
-        if iter == 1:
-            assert_almost_equal(sbeta[0, 0], 0.90848309104731939) # NOTE: this gets updated again below
-            assert not sbeta[sbeta == 0].any()
+    # if update_beta:
+    if iter == 1:
+        assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
+        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
+        assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
+        assert invsigmax == 100
+        assert invsigmin == 0
+    sbeta[:, :] *= np.sqrt(dbeta_numer / dbeta_denom)
+    sbetatmp[:, :] = np.minimum(invsigmax, sbeta)
+    if iter == 1:
+        assert_almost_equal(sbeta[0, 0], 0.90848309104731939)
+        assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
+        assert not sbetatmp[sbetatmp == 100].any()
+    sbeta[:, :] = np.maximum(invsigmin, sbetatmp)
+    if iter == 1:
+        assert_almost_equal(sbeta[0, 0], 0.90848309104731939) # NOTE: this gets updated again below
+        assert not sbeta[sbeta == 0].any()
     # end if (update_beta)
-    else:
-        raise NotImplementedError()
 
     if dorho:
         if iter == 1:
@@ -2485,19 +2459,19 @@ if __name__ == "__main__":
     rho0 = 1.5
     minlog = -1500  # XXX: -np.inf ?
     # Passed to get_updates_and_likelihood
-    update_gm = True
-    update_alpha = True
-    update_mu = True
-    update_beta = True
+    # update_gm = True
+    # update_alpha = True
+    # update_mu = True
+    # update_beta = True
+    # update_c = True
     dorho = True
-    update_A = True
+    # update_A = True
     # do_newton = True
     # newt_start = 50  # the default in the Fortran code is 20 but the doc says 50 and the distributed config file has 50 
     # newt_ramp = 10
     no_newt = False
     # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
     epsdble = 1.0e-16
-    update_c = True
     # do_reject = False
     maxrej = 3
     rejstart = 2
@@ -2517,8 +2491,6 @@ if __name__ == "__main__":
     min_dll = 1.000000e-09
     numincs = 0
     maxincs = 5
-
-    load_gm = False
 
     outstep = 1
     restartiter = 10
@@ -2543,10 +2515,11 @@ if __name__ == "__main__":
     vsum = 0
     tmpsum = 0
 
-    load_sphere = False
+    # load_sphere = False
     do_sphere = True
     do_approx_sphere = False
     
+    load_gm = False
     load_A = False
     load_mu = False
     load_sbeta = False
@@ -2554,9 +2527,9 @@ if __name__ == "__main__":
     load_rho = False
     load_c = False
     load_alpha = False
-    load_comp_list = False
+    # load_comp_list = False
     do_opt_block = False
-    load_rej = False
+    # load_rej = False
 
     # !-------------------- GET THE DATA ------------------------
     fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
