@@ -515,9 +515,15 @@ def _core_amica(
     wc = np.zeros((num_comps, num_models))
     Wtmp = np.zeros((num_comps, num_comps))
     # TODO: I think this should have a num_models dimension
-    A = np.zeros((num_comps, num_comps))
+    A = state.A  # Mixing matrix
+    assert A.shape == (num_comps, num_comps)
+    assert_allclose(A, 0)
     comp_list = np.zeros((num_comps, num_models), dtype=int)
-    W = np.zeros((num_comps, num_comps, num_models))  # Weights for each model
+    W = state.W # Weights for each model
+    assert W.shape == (num_comps, num_comps, num_models)
+    assert W.dtype == np.float64
+    assert_allclose(W, 0)
+
     ipivnw = np.zeros(num_comps)  # Pivot indices for W
     pdtype = np.zeros((num_comps, num_models))  # Probability type
     pdtype.fill(pdftype)
@@ -885,7 +891,6 @@ def _core_amica(
             gm=gm,
             Dsum=Dsum,
             wc=wc,
-            W=W,
             alpha=alpha,
             rho=rho,
             sbeta=sbeta,
@@ -895,7 +900,6 @@ def _core_amica(
             pdtype=pdtype,
             Wtmp2=Wtmp2,
             Wtmp=Wtmp,
-            A=A,
             dA=dA,
             dAK=dAK,
             zeta=zeta,
@@ -1253,7 +1257,6 @@ def get_unmixing_matrices(
         num_models,
         ):
     """Get unmixing matrices for AMICA."""
-    W = W.copy()
     if not iterating:
         # ugly hack to check if we are in the first iteration
         # All these shoudl be true first time get_unmixing_matrices is called which is before the iteration starts
@@ -1324,7 +1327,6 @@ def get_updates_and_likelihood(
     gm,
     Dsum,
     wc,
-    W,
     alpha,
     rho,
     sbeta,
@@ -1334,7 +1336,6 @@ def get_updates_and_likelihood(
     pdtype,
     Wtmp2,
     Wtmp,
-    A,
     dA,
     dAK,
     zeta,
@@ -1369,6 +1370,8 @@ def get_updates_and_likelihood(
     do_reject = do_reject = config.do_reject
     do_newton = config.do_newton
 
+    W = state.W
+    A = state.A
     sldet = state.sldet
 
     dgm_numer = updates.dgm_numer
