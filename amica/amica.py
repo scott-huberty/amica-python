@@ -488,6 +488,8 @@ def _core_amica(
     assert newtrate == 1
     assert newt_ramp == 10
     assert_almost_equal(sldet, -65.935050239880198)
+
+    
     if n_components is None:
         n_components = X.shape[0]
     lrate0 = lrate
