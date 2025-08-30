@@ -518,11 +518,12 @@ def _core_amica(
     A = state.A  # Mixing matrix
     assert A.shape == (num_comps, num_comps)
     assert_allclose(A, 0)
+    
     comp_list = np.zeros((num_comps, num_models), dtype=int)
+    
     W = state.W # Weights for each model
     assert W.shape == (num_comps, num_comps, num_models)
     assert W.dtype == np.float64
-    assert_allclose(W, 0)
 
     ipivnw = np.zeros(num_comps)  # Pivot indices for W
     pdtype = np.zeros((num_comps, num_models))  # Probability type
@@ -576,7 +577,8 @@ def _core_amica(
     lambda_ = np.zeros((num_comps, num_models), dtype=np.float64)  # Lambda parameters
     sigma2 = np.zeros((num_comps, num_models), dtype=np.float64)
 
-    gm = np.zeros(num_models, dtype=np.float64)  # Mixing matrix
+    gm = state.gm
+    assert gm.shape == (num_models,)
     # TODO: This doesnt exist globally in the Fortran program? Double check.
     lastdim = X.shape[1]
     loglik = np.zeros(lastdim, dtype=np.float64)  # Log likelihood
@@ -590,7 +592,10 @@ def _core_amica(
     assert dalpha_numer.shape == (num_mix, num_comps)
     assert dalpha_denom.shape == (num_mix, num_comps)
 
-    mu = np.zeros((num_mix, num_comps))
+    mu = state.mu
+    assert mu.shape == (num_mix, num_comps)
+    assert_allclose(mu, 0)
+
     mutmp = np.zeros((num_mix, num_comps))
     
     # if update_mu:
@@ -599,8 +604,10 @@ def _core_amica(
     assert dmu_numer.shape == (num_mix, num_comps)
     assert dmu_denom.shape == (num_mix, num_comps)
     
-    
-    sbeta = np.zeros((num_mix, num_comps))
+    sbeta = state.sbeta
+    assert sbeta.shape == (num_mix, num_comps)
+    assert_allclose(sbeta, np.nan)
+
     # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
     # if update_beta:
     dbeta_numer = updates.dbeta_numer
@@ -608,7 +615,9 @@ def _core_amica(
     assert dbeta_numer.shape == (num_mix, num_comps)
     assert dbeta_denom.shape == (num_mix, num_comps)
     
-    rho = np.zeros((num_mix, num_comps))  # Rho parameters
+    rho = state.rho
+    assert rho.shape == (num_mix, num_comps)
+    assert_allclose(rho, 1.5)
     if dorho:
         rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
         drho_numer = updates.drho_numer
@@ -624,7 +633,8 @@ def _core_amica(
     if load_gm:
         raise NotImplementedError()
     else:
-        gm[:] = int(1.0 / num_models)
+        # gm[:] = int(1.0 / num_models)
+        assert_allclose(gm.sum(), 1.0)
     if load_alpha:
         raise NotImplementedError()
     else:
@@ -655,7 +665,6 @@ def _core_amica(
     if load_rho:
         raise NotImplementedError()
     else:
-        rho[:num_mix, :] = rho0
         np.testing.assert_allclose(rho, 1.5)
     if load_c:
         raise NotImplementedError()
@@ -668,6 +677,7 @@ def _core_amica(
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # TODO: if A has a num_models dimension, this fancy indexing isnt needed
+            # FIXME: This indexing will fail if num_models > 1
             A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
@@ -888,13 +898,10 @@ def _core_amica(
             nw=num_comps,
             dWtmp=dWtmp,
             comp_list=comp_list,
-            gm=gm,
             Dsum=Dsum,
             wc=wc,
             alpha=alpha,
             rho=rho,
-            sbeta=sbeta,
-            mu=mu,
             modloglik=modloglik,
             loglik=loglik,
             pdtype=pdtype,
@@ -1302,7 +1309,7 @@ def get_unmixing_matrices(
         wc[:, h - 1] = W[:, :, h - 1] @ c[:, h - 1]
         if not iterating:
             assert_allclose(wc[:, 0], 0)
-        return W, wc
+    return W, wc
 
 def get_seg_list(raw):
     """This is a temporary function that somehwat mirrors the Fortran get_seg_list"""
@@ -1324,13 +1331,10 @@ def get_updates_and_likelihood(
     nw,
     dWtmp,
     comp_list,
-    gm,
     Dsum,
     wc,
     alpha,
     rho,
-    sbeta,
-    mu,
     modloglik,
     loglik,
     pdtype,
@@ -1372,6 +1376,9 @@ def get_updates_and_likelihood(
 
     W = state.W
     A = state.A
+    sbeta = state.sbeta
+    mu = state.mu
+    gm = state.gm
     sldet = state.sldet
 
     dgm_numer = updates.dgm_numer

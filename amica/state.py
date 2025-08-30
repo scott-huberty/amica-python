@@ -37,6 +37,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import linalg
 
+from constants import rho0
 
 # Removed _alloc helper - using simple np.zeros/np.empty directly like amica.py
 
@@ -248,7 +249,7 @@ def get_initial_state(
             f"W seed shape {W.shape} != {(num_comps, num_comps, num_models)}"
         )
     else:
-        W = np.zeros((num_comps, num_comps, num_models))  # Weights for each model
+        W = np.empty((num_comps, num_comps, num_models))  # Weights for each model
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))  
     A = np.zeros((num_comps, num_comps))
@@ -258,8 +259,7 @@ def get_initial_state(
         sbeta = np.array(seeds["sbeta"], dtype=dtype)
         assert sbeta.shape == (num_mix, num_comps)
     else:
-        sbeta = np.zeros((num_mix, num_comps))
-        sbeta.fill(1.0)  # Initialize to ones like amica.py
+        sbeta = np.empty((num_mix, num_comps))
 
     if "mu" in seeds:
         mu = np.array(seeds["mu"], dtype=dtype)  
@@ -267,13 +267,9 @@ def get_initial_state(
     else:
         mu = np.zeros((num_mix, num_comps))
 
-    rho = np.zeros((num_mix, num_comps))  # Rho parameters
-    rho.fill(1.0)
+    rho = np.full((num_mix, num_comps), rho0, dtype=dtype)  # Shape parameters
 
-    # gm - match amica.py: gm = np.zeros(num_models, dtype=np.float64)
-    gm = np.zeros(num_models, dtype=dtype)  # Mixing matrix
-    gm.fill(1.0 / num_models)  # Uniform initialization
-
+    gm = np.full(num_models, 1.0 / num_models, dtype=dtype)  # Uniform initialization
     return AmicaState(W=W, A=A, mu=mu, sbeta=sbeta, rho=rho, gm=gm)
 
 
