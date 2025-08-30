@@ -530,13 +530,6 @@ def _core_amica(
     assert W.dtype == np.float64
 
     ipivnw = np.zeros(num_comps)  # Pivot indices for W
-    pdtype = np.zeros((num_comps, num_models))  # Probability type
-    pdtype.fill(pdftype)
-    if pdftype == 1:
-        do_choose_pdfs = True
-        numchpdf = 0
-    else:
-        do_choose_pdfs = False
 
     comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     # These are all passed to get_updates_and_likelihood
@@ -908,7 +901,6 @@ def _core_amica(
             rho=rho,
             modloglik=modloglik,
             loglik=loglik,
-            pdtype=pdtype,
             Wtmp2=Wtmp2,
             Wtmp=Wtmp,
             dA=dA,
@@ -931,7 +923,6 @@ def _core_amica(
         # Iteration 1 checks that are values were set globally and are correct form baseline
         if iter == 1:
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-            assert_allclose(pdtype, 0)
             assert_allclose(rho, 1.5)
             # assert g[808, 31] == 0.0
             assert dgm_numer[0] == 30504
@@ -1339,7 +1330,6 @@ def get_updates_and_likelihood(
     rho,
     modloglik,
     loglik,
-    pdtype,
     Wtmp2,
     Wtmp,
     dA,
@@ -1750,7 +1740,6 @@ def get_updates_and_likelihood(
             #--------------------------FORTRAN CODE-------------------------
             # if (rho(j,comp_list(i,h)) == dble(1.0)) then
             #---------------------------------------------------------------
-            assert np.all(pdtype == 0)  # sanity check
             if iter == 6 and h == 1: # and blk == 1:
                 # and j == 3 and i == 1 
                 assert rho[2, 0] == 1.0
@@ -1787,7 +1776,7 @@ def get_updates_and_likelihood(
             raise NotImplementedError()
         else:
             raise ValueError(
-                f"Invalid pdtype value: {pdtype[i - 1, h - 1]} for i={i}, h={h}"
+                f"Invalid pdftype value: {pdftype[i - 1, h - 1]} for h={h}"
                 "Expected values are 0, 1, 2, 3, or 4."
             )
 
@@ -2011,7 +2000,6 @@ def get_updates_and_likelihood(
         # assert j == 3
         # assert i == 32
         assert h == 1
-        assert_allclose(pdtype, 0)
         assert_allclose(rho, 1.5)
         assert_almost_equal(g[-808, 0], 0.19658642673900478)
         assert_almost_equal(g[-1, 31], -0.22482758905985217)
