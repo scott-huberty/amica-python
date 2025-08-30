@@ -249,9 +249,6 @@ def get_initial_state(
         )
     else:
         W = np.zeros((num_comps, num_comps, num_models))  # Weights for each model
-        # Initialize with identity + small noise (like amica.py does)
-        for h in range(num_models):
-            W[:, :, h] = np.eye(num_comps)
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))  
     A = np.zeros((num_comps, num_comps))
