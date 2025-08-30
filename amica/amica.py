@@ -510,8 +510,12 @@ def _core_amica(
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
     c = np.zeros((num_comps, num_models))
-    dc_numer = np.zeros((num_comps, num_models), dtype=np.float64)
-    dc_denom = np.zeros((num_comps, num_models), dtype=np.float64)
+    dc_numer = updates.dc_numer
+    dc_denom = updates.dc_denom
+    assert dc_numer.shape == (num_comps, num_models)
+    assert dc_denom.shape == (num_comps, num_models)
+    assert_allclose(dc_numer, 0)
+
     wc = np.zeros((num_comps, num_models))
     Wtmp = np.zeros((num_comps, num_comps))
     # TODO: I think this should have a num_models dimension
@@ -913,8 +917,6 @@ def _core_amica(
             nd=nd,
             LL=LL,
             comp_used=comp_used,
-            dc_numer=dc_numer,
-            dc_denom=dc_denom,
             baralpha=baralpha,
             kappa=kappa,
             lambda_=lambda_,
@@ -1347,11 +1349,6 @@ def get_updates_and_likelihood(
     LL,
     comp_used,
     # Only required for newton optimization
-    newt_start=50,
-    newtrate=1.0,
-    newt_ramp=10,
-    dc_numer=None,
-    dc_denom=None,
     baralpha=None,
     kappa=None,
     lambda_=None,
@@ -1373,6 +1370,8 @@ def get_updates_and_likelihood(
     pdftype = config.pdftype
     do_reject = do_reject = config.do_reject
     do_newton = config.do_newton
+    newt_start = config.newt_start
+    assert newt_start == 50
 
     W = state.W
     A = state.A
@@ -1390,6 +1389,8 @@ def get_updates_and_likelihood(
     dbeta_denom = updates.dbeta_denom
     drho_numer = updates.drho_numer
     drho_denom = updates.drho_denom
+    dc_numer = updates.dc_numer
+    dc_denom = updates.dc_denom
 
     if do_newton:
         dbaralpha_numer = updates.newton.dbaralpha_numer
@@ -1444,7 +1445,7 @@ def get_updates_and_likelihood(
         dlambda_denom[:] = 0.0
         dsigma2_numer[:] = 0.0
         dsigma2_denom[:] = 0.0
-    elif do_newton:
+    elif not do_newton:
         raise NotImplementedError()
     # if update_c:
     dc_numer[:] = 0.0
