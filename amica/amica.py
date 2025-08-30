@@ -559,7 +559,8 @@ def _core_amica(
     Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
     dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
-    dWtmp = np.zeros((num_comps, num_comps,num_models), dtype=np.float64)
+    dWtmp = updates.dW
+    assert dWtmp.shape == (num_comps, num_comps, num_models)
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
