@@ -307,7 +307,7 @@ def amica(
         np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
 
         Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-        sldet = 0.0 # Logarithm of the determinant, initialized to zero
+        state.sldet = 0.0 # Logarithm of the determinant, initialized to zero
         sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
         Stmp2 /= sqrt_eigv
         non_finite_check = ~np.isfinite(Stmp2)
@@ -317,9 +317,9 @@ def amica(
             for i in unique_rows_with_non_finite:
                 print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
             raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-        sldet -= 0.5 * np.sum(np.log(eigv))
+        state.sldet -= 0.5 * np.sum(np.log(eigv))
 
-        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
+        np.testing.assert_almost_equal(state.sldet, -65.935050239880198, decimal=7)
         np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
         if numeigs == nx:
@@ -418,20 +418,8 @@ def amica(
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
     gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
         X=dataseg,
-        n_components=n_components,
-        n_models=n_models,
-        n_mixtures=n_mixtures,
-        max_iter=max_iter,
-        pdftype=pdftype,
-        do_reject=do_reject,
-        tol=tol,
-        lrate=lrate,
-        rholrate=rholrate,
-        do_newton=do_newton,
-        newt_start=newt_start,
-        newtrate=newtrate,
-        newt_ramp=newt_ramp,
-        sldet=sldet,
+        config=config,
+        state=state,
         )
     return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
@@ -439,20 +427,8 @@ def amica(
 def _core_amica(
         X,
         *,
-        sldet,
-        n_components=None,
-        n_models=1,
-        n_mixtures=3,
-        max_iter=2000,
-        pdftype=0,
-        do_reject=False,
-        tol=1e-7,
-        lrate=0.05,
-        rholrate=0.05,
-        do_newton=True,
-        newt_start=50,
-        newtrate=1.0,
-        newt_ramp=10,
+        config,
+        state,
 ):
     """Runs the AMICA algorithm.
     
@@ -470,6 +446,48 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
+
+    '''n_components=n_components,
+    n_models=n_models,
+    n_mixtures=n_mixtures,
+    max_iter=max_iter,
+    pdftype=pdftype,
+    do_reject=do_reject,
+    tol=tol,
+    lrate=lrate,
+    rholrate=rholrate,
+    do_newton=do_newton,
+    newt_start=newt_start,
+    newtrate=newtrate,
+    newt_ramp=newt_ramp,
+    sldet=sldet,'''
+    n_components = config.n_components
+    n_models = config.n_models
+    n_mixtures = config.n_mixtures
+    max_iter = config.max_iter
+    pdftype = config.pdftype
+    do_reject = config.do_reject
+    tol = config.tol
+    lrate = config.lrate
+    rholrate = config.rholrate
+    do_newton = config.do_newton
+    newt_start = config.newt_start
+    newtrate = config.newtrate
+    newt_ramp = config.newt_ramp
+    sldet = state.sldet
+    assert n_components == 32
+    assert n_models == 1
+    assert n_mixtures == 3
+    assert max_iter == 200
+    assert pdftype == 0
+    assert tol == 1e-7
+    assert not do_reject
+    assert rholrate == 0.05
+    assert do_newton
+    assert newt_start == 50
+    assert newtrate == 1
+    assert newt_ramp == 10
+    assert_almost_equal(sldet, -65.935050239880198)
     if n_components is None:
         n_components = X.shape[0]
     lrate0 = lrate
