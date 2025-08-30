@@ -872,26 +872,14 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy()
         
-        # TODO: maybe set LLtmp and ndtmpsum globally for now instead of returning them
+        assert dalpha_numer is updates.dalpha_numer
         LLtmp, ndtmpsum, no_newt = get_updates_and_likelihood(
             X=dataseg,
+            config=config,
+            updates=updates,
+            state=state,
             iter=iter,
             nw=num_comps,
-            n_models=num_models,
-            n_mixtures=num_mix,
-            pdftype=pdftype,
-            do_reject=do_reject,
-            sldet=sldet,
-            num_comps=num_comps,
-            dgm_numer=dgm_numer,
-            dalpha_numer=dalpha_numer,
-            dalpha_denom=dalpha_denom,
-            dmu_numer=dmu_numer,
-            dmu_denom=dmu_denom,
-            dbeta_numer=dbeta_numer,
-            dbeta_denom=dbeta_denom,
-            drho_numer=drho_numer,
-            drho_denom=drho_denom,
             dWtmp=dWtmp,
             comp_list=comp_list,
             gm=gm,
@@ -914,15 +902,6 @@ def _core_amica(
             nd=nd,
             LL=LL,
             comp_used=comp_used,
-            # Only required for newton optimization
-            dbaralpha_numer=dbaralpha_numer,
-            dbaralpha_denom=dbaralpha_denom,
-            dkappa_numer=dkappa_numer,
-            dkappa_denom=dkappa_denom,
-            dlambda_numer=dlambda_numer,
-            dlambda_denom=dlambda_denom,
-            dsigma2_numer=dsigma2_numer,
-            dsigma2_denom=dsigma2_denom,
             dc_numer=dc_numer,
             dc_denom=dc_denom,
             baralpha=baralpha,
@@ -1335,23 +1314,11 @@ def get_seg_list(raw):
 def get_updates_and_likelihood(
     X,
     *,
+    config,
+    state,
+    updates,
     iter,
     nw,
-    n_models,
-    n_mixtures,
-    pdftype,
-    do_reject,
-    sldet,
-    num_comps,
-    dgm_numer,
-    dalpha_numer,
-    dalpha_denom,
-    dmu_numer,
-    dmu_denom,
-    dbeta_numer,
-    dbeta_denom,
-    drho_numer,
-    drho_denom,
     dWtmp,
     comp_list,
     gm,
@@ -1375,18 +1342,9 @@ def get_updates_and_likelihood(
     LL,
     comp_used,
     # Only required for newton optimization
-    do_newton=True,
     newt_start=50,
     newtrate=1.0,
     newt_ramp=10,
-    dbaralpha_numer=None,
-    dbaralpha_denom=None,
-    dkappa_numer=None,
-    dkappa_denom=None,
-    dlambda_numer=None,
-    dlambda_denom=None,
-    dsigma2_numer=None,
-    dsigma2_denom=None,
     dc_numer=None,
     dc_denom=None,
     baralpha=None,
@@ -1404,6 +1362,35 @@ def get_updates_and_likelihood(
     - This function mirrors the original Fortran implementation. Fortran reference
         comment blocks are kept verbatim alongside the equivalent Python.
     """
+    n_models = config.n_models
+    n_mixtures = config.n_mixtures
+    num_comps = config.n_components
+    pdftype = config.pdftype
+    do_reject = do_reject = config.do_reject
+    do_newton = config.do_newton
+
+    sldet = state.sldet
+
+    dgm_numer = updates.dgm_numer
+    dmu_numer = updates.dmu_numer
+    dmu_denom = updates.dmu_denom
+    dalpha_numer = updates.dalpha_numer
+    dalpha_denom = updates.dalpha_denom
+    dbeta_numer = updates.dbeta_numer
+    dbeta_denom = updates.dbeta_denom
+    drho_numer = updates.drho_numer
+    drho_denom = updates.drho_denom
+
+    if do_newton:
+        dbaralpha_numer = updates.newton.dbaralpha_numer
+        dbaralpha_denom = updates.newton.dbaralpha_denom
+        dkappa_numer = updates.newton.dkappa_numer
+        dkappa_denom = updates.newton.dkappa_denom
+        dlambda_numer = updates.newton.dlambda_numer
+        dlambda_denom = updates.newton.dlambda_denom
+        dsigma2_numer = updates.newton.dsigma2_numer
+        dsigma2_denom = updates.newton.dsigma2_denom
+
     assert num_thrds == 1
     num_models = n_models
     num_mix = n_mixtures
