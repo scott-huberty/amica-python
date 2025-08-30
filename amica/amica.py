@@ -56,7 +56,7 @@ from constants import (
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
 
-from state import AmicaConfig, AmicaState, get_initial_state
+from state import AmicaConfig, AmicaState, AmicaUpdates, get_initial_state, initialize_updates
 
 import line_profiler
 # Configure all warnings to be treated as errors
@@ -501,6 +501,9 @@ def _core_amica(
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
 
+    # Initialize updates structure - replaces individual d*_numer/denom arrays
+    updates = initialize_updates(config, do_newton=do_newton)
+    
     Dtemp = np.zeros(num_models, dtype=np.float64)
     Dsum = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
@@ -526,17 +529,30 @@ def _core_amica(
 
     comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     # These are all passed to get_updates_and_likelihood
-    dgm_numer = np.zeros(num_models, dtype=np.float64)
+    dgm_numer = updates.dgm_numer
+    assert dgm_numer.shape == (num_models,)
+    assert dgm_numer.dtype == np.float64
 
     if do_newton:
-        dbaralpha_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
-        dbaralpha_denom = np.zeros((num_mix,num_comps,num_models), dtype=np.float64)
-        dkappa_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
-        dkappa_denom = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
-        dlambda_numer = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
-        dlambda_denom = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)
-        dsigma2_numer = np.zeros((num_comps, num_models), dtype=np.float64)
-        dsigma2_denom = np.zeros((num_comps, num_models), dtype=np.float64)
+        # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
+        dbaralpha_numer = updates.newton.dbaralpha_numer
+        dbaralpha_denom = updates.newton.dbaralpha_denom
+        dkappa_numer = updates.newton.dkappa_numer
+        dkappa_denom = updates.newton.dkappa_denom
+        dlambda_numer = updates.newton.dlambda_numer
+        dlambda_denom = updates.newton.dlambda_denom
+        dsigma2_numer = updates.newton.dsigma2_numer
+        dsigma2_denom = updates.newton.dsigma2_denom
+
+        shape_3 = (num_mix, num_comps, num_models)
+        assert dbaralpha_numer.shape == shape_3
+        assert dbaralpha_denom.shape == shape_3
+        assert dkappa_numer.shape == shape_3
+        assert dkappa_denom.shape == shape_3
+        assert dlambda_numer.shape == shape_3
+        assert dlambda_denom.shape == shape_3
+        assert dsigma2_numer.shape == (num_comps, num_models)
+        assert dsigma2_denom.shape == (num_comps, num_models)
     else:
         raise NotImplementedError()
 
@@ -562,27 +578,36 @@ def _core_amica(
 
     alpha = np.zeros((num_mix, num_comps))  # Mixing matrix
     # if update_alpha:
-    dalpha_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-    dalpha_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dalpha_numer = updates.dalpha_numer
+    dalpha_denom = updates.dalpha_denom
+    assert dalpha_numer.shape == (num_mix, num_comps)
+    assert dalpha_denom.shape == (num_mix, num_comps)
 
     mu = np.zeros((num_mix, num_comps))
     mutmp = np.zeros((num_mix, num_comps))
+    
     # if update_mu:
-    dmu_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-    dmu_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dmu_numer = updates.dmu_numer
+    dmu_denom = updates.dmu_denom
+    assert dmu_numer.shape == (num_mix, num_comps)
+    assert dmu_denom.shape == (num_mix, num_comps)
     
     
     sbeta = np.zeros((num_mix, num_comps))
     # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
     # if update_beta:
-    dbeta_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-    dbeta_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+    dbeta_numer = updates.dbeta_numer
+    dbeta_denom = updates.dbeta_denom
+    assert dbeta_numer.shape == (num_mix, num_comps)
+    assert dbeta_denom.shape == (num_mix, num_comps)
     
     rho = np.zeros((num_mix, num_comps))  # Rho parameters
     if dorho:
         rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
-        drho_numer = np.zeros((num_mix, num_comps), dtype=np.float64)
-        drho_denom = np.zeros((num_mix, num_comps), dtype=np.float64)
+        drho_numer = updates.drho_numer
+        drho_denom = updates.drho_denom
+        assert drho_numer.shape == (num_mix, num_comps)
+        assert drho_denom.shape == (num_mix, num_comps)
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
