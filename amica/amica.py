@@ -1102,24 +1102,13 @@ def _core_amica(
             lrate, rholrate = update_params(
                 config=config,
                 state=state,
+                updates=updates,
                 iter=iter,
                 lrate=lrate,
                 rholrate=rholrate,
                 no_newt=no_newt,
-                dgm_numer=dgm_numer,
-                dalpha_numer=dalpha_numer,
-                dalpha_denom=dalpha_denom,
                 c=c,
-                dc_numer=dc_numer,
-                dc_denom=dc_denom,
-                dAK=dAK,
-                dmu_numer=dmu_numer,
-                dmu_denom=dmu_denom,
-                dbeta_numer=dbeta_numer,
-                dbeta_denom=dbeta_denom,
                 rhotmp=rhotmp,
-                drho_numer=drho_numer,
-                drho_denom=drho_denom,
                 wc=wc,
                 comp_list=comp_list,
                 Anrmk=Anrmk,
@@ -2240,24 +2229,13 @@ def update_params(
         *,
         config,
         state,
+        updates,
         iter,
         lrate,
         rholrate,
         no_newt,
-        dgm_numer,
-        dalpha_numer,
-        dalpha_denom,
         c,
-        dc_numer,
-        dc_denom,
-        dAK,
-        dmu_numer,
-        dmu_denom,
-        dbeta_numer,
-        dbeta_denom,
         rhotmp,
-        drho_numer,
-        drho_denom,
         wc,
         comp_list,
         Anrmk,
@@ -2279,6 +2257,19 @@ def update_params(
     sbeta = state.sbeta
     rho = state.rho
     gm = state.gm
+
+    dgm_numer = updates.dgm_numer
+    dalpha_numer = updates.dalpha_numer
+    dalpha_denom = updates.dalpha_denom
+    dc_numer = updates.dc_numer
+    dc_denom = updates.dc_denom
+    dmu_numer = updates.dmu_numer
+    dmu_denom = updates.dmu_denom
+    dbeta_numer = updates.dbeta_numer
+    dbeta_denom = updates.dbeta_denom
+    drho_numer = updates.drho_numer
+    drho_denom = updates.drho_denom
+    dAK = updates.dAK
 
 
     num_models = n_models
