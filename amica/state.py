@@ -84,7 +84,6 @@ class AmicaState:
     - rho: (nmix, ncomp)         shape parameters per mixture and component
     - alpha: (nmix, ncomp)       mixing coefficients per mixture and component
     - gm: (nmix,)                mixture weights (prior over models)
-    - sldet: float               sum log det(W) across components/models.
     """
 
     W: NDArray
@@ -94,7 +93,6 @@ class AmicaState:
     rho: NDArray
     alpha: NDArray
     gm: NDArray
-    sldet: float = 0.0
 
     def to_dict(self) -> Dict[str, NDArray]:
         """Return a lightweight serialization of array fields."""
@@ -259,6 +257,7 @@ class AmicaHistory:
 # TODO: consider making an IterationContext or IterationMetrics class
 # to bundle ephemeral constants that shuttle together across functions.
 # e.g. Dsum, sldet, comp_list etc.
+# - sldet: float               sum log det(W) across components/models.
 
 # TODO: consider making this a class method of AmicaState
 def get_initial_state(

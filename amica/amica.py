@@ -299,7 +299,7 @@ def amica(
         np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
 
         Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-        state.sldet = 0.0 # Logarithm of the determinant, initialized to zero
+        sldet = 0.0 # Logarithm of the determinant, initialized to zero
         sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
         Stmp2 /= sqrt_eigv
         non_finite_check = ~np.isfinite(Stmp2)
@@ -309,9 +309,9 @@ def amica(
             for i in unique_rows_with_non_finite:
                 print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
             raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-        state.sldet -= 0.5 * np.sum(np.log(eigv))
+        sldet -= 0.5 * np.sum(np.log(eigv))
 
-        np.testing.assert_almost_equal(state.sldet, -65.935050239880198, decimal=7)
+        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
         np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
         if numeigs == nx:
@@ -412,6 +412,7 @@ def amica(
         X=dataseg,
         config=config,
         state=state,
+        sldet=sldet,
         )
     return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
@@ -421,6 +422,7 @@ def _core_amica(
         *,
         config,
         state,
+        sldet,
 ):
     """Runs the AMICA algorithm.
     
@@ -451,8 +453,7 @@ def _core_amica(
     do_newton=do_newton,
     newt_start=newt_start,
     newtrate=newtrate,
-    newt_ramp=newt_ramp,
-    sldet=sldet,'''
+    newt_ramp=newt_ramp,'''
     n_components = config.n_components
     n_models = config.n_models
     n_mixtures = config.n_mixtures
@@ -466,7 +467,6 @@ def _core_amica(
     newt_start = config.newt_start
     newtrate = config.newtrate
     newt_ramp = config.newt_ramp
-    sldet = state.sldet
     assert n_components == 32
     assert n_models == 1
     assert n_mixtures == 3
@@ -871,6 +871,7 @@ def _core_amica(
             iter=iter,
             comp_list=comp_list,
             Dsum=Dsum,
+            sldet=sldet,
             wc=wc,
             Wtmp=Wtmp,
             nd=nd,
@@ -1279,6 +1280,7 @@ def get_updates_and_likelihood(
     updates,
     iter,
     comp_list,
+    sldet,
     Dsum,
     wc,
     Wtmp,
@@ -1314,7 +1316,6 @@ def get_updates_and_likelihood(
     mu = state.mu
     gm = state.gm
     rho = state.rho
-    sldet = state.sldet
 
     dgm_numer = updates.dgm_numer
     dmu_numer = updates.dmu_numer
@@ -1603,11 +1604,12 @@ def get_updates_and_likelihood(
             # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
             # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
             #---------------------------------------------------------------
-            modloglik[h - 1, :] = Ptmp[:, h_index]
+            modloglik[h - 1, :] = Ptmp[:, h_index] # shape (num_models, N1)
             # TODO: 1. Do we really need P as an intermediate?
             #       2. We need to return loglik or store it somewhere
             #       3. Since this is within a loop, we are overwriting loglik each time.
             #       4. loglik is likely used for do_reject.
+            #       5. loglik/P == modloglik[h_index, :]
             loglik = P # shape: (N1,)
         
         #---------------Total Log-Likelihood and Model Responsibilities-----------------
