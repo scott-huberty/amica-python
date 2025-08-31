@@ -82,6 +82,7 @@ class AmicaState:
     - mu: (nmix, ncomp)          location parameters per mixture and component
     - sbeta: (nmix, ncomp)       scale parameters per mixture and component
     - rho: (nmix, ncomp)         shape parameters per mixture and component
+    - alpha: (nmix, ncomp)       mixing coefficients per mixture and component
     - gm: (nmix,)                mixture weights (prior over models)
     - sldet: float               sum log det(W) across components/models.
     """
@@ -91,6 +92,7 @@ class AmicaState:
     mu: NDArray
     sbeta: NDArray
     rho: NDArray
+    alpha: NDArray
     gm: NDArray
     sldet: float = 0.0
 
@@ -102,6 +104,7 @@ class AmicaState:
             "mu": self.mu,
             "sbeta": self.sbeta,
             "rho": self.rho,
+            "alpha": self.alpha,
             "gm": self.gm,
         }
 
@@ -186,6 +189,9 @@ class AmicaUpdates:
 
     dgm_numer: NDArray
 
+    dc_numer: NDArray
+    dc_denom: NDArray
+
     loglik_sum: float = 0.0
 
     newton: Optional[AmicaNewtonUpdates] = None
@@ -268,9 +274,12 @@ def get_initial_state(
         mu = np.zeros((num_mix, num_comps))
 
     rho = np.full((num_mix, num_comps), rho0, dtype=dtype)  # Shape parameters
+    
+    # Initialize alpha (mixing coefficients) to zeros - will be computed in first iteration
+    alpha = np.zeros((num_mix, num_comps), dtype=dtype)
 
     gm = np.full(num_models, 1.0 / num_models, dtype=dtype)  # Uniform initialization
-    return AmicaState(W=W, A=A, mu=mu, sbeta=sbeta, rho=rho, gm=gm)
+    return AmicaState(W=W, A=A, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
 def get_workspace(cfg: AmicaConfig, *, block_size: Optional[int] = None) -> AmicaWorkspace:
@@ -309,6 +318,9 @@ def initialize_updates(cfg: AmicaConfig, do_newton: bool=False) -> AmicaUpdates:
     drho_numer = np.zeros(shape_2, dtype=dtype)
     drho_denom = np.zeros(shape_2, dtype=dtype)
 
+    dc_numer = np.zeros((num_comps, num_models), dtype=dtype)
+    dc_denom = np.zeros((num_comps, num_models), dtype=dtype)
+
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
         shape_3 = (num_mix, num_comps, num_models)
@@ -341,15 +353,17 @@ def initialize_updates(cfg: AmicaConfig, do_newton: bool=False) -> AmicaUpdates:
 
     return AmicaUpdates(
         dW=dW,
+        dgm_numer=dgm_numer,
         dmu_numer=dmu_numer,
         dmu_denom=dmu_denom,
-        dbeta_numer=dbeta_numer,
-        dbeta_denom=dbeta_denom,
         dalpha_numer=dalpha_numer,
         dalpha_denom=dalpha_denom,
+        dbeta_numer=dbeta_numer,
+        dbeta_denom=dbeta_denom,
         drho_numer=drho_numer,
         drho_denom=drho_denom,
-        dgm_numer=dgm_numer,
+        dc_numer=dc_numer,
+        dc_denom=dc_denom,
         loglik_sum=0.0,
         newton=newton,
     )

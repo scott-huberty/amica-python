@@ -562,17 +562,11 @@ def _core_amica(
 
     Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
-    dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
+    # dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
     dWtmp = updates.dW
     assert dWtmp.shape == (num_comps, num_comps, num_models)
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
-
-    zeta = np.zeros(num_comps, dtype=np.float64)  # Zeta parameters
-    baralpha = np.zeros((num_mix, num_comps, num_models), dtype=np.float64)  # Mixing matrix for each model
-    kappa = np.zeros((num_comps, num_models), dtype=np.float64)  # Kappa parameters
-    lambda_ = np.zeros((num_comps, num_models), dtype=np.float64)  # Lambda parameters
-    sigma2 = np.zeros((num_comps, num_models), dtype=np.float64)
 
     gm = state.gm
     assert gm.shape == (num_models,)
@@ -582,7 +576,8 @@ def _core_amica(
     modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
     assert modloglik.shape == (1, 30504)
 
-    alpha = np.zeros((num_mix, num_comps))  # Mixing matrix
+    alpha = state.alpha  # Mixing matrix
+    assert alpha.shape == (num_mix, num_comps)
     # if update_alpha:
     dalpha_numer = updates.dalpha_numer
     dalpha_denom = updates.dalpha_denom
@@ -897,22 +892,15 @@ def _core_amica(
             comp_list=comp_list,
             Dsum=Dsum,
             wc=wc,
-            alpha=alpha,
             rho=rho,
             modloglik=modloglik,
             loglik=loglik,
             Wtmp2=Wtmp2,
             Wtmp=Wtmp,
-            dA=dA,
             dAK=dAK,
-            zeta=zeta,
             nd=nd,
             LL=LL,
             comp_used=comp_used,
-            baralpha=baralpha,
-            kappa=kappa,
-            lambda_=lambda_,
-            sigma2=sigma2,
         )
         # init
         startover = False
@@ -980,7 +968,6 @@ def _core_amica(
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.057812635452922263)
             assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
-            assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
             assert_almost_equal(dAK[0, 0], 0.44757153346268763)
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
@@ -1017,7 +1004,6 @@ def _core_amica(
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.02543823967703519)
             # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
-            assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
             assert_almost_equal(dAK[0, 0], 0.32313767684058614)
             assert_almost_equal(LL[1], -3.4687938365664754)
         # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
@@ -1326,23 +1312,15 @@ def get_updates_and_likelihood(
     comp_list,
     Dsum,
     wc,
-    alpha,
     rho,
     modloglik,
     loglik,
     Wtmp2,
     Wtmp,
-    dA,
     dAK,
-    zeta,
     nd,
     LL,
     comp_used,
-    # Only required for newton optimization
-    baralpha=None,
-    kappa=None,
-    lambda_=None,
-    sigma2=None,
 ):
     """Get updates and likelihood for AMICA.
     
@@ -1365,6 +1343,7 @@ def get_updates_and_likelihood(
 
     W = state.W
     A = state.A
+    alpha = state.alpha
     sbeta = state.sbeta
     mu = state.mu
     gm = state.gm
@@ -2081,9 +2060,10 @@ def get_updates_and_likelihood(
 
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
-    dA[:, :, :] = dWtmp[:, :, :].copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
     
+    dA = dWtmp.copy() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
+    assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
+
     if do_newton and iter >= newt_start:
         #--------------------------FORTRAN CODE-------------------------
         # call MPI_REDUCE(dbaralpha_numer_tmp,dbaralpha_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
@@ -2117,10 +2097,12 @@ def get_updates_and_likelihood(
         # kappa = dble(0.0)
         # lambda = dble(0.0)
         #---------------------------------------------------------------
-        baralpha[:, :, :] = dbaralpha_numer / dbaralpha_denom
-        sigma2[:, :] = dsigma2_numer / dsigma2_denom
-        kappa[:, :] = 0.0
-        lambda_[:, :] = 0.0
+        # shape (num_mix, num_comps, num_models)
+        baralpha = dbaralpha_numer / dbaralpha_denom
+        # shape (num_comps, num_models)
+        sigma2 = dsigma2_numer / dsigma2_denom
+        kappa = np.zeros((num_comps, num_models), dtype=np.float64)
+        lambda_ = np.zeros((num_comps, num_models), dtype=np.float64)
         for h, _ in enumerate(range(num_models), start=1):
             h_idx = h - 1  # For easier indexing
             # NOTE: VECTORIZED
@@ -2240,7 +2222,7 @@ def get_updates_and_likelihood(
     # end do (h)
 
     dAK[:] = 0.0
-    zeta[:] = 0.0
+    zeta = np.zeros(num_comps, dtype=np.float64)
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         # NOTE: I had an indexing bug in the looped version of this code.
@@ -2279,6 +2261,11 @@ def get_updates_and_likelihood(
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         LL[iter - 1] = LLtmp2 / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
+    if iter == 1:
+        assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
+    elif iter == 2:
+        assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
+
     return LLtmp, ndtmpsum, no_newt
 
 
