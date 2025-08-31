@@ -1100,17 +1100,10 @@ def _core_amica(
         else:
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
             lrate, rholrate = update_params(
+                config=config,
                 iter=iter,
-                n_models=num_models,
-                do_reject=do_reject,
                 lrate=lrate,
                 rholrate=rholrate,
-                lrate0=lrate0,
-                rholrate0=rholrate0,
-                do_newton=do_newton,
-                newt_start=newt_start,
-                newtrate=newtrate,
-                newt_ramp=newt_ramp,
                 no_newt=no_newt,
                 gm=gm,
                 dgm_numer=dgm_numer,
@@ -2251,17 +2244,10 @@ def get_updates_and_likelihood(
 
 def update_params(
         *,
+        config,
         iter,
-        n_models,
-        do_reject,
         lrate,
         rholrate,
-        lrate0,
-        rholrate0,
-        do_newton,
-        newt_start,
-        newtrate,
-        newt_ramp,
         no_newt,
         gm,
         dgm_numer,
@@ -2288,6 +2274,16 @@ def update_params(
         comp_list,
         Anrmk,
 ):
+    n_models = config.n_models
+    nw = config.n_components
+    do_newton = config.do_newton
+    newt_start = config.newt_start
+    newtrate = config.newtrate
+    newt_ramp = config.newt_ramp
+    do_reject = config.do_reject
+    lrate0 = config.lrate
+    rholrate0 = config.rholrate
+
     num_models = n_models
     # if (seg_rank == 0) then
     # if update_gm:
