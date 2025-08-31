@@ -63,14 +63,6 @@ import line_profiler
 # warnings.simplefilter('error')
 
 
-THRDNUM = 0 # # omp_get_thread_num() Just setting a dummy value for testing
-NUM_THRDS_USED = 1 # # omp_get_num_threads() setting a dummy value for testing
-NUM_THRDS = NUM_THRDS_USED
-thrdnum = THRDNUM
-num_thrds = NUM_THRDS
-thrdnum = THRDNUM
-
-
 def amica(
         X,
         *,
@@ -1369,7 +1361,6 @@ def get_updates_and_likelihood(
         dsigma2_numer = updates.newton.dsigma2_numer
         dsigma2_denom = updates.newton.dsigma2_denom
 
-    assert num_thrds == 1
     num_models = n_models
     num_mix = n_mixtures
     # === Section: Initialize Accumulators & Buffers ===
@@ -1968,10 +1959,8 @@ def get_updates_and_likelihood(
         # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
         #---------------------------------------------------------------
         # Wtmp2 has a 3rd dimension for threads in Fortran
-        Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
-        Wtmp2[:, :, thrdnum] = 0.0
-        Wtmp2[:, :, thrdnum] += np.dot(g[:, :].T, b[:, :, h - 1])
-        dWtmp[:, :, h - 1] += Wtmp2[:, :, thrdnum]
+        Wtmp2 = np.dot(g.T, b[:, :, h - 1]) #  # shape (num_comps, num_comps)
+        dWtmp[:, :, h - 1] += Wtmp2
     # end do (h)
     # end do (blk)'
     if iter == 1: # and blk == 59:
