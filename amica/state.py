@@ -14,7 +14,7 @@ Key containers
 - AmicaWorkspace: reusable temporary buffer registry (allocated on demand).
     - get(name, shape, dtype=None, init='empty'|'zeros'|'ones') allocates lazily and reuses.
 - AmicaUpdates: per-iteration aggregated numerators/denominators and grads.
-    - (dW, dalpha/dbeta/dmu/drho numerators/denominators, dgm_numer, loglik_sum).
+    - (dalpha/dbeta/dmu/drho numerators/denominators, dgm_numer, loglik_sum).
 - AmicaMetrics: optional diagnostics for logging/inspection.
 
 Factory helpers
@@ -164,7 +164,6 @@ class AmicaUpdates:
     """Aggregated updates computed in one iteration.
 
     Shapes:
-    - dW:              (ncomp, nchan, nmix)
     - dmu_numer/denom: (nmix, ncomp)
     - dbeta_numer/denom: (nmix, ncomp)
     - dalpha_numer/denom: (nmix, ncomp)
@@ -172,8 +171,6 @@ class AmicaUpdates:
     - dgm_numer:       (nmix,)
     - dsigma2_numer/denom, dc_numer/denom, etc. can be added as needed.
     """
-
-    dW: NDArray
 
     dmu_numer: NDArray
     dmu_denom: NDArray
@@ -302,7 +299,6 @@ def initialize_updates(cfg: AmicaConfig, do_newton: bool=False) -> AmicaUpdates:
     shape_2 = (num_mix, num_comps)
 
     # Match amica.py initialization patterns
-    dW = np.zeros((num_comps, num_comps, num_models), dtype=dtype)
     dgm_numer = np.zeros(num_models, dtype=dtype)
 
     # Update accumulators - match amica.py: (num_mix, num_comps) shape
@@ -352,7 +348,6 @@ def initialize_updates(cfg: AmicaConfig, do_newton: bool=False) -> AmicaUpdates:
         newton = None
 
     return AmicaUpdates(
-        dW=dW,
         dgm_numer=dgm_numer,
         dmu_numer=dmu_numer,
         dmu_denom=dmu_denom,
@@ -377,7 +372,6 @@ def reset_updates(u: AmicaUpdates) -> None:
     mixture numerators, and Newton accumulators if present.
     """
     # Core accumulators
-    u.dW.fill(0.0)
 
     u.dmu_numer.fill(0.0)
     u.dmu_denom.fill(0.0)

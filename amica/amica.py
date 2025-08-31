@@ -555,8 +555,6 @@ def _core_amica(
     # Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
     # dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
-    dWtmp = updates.dW
-    assert dWtmp.shape == (num_comps, num_comps, num_models)
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
@@ -880,7 +878,6 @@ def _core_amica(
             state=state,
             iter=iter,
             nw=num_comps,
-            dWtmp=dWtmp,
             comp_list=comp_list,
             Dsum=Dsum,
             wc=wc,
@@ -929,7 +926,6 @@ def _core_amica(
             assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
             assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
@@ -976,7 +972,6 @@ def _core_amica(
             assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
-            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
             # assert P[808] == 0.0
             assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
 
@@ -1299,7 +1294,6 @@ def get_updates_and_likelihood(
     updates,
     iter,
     nw,
-    dWtmp,
     comp_list,
     Dsum,
     wc,
@@ -1409,7 +1403,7 @@ def get_updates_and_likelihood(
     dc_numer[:] = 0.0
     dc_denom[:] = 0.0
 
-    dWtmp[:] = 0.0
+    dWtmp = np.zeros((num_comps, num_comps, num_models))
     LLtmp = 0.0
     # !--------- loop over the segments ----------
 
@@ -2019,7 +2013,8 @@ def get_updates_and_likelihood(
         assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
         assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
         assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
-    
+        assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
+
     # In Fortran, the OMP parallel region is closed here
     # !$OMP END PARALLEL
     # !print *, myrank+1,': finished segment ', seg; call flush(6)
