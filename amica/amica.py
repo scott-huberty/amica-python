@@ -497,7 +497,6 @@ def _core_amica(
     updates = initialize_updates(config, do_newton=do_newton)
     
     Dtemp = np.zeros(num_models, dtype=np.float64)
-    Dsum = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
@@ -552,19 +551,12 @@ def _core_amica(
     else:
         raise NotImplementedError()
 
-    # Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
-    dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
-    # dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
+    dAK = updates.dAK
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
     gm = state.gm
     assert gm.shape == (num_models,)
-    # TODO: This doesnt exist globally in the Fortran program? Double check.
-    lastdim = X.shape[1]
-    loglik = np.zeros(lastdim, dtype=np.float64)  # Log likelihood
-    modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
-    assert modloglik.shape == (1, 30504)
 
     alpha = state.alpha  # Mixing matrix
     assert alpha.shape == (num_mix, num_comps)
@@ -868,7 +860,7 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
             elif h == 1 and iter == 2:
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
-        Dsum = Dtemp.copy()
+        Dsum = Dtemp.copy() # shape (num_models,)
         
         assert dalpha_numer is updates.dalpha_numer
         LLtmp, ndtmpsum, no_newt = get_updates_and_likelihood(
@@ -877,15 +869,10 @@ def _core_amica(
             updates=updates,
             state=state,
             iter=iter,
-            nw=num_comps,
             comp_list=comp_list,
             Dsum=Dsum,
             wc=wc,
-            rho=rho,
-            modloglik=modloglik,
-            loglik=loglik,
             Wtmp=Wtmp,
-            dAK=dAK,
             nd=nd,
             LL=LL,
             comp_used=comp_used,
@@ -955,7 +942,6 @@ def _core_amica(
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.057812635452922263)
             assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
-            assert_almost_equal(dAK[0, 0], 0.44757153346268763)
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
@@ -990,7 +976,6 @@ def _core_amica(
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.02543823967703519)
             # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
-            assert_almost_equal(dAK[0, 0], 0.32313767684058614)
             assert_almost_equal(LL[1], -3.4687938365664754)
         # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
         elif iter == 6:
@@ -1293,15 +1278,10 @@ def get_updates_and_likelihood(
     state,
     updates,
     iter,
-    nw,
     comp_list,
     Dsum,
     wc,
-    rho,
-    modloglik,
-    loglik,
     Wtmp,
-    dAK,
     nd,
     LL,
     comp_used,
@@ -1325,12 +1305,15 @@ def get_updates_and_likelihood(
     newt_start = config.newt_start
     assert newt_start == 50
 
+    nw = num_comps
+
     W = state.W
     A = state.A
     alpha = state.alpha
     sbeta = state.sbeta
     mu = state.mu
     gm = state.gm
+    rho = state.rho
     sldet = state.sldet
 
     dgm_numer = updates.dgm_numer
@@ -1344,6 +1327,7 @@ def get_updates_and_likelihood(
     drho_denom = updates.drho_denom
     dc_numer = updates.dc_numer
     dc_denom = updates.dc_denom
+    dAK = updates.dAK
 
     if do_newton:
         dbaralpha_numer = updates.newton.dbaralpha_numer
@@ -1405,6 +1389,9 @@ def get_updates_and_likelihood(
 
     dWtmp = np.zeros((num_comps, num_comps, num_models))
     LLtmp = 0.0
+    lastdim = X.shape[1]
+    modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
+    assert modloglik.shape == (1, 30504)
     # !--------- loop over the segments ----------
 
     if do_reject:
@@ -1617,7 +1604,11 @@ def get_updates_and_likelihood(
             # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
             #---------------------------------------------------------------
             modloglik[h - 1, :] = Ptmp[:, h_index]
-            loglik[:] = P[:]
+            # TODO: 1. Do we really need P as an intermediate?
+            #       2. We need to return loglik or store it somewhere
+            #       3. Since this is within a loop, we are overwriting loglik each time.
+            #       4. loglik is likely used for do_reject.
+            loglik = P # shape: (N1,)
         
         #---------------Total Log-Likelihood and Model Responsibilities-----------------
         #--------------------------FORTRAN CODE-------------------------
@@ -2247,8 +2238,11 @@ def get_updates_and_likelihood(
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
+        assert_almost_equal(dAK[0, 0], 0.44757153346268763)
+
     elif iter == 2:
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
+        assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
     return LLtmp, ndtmpsum, no_newt
 
