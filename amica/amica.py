@@ -560,7 +560,7 @@ def _core_amica(
     else:
         raise NotImplementedError()
 
-    Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
+    # Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
     dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
     # dA = np.zeros((num_comps, num_comps, num_models), dtype=np.float64)  # Derivative of A for each model
     dWtmp = updates.dW
@@ -895,7 +895,6 @@ def _core_amica(
             rho=rho,
             modloglik=modloglik,
             loglik=loglik,
-            Wtmp2=Wtmp2,
             Wtmp=Wtmp,
             dAK=dAK,
             nd=nd,
@@ -1315,7 +1314,6 @@ def get_updates_and_likelihood(
     rho,
     modloglik,
     loglik,
-    Wtmp2,
     Wtmp,
     dAK,
     nd,
@@ -1969,6 +1967,8 @@ def get_updates_and_likelihood(
         #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
         # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
         #---------------------------------------------------------------
+        # Wtmp2 has a 3rd dimension for threads in Fortran
+        Wtmp2 = np.zeros((num_comps, num_comps, NUM_THRDS), dtype=np.float64)
         Wtmp2[:, :, thrdnum] = 0.0
         Wtmp2[:, :, thrdnum] += np.dot(g[:, :].T, b[:, :, h - 1])
         dWtmp[:, :, h - 1] += Wtmp2[:, :, thrdnum]
