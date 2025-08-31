@@ -1109,7 +1109,6 @@ def _core_amica(
                 c=c,
                 wc=wc,
                 comp_list=comp_list,
-                Anrmk=Anrmk,
             )
             if iter == 1:
                 # XXX: making sure all variables were globally set.
@@ -2230,7 +2229,6 @@ def update_params(
         c,
         wc,
         comp_list,
-        Anrmk,
 ):
     n_models = config.n_models
     nw = config.n_components
