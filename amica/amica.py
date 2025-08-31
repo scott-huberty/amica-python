@@ -1,3 +1,4 @@
+from copy import copy
 from pathlib import Path
 import time
 
@@ -56,8 +57,12 @@ from constants import (
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
 from funmod import psifun
 
-from state import AmicaConfig, AmicaState, AmicaUpdates, get_initial_state, initialize_updates
-
+from state import (
+    AmicaConfig,
+    IterationMetrics,
+    get_initial_state,
+    initialize_updates
+)
 import line_profiler
 # Configure all warnings to be treated as errors
 # warnings.simplefilter('error')
@@ -461,8 +466,8 @@ def _core_amica(
     pdftype = config.pdftype
     do_reject = config.do_reject
     tol = config.tol
-    lrate = config.lrate
-    rholrate = config.rholrate
+    lrate0 = config.lrate
+    rholrate0 = config.rholrate
     do_newton = config.do_newton
     newt_start = config.newt_start
     newtrate = config.newtrate
@@ -474,7 +479,7 @@ def _core_amica(
     assert pdftype == 0
     assert tol == 1e-7
     assert not do_reject
-    assert rholrate == 0.05
+    assert rholrate0 == 0.05
     assert do_newton
     assert newt_start == 50
     assert newtrate == 1
@@ -484,8 +489,7 @@ def _core_amica(
     
     if n_components is None:
         n_components = X.shape[0]
-    lrate0 = lrate
-    rholrate0 = rholrate
+
     # The API will use n_components but under the hood we'll match the Fortran naming
     num_comps = n_components
     num_models = n_models
@@ -788,6 +792,8 @@ def _core_amica(
 
     c1 = time.time()
 
+    lrate = lrate0
+    rholrate = rholrate0
     while iter <= max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
@@ -808,6 +814,11 @@ def _core_amica(
         # ...
         #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
         # ------------------------------------------------------------------------
+        metrics = IterationMetrics(
+            iter=iter,
+            lrate=lrate,
+            rholrate=rholrate,
+        )
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # Use slogdet on the original unmixing matrix to get sign and log|det|
@@ -867,7 +878,7 @@ def _core_amica(
             config=config,
             updates=updates,
             state=state,
-            iter=iter,
+            metrics=metrics,
             comp_list=comp_list,
             Dsum=Dsum,
             sldet=sldet,
@@ -1102,9 +1113,7 @@ def _core_amica(
                 config=config,
                 state=state,
                 updates=updates,
-                iter=iter,
-                lrate=lrate,
-                rholrate=rholrate,
+                metrics=metrics,
                 no_newt=no_newt,
                 c=c,
                 wc=wc,
@@ -1246,7 +1255,7 @@ def get_updates_and_likelihood(
     config,
     state,
     updates,
-    iter,
+    metrics, # TODO: if only iter is needed, pass that instead
     comp_list,
     sldet,
     Dsum,
@@ -1266,6 +1275,9 @@ def get_updates_and_likelihood(
     - This function mirrors the original Fortran implementation. Fortran reference
         comment blocks are kept verbatim alongside the equivalent Python.
     """
+
+    iter = metrics.iter
+
     n_models = config.n_models
     n_mixtures = config.n_mixtures
     num_comps = config.n_components
@@ -2222,9 +2234,7 @@ def update_params(
         config,
         state,
         updates,
-        iter,
-        lrate,
-        rholrate,
+        metrics,
         no_newt,
         c,
         wc,
@@ -2260,6 +2270,10 @@ def update_params(
     drho_numer = updates.drho_numer
     drho_denom = updates.drho_denom
     dAK = updates.dAK
+
+    iter = metrics.iter
+    lrate = metrics.lrate
+    rholrate = metrics.rholrate
 
 
     num_models = n_models

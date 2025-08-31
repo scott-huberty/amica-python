@@ -220,13 +220,15 @@ class AmicaNewtonUpdates:
 class IterationMetrics:
     """Minimal per-iteration diagnostics.
 
-    Intentionally small: capture only the core fields commonly inspected during
-    training. Extend conservatively as needs arise.
+    This container tracks metrics that evolve during training and influence convergence
+    behavior, but are not learnable parameters themselves.
     """
 
-    iter: int                # 1-based iteration index
-    loglik: float            # total log-likelihood for the iteration
-    ll_inc: float = 0.0      # improvement vs previous iteration
+    iter: int                           # 1-based iteration index
+    loglik: Optional[float] = None      # total log-likelihood for the iteration
+    lrate: Optional[float] = None       # learning rate used for the iteration
+    rholrate: Optional[float] = None    # rho learning rate used for the iteration
+    ll_inc: float = 0.0                 # improvement vs previous iteration
     step_time_s: Optional[float] = None
     numincs: Optional[int] = None
     numdecs: Optional[int] = None
