@@ -31,7 +31,7 @@ rest of the code until wired. It is safe to import without side effects.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Mapping, Optional, Tuple
+from typing import Dict, Iterable, Mapping, Optional, Tuple, List
 
 import numpy as np
 from numpy.typing import NDArray
@@ -218,14 +218,43 @@ class AmicaNewtonUpdates:
     dsigma2_numer: NDArray
     dsigma2_denom: NDArray
 
-@dataclass
-class AmicaMetrics:
-    """Iteration diagnostics for logging or testing."""
+@dataclass(slots=True)
+class IterationMetrics:
+    """Minimal per-iteration diagnostics.
 
-    iter: int
-    loglik: float
-    step_norm: Optional[float] = None
-    max_param_change: Optional[float] = None
+    Intentionally small: capture only the core fields commonly inspected during
+    training. Extend conservatively as needs arise.
+    """
+
+    iter: int                # 1-based iteration index
+    loglik: float            # total log-likelihood for the iteration
+    ll_inc: float = 0.0      # improvement vs previous iteration
+    step_time_s: Optional[float] = None
+    numincs: Optional[int] = None
+    numdecs: Optional[int] = None
+
+
+@dataclass(slots=True)
+class AmicaHistory:
+    """Append-only container of IterationMetrics across training.
+
+    Provides lightweight accessors commonly used by callers and tests.
+    """
+
+    metrics: List[IterationMetrics] = field(default_factory=list)
+
+    def append(self, m: IterationMetrics) -> None:
+        self.metrics.append(m)
+
+    # Convenience accessors (kept minimal)
+    def loglik_array(self) -> np.ndarray:
+        return np.array([m.loglik for m in self.metrics], dtype=float)
+
+    def ll_inc_array(self) -> np.ndarray:
+        return np.array([m.ll_inc for m in self.metrics], dtype=float)
+
+    def last(self) -> Optional[IterationMetrics]:
+        return self.metrics[-1] if self.metrics else None
 
 # TODO: consider making an IterationContext or IterationMetrics class
 # to bundle ephemeral constants that shuttle together across functions.
