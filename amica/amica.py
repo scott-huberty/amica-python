@@ -1101,31 +1101,25 @@ def _core_amica(
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
             lrate, rholrate = update_params(
                 config=config,
+                state=state,
                 iter=iter,
                 lrate=lrate,
                 rholrate=rholrate,
                 no_newt=no_newt,
-                gm=gm,
                 dgm_numer=dgm_numer,
-                alpha=alpha,
                 dalpha_numer=dalpha_numer,
                 dalpha_denom=dalpha_denom,
                 c=c,
                 dc_numer=dc_numer,
                 dc_denom=dc_denom,
                 dAK=dAK,
-                A=A,
                 dmu_numer=dmu_numer,
                 dmu_denom=dmu_denom,
-                mu=mu,
-                sbeta=sbeta,
                 dbeta_numer=dbeta_numer,
                 dbeta_denom=dbeta_denom,
-                rho=rho,
                 rhotmp=rhotmp,
                 drho_numer=drho_numer,
                 drho_denom=drho_denom,
-                W=W,
                 wc=wc,
                 comp_list=comp_list,
                 Anrmk=Anrmk,
@@ -2245,31 +2239,25 @@ def get_updates_and_likelihood(
 def update_params(
         *,
         config,
+        state,
         iter,
         lrate,
         rholrate,
         no_newt,
-        gm,
         dgm_numer,
-        alpha,
         dalpha_numer,
         dalpha_denom,
         c,
         dc_numer,
         dc_denom,
         dAK,
-        A,
         dmu_numer,
         dmu_denom,
-        mu,
-        sbeta,
         dbeta_numer,
         dbeta_denom,
-        rho,
         rhotmp,
         drho_numer,
         drho_denom,
-        W,
         wc,
         comp_list,
         Anrmk,
@@ -2283,6 +2271,15 @@ def update_params(
     do_reject = config.do_reject
     lrate0 = config.lrate
     rholrate0 = config.rholrate
+
+    W = state.W
+    A = state.A
+    alpha = state.alpha
+    mu = state.mu
+    sbeta = state.sbeta
+    rho = state.rho
+    gm = state.gm
+
 
     num_models = n_models
     # if (seg_rank == 0) then
