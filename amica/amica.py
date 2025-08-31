@@ -593,7 +593,6 @@ def _core_amica(
     assert rho.shape == (num_mix, num_comps)
     assert_allclose(rho, 1.5)
     if dorho:
-        rhotmp = np.zeros((num_mix, num_comps))  # Temporary rho values
         drho_numer = updates.drho_numer
         drho_denom = updates.drho_denom
         assert drho_numer.shape == (num_mix, num_comps)
@@ -1108,7 +1107,6 @@ def _core_amica(
                 rholrate=rholrate,
                 no_newt=no_newt,
                 c=c,
-                rhotmp=rhotmp,
                 wc=wc,
                 comp_list=comp_list,
                 Anrmk=Anrmk,
@@ -1127,8 +1125,6 @@ def _core_amica(
                 assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
                 assert maxrho == 2
                 assert minrho == 1
-                assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
-                assert not rhotmp[rhotmp == maxrho].any()
                 assert_almost_equal(rho[0, 0], 1.4573165687688203)
                 assert not rho[rho == minrho].any()
                 assert_almost_equal(A[31, 31], 0.99984153789378194)
@@ -1149,10 +1145,7 @@ def _core_amica(
                 assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
                 assert maxrho == 2
                 assert minrho == 1
-                assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
-                assert not rhotmp[rhotmp == maxrho].any()
                 assert_almost_equal(rho[0, 0], 1.5062036957555023)
-                assert not rhotmp[rhotmp == maxrho].any()
                 assert_almost_equal(A[31, 31], 0.99985752877785194)
                 assert_almost_equal(sbeta[0, 0], 1.07570700640128)
                 assert_almost_equal(mu[0, 0], -0.53783126597732789)
@@ -2235,7 +2228,6 @@ def update_params(
         rholrate,
         no_newt,
         c,
-        rhotmp,
         wc,
         comp_list,
         Anrmk,
@@ -2383,7 +2375,6 @@ def update_params(
     if dorho:
         if iter == 1:
             assert_allclose(rho, 1.5)
-            assert_allclose(rhotmp, 0)
         rho[:, :] += (
              rholrate
              * (
@@ -2393,7 +2384,8 @@ def update_params(
                 / drho_denom
             )
         )
-        rhotmp[:, :] = np.minimum(maxrho, rho)
+        rhotmp = np.minimum(maxrho, rho) # shape (num_mix, num_comps)
+        assert rhotmp.shape == (config.n_mixtures, config.n_components)
         rho[:, :] = np.maximum(minrho, rhotmp)
         if iter == 1:
             assert maxrho == 2
@@ -2402,6 +2394,10 @@ def update_params(
             assert not rhotmp[rhotmp == maxrho].any()
             assert_almost_equal(rho[0, 0], 1.4573165687688203)
             assert not rho[rho == minrho].any()
+        elif iter == 2:
+            assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
+            assert not rhotmp[rhotmp == maxrho].any()
+            assert not rhotmp[rhotmp == maxrho].any()
     # end if (dorho)
 
     # !--- rescale
