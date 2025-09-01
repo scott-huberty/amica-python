@@ -193,6 +193,45 @@ class AmicaUpdates:
 
     newton: Optional[AmicaNewtonUpdates] = None
 
+    def reset(self) -> None:
+        """Zero all per-iteration accumulators in-place.
+
+        Keeps array allocations stable while clearing their contents for the
+        next iteration. Extensible: if new fields are added, include them here.
+        """
+        # Core accumulators
+        self.dmu_numer.fill(0.0)
+        self.dmu_denom.fill(0.0)
+
+        self.dbeta_numer.fill(0.0)
+        self.dbeta_denom.fill(0.0)
+
+        self.dalpha_numer.fill(0.0)
+        self.dalpha_denom.fill(0.0)
+
+        self.drho_numer.fill(0.0)
+        self.drho_denom.fill(0.0)
+
+        self.dgm_numer.fill(0.0)
+
+        self.dc_numer.fill(0.0)
+        self.dc_denom.fill(0.0)
+
+        self.dAK.fill(0.0)
+
+        self.loglik_sum = 0.0
+
+        # If Newton accumulators are present, zero them as well
+        if self.newton is not None:
+            self.newton.dbaralpha_numer.fill(0.0)
+            self.newton.dbaralpha_denom.fill(0.0)
+            self.newton.dkappa_numer.fill(0.0)
+            self.newton.dkappa_denom.fill(0.0)
+            self.newton.dlambda_numer.fill(0.0)
+            self.newton.dlambda_denom.fill(0.0)
+            self.newton.dsigma2_numer.fill(0.0)
+            self.newton.dsigma2_denom.fill(0.0)
+
 @dataclass(slots=True, repr=False)
 class AmicaNewtonUpdates:
     """Additional accumulators for Newton updates.
@@ -220,8 +259,9 @@ class AmicaNewtonUpdates:
 class IterationMetrics:
     """Minimal per-iteration diagnostics.
 
-    This container tracks metrics that evolve during training and influence convergence
-    behavior, but are not learnable parameters themselves.
+    This container tracks iteration specific metadata that evolves during training and
+    influences convergence behavior, but are not learnable parameters themselves.
+    The container helps oraganize the values and pass them around functions.
     """
 
     iter: int                           # 1-based iteration index
