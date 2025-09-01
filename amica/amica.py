@@ -527,7 +527,6 @@ def _core_amica(
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
     c = state.c 
     wc = np.zeros((num_comps, num_models))
-    Wtmp = np.zeros((num_comps, num_comps))
     # TODO: I think this should have a num_models dimension
     A = state.A  # Mixing matrix
     assert A.shape == (num_comps, num_comps)
@@ -797,39 +796,8 @@ def _core_amica(
                 Dtemp[h_index] = logabsdet
                 Dsign[h_index] = 1 if sign > 0 else -1
 
-            # Copy for QR decomposition checks below (mirrors Fortran workflow)
-            Wtmp = W[:, :, h_index].copy()  # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-            assert Wtmp.shape == (num_comps, num_comps) == (32, 32)
-            if iter == 1 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], 1.0000898173968631, decimal=7)
-                assert_almost_equal(Wtmp[0, 1], -0.0032845276568264233, decimal=7)
-                assert_almost_equal(Wtmp[0, 2], -0.0032916117077828426, decimal=7)
-                assert_almost_equal(Wtmp[0, 3], 0.0039773918623630111, decimal=7)
-                assert_almost_equal(Wtmp[31, 3], -0.0019569426474243786, decimal=7)
-                assert_almost_equal(Wtmp[31, 31], 1.0001435790123032, decimal=7)
-            elif iter == 2 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], 1.0000820892004447)
             # lwork = 5 * nx * nx
             # assert lwork == 5120            
-
-
-            # QR decomposition - equivalent to DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-            # Use LAPACK-style QR decomposition  
-            # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
-            (Wtmp, wr), tau_matrix = linalg.qr(Wtmp, mode='raw')
-            if iter == 1 and h == 1:
-                assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
-                assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
-                assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
-                assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
-                assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
-                assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
-                assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
-                assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
-                assert wr.shape == (num_comps,) == (32,)
-                assert_almost_equal(wr[0], 1.9998793803957402)
-            elif iter == 2 and h == 1:
-                assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
 
             # Determinant computed above via slogdet (sign stored in Dsign)
             if h == 1 and iter == 1:
@@ -846,7 +814,6 @@ def _core_amica(
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
-            Wtmp=Wtmp,
             nd=nd,
         )
         metrics.loglik = likelihood
@@ -873,7 +840,6 @@ def _core_amica(
             # This should also give an idea of the vars that are assigned within that function.
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.057812635452922263)
-            assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
@@ -1155,7 +1121,6 @@ def get_updates_and_likelihood(
     sldet,
     Dsum,
     wc,
-    Wtmp,
     nd,
 ):
     """Get updates and likelihood for AMICA.
@@ -1259,6 +1224,32 @@ def get_updates_and_likelihood(
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         comp_indicies = comp_list[:, h_index] - 1
+
+        # NOTE: In Fortran Wtmp got calculated before optimization.
+        # If profiling shows this is a bottleneck, we can move it back there.
+        #---------------------FORTRAN CODE-------------------------
+        # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+        # DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+        #---------------------------------------------------------------
+        # Copy for QR decomposition checks below (mirrors Fortran workflow)
+        # Wtmp = W[:, :, h_index].copy()
+        # assert Wtmp.shape == (num_comps, num_comps) == (32, 32)
+        # Use LAPACK-style QR decomposition to match Fortran results 
+        # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
+        (Wtmp, wr), tau_matrix = linalg.qr(W[:, :, h_index], mode='raw')
+        if iter == 1 and h == 1:
+            assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
+            assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
+            assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
+            assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
+            assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
+            assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
+            assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
+            assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
+            assert wr.shape == (num_comps,) == (32,)
+            assert_almost_equal(wr[0], 1.9998793803957402)
+        elif iter == 2 and h == 1:
+            assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
 
         # --- Subsection: Baseline terms and unmixing ---
         #--------------------------FORTRAN CODE-------------------------
@@ -2107,9 +2098,10 @@ def get_updates_and_likelihood(
         assert np.all(dlambda_denom == 0)
         assert np.all(dbaralpha_numer == 0)
         assert np.all(dbaralpha_denom == 0)
-
+        assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
         assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
         assert_almost_equal(dAK[0, 0], 0.44757153346268763)
+
     elif iter == 2:
         assert dgm_numer[0] == 30504
         assert dsigma2_denom[31, 0] == 30504
