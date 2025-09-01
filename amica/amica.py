@@ -1813,16 +1813,34 @@ def get_updates_and_likelihood(
         assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
         assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
         assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
+        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
         assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
         assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
         assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
         assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
         assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+        assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
+        assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
         assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
         assert_almost_equal(P[-1], -111.60532918598989)
         assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
         # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
     elif iter == 2:
+        assert_almost_equal(dc_numer[31, 0], 0)
+        assert_almost_equal(dc_numer[0, 0],  0)
+        assert dc_denom[31, 0] == 30504
+        assert dc_denom[0, 0] == 30504
+        assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
+        assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
+        assert dalpha_denom[2, 31] == 30504
+        assert dalpha_denom[0, 0] == 30504
+        assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
+        assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
+        assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
+        assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
+        assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
+        assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)  
         assert_almost_equal(g[-808, 0], 0.92578280732700213)
         assert_almost_equal(g[-1, 31], -0.57496468258661515)
         assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
@@ -1844,10 +1862,30 @@ def get_updates_and_likelihood(
     # XXX: Later we'll figure out which variables we actually need to return
     # For now literally return any variable that has been assigned or updated
     # In alphabetical order
+    dAK, likelihood, ndtmpsum, no_newt = accum_updates_and_likelihood(
+        config=config,
+        updates=updates,
+        state=state,
+        Wtmp=Wtmp,
+        dWtmp=dWtmp,
+        LLtmp=LLtmp,
+        nd=nd,
+        iter=iter
+    )
+    updates.dAK = dAK
+    return updates, likelihood, ndtmpsum, no_newt
 
-    #---------------------------- accum_updates_and_likelihood------------------------
-    # Everything below ports the Fortran function
-    #---------------------------------------------------------------------------------
+
+def accum_updates_and_likelihood(
+        config,
+        updates,
+        state,
+        Wtmp,
+        dWtmp,
+        LLtmp,
+        nd,
+        iter
+        ):
     # !--- add to the cumulative dtmps
     # ...
     #--------------------------FORTRAN CODE-------------------------
@@ -1864,6 +1902,31 @@ def get_updates_and_likelihood(
     # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     #---------------------------------------------------------------
 
+    comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
+
+    num_comps = config.n_components
+    nw = num_comps
+    num_models = config.n_models
+    do_reject = config.do_reject
+    do_newton = config.do_newton
+    newt_start = config.newt_start
+
+    A = state.A
+    gm = state.gm
+    mu = state.mu
+    
+    dgm_numer = updates.dgm_numer
+    dAK = updates.dAK # TODO: I think we should remove this
+
+    if do_newton:
+        dbaralpha_numer = updates.newton.dbaralpha_numer
+        dbaralpha_denom = updates.newton.dbaralpha_denom
+        dsigma2_numer = updates.newton.dsigma2_numer
+        dsigma2_denom = updates.newton.dsigma2_denom
+        dkappa_numer = updates.newton.dkappa_numer
+        dkappa_denom = updates.newton.dkappa_denom
+        dlambda_numer = updates.newton.dlambda_numer
+        dlambda_denom = updates.newton.dlambda_denom
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     
@@ -2068,30 +2131,10 @@ def get_updates_and_likelihood(
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert dgm_numer[0] == 30504
+        # FIXME: this shouldnt be true... dsigma2_number should not be assigned until iter 50
         assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
         assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(dc_numer[31, 0], 0)
-        assert dc_denom[31, 0] == 30504
-        assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
-        assert dalpha_denom[2, 31] == 30504
-        assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
-        assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
-        assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert dc_denom[0, 0] == 30504
+        
         assert np.all(dkappa_numer == 0)
         assert np.all(dkappa_denom == 0)
         assert np.all(dlambda_numer == 0)
@@ -2105,28 +2148,11 @@ def get_updates_and_likelihood(
     elif iter == 2:
         assert dgm_numer[0] == 30504
         assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
-        assert_almost_equal(dc_numer[31, 0], 0)
-        assert dc_denom[31, 0] == 30504
-        assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
-        assert dalpha_denom[2, 31] == 30504
-        assert dgm_numer[0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-        assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-        assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert dc_denom[0, 0] == 30504
-
-        
+        assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)              
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
-    return updates, likelihood, ndtmpsum, no_newt
+    return dAK, likelihood, ndtmpsum, no_newt
 
 
 def update_params(
