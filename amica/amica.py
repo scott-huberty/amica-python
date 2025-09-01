@@ -873,21 +873,22 @@ def _core_amica(
         Dsum = Dtemp.copy() # shape (num_models,)
         
         assert dalpha_numer is updates.dalpha_numer
-        LLtmp, ndtmpsum, no_newt = get_updates_and_likelihood(
+        updates, likelihood, ndtmpsum, no_newt = get_updates_and_likelihood(
             X=dataseg,
             config=config,
             updates=updates,
             state=state,
-            metrics=metrics,
+            iter=metrics.iter,
             comp_list=comp_list,
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
             Wtmp=Wtmp,
             nd=nd,
-            LL=LL,
             comp_used=comp_used,
         )
+        metrics.loglik = likelihood
+        LL[iter - 1] = likelihood
         # init
         startover = False
         numincs = 0
@@ -896,7 +897,6 @@ def _core_amica(
         # This should also give an idea of the vars that are assigned within that function.
         # Iteration 1 checks that are values were set globally and are correct form baseline
         if iter == 1:
-            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             assert_allclose(rho, 1.5)
             # assert g[808, 31] == 0.0
             assert dgm_numer[0] == 30504
@@ -924,7 +924,6 @@ def _core_amica(
             assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
             # These shouldnt get updated until the start of newton_optimization
@@ -956,7 +955,6 @@ def _core_amica(
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
-            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
             assert_almost_equal(rho[0, 0], 1.4573165687688203)
             assert dgm_numer[0] == 30504
             assert dsigma2_denom[31, 0] == 30504
@@ -970,7 +968,6 @@ def _core_amica(
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             # assert P[808] == 0.0
-            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3)
 
             # accum_updates_and_likelihood checks..
             assert dgm_numer[0] == 30504
@@ -1255,14 +1252,13 @@ def get_updates_and_likelihood(
     config,
     state,
     updates,
-    metrics, # TODO: if only iter is needed, pass that instead
+    iter,
     comp_list,
     sldet,
     Dsum,
     wc,
     Wtmp,
     nd,
-    LL,
     comp_used,
 ):
     """Get updates and likelihood for AMICA.
@@ -1276,7 +1272,6 @@ def get_updates_and_likelihood(
         comment blocks are kept verbatim alongside the equivalent Python.
     """
 
-    iter = metrics.iter
 
     n_models = config.n_models
     n_mixtures = config.n_mixtures
@@ -1369,7 +1364,6 @@ def get_updates_and_likelihood(
     dc_denom[:] = 0.0
 
     dWtmp = np.zeros((num_comps, num_comps, num_models))
-    LLtmp = 0.0
     lastdim = X.shape[1]
     modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
     assert modloglik.shape == (1, 30504)
@@ -1573,7 +1567,7 @@ def get_updates_and_likelihood(
     P = np.logaddexp.reduce(Ptmp, axis=1)
     assert P.shape == (N1,) # Per-sample total log-likelihood across models.
     LLinc = np.sum(P[:])
-    LLtmp += LLinc
+    LLtmp = LLinc
     
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
@@ -1987,6 +1981,7 @@ def get_updates_and_likelihood(
         assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
         assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
         assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
+        assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
 
     # In Fortran, the OMP parallel region is closed here
     # !$OMP END PARALLEL
@@ -2216,7 +2211,7 @@ def get_updates_and_likelihood(
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        LL[iter - 1] = LLtmp2 / (all_blks * nw)
+        likelihood = LLtmp2 / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
@@ -2226,7 +2221,7 @@ def get_updates_and_likelihood(
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
-    return LLtmp, ndtmpsum, no_newt
+    return updates, likelihood, ndtmpsum, no_newt
 
 
 def update_params(
