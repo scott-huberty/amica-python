@@ -325,12 +325,13 @@ def get_workspace(cfg: AmicaConfig, *, block_size: Optional[int] = None) -> Amic
 
 
 # TODO: consider making this a class method of AmicaUpdates
-def initialize_updates(cfg: AmicaConfig, do_newton: bool=False) -> AmicaUpdates:
+def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     """Allocate zeroed update accumulators with shapes from the config."""
     num_comps = cfg.n_components
     num_models = cfg.n_models  
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
+    do_newton = cfg.do_newton
     shape_2 = (num_mix, num_comps)
 
     # Match amica.py initialization patterns

@@ -498,18 +498,12 @@ def _core_amica(
     print("Allocating variables ...")
 
     # Initialize updates structure - replaces individual d*_numer/denom arrays
-    updates = initialize_updates(config, do_newton=do_newton)
     
     Dtemp = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
     c = np.zeros((num_comps, num_models))
-    dc_numer = updates.dc_numer
-    dc_denom = updates.dc_denom
-    assert dc_numer.shape == (num_comps, num_models)
-    assert dc_denom.shape == (num_comps, num_models)
-    assert_allclose(dc_numer, 0)
 
     wc = np.zeros((num_comps, num_models))
     Wtmp = np.zeros((num_comps, num_comps))
@@ -528,34 +522,7 @@ def _core_amica(
 
     comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     # These are all passed to get_updates_and_likelihood
-    dgm_numer = updates.dgm_numer
-    assert dgm_numer.shape == (num_models,)
-    assert dgm_numer.dtype == np.float64
-
-    if do_newton:
-        # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
-        dbaralpha_numer = updates.newton.dbaralpha_numer
-        dbaralpha_denom = updates.newton.dbaralpha_denom
-        dkappa_numer = updates.newton.dkappa_numer
-        dkappa_denom = updates.newton.dkappa_denom
-        dlambda_numer = updates.newton.dlambda_numer
-        dlambda_denom = updates.newton.dlambda_denom
-        dsigma2_numer = updates.newton.dsigma2_numer
-        dsigma2_denom = updates.newton.dsigma2_denom
-
-        shape_3 = (num_mix, num_comps, num_models)
-        assert dbaralpha_numer.shape == shape_3
-        assert dbaralpha_denom.shape == shape_3
-        assert dkappa_numer.shape == shape_3
-        assert dkappa_denom.shape == shape_3
-        assert dlambda_numer.shape == shape_3
-        assert dlambda_denom.shape == shape_3
-        assert dsigma2_numer.shape == (num_comps, num_models)
-        assert dsigma2_denom.shape == (num_comps, num_models)
-    else:
-        raise NotImplementedError()
-
-    dAK = updates.dAK
+    
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
@@ -564,11 +531,6 @@ def _core_amica(
 
     alpha = state.alpha  # Mixing matrix
     assert alpha.shape == (num_mix, num_comps)
-    # if update_alpha:
-    dalpha_numer = updates.dalpha_numer
-    dalpha_denom = updates.dalpha_denom
-    assert dalpha_numer.shape == (num_mix, num_comps)
-    assert dalpha_denom.shape == (num_mix, num_comps)
 
     mu = state.mu
     assert mu.shape == (num_mix, num_comps)
@@ -577,10 +539,6 @@ def _core_amica(
     mutmp = np.zeros((num_mix, num_comps))
     
     # if update_mu:
-    dmu_numer = updates.dmu_numer
-    dmu_denom = updates.dmu_denom
-    assert dmu_numer.shape == (num_mix, num_comps)
-    assert dmu_denom.shape == (num_mix, num_comps)
     
     sbeta = state.sbeta
     assert sbeta.shape == (num_mix, num_comps)
@@ -588,19 +546,10 @@ def _core_amica(
 
     # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
     # if update_beta:
-    dbeta_numer = updates.dbeta_numer
-    dbeta_denom = updates.dbeta_denom
-    assert dbeta_numer.shape == (num_mix, num_comps)
-    assert dbeta_denom.shape == (num_mix, num_comps)
     
     rho = state.rho
     assert rho.shape == (num_mix, num_comps)
     assert_allclose(rho, 1.5)
-    if dorho:
-        drho_numer = updates.drho_numer
-        drho_denom = updates.drho_denom
-        assert drho_numer.shape == (num_mix, num_comps)
-        assert drho_denom.shape == (num_mix, num_comps)
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
@@ -872,11 +821,9 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
         
-        assert dalpha_numer is updates.dalpha_numer
         updates, likelihood, ndtmpsum, no_newt = get_updates_and_likelihood(
             X=dataseg,
             config=config,
-            updates=updates,
             state=state,
             iter=metrics.iter,
             comp_list=comp_list,
@@ -898,57 +845,17 @@ def _core_amica(
         # Iteration 1 checks that are values were set globally and are correct form baseline
         if iter == 1:
             assert_allclose(rho, 1.5)
-            # assert g[808, 31] == 0.0
-            assert dgm_numer[0] == 30504
-            # assert_almost_equal(tmpsum, -52.929467835976844)
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom[31, 0] == 30504
-            # assert u[808, 31, 2] == 0.0
-            # assert_almost_equal(usum, 325.12075860737821, decimal=7)
-            # assert tmpvec[808] == 0.0
-            # assert tmpvec2[808] == 0.0
-            # assert_almost_equal(ufp_all[0, 31 , 2], 0.37032270799594241, decimal=7)
-            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
-            assert dalpha_denom[2, 31] == 30504
-            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
-            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
             
-            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
-            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
             # These shouldnt get updated until the start of newton_optimization
 
             # These should also not change until the start of newton_optimization
-            assert np.all(dkappa_numer == 0)
-            assert np.all(dkappa_denom == 0)
-            assert np.all(dlambda_numer == 0)
-            assert np.all(dlambda_denom == 0)
-            assert np.all(dbaralpha_numer == 0)
-            assert np.all(dbaralpha_denom == 0)
 
             # accum_updates_and_likelihood checks..
             # This should also give an idea of the vars that are assigned within that function.
-            assert dgm_numer[0] == 30504
-            assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert dc_denom[0, 0] == 30504
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.057812635452922263)
             assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
@@ -956,31 +863,11 @@ def _core_amica(
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
             assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert dgm_numer[0] == 30504
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom[31, 0] == 30504
-            # assert u[808, 31, 2] == 0.0
-            #assert_almost_equal(ufp_all[0, 31, 2], 0.53217005240394044)
-            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
-            assert dalpha_denom[2, 31] == 30504
             assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             # assert P[808] == 0.0
 
             # accum_updates_and_likelihood checks..
-            assert dgm_numer[0] == 30504
-            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert dc_denom[0, 0] == 30504
             assert no_newt is False
             assert_almost_equal(ndtmpsum, 0.02543823967703519)
             # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
@@ -1251,7 +1138,6 @@ def get_updates_and_likelihood(
     *,
     config,
     state,
-    updates,
     iter,
     comp_list,
     sldet,
@@ -1292,6 +1178,7 @@ def get_updates_and_likelihood(
     gm = state.gm
     rho = state.rho
 
+    updates = initialize_updates(config)
     dgm_numer = updates.dgm_numer
     dmu_numer = updates.dmu_numer
     dmu_denom = updates.dmu_denom
@@ -1328,40 +1215,6 @@ def get_updates_and_likelihood(
     y = np.empty((N1, nw, num_mix, num_models))
     z = np.empty((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
     Ptmp = np.empty((N1, num_models))
-
-    dgm_numer[:] = 0.0
-    # if update_alpha:
-    dalpha_numer[:] = 0.0
-    dalpha_denom[:] = 0.0
-    
-    # if update_mu:
-    dmu_numer[:] = 0.0
-    dmu_denom[:] = 0.0
-
-    # if update_beta:
-    dbeta_numer[:] = 0.0
-    dbeta_denom[:] = 0.0
-    # else:
-    #    raise NotImplementedError()
-    if dorho:
-        drho_numer[:] = 0.0
-        drho_denom[:] = 0.0
-    else:
-        raise NotImplementedError()
-    if do_newton:
-        dbaralpha_numer[:] = 0.0
-        dbaralpha_denom[:] = 0.0
-        dkappa_numer[:] = 0.0
-        dkappa_denom[:] = 0.0
-        dlambda_numer[:] = 0.0
-        dlambda_denom[:] = 0.0
-        dsigma2_numer[:] = 0.0
-        dsigma2_denom[:] = 0.0
-    elif not do_newton:
-        raise NotImplementedError()
-    # if update_c:
-    dc_numer[:] = 0.0
-    dc_denom[:] = 0.0
 
     dWtmp = np.zeros((num_comps, num_comps, num_models))
     lastdim = X.shape[1]
@@ -2173,7 +2026,6 @@ def get_updates_and_likelihood(
         dA[:, :, h - 1] += np.dot(A[:, comp_list[:, h - 1] - 1], Wtmp)
     # end do (h)
 
-    dAK[:] = 0.0
     zeta = np.zeros(num_comps, dtype=np.float64)
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
@@ -2214,10 +2066,61 @@ def get_updates_and_likelihood(
         likelihood = LLtmp2 / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
+        assert dgm_numer[0] == 30504
+        assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
+        assert dsigma2_denom[31, 0] == 30504
+        assert_almost_equal(dc_numer[31, 0], 0)
+        assert dc_denom[31, 0] == 30504
+        assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
+        assert dalpha_denom[2, 31] == 30504
+        assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+        assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+        assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
+        assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
+        assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
+        assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+        assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5) # XXX: watch this value
+        assert dalpha_denom[0, 0] == 30504
+        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
+        assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
+        assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
+        assert_almost_equal(dc_numer[0, 0],  0)
+        assert dc_denom[0, 0] == 30504
+        assert np.all(dkappa_numer == 0)
+        assert np.all(dkappa_denom == 0)
+        assert np.all(dlambda_numer == 0)
+        assert np.all(dlambda_denom == 0)
+        assert np.all(dbaralpha_numer == 0)
+        assert np.all(dbaralpha_denom == 0)
+
         assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
         assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-
     elif iter == 2:
+        assert dgm_numer[0] == 30504
+        assert dsigma2_denom[31, 0] == 30504
+        assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)
+        assert_almost_equal(dc_numer[31, 0], 0)
+        assert dc_denom[31, 0] == 30504
+        assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
+        assert dalpha_denom[2, 31] == 30504
+        assert dgm_numer[0] == 30504
+        assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
+        assert dalpha_denom[0, 0] == 30504
+        assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
+        assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
+        assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
+        assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
+        assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
+        assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)
+        assert_almost_equal(dc_numer[0, 0],  0)
+        assert dc_denom[0, 0] == 30504
+
+        
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
