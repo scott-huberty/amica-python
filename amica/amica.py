@@ -541,7 +541,7 @@ def _core_amica(
     # These are all passed to get_updates_and_likelihood
     
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
-    nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
+    # nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
     gm = state.gm
     assert gm.shape == (num_models,)
@@ -814,7 +814,6 @@ def _core_amica(
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
-            nd=nd,
         )
         metrics.loglik = likelihood
         LL[iter - 1] = likelihood
@@ -871,8 +870,6 @@ def _core_amica(
             # This is the first iteration with newton optimization.
             #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
         elif iter == 51:
-            assert_almost_equal(nd[0, 0], 0.20135421232976469)
-
             # accum_updates_and_likelihood checks..
             assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
              
@@ -1122,7 +1119,6 @@ def get_updates_and_likelihood(
     sldet,
     Dsum,
     wc,
-    nd,
 ):
     """Get updates and likelihood for AMICA.
     
@@ -1869,7 +1865,6 @@ def get_updates_and_likelihood(
         Wtmp=Wtmp,
         dWtmp=dWtmp,
         LLtmp=LLtmp,
-        nd=nd,
         iter=iter
     )
     return updates, (likelihood, dAK, ndtmpsum, no_newt)
@@ -1882,7 +1877,6 @@ def accum_updates_and_likelihood(
         Wtmp,
         dWtmp,
         LLtmp,
-        nd,
         iter
         ):
     # !--- add to the cumulative dtmps
@@ -2016,7 +2010,6 @@ def accum_updates_and_likelihood(
     elif not do_newton and iter >= newt_start:
         raise NotImplementedError()  # pragma no cover 
 
-    nd[iter - 1, :] = 0
     # global no_newt
     no_newt = False
 
@@ -2110,13 +2103,15 @@ def accum_updates_and_likelihood(
     # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
     #---------------------------------------------------------------
     dAK[:,:] /= zeta  # Broadcasting division
-    nd[iter - 1, :] += np.sum(dAK * dAK, axis=0)
-    
+    # nd is (num_iters, num_comps) in Fortran, but we only store current iteration
+    nd = np.sum(dAK * dAK, axis=0)  # Python-only variable name
+    assert nd.shape == (num_comps,)
+
     # comp_used should be 32 length vector of True
     assert isinstance(comp_used, np.ndarray)
     assert comp_used.shape == (num_comps,)
     assert comp_used.dtype == bool
-    ndtmpsum = np.sqrt(np.sum(nd[iter - 1, :]) / (nw * np.count_nonzero(comp_used)))
+    ndtmpsum = np.sqrt(np.sum(nd) / (nw * np.count_nonzero(comp_used)))
     # end if (update_A)
     
     # if (seg_rank == 0) then
@@ -2143,7 +2138,7 @@ def accum_updates_and_likelihood(
         assert_almost_equal(Wtmp[0, 0], 0.44757740890010089)
         assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
         assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-
+        assert_almost_equal(nd[0], 0.20135421232976469)
     elif iter == 2:
         assert dgm_numer[0] == 30504
         assert dsigma2_denom[31, 0] == 30504
