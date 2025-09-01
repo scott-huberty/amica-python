@@ -2102,8 +2102,8 @@ def accum_updates_and_likelihood(
         #---------------------------------------------------------------
         comp_indices = comp_list[:, h - 1] - 1
         source_columns = gm[h - 1] * dA[:, :, h - 1]
-        np.add.at(dAK, (slice(None), comp_indices), source_columns)
-        np.add.at(zeta, comp_indices, gm[h - 1])
+        dAK[:, comp_indices] += source_columns
+        zeta[comp_indices] += gm[h - 1]
     
     #--------------------------FORTRAN CODE-------------------------
     # dAk(:,k) = dAk(:,k) / zeta(k)
