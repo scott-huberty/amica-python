@@ -79,6 +79,7 @@ class AmicaState:
     Arrays follow shapes consistent with the Fortran port:
     - W:  (ncomp, nchan, nmix)   unmixing matrices per mixture
     - A:  (nchan, ncomp, nmix)   mixing matrices per mixture (often inv(W))
+    - c: (ncomp, n_models)       bias (offset) terms per component and model.
     - mu: (nmix, ncomp)          location parameters per mixture and component
     - sbeta: (nmix, ncomp)       scale parameters per mixture and component
     - rho: (nmix, ncomp)         shape parameters per mixture and component
@@ -88,6 +89,7 @@ class AmicaState:
 
     W: NDArray
     A: NDArray
+    c: NDArray
     mu: NDArray
     sbeta: NDArray
     rho: NDArray
@@ -332,6 +334,7 @@ def get_initial_state(
     # A - match amica.py: A = np.zeros((num_comps, num_comps))  
     A = np.zeros((num_comps, num_comps))
 
+    c = np.zeros((num_comps, num_models))  # Bias terms per component and model
     # sbeta, mu, rho - match amica.py patterns
     if "sbeta" in seeds:
         sbeta = np.array(seeds["sbeta"], dtype=dtype)
@@ -351,7 +354,7 @@ def get_initial_state(
     alpha = np.zeros((num_mix, num_comps), dtype=dtype)
 
     gm = np.full(num_models, 1.0 / num_models, dtype=dtype)  # Uniform initialization
-    return AmicaState(W=W, A=A, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
+    return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
 def get_workspace(cfg: AmicaConfig, *, block_size: Optional[int] = None) -> AmicaWorkspace:

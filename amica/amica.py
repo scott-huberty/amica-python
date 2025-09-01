@@ -525,8 +525,7 @@ def _core_amica(
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
-    c = np.zeros((num_comps, num_models))
-
+    c = state.c 
     wc = np.zeros((num_comps, num_models))
     Wtmp = np.zeros((num_comps, num_comps))
     # TODO: I think this should have a num_models dimension
@@ -1015,7 +1014,6 @@ def _core_amica(
                 updates=updates,
                 metrics=metrics,
                 no_newt=no_newt,
-                c=c,
                 wc=wc,
             )
             if iter == 1:
@@ -2146,11 +2144,9 @@ def update_params(
         updates,
         metrics,
         no_newt,
-        c,
         wc,
 ):
     comp_list, _ = get_component_indices(config.n_components, config.n_models)
-    
     n_models = config.n_models
     nw = config.n_components
     do_newton = config.do_newton
@@ -2163,6 +2159,7 @@ def update_params(
 
     W = state.W
     A = state.A
+    c = state.c
     alpha = state.alpha
     mu = state.mu
     sbeta = state.sbeta
