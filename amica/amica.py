@@ -805,8 +805,8 @@ def _core_amica(
             elif h == 1 and iter == 2:
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
-        
-        updates, likelihood, ndtmpsum, no_newt = get_updates_and_likelihood(
+
+        updates, (likelihood, dAK, ndtmpsum, no_newt) = get_updates_and_likelihood(
             X=dataseg,
             config=config,
             state=state,
@@ -981,6 +981,7 @@ def _core_amica(
                 metrics=metrics,
                 no_newt=no_newt,
                 wc=wc,
+                dAK=dAK,
             )
             if iter == 1:
                 # XXX: making sure all variables were globally set.
@@ -1167,7 +1168,6 @@ def get_updates_and_likelihood(
     drho_denom = updates.drho_denom
     dc_numer = updates.dc_numer
     dc_denom = updates.dc_denom
-    dAK = updates.dAK
 
     if do_newton:
         dbaralpha_numer = updates.newton.dbaralpha_numer
@@ -1862,7 +1862,7 @@ def get_updates_and_likelihood(
     # XXX: Later we'll figure out which variables we actually need to return
     # For now literally return any variable that has been assigned or updated
     # In alphabetical order
-    dAK, likelihood, ndtmpsum, no_newt = accum_updates_and_likelihood(
+    likelihood, dAK, ndtmpsum, no_newt = accum_updates_and_likelihood(
         config=config,
         updates=updates,
         state=state,
@@ -1872,8 +1872,7 @@ def get_updates_and_likelihood(
         nd=nd,
         iter=iter
     )
-    updates.dAK = dAK
-    return updates, likelihood, ndtmpsum, no_newt
+    return updates, (likelihood, dAK, ndtmpsum, no_newt)
 
 
 def accum_updates_and_likelihood(
@@ -1916,7 +1915,7 @@ def accum_updates_and_likelihood(
     mu = state.mu
     
     dgm_numer = updates.dgm_numer
-    dAK = updates.dAK # TODO: I think we should remove this
+    dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
 
     if do_newton:
         dbaralpha_numer = updates.newton.dbaralpha_numer
@@ -2152,7 +2151,7 @@ def accum_updates_and_likelihood(
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
-    return dAK, likelihood, ndtmpsum, no_newt
+    return (likelihood, dAK, ndtmpsum, no_newt)
 
 
 def update_params(
@@ -2163,6 +2162,7 @@ def update_params(
         metrics,
         no_newt,
         wc,
+        dAK,
 ):
     comp_list, _ = get_component_indices(config.n_components, config.n_models)
     n_models = config.n_models
@@ -2195,7 +2195,6 @@ def update_params(
     dbeta_denom = updates.dbeta_denom
     drho_numer = updates.drho_numer
     drho_denom = updates.drho_denom
-    dAK = updates.dAK
 
     iter = metrics.iter
     lrate = metrics.lrate
