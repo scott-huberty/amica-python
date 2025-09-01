@@ -68,6 +68,28 @@ import line_profiler
 # warnings.simplefilter('error')
 
 
+def get_component_indices(num_comps: int, num_models: int):
+    """Return column-shaped comp_list and its boolean mask.
+
+    Parameters
+    - num_comps: number of components (nw)
+    - num_models: number of models
+
+    Returns
+    - comp_list: ndarray of shape (num_comps, num_models), dtype=int64
+    - comp_used: ndarray of shape (num_comps,), dtype=bool
+    """
+    comp_list = np.empty((num_comps, num_models), dtype=int)
+    for h, _ in enumerate(range(num_models), start=1):
+        h_index = h - 1
+        col = h_index * num_comps + np.arange(1, num_comps + 1)
+        comp_list[:, h_index] = col
+    # Right now comp_used are always all True.
+    # This will change if we implement shared components across models.
+    comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
+    return comp_list, comp_used
+
+
 def amica(
         X,
         *,
@@ -512,15 +534,12 @@ def _core_amica(
     assert A.shape == (num_comps, num_comps)
     assert_allclose(A, 0)
     
-    comp_list = np.zeros((num_comps, num_models), dtype=int)
-    
     W = state.W # Weights for each model
     assert W.shape == (num_comps, num_comps, num_models)
     assert W.dtype == np.float64
 
     ipivnw = np.zeros(num_comps)  # Pivot indices for W
 
-    comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     # These are all passed to get_updates_and_likelihood
     
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
@@ -600,6 +619,7 @@ def _core_amica(
     if load_A:
         raise NotImplementedError()
     else:
+        comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # TODO: if A has a num_models dimension, this fancy indexing isnt needed
@@ -623,7 +643,6 @@ def _core_amica(
             else:
                 raise ValueError("Unexpected model index")
             A[:, cols] /= Anrmk
-            comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1) 
 
             if h == 1:
                 assert_almost_equal(A[0, 0], 0.99987950295221151)
@@ -678,7 +697,6 @@ def _core_amica(
         assert_equal(comp_list[31, 0], 32)
     else:
         raise NotImplementedError("Unexpected model index")
-    comp_used[:] = True
     
     # if (print_debug) then
     #  print *, 'data ='; call flush(6)
@@ -826,13 +844,11 @@ def _core_amica(
             config=config,
             state=state,
             iter=metrics.iter,
-            comp_list=comp_list,
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
             Wtmp=Wtmp,
             nd=nd,
-            comp_used=comp_used,
         )
         metrics.loglik = likelihood
         LL[iter - 1] = likelihood
@@ -1001,7 +1017,6 @@ def _core_amica(
                 no_newt=no_newt,
                 c=c,
                 wc=wc,
-                comp_list=comp_list,
             )
             if iter == 1:
                 # XXX: making sure all variables were globally set.
@@ -1139,13 +1154,11 @@ def get_updates_and_likelihood(
     config,
     state,
     iter,
-    comp_list,
     sldet,
     Dsum,
     wc,
     Wtmp,
     nd,
-    comp_used,
 ):
     """Get updates and likelihood for AMICA.
     
@@ -1157,7 +1170,7 @@ def get_updates_and_likelihood(
     - This function mirrors the original Fortran implementation. Fortran reference
         comment blocks are kept verbatim alongside the equivalent Python.
     """
-
+    comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
 
     n_models = config.n_models
     n_mixtures = config.n_mixtures
@@ -2135,8 +2148,9 @@ def update_params(
         no_newt,
         c,
         wc,
-        comp_list,
 ):
+    comp_list, _ = get_component_indices(config.n_components, config.n_models)
+    
     n_models = config.n_models
     nw = config.n_components
     do_newton = config.do_newton
