@@ -1178,6 +1178,7 @@ def get_updates_and_likelihood(
     gm = state.gm
     rho = state.rho
 
+    # TODO: If we vectorize over models, we can create *_numer/denom arrays on the fly
     updates = initialize_updates(config)
     dgm_numer = updates.dgm_numer
     dmu_numer = updates.dmu_numer
@@ -1729,11 +1730,10 @@ def get_updates_and_likelihood(
             rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
             rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
             # shape: (max_block_size, nw, num_mix)
-            tmpy[:, :, :] = np.exp(
-                rho_vals_br * logab[:, :, :]
-            )
+            np.multiply(rho_vals_br, logab, out=logab)
+            np.exp(logab, out=tmpy)  # now tmpy is exp(rho * log|y|)
             # shape: (max_block_size, nw, num_mix)
-            logab[:, :, :] = np.log(tmpy[:, :, :])
+            np.log(tmpy, out=logab)
             
             # -------------------------------FORTRAN--------------------------------
             # where (tmpy(bstrt:bstp) < epsdble)
@@ -1741,8 +1741,7 @@ def get_updates_and_likelihood(
                     # end where
             # ----------------------------------------------------------------------
             # Set values below epsdble to 0.0
-            # TODO: change to logab[tmpy < epsdble]
-            logab[:, :, :][tmpy[:, :, :] < epsdble] = 0.0
+            logab[tmpy < epsdble] = 0.0
             # -------------------------------FORTRAN--------------------------------
             # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
             # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
