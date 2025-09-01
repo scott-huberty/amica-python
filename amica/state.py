@@ -189,8 +189,6 @@ class AmicaUpdates:
     dc_numer: NDArray
     dc_denom: NDArray
     
-    dAK: NDArray
-
     loglik_sum: float = 0.0
 
     newton: Optional[AmicaNewtonUpdates] = None
@@ -219,7 +217,6 @@ class AmicaUpdates:
         self.dc_numer.fill(0.0)
         self.dc_denom.fill(0.0)
 
-        self.dAK.fill(0.0)
 
         self.loglik_sum = 0.0
 
@@ -400,8 +397,6 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     dc_numer = np.zeros((num_comps, num_models), dtype=dtype)
     dc_denom = np.zeros((num_comps, num_models), dtype=dtype)
 
-    dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
-
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
         shape_3 = (num_mix, num_comps, num_models)
@@ -444,7 +439,6 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
         drho_denom=drho_denom,
         dc_numer=dc_numer,
         dc_denom=dc_denom,
-        dAK=dAK,
         loglik_sum=0.0,
         newton=newton,
     )
