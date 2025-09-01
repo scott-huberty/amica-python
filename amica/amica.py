@@ -816,6 +816,7 @@ def _core_amica(
             wc=wc,
         )
         metrics.loglik = likelihood
+        metrics.ndtmpsum = ndtmpsum
         LL[iter - 1] = likelihood
         # init
         startover = False

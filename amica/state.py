@@ -264,10 +264,14 @@ class IterationMetrics:
     This container tracks iteration specific metadata that evolves during training and
     influences convergence behavior, but are not learnable parameters themselves.
     The container helps oraganize the values and pass them around functions.
+    
+    Fields:
+    - ndtmpsum: Total norm of the weight gradient, summed across all components; computed as sqrt(mean of per-component squared update norms).
     """
 
     iter: int                           # 1-based iteration index
     loglik: Optional[float] = None      # total log-likelihood for the iteration
+    ndtmpsum: Optional[float] = None    # normalized update norm for the iteration
     lrate: Optional[float] = None       # learning rate used for the iteration
     rholrate: Optional[float] = None    # rho learning rate used for the iteration
     ll_inc: float = 0.0                 # improvement vs previous iteration
