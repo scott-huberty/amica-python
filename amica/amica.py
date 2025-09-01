@@ -806,7 +806,7 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
 
-        updates, (likelihood, dAK, ndtmpsum, no_newt) = get_updates_and_likelihood(
+        updates, (likelihood, ndtmpsum, dAK, no_newt) = get_updates_and_likelihood(
             X=dataseg,
             config=config,
             state=state,
@@ -1859,7 +1859,7 @@ def get_updates_and_likelihood(
     # XXX: Later we'll figure out which variables we actually need to return
     # For now literally return any variable that has been assigned or updated
     # In alphabetical order
-    likelihood, dAK, ndtmpsum, no_newt = accum_updates_and_likelihood(
+    likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
         config=config,
         updates=updates,
         state=state,
@@ -1868,7 +1868,7 @@ def get_updates_and_likelihood(
         LLtmp=LLtmp,
         iter=iter
     )
-    return updates, (likelihood, dAK, ndtmpsum, no_newt)
+    return updates, (likelihood, ndtmpsum, dAK, no_newt)
 
 
 def accum_updates_and_likelihood(
@@ -2147,7 +2147,7 @@ def accum_updates_and_likelihood(
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
-    return (likelihood, dAK, ndtmpsum, no_newt)
+    return (likelihood, ndtmpsum, dAK, no_newt)
 
 
 def update_params(
