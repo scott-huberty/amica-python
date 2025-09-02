@@ -808,15 +808,6 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
 
-        # NOTE: In Fortran Wtmp got calculated in the model loop above.
-        #---------------------FORTRAN CODE-------------------------
-        # DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-        # DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-        #---------------------------------------------------------------
-        # Copy for QR decomposition checks below (mirrors Fortran workflow)
-        # Use LAPACK-style QR decomposition to match Fortran results 
-        # output of linalg.qr is ((32x32 array, 32 length vector), 32x32 array)
-        state.Wqr
 
         updates, metrics = get_updates_and_likelihood(
             X=dataseg,
@@ -1163,8 +1154,6 @@ def get_updates_and_likelihood(
     mu = state.mu
     gm = state.gm
     rho = state.rho
-    assert state._Wqr_cache is not None
-    Wtmp = state.Wqr
 
     updates.reset()
     dgm_numer = updates.dgm_numer
@@ -1235,18 +1224,6 @@ def get_updates_and_likelihood(
         h_index = h - 1
         comp_indicies = comp_list[:, h_index] - 1
 
-        if iter == 1 and h == 1:
-            assert_almost_equal(Wtmp[0, 0], -1.0002104623870129)
-            assert_almost_equal(Wtmp[0, 1], 0.00068226194552804516)
-            assert_almost_equal(Wtmp[0, 2], 0.0024125139540750098)
-            assert_almost_equal(Wtmp[0, 3], -0.0055842862428100992)
-            assert_almost_equal(Wtmp[5, 20], 0.0071623363741352211)
-            assert_almost_equal(Wtmp[30,0], 0.0017863039696990476)
-            assert_almost_equal(Wtmp[31, 3], -0.00099517272235760353)
-            assert_almost_equal(Wtmp[31, 31], 1.0000274553937698)
-        elif iter == 2 and h == 1:
-            pass
-            #assert_almost_equal(Wtmp[31, 31], 1.0000243135317468)
 
         # --- Subsection: Baseline terms and unmixing ---
         #--------------------------FORTRAN CODE-------------------------
