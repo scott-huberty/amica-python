@@ -519,6 +519,8 @@ def _core_amica(
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
 
+    # Initialize updates container
+    updates = initialize_updates(config)
     # Initialize updates structure - replaces individual d*_numer/denom arrays
     
     Dtemp = np.zeros(num_models, dtype=np.float64)
@@ -810,6 +812,7 @@ def _core_amica(
             X=dataseg,
             config=config,
             state=state,
+            updates=updates,
             metrics=metrics,
             Dsum=Dsum,
             sldet=sldet,
@@ -1114,6 +1117,7 @@ def get_updates_and_likelihood(
     *,
     config,
     state,
+    updates,
     metrics,
     sldet,
     Dsum,
@@ -1150,8 +1154,7 @@ def get_updates_and_likelihood(
     gm = state.gm
     rho = state.rho
 
-    # TODO: If we vectorize over models, we can create *_numer/denom arrays on the fly
-    updates = initialize_updates(config)
+    updates.reset()
     dgm_numer = updates.dgm_numer
     dmu_numer = updates.dmu_numer
     dmu_denom = updates.dmu_denom
