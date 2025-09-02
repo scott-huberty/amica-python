@@ -35,7 +35,6 @@ from typing import Dict, Iterable, Mapping, Optional, Tuple, List
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import linalg
 
 from constants import rho0
 
@@ -119,8 +118,7 @@ class AmicaWorkspace:
     reallocated to match the request.
     """
 
-    block_size: int
-    dtype: np.dtype
+    dtype: np.dtype = np.float64
     _buffers: Dict[str, NDArray] = field(default_factory=dict)
 
     def get(
@@ -129,7 +127,7 @@ class AmicaWorkspace:
         shape: Tuple[int, ...],
         *,
         dtype: Optional[np.dtype] = None,
-        init: str = "empty",
+        init: str = "zeros",
     ) -> NDArray:
         """Get or create a buffer by name.
 
