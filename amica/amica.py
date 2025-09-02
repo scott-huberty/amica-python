@@ -489,41 +489,25 @@ def _core_amica(
     newt_start=newt_start,
     newtrate=newtrate,
     newt_ramp=newt_ramp,'''
-    n_components = config.n_components
-    n_models = config.n_models
-    n_mixtures = config.n_mixtures
-    max_iter = config.max_iter
-    pdftype = config.pdftype
-    do_reject = config.do_reject
-    tol = config.tol
-    lrate0 = config.lrate
-    rholrate0 = config.rholrate
-    do_newton = config.do_newton
-    newt_start = config.newt_start
-    newtrate = config.newtrate
-    newt_ramp = config.newt_ramp
-    assert n_components == 32
-    assert n_models == 1
-    assert n_mixtures == 3
-    assert max_iter == 200
-    assert pdftype == 0
-    assert tol == 1e-7
-    assert not do_reject
-    assert rholrate0 == 0.05
-    assert do_newton
-    assert newt_start == 50
-    assert newtrate == 1
-    assert newt_ramp == 10
+    assert config.n_components == 32
+    assert config.n_models == 1
+    assert config.n_mixtures == 3
+    assert config.max_iter == 200
+    assert config.pdftype == 0
+    assert config.tol == 1e-7
+    assert not config.do_reject
+    assert config.rholrate == 0.05
+    assert config.do_newton
+    assert config.newt_start == 50
+    assert config.newtrate == 1
+    assert config.newt_ramp == 10
     assert_almost_equal(sldet, -65.935050239880198)
 
-    
-    if n_components is None:
-        n_components = X.shape[0]
-
     # The API will use n_components but under the hood we'll match the Fortran naming
-    num_comps = n_components
-    num_models = n_models
-    num_mix = n_mixtures
+    # TODO: Maybe rename n_components to num_comps in the config dataclass?
+    num_comps = config.n_components
+    num_models = config.n_models
+    num_mix = config.n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
 
@@ -534,7 +518,7 @@ def _core_amica(
     Dtemp = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
-    LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
+    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood
     # TODO: I think this should have a num_models dimension
 
     assert state.A.shape == (num_comps, num_comps)
@@ -753,9 +737,9 @@ def _core_amica(
 
     c1 = time.time()
 
-    lrate = lrate0
-    rholrate = rholrate0
-    while iter <= max_iter:
+    lrate = config.lrate
+    rholrate = config.rholrate
+    while iter <= config.max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
         # The Fortran code computed log|det(W)| indirectly via QR factorization
@@ -913,13 +897,14 @@ def _core_amica(
                     rholrate *= rholratefact
                     numdecs += 1
                     if numdecs >= maxdecs:
+                        raise NotImplementedError()
                         lrate0 *= lrate0 * lratefact
                         if iter == 2:
                             assert 1 == 0
-                        if iter > newt_start:
+                        if iter > config.newt_start:
                             raise NotImplementedError()
                             rholrate0 *= rholratefact
-                        if do_newton and iter > newt_start:
+                        if config.do_newton and iter > config.newt_start:
                             print("Reducing maximum Newton lrate")
                             newtrate *= lratefact
                             assert 1 == 0 # stop to check that value
@@ -956,7 +941,7 @@ def _core_amica(
             else:
                 raise NotImplementedError() # pragma no cover
         # end if (iter > 1)
-        if do_newton and (iter == newt_start):
+        if config.do_newton and (iter == config.newt_start):
             print("Starting Newton ... setting numdecs to 0")
 
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
@@ -984,9 +969,9 @@ def _core_amica(
                 assert_almost_equal(state.alpha[0, 0], 0.29397781623708935, decimal=5)
                 assert_almost_equal(state.c[0, 0], 0.0)
                 assert posdef is True
-                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(config.lrate, 0.05)
                 assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(config.rholrate, 0.05)
                 assert_almost_equal(rholrate, 0.05)
                 assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
                 assert maxrho == 2
@@ -1004,9 +989,9 @@ def _core_amica(
                 assert_almost_equal(state.alpha[0, 0], 0.25773550277474716)
                 assert_almost_equal(state.c[0, 0], 0.0)
                 assert posdef is True
-                assert_almost_equal(lrate0, 0.05)
+                assert_almost_equal(config.lrate, 0.05)
                 assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(rholrate0, 0.05)
+                assert_almost_equal(config.rholrate, 0.05)
                 assert_almost_equal(rholrate, 0.05)
                 assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
                 assert maxrho == 2
@@ -1025,7 +1010,7 @@ def _core_amica(
 
             # !----- reject data
             if (
-                do_reject
+                config.do_reject
                 and (maxrej > 0)
                 and (
                     iter == rejstart
@@ -1061,6 +1046,7 @@ def get_unmixing_matrices(
         #--------------------------FORTRAN CODE-------------------------
         # call DCOPY(nw*nw,A(:,comp_list(:,h)),1,W(:,:,h),1)
         #---------------------------------------------------------------
+        # TODO: assign on the fly without passing in W
         W[:, :, h - 1] = A[:, comp_list[:, h - 1] - 1].copy()
         if not iterating:
             assert_almost_equal(W[0, 0, h - 1], 0.99987950295221151)
