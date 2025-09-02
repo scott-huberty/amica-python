@@ -976,7 +976,7 @@ def _core_amica(
         else:
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
             # the updated lrate & rholrate for the next iteration
-            lrate, rholrate = update_params(
+            lrate, rholrate, state, wc = update_params(
                 config=config,
                 state=state,
                 updates=updates,
@@ -2355,7 +2355,6 @@ def update_params(
         global free_pass
         free_pass = False
     
-    # global W, wc
     W[:, :, :], wc[:, :] = get_unmixing_matrices(
         iterating=True,
         c=c,
@@ -2374,7 +2373,7 @@ def update_params(
     
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
     # ...
-    return lrate, rholrate
+    return lrate, rholrate, state, wc
 
 
 
