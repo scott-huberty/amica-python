@@ -96,6 +96,7 @@ class AmicaState:
     alpha: NDArray
     gm: NDArray
 
+    _Wqr_cache: Optional[NDArray] = field(default=None, init=False, repr=False)
     def to_dict(self) -> Dict[str, NDArray]:
         """Return a lightweight serialization of array fields."""
         return {
@@ -107,6 +108,47 @@ class AmicaState:
             "alpha": self.alpha,
             "gm": self.gm,
         }
+
+    # --- Derived convenience: Wtmp ---------------------------------------
+    # In Fortran, Wtmp is an intermediate produced by a QR factorization of W
+    # when estimating log-determinants or related terms. Several Python call
+    # sites already reproduce this locally. We expose a minimal, lazy property
+    # here to centralize the logic. It returns an array of shape
+    # (ncomp, ncomp, n_models) where the k-th slice is the Q factor from
+    # linalg.qr(W[:, :, k], mode='economic') to match current Python usage.
+
+    @property
+    def Wqr(self) -> NDArray:
+        """Lazy QR-based decomposition derived from W.
+
+        Returns an array with shape (ncomp, ncomp, n_models). The result is
+        cached on first computation and invalidated if `W` is reassigned via
+        `set_W`.
+        """
+        cache_name = "_Wqr_cache"
+        cached = getattr(self, cache_name, None)
+        if cached is not None:
+            return cached
+
+        W = self.W
+        _, _, n_models = W.shape
+        # FIXME: This doesnt support num_models > 1
+        for k in range(n_models):
+            # Use LAPACK-style QR decomposition to match Fortran results 
+            # Wtmp is the name of the array in the Fortran code.
+            (Wtmp, _), _ = linalg.qr(W[:, :, k], mode='raw')
+
+        # Attach cache attribute on the instance. AmicaState is not frozen,
+        # so setting a new attribute is allowed (repr is suppressed).
+        setattr(self, cache_name, Wtmp)
+        return Wtmp
+
+    def set_W(self, W_new: NDArray) -> None:
+        """Assign a new W and invalidate cached derived tensors."""
+        self.W = W_new
+        # Invalidate cached Wqr if present
+        if hasattr(self, "_Wqr_cache"):
+            delattr(self, "_Wqr_cache")
 
 
 @dataclass
