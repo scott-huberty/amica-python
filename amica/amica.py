@@ -435,12 +435,20 @@ def amica(
         n_components = nw
     elif n_components > nw:
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
-    gm, mu, rho, sbeta, W, A, c, alpha, LL = _core_amica(
+    state, LL = _core_amica(
         X=dataseg,
         config=config,
         state=state,
         sldet=sldet,
         )
+    gm = state.gm
+    mu = state.mu
+    rho = state.rho
+    sbeta = state.sbeta
+    W = state.W
+    A = state.A
+    c = state.c
+    alpha = state.alpha
     return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
 
@@ -527,48 +535,39 @@ def _core_amica(
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     LL = np.zeros(max(1, max_iter), dtype=np.float64)  # Log likelihood
-    c = state.c 
-    wc = np.zeros((num_comps, num_models))
     # TODO: I think this should have a num_models dimension
-    A = state.A  # Mixing matrix
-    assert A.shape == (num_comps, num_comps)
-    assert_allclose(A, 0)
-    
-    W = state.W # Weights for each model
-    assert W.shape == (num_comps, num_comps, num_models)
-    assert W.dtype == np.float64
 
-    ipivnw = np.zeros(num_comps)  # Pivot indices for W
+    assert state.A.shape == (num_comps, num_comps)
+    assert_allclose(state.A, 0)
+
+    assert state.W.shape == (num_comps, num_comps, num_models)
+    assert state.W.dtype == np.float64
+
 
     # These are all passed to get_updates_and_likelihood
     
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     # nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
-    gm = state.gm
-    assert gm.shape == (num_models,)
+    assert state.gm.shape == (num_models,)
 
-    alpha = state.alpha  # Mixing matrix
-    assert alpha.shape == (num_mix, num_comps)
+    assert state.alpha.shape == (num_mix, num_comps)
 
-    mu = state.mu
-    assert mu.shape == (num_mix, num_comps)
-    assert_allclose(mu, 0)
+    assert state.mu.shape == (num_mix, num_comps)
+    assert_allclose(state.mu, 0)
 
     mutmp = np.zeros((num_mix, num_comps))
     
     # if update_mu:
     
-    sbeta = state.sbeta
-    assert sbeta.shape == (num_mix, num_comps)
-    assert_allclose(sbeta, np.nan)
+    assert state.sbeta.shape == (num_mix, num_comps)
+    assert_allclose(state.sbeta, np.nan)
 
     # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
     # if update_beta:
-    
-    rho = state.rho
-    assert rho.shape == (num_mix, num_comps)
-    assert_allclose(rho, 1.5)
+
+    assert state.rho.shape == (num_mix, num_comps)
+    assert_allclose(state.rho, 1.5)
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
@@ -579,43 +578,43 @@ def _core_amica(
         raise NotImplementedError()
     else:
         # gm[:] = int(1.0 / num_models)
-        assert_allclose(gm.sum(), 1.0)
+        assert_allclose(state.gm.sum(), 1.0)
     if load_alpha:
         raise NotImplementedError()
     else:
-        alpha[:num_mix, :] = 1.0 / num_mix
+        state.alpha[:num_mix, :] = 1.0 / num_mix
     if load_mu:
         raise NotImplementedError()
     else:
         values = np.arange(num_mix) - (num_mix - 1) / 2
-        mu[:, :] = values[:, np.newaxis]
-        assert mu.shape == (num_mix, num_comps) == (3, 32)
-        np.testing.assert_allclose(mu[0, :], -1.0)
-        np.testing.assert_allclose(mu[1, :], 0.0)
-        np.testing.assert_allclose(mu[2, :], 1.0)
+        state.mu[:, :] = values[:, np.newaxis]
+        assert state.mu.shape == (num_mix, num_comps) == (3, 32)
+        np.testing.assert_allclose(state.mu[0, :], -1.0)
+        np.testing.assert_allclose(state.mu[1, :], 0.0)
+        np.testing.assert_allclose(state.mu[2, :], 1.0)
         if not fix_init:
             mutmp = MUTMP.copy()
-            mu[:num_mix, :] = mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
-            assert_almost_equal(mu[0, 0], -1.0009659467356704, decimal=7)
-            assert_almost_equal(mu[2, 31], 0.99866076686138183, decimal=7)
+            state.mu[:num_mix, :] = state.mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
+            assert_almost_equal(state.mu[0, 0], -1.0009659467356704, decimal=7)
+            assert_almost_equal(state.mu[2, 31], 0.99866076686138183, decimal=7)
     if load_beta:
         raise NotImplementedError()
     else:
         if fix_init:
             raise NotImplementedError()
         else:
-            sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
-            assert_almost_equal(sbeta[0, 0], 0.96533589542801645, decimal=7)
+            state.sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
+            assert_almost_equal(state.sbeta[0, 0], 0.96533589542801645, decimal=7)
             assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
     if load_rho:
         raise NotImplementedError()
     else:
-        np.testing.assert_allclose(rho, 1.5)
+        np.testing.assert_allclose(state.rho, 1.5)
     if load_c:
         raise NotImplementedError()
     else:
-        c[:, :] = 0.0
-        assert c.shape == (num_comps, num_models) == (32, 1)
+        state.c[:, :] = 0.0
+        assert state.c.shape == (num_comps, num_models) == (32, 1)
     if load_A:
         raise NotImplementedError()
     else:
@@ -624,13 +623,13 @@ def _core_amica(
             h_index = h - 1
             # TODO: if A has a num_models dimension, this fancy indexing isnt needed
             # FIXME: This indexing will fail if num_models > 1
-            A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
+            state.A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
             if h == 1:
-                assert_almost_equal(A[0, 0], 0.0041003901044031916, decimal=7)
+                assert_almost_equal(state.A[0, 0], 0.0041003901044031916, decimal=7)
             idx = np.arange(num_comps)
             cols = h_index * num_comps + idx
-            A[idx, cols] = 1.0
-            Anrmk = np.linalg.norm(A[:, cols], axis=0)
+            state.A[idx, cols] = 1.0
+            Anrmk = np.linalg.norm(state.A[:, cols], axis=0)
             if h == 1:
                 assert_almost_equal(Anrmk[0], 1.0001205115690768)
                 assert_almost_equal(Anrmk[1], 1.0001597653323635)
@@ -642,18 +641,18 @@ def _core_amica(
                 assert_almost_equal(Anrmk[31], 1.0001690977165658)
             else:
                 raise ValueError("Unexpected model index")
-            A[:, cols] /= Anrmk
+            state.A[:, cols] /= Anrmk
 
             if h == 1:
-                assert_almost_equal(A[0, 0], 0.99987950295221151)
-                assert_almost_equal(A[0, 1], 0.0031751973942113266)
-                assert_almost_equal(A[0, 2], 0.0032972413345084516)
-                assert_almost_equal(A[0, 3], -0.0039658956397471655)
-                assert_almost_equal(A[0, 4], -0.003799613000692897)
-                assert_almost_equal(A[0, 5], 0.0028189089968969124)
-                assert_almost_equal(A[0, 6], -0.0049667241649223011)
-                assert_almost_equal(A[0, 7], -0.0049493288857340749)
-                assert_almost_equal(A[0, 31], 0.0033698692262480665)
+                assert_almost_equal(state.A[0, 0], 0.99987950295221151)
+                assert_almost_equal(state.A[0, 1], 0.0031751973942113266)
+                assert_almost_equal(state.A[0, 2], 0.0032972413345084516)
+                assert_almost_equal(state.A[0, 3], -0.0039658956397471655)
+                assert_almost_equal(state.A[0, 4], -0.003799613000692897)
+                assert_almost_equal(state.A[0, 5], 0.0028189089968969124)
+                assert_almost_equal(state.A[0, 6], -0.0049667241649223011)
+                assert_almost_equal(state.A[0, 7], -0.0049493288857340749)
+                assert_almost_equal(state.A[0, 31], 0.0033698692262480665)
 
                 assert_equal(comp_list[0, 0], 1)
                 assert_equal(comp_list[1, 0], 2)
@@ -669,14 +668,15 @@ def _core_amica(
     iterating = True if "iter" in locals() else False
     W, wc = get_unmixing_matrices(
         iterating=iterating,
-        c=c,
-        wc=wc,
-        A=A,
+        c=state.c,
+        A=state.A,
         comp_list=comp_list,
-        W=W,
+        W=state.W,
         num_models=num_models,
     )
     assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
+    state.W = W.copy()
+    del W # safe guard against accidental use of W instead of state.W
 
 
     # load_comp_list
@@ -705,9 +705,6 @@ def _core_amica(
     #    raise NotImplementedError()    
 
     # !-------------------- Determine optimal block size -------------------
-    block_size = 512 # Default of program is 128 but test config uses 512
-    max_thrds = 1 # Default of program is 24, test file config uses 10, but lets set it to 1 for simplicity
-    num_thrds = max_thrds
     if do_opt_block:
         raise NotImplementedError()
     else:
@@ -741,11 +738,8 @@ def _core_amica(
         # tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
         # tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
     myrank = 0
-    print(f"{myrank + 1}: block size = {block_size}")
+    print(f"{myrank + 1}: block size = {N1}")
     # for seg, _ in enumerate(range(numsegs), start=1):
-    blk_size = min(dataseg.shape[-1], block_size)
-    assert blk_size == 512
-
 
     # v[:, :] = 1.0 / num_models
     leave = False
@@ -789,7 +783,7 @@ def _core_amica(
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # Use slogdet on the original unmixing matrix to get sign and log|det|
-            sign, logabsdet = np.linalg.slogdet(W[:, :, h_index])
+            sign, logabsdet = np.linalg.slogdet(state.W[:, :, h_index])
             if sign == 0:
                 print(f"Model {h} determinant is zero!")
                 Dtemp[h_index] = minlog
@@ -829,9 +823,9 @@ def _core_amica(
         # This should also give an idea of the vars that are assigned within that function.
         # Iteration 1 checks that are values were set globally and are correct form baseline
         if iter == 1:
-            assert_allclose(rho, 1.5)
+            assert_allclose(state.rho, 1.5)
             
-            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
+            assert_almost_equal(state.sbeta[2, 31], 1.0138304802882583)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
@@ -846,8 +840,8 @@ def _core_amica(
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
-            assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert_almost_equal(sbeta[2, 31], 1.0736514759262248)
+            assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
+            assert_almost_equal(state.sbeta[2, 31], 1.0736514759262248)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             # assert P[808] == 0.0
 
@@ -858,11 +852,11 @@ def _core_amica(
             assert_almost_equal(LL[1], -3.4687938365664754)
         # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
         elif iter == 6:
-            assert_almost_equal(rho[0, 0], 1.6596808063060098, decimal=6)
+            assert_almost_equal(state.rho[0, 0], 1.6596808063060098, decimal=6)
             assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
         # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
         elif iter == 13:
-            assert rho[0, 0] == 2
+            assert state.rho[0, 0] == 2
             assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
         # Iteration 49 is the last iteration before Newton optimization starts
         elif iter == 49:
@@ -986,9 +980,9 @@ def _core_amica(
             if iter == 1:
                 # XXX: making sure all variables were globally set.
                 # assert_almost_equal(Anrmk[-1], 0.98448954017506363)
-                assert gm[0] == 1
-                assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
-                assert_almost_equal(c[0, 0], 0.0)
+                assert state.gm[0] == 1
+                assert_almost_equal(state.alpha[0, 0], 0.29397781623708935, decimal=5)
+                assert_almost_equal(state.c[0, 0], 0.0)
                 assert posdef is True
                 assert_almost_equal(lrate0, 0.05)
                 assert_almost_equal(lrate, 0.05)
@@ -997,18 +991,18 @@ def _core_amica(
                 assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
                 assert maxrho == 2
                 assert minrho == 1
-                assert_almost_equal(rho[0, 0], 1.4573165687688203)
-                assert not rho[rho == minrho].any()
-                assert_almost_equal(A[31, 31], 0.99984153789378194)
-                assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
-                assert_almost_equal(mu[0, 31], -0.8568024781696123)
-                assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
+                assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
+                assert not state.rho[state.rho == minrho].any()
+                assert_almost_equal(state.A[31, 31], 0.99984153789378194)
+                assert_almost_equal(state.sbeta[0, 31], 0.97674982753812623)
+                assert_almost_equal(state.mu[0, 31], -0.8568024781696123)
+                assert_almost_equal(state.W[0, 0, 0], 1.0000820892004447)
                 assert_almost_equal(wc[0, 0], 0)
             elif iter == 2:
                 # assert_almost_equal(Anrmk[-1], 0.99554375802233519)
-                assert gm[0] == 1
-                assert_almost_equal(alpha[0, 0], 0.25773550277474716)
-                assert_almost_equal(c[0, 0], 0.0)
+                assert state.gm[0] == 1
+                assert_almost_equal(state.alpha[0, 0], 0.25773550277474716)
+                assert_almost_equal(state.c[0, 0], 0.0)
                 assert posdef is True
                 assert_almost_equal(lrate0, 0.05)
                 assert_almost_equal(lrate, 0.05)
@@ -1017,11 +1011,11 @@ def _core_amica(
                 assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
                 assert maxrho == 2
                 assert minrho == 1
-                assert_almost_equal(rho[0, 0], 1.5062036957555023)
-                assert_almost_equal(A[31, 31], 0.99985752877785194)
-                assert_almost_equal(sbeta[0, 0], 1.07570700640128)
-                assert_almost_equal(mu[0, 0], -0.53783126597732789)
-                assert_almost_equal(W[0, 0, 0], 1.0002289118030874)
+                assert_almost_equal(state.rho[0, 0], 1.5062036957555023)
+                assert_almost_equal(state.A[31, 31], 0.99985752877785194)
+                assert_almost_equal(state.sbeta[0, 0], 1.07570700640128)
+                assert_almost_equal(state.mu[0, 0], -0.53783126597732789)
+                assert_almost_equal(state.W[0, 0, 0], 1.0002289118030874)
                 assert_almost_equal(wc[0, 0], 0)
 
             # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
@@ -1043,13 +1037,12 @@ def _core_amica(
             iter += 1
         # end if/else
     # end while
-    return gm, mu, rho, sbeta, W, A, c, alpha, LL
+    return state, LL
 
 def get_unmixing_matrices(
         *,
         iterating,
         c,
-        wc,
         A,
         comp_list,
         W,
@@ -1062,6 +1055,7 @@ def get_unmixing_matrices(
         assert_almost_equal(A[0, comp_list[0, 0] - 1], 0.99987950295221151)
         assert_almost_equal(A[2, comp_list[2, 0] - 1], 0.99987541322177442)
 
+    wc = np.zeros_like(c)
     for h, _ in enumerate(range(num_models), start=1):
 
         #--------------------------FORTRAN CODE-------------------------
@@ -2358,7 +2352,6 @@ def update_params(
     W[:, :, :], wc[:, :] = get_unmixing_matrices(
         iterating=True,
         c=c,
-        wc=wc,
         A=A,
         comp_list=comp_list,
         W=W,
