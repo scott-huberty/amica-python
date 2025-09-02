@@ -163,6 +163,9 @@ class AmicaWorkspace:
 class AmicaUpdates:
     """Aggregated updates computed in one iteration.
 
+    This container mainly helps to shuttle a number of arrays together
+    across the get_updates_and_likelihood and update_params functions.
+
     Shapes:
     - dmu_numer/denom: (nmix, ncomp)
     - dbeta_numer/denom: (nmix, ncomp)
@@ -189,6 +192,7 @@ class AmicaUpdates:
     dc_numer: NDArray
     dc_denom: NDArray
     
+    dAK: NDArray
     loglik_sum: float = 0.0
 
     newton: Optional[AmicaNewtonUpdates] = None
@@ -217,7 +221,7 @@ class AmicaUpdates:
         self.dc_numer.fill(0.0)
         self.dc_denom.fill(0.0)
 
-
+        self.dAK.fill(0.0)
         self.loglik_sum = 0.0
 
         # If Newton accumulators are present, zero them as well
@@ -264,6 +268,7 @@ class IterationMetrics:
     
     Fields:
     - ndtmpsum: Total norm of the weight gradient, summed across all components; computed as sqrt(mean of per-component squared update norms).
+    - no_newt: If True, Newton updates were disabled for this iteration due to numerical issues. Only relevant if AmicaConfig.do_newton is True.
     """
 
     iter: int                           # 1-based iteration index
@@ -275,6 +280,7 @@ class IterationMetrics:
     step_time_s: Optional[float] = None
     numincs: Optional[int] = None
     numdecs: Optional[int] = None
+    no_newt: bool = False               # Disable Newton due to numerical issues
 
 
 @dataclass(slots=True)
@@ -397,6 +403,8 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     dc_numer = np.zeros((num_comps, num_models), dtype=dtype)
     dc_denom = np.zeros((num_comps, num_models), dtype=dtype)
 
+    dAK = np.zeros((num_comps, num_comps), dtype=dtype)  # Derivative of A
+
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
         shape_3 = (num_mix, num_comps, num_models)
@@ -439,6 +447,7 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
         drho_denom=drho_denom,
         dc_numer=dc_numer,
         dc_denom=dc_denom,
+        dAK=dAK,
         loglik_sum=0.0,
         newton=newton,
     )

@@ -806,18 +806,17 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
 
-        updates, (likelihood, ndtmpsum, dAK, no_newt) = get_updates_and_likelihood(
+        updates, metrics = get_updates_and_likelihood(
             X=dataseg,
             config=config,
             state=state,
-            iter=metrics.iter,
+            metrics=metrics,
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
         )
-        metrics.loglik = likelihood
-        metrics.ndtmpsum = ndtmpsum
-        LL[iter - 1] = likelihood
+        ndtmpsum = metrics.ndtmpsum
+        LL[iter - 1] = metrics.loglik
         # init
         startover = False
         numincs = 0
@@ -838,7 +837,7 @@ def _core_amica(
 
             # accum_updates_and_likelihood checks..
             # This should also give an idea of the vars that are assigned within that function.
-            assert no_newt is False
+            assert metrics.no_newt is False
             assert_almost_equal(ndtmpsum, 0.057812635452922263)
             assert_almost_equal(LL[0], -3.5136812444614773)
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
@@ -849,7 +848,7 @@ def _core_amica(
             # assert P[808] == 0.0
 
             # accum_updates_and_likelihood checks..
-            assert no_newt is False
+            assert metrics.no_newt is False
             assert_almost_equal(ndtmpsum, 0.02543823967703519)
             # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
             assert_almost_equal(LL[1], -3.4687938365664754)
@@ -972,14 +971,13 @@ def _core_amica(
             raise NotImplementedError()
         else:
             # !----- do updates: gm, alpha, mu, sbeta, rho, W
+            # the updated lrate & rholrate for the next iteration
             lrate, rholrate = update_params(
                 config=config,
                 state=state,
                 updates=updates,
                 metrics=metrics,
-                no_newt=no_newt,
                 wc=wc,
-                dAK=dAK,
             )
             if iter == 1:
                 # XXX: making sure all variables were globally set.
@@ -1116,7 +1114,7 @@ def get_updates_and_likelihood(
     *,
     config,
     state,
-    iter,
+    metrics,
     sldet,
     Dsum,
     wc,
@@ -1132,7 +1130,7 @@ def get_updates_and_likelihood(
         comment blocks are kept verbatim alongside the equivalent Python.
     """
     comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
-
+    iter = metrics.iter
     n_models = config.n_models
     n_mixtures = config.n_mixtures
     num_comps = config.n_components
@@ -1868,7 +1866,11 @@ def get_updates_and_likelihood(
         LLtmp=LLtmp,
         iter=iter
     )
-    return updates, (likelihood, ndtmpsum, dAK, no_newt)
+    metrics.loglik = likelihood
+    metrics.ndtmpsum = ndtmpsum
+    metrics.no_newt = no_newt
+    updates.dAK = dAK
+    return updates, metrics
 
 
 def accum_updates_and_likelihood(
@@ -1910,7 +1912,7 @@ def accum_updates_and_likelihood(
     mu = state.mu
     
     dgm_numer = updates.dgm_numer
-    dAK = np.zeros((num_comps, num_comps), dtype=np.float64)  # Derivative of A
+    dAK = updates.dAK
 
     if do_newton:
         dbaralpha_numer = updates.newton.dbaralpha_numer
@@ -2011,9 +2013,7 @@ def accum_updates_and_likelihood(
     elif not do_newton and iter >= newt_start:
         raise NotImplementedError()  # pragma no cover 
 
-    # global no_newt
     no_newt = False
-
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         #--------------------------FORTRAN CODE-------------------------
@@ -2156,9 +2156,7 @@ def update_params(
         state,
         updates,
         metrics,
-        no_newt,
         wc,
-        dAK,
 ):
     comp_list, _ = get_component_indices(config.n_components, config.n_models)
     n_models = config.n_models
@@ -2191,6 +2189,7 @@ def update_params(
     dbeta_denom = updates.dbeta_denom
     drho_numer = updates.drho_numer
     drho_denom = updates.drho_denom
+    dAK = updates.dAK
 
     iter = metrics.iter
     lrate = metrics.lrate
@@ -2232,7 +2231,7 @@ def update_params(
     # !print *, 'updating A ...'; call flush(6)
     # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if (iter < share_start or (iter % share_iter > 5)):
-        if do_newton and (not no_newt) and (iter >= newt_start):
+        if do_newton and (not metrics.no_newt) and (iter >= newt_start):
             if iter == 50:
                 assert lrate == .05
                 assert rholrate == .05
@@ -2406,7 +2405,6 @@ if __name__ == "__main__":
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
-    # no_newt = False
     # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
     # do_reject = False
     # lrate = 0.05 # default of program is 0.1 but config file set it to 0.05
