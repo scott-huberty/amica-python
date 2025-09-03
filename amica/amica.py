@@ -740,6 +740,16 @@ def _core_amica(
 
     c1 = time.time()
 
+    work = AmicaWorkspace()
+    work.get("b", (N1, num_comps, num_models), init="empty")
+    work.get("v", (N1, num_models), init="empty")
+    work.get("y", (N1, num_comps, num_mix, num_models), init="empty")
+    work.get("z0", (N1, num_comps, num_mix), init="empty")
+    work.get("z", (N1, num_comps, num_mix, num_models), init="empty")
+    work.get("Ptmp", (N1, num_models), init="empty")
+    work.get("modloglik", (num_models, N1), init="zeros")
+    work.get("dWtmp", (num_comps, num_comps, num_models), init="zeros")
+
     lrate = config.lrate
     rholrate = config.rholrate
     while iter <= config.max_iter:
@@ -762,6 +772,7 @@ def _core_amica(
         # ...
         #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
         # ------------------------------------------------------------------------
+        work.zero_all()
         metrics = IterationMetrics(
             iter=iter,
             lrate=lrate,
@@ -796,6 +807,7 @@ def _core_amica(
             state=state,
             updates=updates,
             metrics=metrics,
+            work=work,
             Dsum=Dsum,
             sldet=sldet,
             wc=wc,
@@ -1103,6 +1115,7 @@ def get_updates_and_likelihood(
     state,
     updates,
     metrics,
+    work,
     sldet,
     Dsum,
     wc,
@@ -1179,15 +1192,6 @@ def get_updates_and_likelihood(
     lastdim = X.shape[1]
     modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
     assert modloglik.shape == (1, 30504)
-    
-    work = AmicaWorkspace()
-    work.get("b", (N1, nw, num_models), init="empty")
-    work.get("v", (N1, num_models), init="empty")
-    work.get("y", (N1, nw, num_mix, num_models), init="empty")
-    work.get("z", (N1, nw, num_mix, num_models), init="empty")
-    work.get("Ptmp", (N1, num_models), init="empty")
-    work.get("modloglik", (num_models, lastdim), init="zeros")
-    work.get("dWtmp", (num_comps, num_comps, num_models), init="zeros")
 
     # !--------- loop over the segments ----------
 
@@ -1791,6 +1795,7 @@ def compute_model_e_step(
     N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
     b = buffers._buffers["b"]
     y = buffers._buffers["y"]
+    z0 = buffers._buffers["z0"]
     z = buffers._buffers["z"]
     Ptmp = buffers._buffers["Ptmp"]
     h_index = model_index
@@ -1841,6 +1846,7 @@ def compute_model_e_step(
         comp_indices=comp_indices,
         h_index=h_index,
         out_y=y,
+        out_z0=z0
         )
 
     # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
@@ -1882,7 +1888,7 @@ def compute_model_e_step(
 
 @line_profiler.profile
 def _calculate_source_densities(
-        *, pdftype, b, sbeta, mu, alpha, rho, comp_indices, h_index, out_y
+        *, pdftype, b, sbeta, mu, alpha, rho, comp_indices, h_index, out_y, out_z0
         ):
     """Calculate scaled sources (y) and per-mixture log-densities (z0).
     
@@ -1918,6 +1924,7 @@ def _calculate_source_densities(
         A freshly allocated array containing per-mixture log-densities.
     """
     y = out_y
+    z0 = out_z0
     # ---------------------------FORTRAN CODE-------------------------
     # !--- get y z
     # do i = 1,nw
@@ -1989,7 +1996,7 @@ def _calculate_source_densities(
         choices = [choice_1, choice_2]
         # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
         # and p(y) is the probability of the scaled source y.
-        z0 = np.select(conditions, choices, default=choice_default)
+        z0[:,:, :] = np.select(conditions, choices, default=choice_default)
         # assert z0.shape == (N1, nw, num_mix)
     elif pdftype == 1:
         raise NotImplementedError()
