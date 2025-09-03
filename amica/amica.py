@@ -1962,6 +1962,7 @@ def _calculate_source_densities(
         # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
         # Note: y_slice is already this shape. The others are broadcast.
         y_slice = y[:, :, :, h_index]
+        alpha_orig = alpha.copy()
         alpha_h = alpha[:, comp_indices]
         rho_h = rho[:, comp_indices]
 
@@ -1974,21 +1975,24 @@ def _calculate_source_densities(
         is_rho2 = (np.isclose(rho_br, 2.0))
 
         # 3. Calculate the results for ALL THREE possible choices
-        log_alpha_br = np.log(alpha_br)
-        log_sbeta_br = np.log(sbeta_br)
+        # In-Place
+        np.log(alpha_br, out=alpha_br)
+        np.log(sbeta_br, out=sbeta_br)
+        # assert_allclose(alpha_orig, alpha)
+        # NOTE: I am suprised that this does not overwrite alpha.
 
         # Choice if rho == 1.0
-        choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - np.log(2.0)
+        choice_1 = alpha_br + sbeta_br - np.abs(y_slice) - np.log(2.0)
 
         # Choice if rho == 2.0
-        choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
+        choice_2 = alpha_br + sbeta_br - np.square(y_slice) - np.log(np.sqrt(np.pi))
 
         # Default choice (the 'else' case)
         tmpvec_z0 = np.log(np.abs(y_slice)) # log_abs_y
         tmpvec2_z0 = np.exp((rho_br) * tmpvec_z0)
         tmpvec2_slice = tmpvec2_z0[:, :, :]
         gamma_log = gammaln(1.0 + 1.0 / rho_br)
-        choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
+        choice_default = alpha_br + sbeta_br - tmpvec2_slice - gamma_log - np.log(2.0)
 
         # 4. Build final array from the choices using the masks.
         # NOTE: This takes ~10s for 200 iters on the test file; a loop may be faster.
