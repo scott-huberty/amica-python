@@ -749,6 +749,7 @@ def _core_amica(
     work.get("y", (N1, num_comps, num_mix, num_models), init="empty")
     work.get("z0", (N1, num_comps, num_mix), init="empty")
     work.get("z", (N1, num_comps, num_mix, num_models), init="empty")
+    work.get("ufp", (N1, num_comps, num_mix), init="empty")
     work.get("Ptmp", (N1, num_models), init="empty")
     work.get("modloglik", (num_models, N1), init="zeros")
     work.get("dWtmp", (num_comps, num_comps, num_models), init="zeros")
@@ -1196,6 +1197,7 @@ def get_updates_and_likelihood(
     modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
     assert modloglik.shape == (1, 30504)
 
+    ufp = work._buffers["ufp"]
     # !--------- loop over the segments ----------
 
     if do_reject:
@@ -1365,76 +1367,29 @@ def get_updates_and_likelihood(
         usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
         assert usum.shape == (32, 3)  # nw, num_mix
         
-        # !--- get fp, zfp
-        if pdftype == 0:
-            #--------------------------FORTRAN CODE-------------------------
-            # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-            #---------------------------------------------------------------
-            if iter == 6 and h == 1: # and blk == 1:
-                # and j == 3 and i == 1 
-                assert rho[2, 0] == 1.0
-            rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
-            is_rho1 = (rho_vals == 1.0)  # shape: (num_mix, nw)
-            is_rho2 = (rho_vals == 2.0)  # shape: (num_mix, nw)
-
-            fp_choice_1 = np.sign(y[:, :, :, h_index])  # shape: (block_size, nw, num_mix)
-            fp_choice_2 = y[:, :, :, h_index] * 2.0  # shape: (block_size, nw, num_mix)
-            
-            # TODO just re-use tmpvec_fp and ditch tmpvec2_fp?
-            tmpvec_fp = np.empty((N1, nw, num_mix))
-            tmpvec2_fp = np.empty((N1, nw, num_mix))
-            np.log(np.abs(y[:, :, :, h_index]), out=tmpvec_fp)  # + 1e-300) avoid log(0); shape: (block_size, nw, num_mix)
-            np.exp(
-                (rho[:, comp_indices] - 1.0).T[np.newaxis, :, :] * tmpvec_fp[:, :, :], out=tmpvec2_fp
-            )
-            fp_choice_default = (
-                rho_vals.T[np.newaxis, :, :]  # shape: (1, num_mix, nw)
-                * np.sign(y[:, :, :, h_index])  # shape: (block_size, nw, num_mix)
-                * tmpvec2_fp[:, :, :]  # shape: (block_size, nw, num_mix)
-            )
-            conditions = [is_rho1.T, is_rho2.T]
-            choices = [fp_choice_1, fp_choice_2]
-            fp = np.select(conditions, choices, default=fp_choice_default)
-            assert fp.shape == (N1, nw, num_mix)
-        elif pdftype == 2:
-            raise NotImplementedError()
-        elif pdftype == 3:
-            raise NotImplementedError()
-        elif pdftype == 4:
-            raise NotImplementedError()
-        elif pdftype == 1:
-            raise NotImplementedError()
-        else:
-            raise ValueError(
-                f"Invalid pdftype value: {pdftype[i - 1, h - 1]} for h={h}"
-                "Expected values are 0, 1, 2, 3, or 4."
-            )
-
+        assert rho.shape == (num_mix, config.n_components)
+        if iter == 6 and h == 1: # and blk == 1:
+            # and j == 3 and i == 1 
+            assert rho[2, 0] == 1.0
+        fp = compute_scores(
+            pdftype=pdftype,
+            y_slice=y[:, :, :, h_index],
+            rho=rho,
+            comp_indices=comp_indices,
+        )
+        assert fp.shape == (N1, nw, num_mix)
         # --- Vectorized calculation of ufp and g update ---
-        #--------------------------FORTRAN CODE-------------------------
-        # for (i = 1, nw) ... for (j = 1, num_mix)
-        # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
-        # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
-        #---------------------------------------------------------------
-        ufp = u * fp
-        assert ufp.shape == (N1, nw, num_mix)   
-
-        # === Subsection: Accumulate Statistics for Parameter Updates ===
-        # Build per-parameter numerators/denominators (sufficient statistics) used
-        # later when applying updates to A, alpha, mu, beta, rho, and c.
-        # !--- get g
         if iter == 1 and h == 1: # and blk == 1 
             assert g[0, 0] == 0.0
-        # if update_A:
-        #--------------------------FORTRAN CODE-------------------------
-        # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
-        #---------------------------------------------------------------
-        
-        # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
-        comp_idx = comp_list[:, h - 1] - 1  # (nw,)
-        S_T = sbeta[:, comp_idx].T  # (nw, num_mix)
-        g_update = np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True)
-        g[:, :] += g_update
+        ufp, g = accumulate_scores(
+            scores=fp,
+            responsibilities=u,
+            scale_params=sbeta,
+            comp_indices=comp_indices,
+            out_ufp=ufp,
+            out_g=g,
+        )
+        assert ufp.shape == (N1, nw, num_mix)   
 
         # --- Vectorized Newton-Raphson Updates ---
         if do_newton and iter >= newt_start:
@@ -1645,8 +1600,8 @@ def get_updates_and_likelihood(
         # assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
         assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
         assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
-        assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
-        assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
+        # assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
+        # assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
         assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
         assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
         assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
@@ -1694,8 +1649,8 @@ def get_updates_and_likelihood(
         assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
         assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
         assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
-        assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
-        assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
+        #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
+        # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
         assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
         assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
         assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
@@ -2037,15 +1992,133 @@ def _calculate_source_densities(
     return y, z0
 
 
+def compute_scores(
+        *,
+        pdftype,
+        y_slice,
+        rho,
+        comp_indices,
+):
+    """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
-def calculate_score_and_ufp(y, u, rho_h, sbeta_h):
-   # ... logic to calculate fp, ufp, and g ...
-   # return g, ufp
-   # The next logical piece to extract is the calculation of the score function g and the related ufp matrix.
-   # * What it does: It calculates the derivative of the log-pdf (fp), multiplies by responsibilities to get ufp, and then computes the final score
-   # * Why it's an easy win: This is also a self-contained, pure calculation. It primarily depends on the outputs of the source density calculation
-   # (y) and the responsibilities (u).
-   pass
+    Parameters
+    ----------
+    pdftype : int
+        Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
+    y_slice : np.ndarray
+        Scaled sources for the current model, of shape (n_samples, n_components, n_mixtures).
+        Not modified.
+    rho : np.ndarray
+        Shape parameters of shape (n_mixtures, n_components). Not modified.
+    comp_indices : np.ndarray
+        Array containing component indices for the current model.
+    Returns
+    -------
+    fp : np.ndarray
+        The computed score function, of shape (n_samples, n_components, n_mixtures).
+        This array is newly allocated.
+    """
+    # !--- get fp, zfp
+    if pdftype == 0:
+        #--------------------------FORTRAN CODE-------------------------
+        # if (rho(j,comp_list(i,h)) == dble(1.0)) then
+        #---------------------------------------------------------------
+        rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
+        is_rho1 = (rho_vals == 1.0)  # shape: (num_mix, nw)
+        is_rho2 = (rho_vals == 2.0)  # shape: (num_mix, nw)
+
+        fp_choice_1 = np.sign(y_slice)  # shape: (block_size, nw, num_mix)
+        fp_choice_2 = y_slice * 2.0  # shape: (block_size, nw, num_mix)
+        tmpvec_fp = np.log(np.abs(y_slice))  # + 1e-300) avoid log(0); shape: (block_size, nw, num_mix)
+        np.exp(
+            (rho[:, comp_indices] - 1.0).T[np.newaxis, :, :]
+            * tmpvec_fp[:, :, :],
+            out=tmpvec_fp
+        )
+        fp_choice_default = (
+            rho_vals.T[np.newaxis, :, :]  # shape: (1, num_mix, nw)
+            * np.sign(y_slice)  # shape: (block_size, nw, num_mix)
+            * tmpvec_fp[:, :, :]  # shape: (block_size, nw, num_mix)
+        )
+        conditions = [is_rho1.T, is_rho2.T]
+        choices = [fp_choice_1, fp_choice_2]
+        fp = np.select(conditions, choices, default=fp_choice_default)
+    elif pdftype == 2:
+        raise NotImplementedError()
+    elif pdftype == 3:
+        raise NotImplementedError()
+    elif pdftype == 4:
+        raise NotImplementedError()
+    elif pdftype == 1:
+        raise NotImplementedError()
+    else:
+        raise ValueError(
+            f"Invalid pdftype value: {pdftype}. "
+            "Expected values are 0, 1, 2, 3, or 4."
+        )
+    return fp
+
+def accumulate_scores(
+        *,
+        scores,
+        responsibilities,
+        scale_params,
+        comp_indices,
+        out_ufp,
+        out_g,
+):
+    """
+    Accumulate per-sample, per-component mixture scores and ufp sufficient statistics from responsibilities and score functions.
+    
+    Parameters
+    ----------
+    scores : np.ndarray
+        The score function (fp) of shape (n_samples, n_components, n_mixtures).
+        Not modified.
+    responsibilities : np.ndarray
+        The responsibilities (u) of shape (n_samples, n_components, n_mixtures).
+        Not modified.
+    scale_params : np.ndarray
+        Scale parameters (sbeta) of shape (n_mixtures, n_components).
+        Not modified.
+    out_ufp : np.ndarray
+        The output updates (ufp) of shape (n_components, n_features).
+        Modified in place.
+    out_g : np.ndarray
+        The output gradients (g) of shape (n_components, n_features).
+        Modified in place.
+    
+    Returns
+    -------
+    out_ufp : np.ndarray
+        elementwise product responsibilities * scores, shape (n_samples, n_components, n_mixtures), modified in place.
+    out_g : np.ndarray
+        accumulated per-sample per-component score weighted by sbeta, shape (n_samples, n_components), modified in place.
+    """
+    u = responsibilities
+    fp = scores
+    sbeta = scale_params
+    ufp = out_ufp
+    g = out_g
+    #--------------------------FORTRAN CODE-------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
+    # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
+    #---------------------------------------------------------------
+    np.multiply(u, fp, out=ufp)
+    # === Subsection: Accumulate Statistics for Parameter Updates ===
+    # Build per-parameter numerators/denominators (sufficient statistics) used
+    # later when applying updates to A, alpha, mu, beta, rho, and c.
+    # !--- get g
+    # if update_A:
+    #--------------------------FORTRAN CODE-------------------------
+    # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
+    #---------------------------------------------------------------
+    
+    # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
+    S_T = sbeta[:, comp_indices].T  # (nw, num_mix)
+    np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True, out=g)
+    return ufp, g
 
 
 def accum_updates_and_likelihood(
