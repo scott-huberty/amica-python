@@ -1216,8 +1216,6 @@ def get_updates_and_likelihood(
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         comp_indices = comp_list[:, h_index] - 1
-
-
         # --- Subsection: Baseline terms and unmixing ---
         b, y, z, Ptmp = compute_model_e_step(
             X=X,
@@ -1716,8 +1714,9 @@ def get_updates_and_likelihood(
     updates.dAK = dAK
     return updates, metrics
 
-
+@line_profiler.profile
 def compute_model_e_step(
+        *,
         X,
         config,
         alpha,
@@ -1787,6 +1786,7 @@ def compute_model_e_step(
     This function modifies the `b`, `y`, `z`, and `Ptmp` buffers in-place,
     and returns the modified arrays.
     """
+    # NOTE: Maybe we call this calculate_source_densities
     dataseg = X
     N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
     b = buffers._buffers["b"]
@@ -1827,15 +1827,104 @@ def compute_model_e_step(
         # TODO: use np.add with out param to avoid temporary array
         b[:, :, h_index] += (dataseg[:, :].T @ W[:, :, h_index].T)
     # end else
-    
+
     # --- Subsection: Source density and mixture log-likelihood (z0) ---
     # Compute scaled sources y and per-mixture log-densities z0 for each component.
     # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
+    y, z0 = _calculate_source_densities(
+        pdftype=config.pdftype,
+        b=b,
+        sbeta=sbeta,
+        mu=mu,
+        alpha=alpha,
+        rho=rho,
+        comp_indices=comp_indices,
+        h_index=h_index,
+        out_y=y,
+        )
+
+    # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
+    # Add the log-likelihood of this component across mixtures and normalize to z.
+    #--------------------------FORTRAN CODE-------------------------
+    # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+    # this max call operates across num_mixtures
+    #---------------------------------------------------------------
+    # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
+    # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
+    # Get the logsumexp across the mixtures (robust to overflow/underflow)
+    # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
+    # Pmax_br = np.empty((N1, nw))
+    # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
+    # shift for numerical stability
+    # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
+    # Now take the exponential
+    # exp_term = np.exp(centered_responsibilities)
+    # Sum the results over the mixture axis (axis=2)
+    # np.sum(exp_term, axis=-1, out=ztmp)
+    # ztmp[:, :] += exp_term.sum(axis=-1)
+    
+    # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
+    # TODO: use out params? can we avoid temporary array in sum?
+    component_loglik = np.logaddexp.reduce(z0, axis=-1)
+    Ptmp[:, h_index] += component_loglik.sum(axis=-1)
+    # !--- get normalized z
+    #--------------------------FORTRAN CODE-------------------------
+    # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
+    #---------------------------------------------------------------
+    # NOTE: This deviates slightly from the Fortran code for numerical stability.
+    #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
+    # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
+    z[:, :, :, h_index] = softmax(z0, axis=-1)
+    # end do (j)
+    # end do (i)
+    # Make outputs explicit even though these are modified in-place
+    return b, y, z, Ptmp
+
+@line_profiler.profile
+def _calculate_source_densities(
+        *, pdftype, b, sbeta, mu, alpha, rho, comp_indices, h_index, out_y
+        ):
+    """Calculate scaled sources (y) and per-mixture log-densities (z0).
+    
+    Parameters
+    ----------
+    pdftype : int
+        Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
+    b : np.ndarray
+        Per-sample, per-component source estimates, of shape (n_samples, n_features, n_components).
+        Not modified.
+    sbeta : np.ndarray
+        Scale parameters of shape (n_mixtures, n_features).
+        Not modified.
+    mu : np.ndarray
+        Location parameters of shape (n_mixtures, n_features). Not modified.
+    alpha : np.ndarray
+        Mixture weights of shape (n_mixtures, n_features). Not modified.
+    rho : np.ndarray
+        Shape parameters of shape (n_mixtures, n_features). Not modified.
+    comp_indices : np.ndarray
+        Array of shape (n_features,) containing component indices for the current model.
+    h_index : int
+        Index of the current model being processed.
+    out_y : np.ndarray
+        Buffer to write scaled sources into. Shape (n_samples, n_features, n_mixtures, n_components).
+        This array is modified in-place.
+
+    Returns
+    -------
+    y : np.ndarray
+        The modified y array containing scaled sources.
+    z0 : np.ndarray
+        A freshly allocated array containing per-mixture log-densities.
+    """
+    y = out_y
+    # ---------------------------FORTRAN CODE-------------------------
     # !--- get y z
     # do i = 1,nw
     # !--- get probability
     # select case (pdtype(i,h))
-    if config.pdftype == 0:
+    #-----------------------------------------------------------------
+    if pdftype == 0:
         # Gaussian            
         #--------------------------FORTRAN CODE-------------------------
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
@@ -1901,54 +1990,31 @@ def compute_model_e_step(
         # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
         # and p(y) is the probability of the scaled source y.
         z0 = np.select(conditions, choices, default=choice_default)
-        assert z0.shape == (N1, nw, num_mix)
-    elif config.pdftype == 1:
+        # assert z0.shape == (N1, nw, num_mix)
+    elif pdftype == 1:
         raise NotImplementedError()
-    elif config.pdftype == 2:
+    elif pdftype == 2:
         raise NotImplementedError()
-    elif config.pdftype == 3:
+    elif pdftype == 3:
         raise NotImplementedError()
     else:
-        raise ValueError(f"Invalid pdftype {config.pdftype}. Only pdftype=0 (Gaussian) is supported.")
+        raise ValueError(f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported.")
     # end select
     # !--- end for j
+    # TODO: create a z0 buffer in AmicaWorkspace and write into that instead of allocating here
+    return y, z0
 
-    # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
-    # Add the log-likelihood of this component across mixtures and normalize to z.
-    #--------------------------FORTRAN CODE-------------------------
-    # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
-    # this max call operates across num_mixtures
-    #---------------------------------------------------------------
-    # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
-    # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
-    # Get the logsumexp across the mixtures (robust to overflow/underflow)
-    # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
-    # Pmax_br = np.empty((N1, nw))
-    # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
-    # shift for numerical stability
-    # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
-    # Now take the exponential
-    # exp_term = np.exp(centered_responsibilities)
-    # Sum the results over the mixture axis (axis=2)
-    # np.sum(exp_term, axis=-1, out=ztmp)
-    # ztmp[:, :] += exp_term.sum(axis=-1)
-    
-    # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
-    # TODO: use out params? can we avoid temporary array in sum?
-    component_loglik = np.logaddexp.reduce(z0, axis=-1)
-    Ptmp[:, h_index] += component_loglik.sum(axis=-1)
-    # !--- get normalized z
-    #--------------------------FORTRAN CODE-------------------------
-    # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-    #---------------------------------------------------------------
-    # NOTE: This deviates slightly from the Fortran code for numerical stability.
-    #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-    # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
-    z[:, :, :, h_index] = softmax(z0, axis=-1)
-    # end do (j)
-    # end do (i)
-    # These are modified in place but return them to be explicit
-    return b, y, z, Ptmp
+
+
+def calculate_score_and_ufp(y, u, rho_h, sbeta_h):
+   # ... logic to calculate fp, ufp, and g ...
+   # return g, ufp
+   # The next logical piece to extract is the calculation of the score function g and the related ufp matrix.
+   # * What it does: It calculates the derivative of the log-pdf (fp), multiplies by responsibilities to get ufp, and then computes the final score
+   # * Why it's an easy win: This is also a self-contained, pure calculation. It primarily depends on the outputs of the source density calculation
+   # (y) and the responsibilities (u).
+   pass
+
 
 def accum_updates_and_likelihood(
         config,
