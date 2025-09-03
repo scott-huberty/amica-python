@@ -1995,50 +1995,33 @@ def _calculate_source_densities(
         is_rho1 = (np.isclose(rho_br, 1.0, atol=1e-12))
         is_rho2 = (np.isclose(rho_br, 2.0, atol=1e-12))
 
-        # 3. Lazily compute only the active branches per mixture/component.
-        # Compute shared terms without mutating inputs
-        assert not np.shares_memory(alpha, alpha_br)
-        assert not np.shares_memory(sbeta, sbeta_br)
+        # 3. Calculate the results for ALL THREE possible choices
+        # In-Place
         np.log(alpha_br, out=alpha_br)
         np.log(sbeta_br, out=sbeta_br)
+        # assert_allclose(alpha_orig, alpha)
+        # NOTE: I am suprised that this does not overwrite alpha.
 
-        # Loop over mixtures (typically small) and compute only needed branches
-        for j in range(3):
-            mask_r1 = is_rho1[0, :, j]  # rho == 1.0 (Laplacian)
-            mask_r2 = is_rho2[0, :, j]  # rho == 2.0 (Gaussian)
-            mask_else = ~(mask_r1 | mask_r2)  # Generalized Gaussian
+        # Choice if rho == 1.0
+        choice_1 = alpha_br + sbeta_br - np.abs(y_slice) - LOG_2
 
-            if np.any(mask_r1):
-                y_sub = y_slice[:, mask_r1, j]
-                z0[:, mask_r1, j] = (
-                    alpha_br[:, mask_r1, j]
-                    + sbeta_br[:, mask_r1, j]
-                    - np.abs(y_sub)
-                    - LOG_2
-                )
+        # Choice if rho == 2.0
+        choice_2 = alpha_br + sbeta_br - np.square(y_slice) - LOG_SQRT_PI
 
-            if np.any(mask_r2):
-                y_sub = y_slice[:, mask_r2, j]
-                z0[:, mask_r2, j] = (
-                    alpha_br[:, mask_r2, j]
-                    + sbeta_br[:, mask_r2, j]
-                    - np.square(y_sub)
-                    - LOG_SQRT_PI
-                )
+        # Default choice (the 'else' case)
+        tmpvec_z0 = np.log(np.abs(y_slice)) # log_abs_y
+        tmpvec2_z0 = np.exp((rho_br) * tmpvec_z0)
+        tmpvec2_slice = tmpvec2_z0[:, :, :]
+        gamma_log = gammaln(1.0 + 1.0 / rho_br)
+        choice_default = alpha_br + sbeta_br - tmpvec2_slice - gamma_log - LOG_2
 
-            if np.any(mask_else):
-                y_sub = y_slice[:, mask_else, j] # returns a copy (advanced indexing)
-                rho_sub = rho_br[:, mask_else, j]
-                log_abs_y = np.log(np.abs(y_sub))
-                abs_y_pow_rho = np.exp(rho_sub * log_abs_y)
-                gamma_log = gammaln(1.0 + 1.0 / rho_sub)
-                z0[:, mask_else, j] = (
-                    alpha_br[:, mask_else, j]
-                    + sbeta_br[:, mask_else, j]
-                    - abs_y_pow_rho
-                    - gamma_log
-                    - LOG_2
-                )
+        # 4. Build final array from the choices using the masks.
+        # NOTE: This takes ~10s for 200 iters on the test file; a loop may be faster.
+        conditions = [is_rho1, is_rho2]
+        choices = [choice_1, choice_2]
+        # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
+        # and p(y) is the probability of the scaled source y.
+        z0[:,:, :] = np.select(conditions, choices, default=choice_default)
         # assert z0.shape == (N1, nw, num_mix)
     elif pdftype == 1:
         raise NotImplementedError()
