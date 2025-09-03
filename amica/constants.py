@@ -1,3 +1,5 @@
+import numpy as np
+
 fix_init = False
 mineig = 1.0e-15
 dorho = True
@@ -38,3 +40,6 @@ load_c = False
 load_alpha = False
 do_opt_block = False
 do_approx_sphere = False
+
+LOG_2 = np.log(2.0)
+LOG_SQRT_PI = np.log(np.sqrt(np.pi))
