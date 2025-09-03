@@ -1992,8 +1992,8 @@ def _calculate_source_densities(
 
         # 2. Create the boolean masks for each condition
         # e.g. rho=1 is Laplacian, rho=2 is Gaussian, else is generalized Gaussian.
-        is_rho1 = (np.isclose(rho_br, 1.0))
-        is_rho2 = (np.isclose(rho_br, 2.0))
+        is_rho1 = (np.isclose(rho_br, 1.0, atol=1e-12))
+        is_rho2 = (np.isclose(rho_br, 2.0, atol=1e-12))
 
         # 3. Calculate the results for ALL THREE possible choices
         # In-Place
