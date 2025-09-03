@@ -1186,18 +1186,14 @@ def get_updates_and_likelihood(
     #-------------------------------------------------------------------------------
     N1 = X.shape[-1]
     assert N1 == 30504  # number of samples in data segment
-    b = np.empty((N1, nw, num_models))
-    v = np.empty((N1, num_models))  # per-sample total likelihood across models
-    y = np.empty((N1, nw, num_mix, num_models))
-    z = np.empty((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
-    Ptmp = np.empty((N1, num_models))
 
-    dWtmp = np.zeros((num_comps, num_comps, num_models))
-    lastdim = X.shape[1]
-    modloglik = np.zeros((num_models, lastdim), dtype=np.float64)  # Model log likelihood
-    assert modloglik.shape == (1, 30504)
 
+    # TODO: consider passing by reference
     ufp = work._buffers["ufp"]
+    v = work._buffers["v"]
+    dWtmp = work._buffers["dWtmp"]
+    modloglik = work._buffers["modloglik"]
+    assert modloglik.shape == (1, 30504)
     # !--------- loop over the segments ----------
 
     if do_reject:
