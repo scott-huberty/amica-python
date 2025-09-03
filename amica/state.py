@@ -155,6 +155,11 @@ class AmicaWorkspace:
         else:
             for n in names:
                 self._buffers.pop(n, None)
+    
+    def zero_all(self) -> None:
+        """Zero all existing buffers in-place."""
+        for arr in self._buffers.values():
+            arr.fill(0.0)
 
 
 @dataclass(slots=True, repr=False)
