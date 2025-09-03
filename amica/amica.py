@@ -742,6 +742,7 @@ def _core_amica(
 
     work = AmicaWorkspace()
     work.get("b", (N1, num_comps, num_models), init="empty")
+    work.get("b_mu_diff", (N1, num_mix, num_comps), init="empty")
     work.get("v", (N1, num_models), init="empty")
     work.get("y", (N1, num_comps, num_mix, num_models), init="empty")
     work.get("z0", (N1, num_comps, num_mix), init="empty")
@@ -1794,6 +1795,7 @@ def compute_model_e_step(
     dataseg = X
     N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
     b = buffers._buffers["b"]
+    b_mu_diff = buffers._buffers["b_mu_diff"]
     y = buffers._buffers["y"]
     z0 = buffers._buffers["z0"]
     z = buffers._buffers["z"]
@@ -1839,6 +1841,7 @@ def compute_model_e_step(
     y, z0 = _calculate_source_densities(
         pdftype=config.pdftype,
         b=b,
+        b_mu_diff=b_mu_diff,
         sbeta=sbeta,
         mu=mu,
         alpha=alpha,
@@ -1888,7 +1891,18 @@ def compute_model_e_step(
 
 @line_profiler.profile
 def _calculate_source_densities(
-        *, pdftype, b, sbeta, mu, alpha, rho, comp_indices, h_index, out_y, out_z0
+        *,
+        pdftype,
+        b,
+        b_mu_diff,
+        sbeta,
+        mu,
+        alpha,
+        rho,
+        comp_indices,
+        h_index,
+        out_y,
+        out_z0
         ):
     """Calculate scaled sources (y) and per-mixture log-densities (z0).
     
@@ -1939,18 +1953,17 @@ def _calculate_source_densities(
         # 1. Select the parameters for the current model and block
         sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
         mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
-        b_slice = b[:, :, h_index]  # Shape: (tblksize, nw)
+        b_slice = b[:, :, h_index]  # Shape: (n_samples, nw)
         # 2. Explicitly align arrays for broadcasting
         sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
         mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
-        b_br = b_slice[:, np.newaxis, :]        # Shape: (tblksize, 1, nw)
+        b_br = b_slice[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
         # 3. Calculate and assign result
-        b_mu_diff = b_br - mu_br  # Shape: (tblksize, nw, num_mix)
+        np.subtract(b_br, mu_br, out=b_mu_diff)  # Shape: (n_samples, num_mix, num_comps)
         # align for broadcasting
-        b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (tblksize, num_mix, nw)
-        # TODO: use np.multiply with out param to avoid temporary array
-        y_update = sbeta_br * b_mu_diff   # Result shape: (tblksize, nw, num_mix)
-        y[:, :, :, h_index] = y_update
+        b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (n_samples, num_mix, nw)
+        # In-Place y update
+        np.multiply(sbeta_br, b_mu_diff, out=y[:, :, :, h_index]) # (n_samples, nw, num_mix)
         
         #------------------Mixture Log-Likelihood for each component----------------
 
@@ -1962,7 +1975,7 @@ def _calculate_source_densities(
         # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
         # Note: y_slice is already this shape. The others are broadcast.
         y_slice = y[:, :, :, h_index]
-        alpha_orig = alpha.copy()
+        # alpha_orig = alpha.copy()
         alpha_h = alpha[:, comp_indices]
         rho_h = rho[:, comp_indices]
 
