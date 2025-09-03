@@ -1913,23 +1913,29 @@ def _calculate_source_densities(
     pdftype : int
         Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
     b : np.ndarray
-        Per-sample, per-component source estimates, of shape (n_samples, n_features, n_components).
+        Per-sample, per-component source estimates, of shape (n_samples, n_components, n_models).
         Not modified.
+    b_mu_diff : np.ndarray
+        Temporary buffer for b - mu differences. Shape (n_samples, n_mixtures, n_components).
+        This array is modified in-place.
     sbeta : np.ndarray
-        Scale parameters of shape (n_mixtures, n_features).
+        Scale parameters of shape (n_mixtures, n_components).
         Not modified.
     mu : np.ndarray
-        Location parameters of shape (n_mixtures, n_features). Not modified.
+        Location parameters of shape (n_mixtures, n_components). Not modified.
     alpha : np.ndarray
-        Mixture weights of shape (n_mixtures, n_features). Not modified.
+        Mixture weights of shape (n_mixtures, n_components). Not modified.
     rho : np.ndarray
-        Shape parameters of shape (n_mixtures, n_features). Not modified.
+        Shape parameters of shape (n_mixtures, n_components). Not modified.
     comp_indices : np.ndarray
         Array of shape (n_features,) containing component indices for the current model.
     h_index : int
         Index of the current model being processed.
     out_y : np.ndarray
-        Buffer to write scaled sources into. Shape (n_samples, n_features, n_mixtures, n_components).
+        Buffer to write scaled sources into. Shape (n_samples, n_components, n_mixtures, n_models).
+        This array is modified in-place.
+    out_z0 : np.ndarray
+        Buffer to write per-mixture log-densities into. Shape (n_samples, n_components, n_mixtures).
         This array is modified in-place.
 
     Returns
