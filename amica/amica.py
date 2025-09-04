@@ -734,6 +734,7 @@ def _core_amica(
     )
     return state, LL
 
+
 def optimize(
         *,
         X,
@@ -766,6 +767,7 @@ def optimize(
     buffer_specs = {
         # Source and intermediate computation buffers
         "b": (N1, num_comps),                    # Removed num_models dimension
+        "g": (N1, num_comps),
         "scratch_3D": (N1, num_mix, num_comps), 
         "v": (N1, num_models),
         "y": (N1, num_comps, num_mix),           # Removed num_models dimension
@@ -777,8 +779,7 @@ def optimize(
         "dWtmp": (num_comps, num_comps, num_models),
     }
     # Allocate most buffers as empty (faster)
-    work.allocate_all({k: v for k, v in buffer_specs.items() 
-                      if k not in {"modloglik", "dWtmp"}}, init="empty")
+    work.allocate_all(buffer_specs, init="empty")
     # Allocate buffers that need zero initialization separately
     work.allocate_buffer("modloglik", buffer_specs["modloglik"], init="zeros")
     work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
@@ -827,6 +828,7 @@ def optimize(
             rholrate=rholrate,
         )
         iter = metrics.iter
+
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # Use slogdet on the original unmixing matrix to get sign and log|det|
@@ -895,6 +897,7 @@ def optimize(
         v = work.get_buffer("v") 
         dWtmp = work.get_buffer("dWtmp")
         modloglik = work.get_buffer("modloglik")
+        g = work.get_buffer("g")
         
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
@@ -968,7 +971,6 @@ def optimize(
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
         #---------------------------------------------------------------
-        # TODO: np.logaddexp.reduce or scipy.special.logsumexp could compute P directly
         # P = Pmax[:] + np.log(vtmp[:])
         P = np.logaddexp.reduce(Ptmp, axis=1)
         assert P.shape == (N1,) # Per-sample total log-likelihood across models.
@@ -1019,7 +1021,6 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
             #---------------------------------------------------------------
-            g = np.zeros((N1, nw))
             
             # NOTE: VECTORIZED
             # for do (i = 1, nw)
