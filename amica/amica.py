@@ -607,7 +607,7 @@ def _core_amica(
     if load_A:
         raise NotImplementedError()
     else:
-        comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
+        comp_list, _ = get_component_indices(config.n_components, config.n_models)
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # TODO: if A has a num_models dimension, this fancy indexing isnt needed
@@ -666,7 +666,6 @@ def _core_amica(
     assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
     state.W = W.copy()
     del W # safe guard against accidental use of W instead of state.W
-
 
     # load_comp_list
     # if load_comp_list:
@@ -823,18 +822,549 @@ def _core_amica(
                 assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
         Dsum = Dtemp.copy() # shape (num_models,)
 
+        # ============================== Subsection ====================================
+        # updates, metrics = get_updates_and_likelihood()
+        
+        comp_list, _ = get_component_indices(config.n_components, config.n_models)
+        iter = metrics.iter
+        n_models = config.n_models
+        n_mixtures = config.n_mixtures
+        num_comps = config.n_components
+        pdftype = config.pdftype
+        do_reject = do_reject = config.do_reject
+        do_newton = config.do_newton
+        newt_start = config.newt_start
+        assert newt_start == 50
 
-        updates, metrics = get_updates_and_likelihood(
-            X=dataseg,
+        nw = num_comps
+
+        W = state.W
+        sbeta = state.sbeta
+        rho = state.rho
+
+        updates.reset()
+
+        dgm_numer = updates.dgm_numer
+        dmu_numer = updates.dmu_numer
+        dmu_denom = updates.dmu_denom
+        dalpha_numer = updates.dalpha_numer
+        dalpha_denom = updates.dalpha_denom
+        dbeta_numer = updates.dbeta_numer
+        dbeta_denom = updates.dbeta_denom
+        drho_numer = updates.drho_numer
+        drho_denom = updates.drho_denom
+        dc_numer = updates.dc_numer
+        dc_denom = updates.dc_denom
+
+        if do_newton:
+            dbaralpha_numer = updates.newton.dbaralpha_numer
+            dbaralpha_denom = updates.newton.dbaralpha_denom
+            dkappa_numer = updates.newton.dkappa_numer
+            dkappa_denom = updates.newton.dkappa_denom
+            dlambda_numer = updates.newton.dlambda_numer
+            dlambda_denom = updates.newton.dlambda_denom
+            dsigma2_numer = updates.newton.dsigma2_numer
+            dsigma2_denom = updates.newton.dsigma2_denom
+
+        num_models = n_models
+        num_mix = n_mixtures
+        # === Section: Initialize Accumulators & Buffers ===
+        # Initialize arrays for likelihood computations and parameter updates
+        # Set up numerator/denominator accumulators for gradient updates
+        #-------------------------------------------------------------------------------
+        N1 = X.shape[-1]
+        assert N1 == 30504  # number of samples in data segment
+
+
+        ufp = work.get_buffer("ufp")
+        v = work.get_buffer("v") 
+        dWtmp = work.get_buffer("dWtmp")
+        modloglik = work.get_buffer("modloglik")
+        
+        # Validate critical buffer shapes
+        assert ufp.shape == (N1, num_comps, num_mix)
+        assert v.shape == (N1, num_models) 
+        assert dWtmp.shape == (num_comps, num_comps, num_models)
+        assert modloglik.shape == (num_models, N1)
+        # !--------- loop over the segments ----------
+
+        if do_reject:
+            raise NotImplementedError()
+        else:
+            pass
+
+        # !--------- loop over the blocks ----------
+        '''
+        # In Fortran, the OMP parallel region would start before the lines below.
+        # !$OMP PARALLEL DEFAULT(SHARED) &
+        # !$OMP & PRIVATE (thrdnum,tblksize,t,h,i,j,k,xstrt,xstp,bstrt,bstp,LLinc,tmpsum,usum,vsum)
+        # thrdnum = omp_get_thread_num()
+        # tblksize = bsize / num_thrds
+        tblksize = int(bsize / num_thrds)
+        # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
+        '''
+        
+        # === Section: E-step per Model ===
+        # - Transform data via unmixing (b = W^T @ X)
+        # - Evaluate source densities (per component and mixture)
+        # - Aggregate mixture likelihoods with log-sum-exp
+        # - Compute normalized responsibilities within each component
+        #---------------------------------------------------------------------------------
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            comp_indices = comp_list[:, h_index] - 1
+            # --- Subsection: Baseline terms and unmixing ---
+            b, y, z, Ptmp = compute_model_e_step(
+                X=X,
+                config=config,
+                alpha=state.alpha,
+                sbeta=state.sbeta,
+                mu=state.mu,
+                gm=state.gm,
+                rho=state.rho,
+                W=state.W,
+                buffers=work,
+                Dsum=Dsum,
+                sldet=sldet,
+                wc=wc,
+                model_index=h_index,
+                comp_indices=comp_indices,
+            )
+        # end do (h)
+
+        # === Section: Across-model Responsibilities and Total Log-Likelihood ===
+        #--------------------------FORTRAN CODE-------------------------
+        # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
+        # !--- get LL, v
+        # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
+        # vtmp(bstrt:bstp) = dble(0.0)
+        # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
+        #---------------------------------------------------------------
+        # Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
+        # assert Pmax.shape == (N1,)
+        # vtmp = np.zeros(N1) # candidate for out parameter
+
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1 
+            # vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
+
+        #--------------------------FORTRAN CODE-------------------------
+        # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
+        # LLinc = sum( P(bstrt:bstp) )
+        # LLtmp = LLtmp + LLinc
+        #---------------------------------------------------------------
+        # TODO: np.logaddexp.reduce or scipy.special.logsumexp could compute P directly
+        # P = Pmax[:] + np.log(vtmp[:])
+        P = np.logaddexp.reduce(Ptmp, axis=1)
+        assert P.shape == (N1,) # Per-sample total log-likelihood across models.
+        LLinc = np.sum(P[:])
+        LLtmp = LLinc
+        
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            if do_reject:
+                raise NotImplementedError()
+            else:
+                #--------------------------FORTRAN CODE-------------------------
+                # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
+                # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
+                #---------------------------------------------------------------
+                modloglik[h - 1, :] = Ptmp[:, h_index] # shape (num_models, N1)
+                # TODO: 1. Do we really need P as an intermediate?
+                #       2. We need to return loglik or store it somewhere
+                #       3. Since this is within a loop, we are overwriting loglik each time.
+                #       4. loglik is likely used for do_reject.
+                #       5. loglik/P == modloglik[h_index, :]
+                loglik = P # shape: (N1,)
+            
+            #---------------Total Log-Likelihood and Model Responsibilities-----------------
+            #--------------------------FORTRAN CODE-------------------------
+            # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
+            #---------------------------------------------------------------
+            # TODO: Consider softmax across models once vectorized across h.
+            # responsibilities over models per sample
+            # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
+        # responsibilities over models per sample
+        v[:, :] = softmax(Ptmp, axis=1)
+
+        # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
+
+        # !--- get g, u, ufp
+        # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
+        for h, _ in enumerate(range(num_models), start=1):
+            h_index = h - 1
+            #--------------------------FORTRAN CODE-------------------------
+            # vsum = sum( v(bstrt:bstp,h) )
+            # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
+            #---------------------------------------------------------------
+            vsum = v[:, h_index].sum()
+            dgm_numer[h_index] += vsum
+
+            # if update_A:
+            #--------------------------FORTRAN CODE-------------------------
+            # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
+            #---------------------------------------------------------------
+            g = np.zeros((N1, nw))
+            
+            # NOTE: VECTORIZED
+            # for do (i = 1, nw)
+            v_slice = v[:, h_index] # # shape: (block_size,)
+            if do_newton:
+                #--------------------------FORTRAN CODE-------------------------
+                # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
+                # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
+                # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
+                # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
+                #---------------------------------------------------------------
+                b_slice = b[:, :] # shape: (block_size, nw)
+                tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
+                dsigma2_numer[:, h_index] += tmpsum_A_vec
+                dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
+            elif not do_newton:
+                raise NotImplementedError()
+            # if update_c:
+            if do_reject:
+                raise NotImplementedError()
+                # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
+            else:
+                #--------------------------FORTRAN CODE-------------------------
+                # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
+                #---------------------------------------------------------------
+                # # Vectorized update for dc
+                data_slice = dataseg[:, :]
+                assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
+                tmpsum_c_vec = np.sum(data_slice * v_slice[np.newaxis, :], axis=1)
+                # OR...(mathematicaly equivalent but not numerically stable):
+                # tmpsum_c_vec = data_slice @ v_slice 
+            # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
+            # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
+            dc_numer[:, h_index] += tmpsum_c_vec
+            dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
+            
+            
+            #--------------------------FORTRAN CODE-------------------------
+            # for do (j = 1, num_mix)
+            # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
+            # usum = sum( u(bstrt:bstp) )
+            #---------------------------------------------------------------
+            z_slice = z[:, :, :]  # shape: (block_size, nw, num_mix) - no model indexing needed
+            # Reshape v_slice for broadcasting over z_slice
+            v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
+            u = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+            assert u.shape == (N1, nw, num_mix)
+            usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
+            assert usum.shape == (32, 3)  # nw, num_mix
+            
+            assert rho.shape == (num_mix, config.n_components)
+            if iter == 6 and h == 1: # and blk == 1:
+                # and j == 3 and i == 1 
+                assert rho[2, 0] == 1.0
+            fp = compute_scores(
+                pdftype=pdftype,
+                y_slice=y[:, :, :],  # No model indexing needed
+                rho=rho,
+                comp_indices=comp_indices,
+            )
+            assert fp.shape == (N1, nw, num_mix)
+            # --- Vectorized calculation of ufp and g update ---
+            if iter == 1 and h == 1: # and blk == 1 
+                assert g[0, 0] == 0.0
+            ufp, g = accumulate_scores(
+                scores=fp,
+                responsibilities=u,
+                scale_params=sbeta,
+                comp_indices=comp_indices,
+                out_ufp=ufp,
+                out_g=g,
+            )
+            assert ufp.shape == (N1, nw, num_mix)   
+
+            # --- Vectorized Newton-Raphson Updates ---
+            if do_newton and iter >= newt_start:
+
+                if iter == 50: # and blk == 1:
+                    assert np.all(dkappa_numer == 0.0)
+                    assert np.all(dkappa_denom == 0.0)
+
+                #--------------------------FORTRAN CODE-------------------------
+                # for (i = 1, nw) ... for (j = 1, num_mix)
+                # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
+                # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
+                # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
+                #---------------------------------------------------------------
+
+                comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
+                # 1) Kappa updates (curvature terms for A)
+                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
+                sbeta_vals = sbeta[:, comp_indices] ** 2
+                tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
+                dkappa_numer[:, :, h_index] += tmpsum_kappa
+                dkappa_denom[:, :, h_index] += usum.T
+                
+                # 2) Lambda updates
+                # ---------------------------FORTRAN CODE---------------------------
+                # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
+                # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
+                # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
+                # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
+                # ------------------------------------------------------------------
+                tmpvec_mat_dlambda = (
+                    fp[:, :, :] * y[:, :, :] - 1.0
+                )
+                tmpsum_dlambda = np.sum(
+                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
+                )  # shape: (nw, num_mix)
+                dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
+                dlambda_denom[:, :, h_index] += usum.T
+                
+
+                # 3) (dbar)Alpha updates
+                # ---------------------------FORTRAN CODE---------------------------
+                # for (i = 1, nw) ... for (j = 1, num_mix)
+                # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
+                # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
+                # ------------------------------------------------------------------
+                dbaralpha_numer[:, :, h_index] += usum.T
+                dbaralpha_denom[:,:, h_index] += vsum
+
+            # end if (do_newton and iter >= newt_start)
+            elif not do_newton and iter >= newt_start:
+                raise NotImplementedError()
+            # end if (update_A)
+
+            # Alpha (mixture weights)
+            # if update_alpha:
+            # -------------------------------FORTRAN--------------------------------
+            # for (i = 1, nw) ... for (j = 1, num_mix)
+            # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
+            # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
+            # -----------------------------------------------------------------------
+            # NOTE: the vectorization of this variable results in some numerical differences
+            # That propogate to several other variables due to a dependency chan
+            # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
+            comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
+            dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
+            dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
+
+            # Mu (location)
+            # if update_mu:
+            # 1. update numerator
+            # -------------------------------FORTRAN--------------------------------
+            # for (i = 1, nw) ... for (j = 1, num_mix)
+            # tmpsum = sum( ufp(bstrt:bstp) )
+            # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
+            # -----------------------------------------------------------------------
+            # XXX: Some error in each sum across 59 blocks
+            tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
+            dmu_numer[:, comp_indices] += tmpsum_mu.T
+            # 2. update denominator
+            # -------------------------------FORTRAN--------------------------------
+            # for (i = 1, nw) ... for (j = 1, num_mix)
+            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
+            # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
+            # else
+            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
+            # -----------------------------------------------------------------------
+            if np.all(rho[:, comp_indices] <= 2.0):
+                # shape : (nw, num_mix)
+                mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
+
+                # shape (num_mix, nw)
+                tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
+                dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
+            else:
+                raise NotImplementedError()
+                # Let's tackle this when we actually hit this with some data
+                # So that we can compare the result against the Fortran output.
+            # end if (update mu)
+
+            # Beta (scale/precision)
+            # if update_beta:
+            # 1. update numerator
+            # -------------------------------FORTRAN--------------------------------
+            # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
+            # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
+            # ----------------------------------------------------------------------
+            dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
+            # 2. update denominator
+            # -------------------------------FORTRAN--------------------------------
+            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+            # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+            # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
+            # ----------------------------------------------------------------------
+            if np.all(rho[:, comp_indices] <= 2.0):
+                tmpsum_dbeta_denom = np.sum(
+                    ufp[:, :, :] * y[:, :, :], axis=0
+                )
+                dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
+            else:
+                raise NotImplementedError()
+            # end if (update beta)
+            
+            # Rho (shape parameter of generalized Gaussian)
+            if dorho:
+                # -------------------------------FORTRAN--------------------------------
+                # for (i = 1, nw) ... for (j = 1, num_mix)
+                # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
+                # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
+                # tmpy(bstrt:bstp) = exp(rho(j,comp_list(i,h))*logab(bstrt:bstp))
+                # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
+                # ----------------------------------------------------------------------
+                # 1. log of absolute value
+                tmpy = np.empty((N1, nw, num_mix))
+                logab = np.empty((N1, nw, num_mix)) # shape is (N1) in Fortran
+                np.abs(y[:, :, :], out=tmpy)
+                np.log(tmpy[:, :, :], out=logab)
+                # 2. Exponentiation with rho
+                rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
+                rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
+                # shape: (max_block_size, nw, num_mix)
+                np.multiply(rho_vals_br, logab, out=logab)
+                np.exp(logab, out=tmpy)  # now tmpy is exp(rho * log|y|)
+                # shape: (max_block_size, nw, num_mix)
+                np.log(tmpy, out=logab)
+                
+                # -------------------------------FORTRAN--------------------------------
+                # where (tmpy(bstrt:bstp) < epsdble)
+                        #    logab(bstrt:bstp) = dble(0.0)
+                        # end where
+                # ----------------------------------------------------------------------
+                # Set values below epsdble to 0.0
+                logab[tmpy < epsdble] = 0.0
+                # -------------------------------FORTRAN--------------------------------
+                # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
+                # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
+                # drho_numer_tmp(j,comp_list(i,h)) =  drho_numer_tmp(j,comp_list(i,h)) + tmpsum
+                # drho_denom_tmp(j,comp_list(i,h)) =  drho_denom_tmp(j,comp_list(i,h)) + usum
+                # ----------------------------------------------------------------------
+                #tmpsum = np.sum(u[bstrt-1:bstp] * tmpy[bstrt-1:bstp] * logab[bstrt-1:bstp])
+                tmpsum_prod = np.sum(
+                    u[:, :, :]
+                    * tmpy[:, :, :]
+                    * logab[:, :, :]
+                , axis=0
+                )
+                drho_numer[:, comp_indices] += tmpsum_prod.T
+                drho_denom[:, comp_indices] += usum.T
+                
+                if np.any(rho[:, comp_indices] > 2.0):
+                    raise NotImplementedError()
+            elif not dorho:
+                raise NotImplementedError()
+
+            # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
+            # if update_A:
+            #--------------------------FORTRAN CODE-------------------------
+            # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
+            # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
+            #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
+            # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
+            #---------------------------------------------------------------
+            # Wtmp2 has a 3rd dimension for threads in Fortran
+            Wtmp2 = np.dot(g.T, b[:, :]) #  # shape (num_comps, num_comps)
+            dWtmp[:, :, h - 1] += Wtmp2
+        # end do (h)
+        # end do (blk)'
+        if iter == 1: # and blk == 59:
+            # j is 3 and i is 32 by this point
+            # assert j == 3
+            # assert i == 32
+            assert h == 1
+            assert_allclose(rho, 1.5)
+            assert_almost_equal(g[-808, 0], 0.19658642673900478)
+            assert_almost_equal(g[-1, 31], -0.22482758905985217)
+            assert dgm_numer[0] == 30504
+            # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
+            # assert_almost_equal(tmpsum, -52.929467835976844)
+            assert dsigma2_denom[31, 0] == 30504
+            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
+            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
+            assert_almost_equal(dc_numer[31, 0], 0)
+            assert dc_denom[31, 0] == 30504
+            assert_allclose(v, 1)
+            assert_almost_equal(z[-808, 31, 2], 0.72907838295502048)
+            assert_almost_equal(z[-1, 31, 2], 0.057629436774909774)
+            # assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
+            assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
+            assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
+            # assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
+            # assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
+            assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
+            assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
+            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
+            assert dalpha_denom[2, 31] == 30504
+            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
+            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
+            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
+            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
+            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
+            assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
+            assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
+            assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
+            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
+            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
+            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
+            assert_almost_equal(P[-1], -111.60532918598989)
+            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
+        elif iter == 2:
+            assert_almost_equal(dc_numer[31, 0], 0)
+            assert_almost_equal(dc_numer[0, 0],  0)
+            assert dc_denom[31, 0] == 30504
+            assert dc_denom[0, 0] == 30504
+            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
+            assert dalpha_denom[2, 31] == 30504
+            assert dalpha_denom[0, 0] == 30504
+            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
+            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
+            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
+            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
+            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
+            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)  
+            assert_almost_equal(g[-808, 0], 0.92578280732700213)
+            assert_almost_equal(g[-1, 31], -0.57496468258661515)
+            assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
+            assert_allclose(v, 1)
+            assert_almost_equal(y[-1, 31, 2], -1.8067399375706592)
+            assert_almost_equal(z[-808, 31, 2], 0.71373487258192514)
+            assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
+            assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
+            #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
+            # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
+            assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
+            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
+            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
+
+        # In Fortran, the OMP parallel region is closed here
+        # !$OMP END PARALLEL
+        # !print *, myrank+1,': finished segment ', seg; call flush(6)
+        
+        # XXX: Later we'll figure out which variables we actually need to return
+        # For now literally return any variable that has been assigned or updated
+        # In alphabetical order
+        likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
             config=config,
-            state=state,
             updates=updates,
-            metrics=metrics,
-            work=work,
-            Dsum=Dsum,
-            sldet=sldet,
-            wc=wc,
+            state=state,
+            dWtmp=dWtmp,
+            LLtmp=LLtmp,
+            iter=iter
         )
+        metrics.loglik = likelihood
+        metrics.ndtmpsum = ndtmpsum
+        metrics.no_newt = no_newt
+        updates.dAK = dAK
+        # return updates, metrics
+
+        # ==============================================================================
         ndtmpsum = metrics.ndtmpsum
         LL[iter - 1] = metrics.loglik
         # init
@@ -1155,549 +1685,7 @@ def get_updates_and_likelihood(
     - This function mirrors the original Fortran implementation. Fortran reference
         comment blocks are kept verbatim alongside the equivalent Python.
     """
-    comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
-    iter = metrics.iter
-    n_models = config.n_models
-    n_mixtures = config.n_mixtures
-    num_comps = config.n_components
-    pdftype = config.pdftype
-    do_reject = do_reject = config.do_reject
-    do_newton = config.do_newton
-    newt_start = config.newt_start
-    assert newt_start == 50
-
-    nw = num_comps
-
-    W = state.W
-    A = state.A
-    alpha = state.alpha
-    sbeta = state.sbeta
-    mu = state.mu
-    gm = state.gm
-    rho = state.rho
-
-    updates.reset()
-    dgm_numer = updates.dgm_numer
-    dmu_numer = updates.dmu_numer
-    dmu_denom = updates.dmu_denom
-    dalpha_numer = updates.dalpha_numer
-    dalpha_denom = updates.dalpha_denom
-    dbeta_numer = updates.dbeta_numer
-    dbeta_denom = updates.dbeta_denom
-    drho_numer = updates.drho_numer
-    drho_denom = updates.drho_denom
-    dc_numer = updates.dc_numer
-    dc_denom = updates.dc_denom
-
-    if do_newton:
-        dbaralpha_numer = updates.newton.dbaralpha_numer
-        dbaralpha_denom = updates.newton.dbaralpha_denom
-        dkappa_numer = updates.newton.dkappa_numer
-        dkappa_denom = updates.newton.dkappa_denom
-        dlambda_numer = updates.newton.dlambda_numer
-        dlambda_denom = updates.newton.dlambda_denom
-        dsigma2_numer = updates.newton.dsigma2_numer
-        dsigma2_denom = updates.newton.dsigma2_denom
-
-    num_models = n_models
-    num_mix = n_mixtures
-    # === Section: Initialize Accumulators & Buffers ===
-    # Initialize arrays for likelihood computations and parameter updates
-    # Set up numerator/denominator accumulators for gradient updates
-    #-------------------------------------------------------------------------------
-    N1 = X.shape[-1]
-    assert N1 == 30504  # number of samples in data segment
-
-
-    # TODO: consider passing by reference
-    # Get pre-allocated workspace buffers with shape validation
-    ufp = work.get_buffer("ufp")
-    v = work.get_buffer("v") 
-    dWtmp = work.get_buffer("dWtmp")
-    modloglik = work.get_buffer("modloglik")
-    
-    # Validate critical buffer shapes
-    assert ufp.shape == (N1, num_comps, num_mix)
-    assert v.shape == (N1, num_models) 
-    assert dWtmp.shape == (num_comps, num_comps, num_models)
-    assert modloglik.shape == (num_models, N1)
-    # !--------- loop over the segments ----------
-
-    if do_reject:
-        raise NotImplementedError()
-    else:
-        pass
-
-    # !--------- loop over the blocks ----------
-    '''
-    # In Fortran, the OMP parallel region would start before the lines below.
-    # !$OMP PARALLEL DEFAULT(SHARED) &
-    # !$OMP & PRIVATE (thrdnum,tblksize,t,h,i,j,k,xstrt,xstp,bstrt,bstp,LLinc,tmpsum,usum,vsum)
-    # thrdnum = omp_get_thread_num()
-    # tblksize = bsize / num_thrds
-    tblksize = int(bsize / num_thrds)
-    # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
-    '''
-    
-    # === Section: E-step per Model ===
-    # - Transform data via unmixing (b = W^T @ X)
-    # - Evaluate source densities (per component and mixture)
-    # - Aggregate mixture likelihoods with log-sum-exp
-    # - Compute normalized responsibilities within each component
-    #---------------------------------------------------------------------------------
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        comp_indices = comp_list[:, h_index] - 1
-        # --- Subsection: Baseline terms and unmixing ---
-        b, y, z, Ptmp = compute_model_e_step(
-            X=X,
-            config=config,
-            alpha=state.alpha,
-            sbeta=state.sbeta,
-            mu=state.mu,
-            gm=state.gm,
-            rho=state.rho,
-            W=state.W,
-            buffers=work,
-            Dsum=Dsum,
-            sldet=sldet,
-            wc=wc,
-            model_index=h_index,
-            comp_indices=comp_indices,
-        )
-    # end do (h)
-
-    # === Section: Across-model Responsibilities and Total Log-Likelihood ===
-    #--------------------------FORTRAN CODE-------------------------
-    # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
-    # !--- get LL, v
-    # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
-    # vtmp(bstrt:bstp) = dble(0.0)
-    # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
-    #---------------------------------------------------------------
-    # Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
-    # assert Pmax.shape == (N1,)
-    # vtmp = np.zeros(N1) # candidate for out parameter
-
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1 
-        # vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
-
-    #--------------------------FORTRAN CODE-------------------------
-    # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
-    # LLinc = sum( P(bstrt:bstp) )
-    # LLtmp = LLtmp + LLinc
-    #---------------------------------------------------------------
-    # TODO: np.logaddexp.reduce or scipy.special.logsumexp could compute P directly
-    # P = Pmax[:] + np.log(vtmp[:])
-    P = np.logaddexp.reduce(Ptmp, axis=1)
-    assert P.shape == (N1,) # Per-sample total log-likelihood across models.
-    LLinc = np.sum(P[:])
-    LLtmp = LLinc
-    
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        if do_reject:
-            raise NotImplementedError()
-        else:
-            #--------------------------FORTRAN CODE-------------------------
-            # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
-            # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
-            #---------------------------------------------------------------
-            modloglik[h - 1, :] = Ptmp[:, h_index] # shape (num_models, N1)
-            # TODO: 1. Do we really need P as an intermediate?
-            #       2. We need to return loglik or store it somewhere
-            #       3. Since this is within a loop, we are overwriting loglik each time.
-            #       4. loglik is likely used for do_reject.
-            #       5. loglik/P == modloglik[h_index, :]
-            loglik = P # shape: (N1,)
-        
-        #---------------Total Log-Likelihood and Model Responsibilities-----------------
-        #--------------------------FORTRAN CODE-------------------------
-        # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
-        #---------------------------------------------------------------
-         # TODO: Consider softmax across models once vectorized across h.
-        # responsibilities over models per sample
-        # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
-    # responsibilities over models per sample
-    v[:, :] = softmax(Ptmp, axis=1)
-
-    # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-
-    # !--- get g, u, ufp
-    # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        #--------------------------FORTRAN CODE-------------------------
-        # vsum = sum( v(bstrt:bstp,h) )
-        # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
-        #---------------------------------------------------------------
-        vsum = v[:, h_index].sum()
-        dgm_numer[h_index] += vsum
-
-        # if update_A:
-        #--------------------------FORTRAN CODE-------------------------
-        # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
-        #---------------------------------------------------------------
-        g = np.zeros((N1, nw))
-        
-        # NOTE: VECTORIZED
-        # for do (i = 1, nw)
-        v_slice = v[:, h_index] # # shape: (block_size,)
-        if do_newton:
-            #--------------------------FORTRAN CODE-------------------------
-            # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
-            # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
-            # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
-            # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
-            #---------------------------------------------------------------
-            b_slice = b[:, :] # shape: (block_size, nw)
-            tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
-            dsigma2_numer[:, h_index] += tmpsum_A_vec
-            dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
-        elif not do_newton:
-            raise NotImplementedError()
-        # if update_c:
-        if do_reject:
-            raise NotImplementedError()
-            # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
-        else:
-            #--------------------------FORTRAN CODE-------------------------
-            # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
-            #---------------------------------------------------------------
-            # # Vectorized update for dc
-            data_slice = dataseg[:, :]
-            assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
-            tmpsum_c_vec = np.sum(data_slice * v_slice[np.newaxis, :], axis=1)
-            # OR...(mathematicaly equivalent but not numerically stable):
-            # tmpsum_c_vec = data_slice @ v_slice 
-        # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
-        # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
-        dc_numer[:, h_index] += tmpsum_c_vec
-        dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
-        
-        
-        #--------------------------FORTRAN CODE-------------------------
-        # for do (j = 1, num_mix)
-        # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
-        # usum = sum( u(bstrt:bstp) )
-        #---------------------------------------------------------------
-        z_slice = z[:, :, :]  # shape: (block_size, nw, num_mix) - no model indexing needed
-        # Reshape v_slice for broadcasting over z_slice
-        v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-        u = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
-        assert u.shape == (N1, nw, num_mix)
-        usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-        assert usum.shape == (32, 3)  # nw, num_mix
-        
-        assert rho.shape == (num_mix, config.n_components)
-        if iter == 6 and h == 1: # and blk == 1:
-            # and j == 3 and i == 1 
-            assert rho[2, 0] == 1.0
-        fp = compute_scores(
-            pdftype=pdftype,
-            y_slice=y[:, :, :],  # No model indexing needed
-            rho=rho,
-            comp_indices=comp_indices,
-        )
-        assert fp.shape == (N1, nw, num_mix)
-        # --- Vectorized calculation of ufp and g update ---
-        if iter == 1 and h == 1: # and blk == 1 
-            assert g[0, 0] == 0.0
-        ufp, g = accumulate_scores(
-            scores=fp,
-            responsibilities=u,
-            scale_params=sbeta,
-            comp_indices=comp_indices,
-            out_ufp=ufp,
-            out_g=g,
-        )
-        assert ufp.shape == (N1, nw, num_mix)   
-
-        # --- Vectorized Newton-Raphson Updates ---
-        if do_newton and iter >= newt_start:
-
-            if iter == 50: # and blk == 1:
-                assert np.all(dkappa_numer == 0.0)
-                assert np.all(dkappa_denom == 0.0)
-
-            #--------------------------FORTRAN CODE-------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
-            # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
-            # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
-            #---------------------------------------------------------------
-
-            comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
-            # 1) Kappa updates (curvature terms for A)
-            ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-            sbeta_vals = sbeta[:, comp_indices] ** 2
-            tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
-            dkappa_numer[:, :, h_index] += tmpsum_kappa
-            dkappa_denom[:, :, h_index] += usum.T
-            
-            # 2) Lambda updates
-            # ---------------------------FORTRAN CODE---------------------------
-            # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
-            # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
-            # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
-            # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
-            # ------------------------------------------------------------------
-            tmpvec_mat_dlambda = (
-                fp[:, :, :] * y[:, :, :] - 1.0
-            )
-            tmpsum_dlambda = np.sum(
-                u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
-            )  # shape: (nw, num_mix)
-            dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
-            dlambda_denom[:, :, h_index] += usum.T
-            
-
-            # 3) (dbar)Alpha updates
-            # ---------------------------FORTRAN CODE---------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
-            # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
-            # ------------------------------------------------------------------
-            dbaralpha_numer[:, :, h_index] += usum.T
-            dbaralpha_denom[:,:, h_index] += vsum
-
-        # end if (do_newton and iter >= newt_start)
-        elif not do_newton and iter >= newt_start:
-            raise NotImplementedError()
-        # end if (update_A)
-
-        # Alpha (mixture weights)
-        # if update_alpha:
-        # -------------------------------FORTRAN--------------------------------
-        # for (i = 1, nw) ... for (j = 1, num_mix)
-        # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
-        # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
-        # -----------------------------------------------------------------------
-        # NOTE: the vectorization of this variable results in some numerical differences
-        # That propogate to several other variables due to a dependency chan
-        # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
-        comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-        dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
-        dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
-
-        # Mu (location)
-        # if update_mu:
-        # 1. update numerator
-        # -------------------------------FORTRAN--------------------------------
-        # for (i = 1, nw) ... for (j = 1, num_mix)
-        # tmpsum = sum( ufp(bstrt:bstp) )
-        # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
-        # -----------------------------------------------------------------------
-        # XXX: Some error in each sum across 59 blocks
-        tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-        dmu_numer[:, comp_indices] += tmpsum_mu.T
-        # 2. update denominator
-        # -------------------------------FORTRAN--------------------------------
-        # for (i = 1, nw) ... for (j = 1, num_mix)
-        # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-        # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
-        # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
-        # else
-        # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
-        # -----------------------------------------------------------------------
-        if np.all(rho[:, comp_indices] <= 2.0):
-            # shape : (nw, num_mix)
-            mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
-
-            # shape (num_mix, nw)
-            tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
-            dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
-        else:
-            raise NotImplementedError()
-            # Let's tackle this when we actually hit this with some data
-            # So that we can compare the result against the Fortran output.
-        # end if (update mu)
-
-        # Beta (scale/precision)
-        # if update_beta:
-        # 1. update numerator
-        # -------------------------------FORTRAN--------------------------------
-        # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
-        # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
-        # ----------------------------------------------------------------------
-        dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
-        # 2. update denominator
-        # -------------------------------FORTRAN--------------------------------
-        # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-        # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
-        # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
-        # ----------------------------------------------------------------------
-        if np.all(rho[:, comp_indices] <= 2.0):
-            tmpsum_dbeta_denom = np.sum(
-                ufp[:, :, :] * y[:, :, :], axis=0
-            )
-            dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
-        else:
-            raise NotImplementedError()
-        # end if (update beta)
-        
-        # Rho (shape parameter of generalized Gaussian)
-        if dorho:
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
-            # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
-            # tmpy(bstrt:bstp) = exp(rho(j,comp_list(i,h))*logab(bstrt:bstp))
-            # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
-            # ----------------------------------------------------------------------
-            # 1. log of absolute value
-            tmpy = np.empty((N1, nw, num_mix))
-            logab = np.empty((N1, nw, num_mix)) # shape is (N1) in Fortran
-            np.abs(y[:, :, :], out=tmpy)
-            np.log(tmpy[:, :, :], out=logab)
-            # 2. Exponentiation with rho
-            rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
-            rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
-            # shape: (max_block_size, nw, num_mix)
-            np.multiply(rho_vals_br, logab, out=logab)
-            np.exp(logab, out=tmpy)  # now tmpy is exp(rho * log|y|)
-            # shape: (max_block_size, nw, num_mix)
-            np.log(tmpy, out=logab)
-            
-            # -------------------------------FORTRAN--------------------------------
-            # where (tmpy(bstrt:bstp) < epsdble)
-                    #    logab(bstrt:bstp) = dble(0.0)
-                    # end where
-            # ----------------------------------------------------------------------
-            # Set values below epsdble to 0.0
-            logab[tmpy < epsdble] = 0.0
-            # -------------------------------FORTRAN--------------------------------
-            # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
-            # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
-            # drho_numer_tmp(j,comp_list(i,h)) =  drho_numer_tmp(j,comp_list(i,h)) + tmpsum
-            # drho_denom_tmp(j,comp_list(i,h)) =  drho_denom_tmp(j,comp_list(i,h)) + usum
-            # ----------------------------------------------------------------------
-            #tmpsum = np.sum(u[bstrt-1:bstp] * tmpy[bstrt-1:bstp] * logab[bstrt-1:bstp])
-            tmpsum_prod = np.sum(
-                u[:, :, :]
-                * tmpy[:, :, :]
-                * logab[:, :, :]
-            , axis=0
-            )
-            drho_numer[:, comp_indices] += tmpsum_prod.T
-            drho_denom[:, comp_indices] += usum.T
-            
-            if np.any(rho[:, comp_indices] > 2.0):
-                raise NotImplementedError()
-        elif not dorho:
-            raise NotImplementedError()
-
-        # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-        # if update_A:
-        #--------------------------FORTRAN CODE-------------------------
-        # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
-        # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
-        #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
-        # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
-        #---------------------------------------------------------------
-        # Wtmp2 has a 3rd dimension for threads in Fortran
-        Wtmp2 = np.dot(g.T, b[:, :]) #  # shape (num_comps, num_comps)
-        dWtmp[:, :, h - 1] += Wtmp2
-    # end do (h)
-    # end do (blk)'
-    if iter == 1: # and blk == 59:
-        # j is 3 and i is 32 by this point
-        # assert j == 3
-        # assert i == 32
-        assert h == 1
-        assert_allclose(rho, 1.5)
-        assert_almost_equal(g[-808, 0], 0.19658642673900478)
-        assert_almost_equal(g[-1, 31], -0.22482758905985217)
-        assert dgm_numer[0] == 30504
-        # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
-        # assert_almost_equal(tmpsum, -52.929467835976844)
-        assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-        assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
-        assert_almost_equal(dc_numer[31, 0], 0)
-        assert dc_denom[31, 0] == 30504
-        assert_allclose(v, 1)
-        assert_almost_equal(z[-808, 31, 2], 0.72907838295502048)
-        assert_almost_equal(z[-1, 31, 2], 0.057629436774909774)
-        # assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
-        assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
-        assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
-        # assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
-        # assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
-        assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
-        assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
-        assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
-        assert dalpha_denom[2, 31] == 30504
-        assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-        assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
-        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-        assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
-        assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
-        assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
-        assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
-        assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-        assert_almost_equal(P[-1], -111.60532918598989)
-        assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-        # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-    elif iter == 2:
-        assert_almost_equal(dc_numer[31, 0], 0)
-        assert_almost_equal(dc_numer[0, 0],  0)
-        assert dc_denom[31, 0] == 30504
-        assert dc_denom[0, 0] == 30504
-        assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
-        assert dalpha_denom[2, 31] == 30504
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-        assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-        assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-        assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-        assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)  
-        assert_almost_equal(g[-808, 0], 0.92578280732700213)
-        assert_almost_equal(g[-1, 31], -0.57496468258661515)
-        assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
-        assert_allclose(v, 1)
-        assert_almost_equal(y[-1, 31, 2], -1.8067399375706592)
-        assert_almost_equal(z[-808, 31, 2], 0.71373487258192514)
-        assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
-        assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
-        #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
-        # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
-        assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
-        assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-        assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
-
-    # In Fortran, the OMP parallel region is closed here
-    # !$OMP END PARALLEL
-    # !print *, myrank+1,': finished segment ', seg; call flush(6)
-    
-    # XXX: Later we'll figure out which variables we actually need to return
-    # For now literally return any variable that has been assigned or updated
-    # In alphabetical order
-    likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
-        config=config,
-        updates=updates,
-        state=state,
-        dWtmp=dWtmp,
-        LLtmp=LLtmp,
-        iter=iter
-    )
-    metrics.loglik = likelihood
-    metrics.ndtmpsum = ndtmpsum
-    metrics.no_newt = no_newt
-    updates.dAK = dAK
-    return updates, metrics
+    pass
 
 @line_profiler.profile
 def compute_model_e_step(
