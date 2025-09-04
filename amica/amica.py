@@ -331,7 +331,6 @@ def amica(
         np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
 
         Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-        sldet = 0.0 # Logarithm of the determinant, initialized to zero
         sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
         Stmp2 /= sqrt_eigv
         non_finite_check = ~np.isfinite(Stmp2)
@@ -341,8 +340,9 @@ def amica(
             for i in unique_rows_with_non_finite:
                 print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
             raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
+        
+        sldet = 0.0 # Logarithm of the determinant, initialized to zero
         sldet -= 0.5 * np.sum(np.log(eigv))
-
         np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
         np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
@@ -515,15 +515,6 @@ def _core_amica(
     num_mix = config.n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
-
-    # Initialize updates container
-    updates = initialize_updates(config)
-    # Initialize updates structure - replaces individual d*_numer/denom arrays
-    
-    Dtemp = np.zeros(num_models, dtype=np.float64)
-    # Track determinant sign per model for completeness (not used in likelihood)
-    Dsign = np.zeros(num_models, dtype=np.int8)
-    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood
     # TODO: I think this should have a num_models dimension
 
     assert state.A.shape == (num_comps, num_comps)
@@ -730,20 +721,47 @@ def _core_amica(
     # for seg, _ in enumerate(range(numsegs), start=1):
 
     # v[:, :] = 1.0 / num_models
-    leave = False
 
     print(f"{myrank+1} : entering the main loop ...")
 
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    state, LL = optimize(
+        X=X,
+        sldet=sldet,
+        wc=wc,
+        config=config,
+        state=state,
+    )
+    return state, LL
 
+def optimize(
+        *,
+        X,
+        sldet,
+        wc,
+        config,
+        state,
+):
+    """Main optimization loop for AMICA."""
+    leave = False
     iter = 1
     numrej = 0
+    N1 = X.shape[1]
+    assert N1 == 30504
 
-    c1 = time.time()
-
+    n_models = config.n_models
+    n_mixtures = config.n_mixtures
+    num_comps = config.n_components
+    pdftype = config.pdftype
+    do_reject = do_reject = config.do_reject
+    do_newton = config.do_newton
+    newt_start = config.newt_start
+    assert newt_start == 50
+    num_models = n_models
+    num_mix = n_mixtures
+    
     # Pre-allocate all workspace buffers
     work = AmicaWorkspace()
-    
     # Define buffer specifications for this iteration
     buffer_specs = {
         # Source and intermediate computation buffers
@@ -758,22 +776,30 @@ def _core_amica(
         "modloglik": (num_models, N1),
         "dWtmp": (num_comps, num_comps, num_models),
     }
-    
     # Allocate most buffers as empty (faster)
     work.allocate_all({k: v for k, v in buffer_specs.items() 
                       if k not in {"modloglik", "dWtmp"}}, init="empty")
-    
     # Allocate buffers that need zero initialization separately
     work.allocate_buffer("modloglik", buffer_specs["modloglik"], init="zeros")
     work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
-    
     # Log workspace memory usage for debugging
     total_memory_mb = work.total_memory_usage() / (1024 * 1024)
     print(f"Workspace allocated: {len(buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
+    
+    # Initialize updates container
+    updates = initialize_updates(config)
+    
+    # Initialize updates structure - replaces individual d*_numer/denom arrays    
+    Dtemp = np.zeros(num_models, dtype=np.float64)
+    # Track determinant sign per model for completeness (not used in likelihood)
+    Dsign = np.zeros(num_models, dtype=np.int8)
+    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood
+
 
     lrate = config.lrate
     rholrate = config.rholrate
     c_start = time.time()
+    c1 = time.time()
     while iter <= config.max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
@@ -800,6 +826,7 @@ def _core_amica(
             lrate=lrate,
             rholrate=rholrate,
         )
+        iter = metrics.iter
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # Use slogdet on the original unmixing matrix to get sign and log|det|
@@ -826,16 +853,6 @@ def _core_amica(
         # updates, metrics = get_updates_and_likelihood()
         
         comp_list, _ = get_component_indices(config.n_components, config.n_models)
-        iter = metrics.iter
-        n_models = config.n_models
-        n_mixtures = config.n_mixtures
-        num_comps = config.n_components
-        pdftype = config.pdftype
-        do_reject = do_reject = config.do_reject
-        do_newton = config.do_newton
-        newt_start = config.newt_start
-        assert newt_start == 50
-
         nw = num_comps
 
         W = state.W
@@ -866,8 +883,6 @@ def _core_amica(
             dsigma2_numer = updates.newton.dsigma2_numer
             dsigma2_denom = updates.newton.dsigma2_denom
 
-        num_models = n_models
-        num_mix = n_mixtures
         # === Section: Initialize Accumulators & Buffers ===
         # Initialize arrays for likelihood computations and parameter updates
         # Set up numerator/denominator accumulators for gradient updates
