@@ -952,8 +952,9 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
-            # TODO: use np.add with out param to avoid temporary array
-            Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
+            Ptmp[:, h_index] = np.add(
+                Dsum[h_index], np.log(gm[h_index]) + sldet, out=Ptmp[:, h_index]
+                )
             
             # !--- get b
             # if update_c and update_A:
