@@ -960,8 +960,8 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
             #---------------------------------------------------------------
-            # TODO: use np.multiply with out param to avoid temporary array
-            b[:, :] = (-1.0 * wc[:, h_index])[np.newaxis, :]
+            # TODO: Make that cleaner...
+            b = np.multiply(-1.0, wc[:, h_index][np.newaxis, :], out=b)
             if config.do_reject:
                 #--------------------------FORTRAN CODE-------------------------
                 # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
