@@ -766,12 +766,12 @@ def optimize(
     # Define buffer specifications for this iteration
     buffer_specs = {
         # Source and intermediate computation buffers
-        "b": (N1, num_comps),                    # Removed num_models dimension
+        "b": (N1, num_comps),                    
         "g": (N1, num_comps),
         "scratch_3D": (N1, num_mix, num_comps), 
         "v": (N1, num_models),
-        "y": (N1, num_comps, num_mix),           # Removed num_models dimension
-        "z": (N1, num_comps, num_mix),           # Removed num_models dimension  
+        "y": (N1, num_comps, num_mix),           
+        "z": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         "Ptmp": (N1, num_models),
         # Workspace arrays that need zero initialization
@@ -982,7 +982,7 @@ def optimize(
             # --- Subsection: Source density and mixture log-likelihood (z0) ---
             # Compute scaled sources y and per-mixture log-densities z0 for each component.
             # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
-            y, z0 = _calculate_source_densities(
+            y, logits = _calculate_source_densities(
                 pdftype=config.pdftype,
                 b=b,
                 scratch_3D=tmp_3D,
@@ -992,44 +992,22 @@ def optimize(
                 rho=rho,
                 comp_indices=comp_indices,
                 out_y=y,
+                out_logits=z,
                 )
-
             # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
             # Add the log-likelihood of this component across mixtures and normalize to z.
             #--------------------------FORTRAN CODE-------------------------
             # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
-            # this max call operates across num_mixtures
             #---------------------------------------------------------------
-            # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
-            # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
-            # Get the logsumexp across the mixtures (robust to overflow/underflow)
-            # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
-            # Pmax_br = np.empty((N1, nw))
-            # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
-            # shift for numerical stability
-            # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
-            # Now take the exponential
-            # exp_term = np.exp(centered_responsibilities)
-            # Sum the results over the mixture axis (axis=2)
-            # np.sum(exp_term, axis=-1, out=ztmp)
-            # ztmp[:, :] += exp_term.sum(axis=-1)
-            
-            # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
-            # TODO: use out params? can we avoid temporary array in sum?
-            component_loglik = np.logaddexp.reduce(z0, axis=-1)
-            Ptmp[:, h_index] += component_loglik.sum(axis=-1)
+            component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
+            Ptmp[:, h_index] += component_loglik.sum(axis=-1) # across components
             # !--- get normalized z
             #--------------------------FORTRAN CODE-------------------------
             # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
             #---------------------------------------------------------------
-            # NOTE: This deviates slightly from the Fortran code for numerical stability.
-            #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-            # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :])
-            z = softmax(z0, axis=-1)  # No model indexing needed
-            del z0
+            z = softmax(logits, axis=-1)
             # end do (j)
             # end do (i)
-
         # end do (h)
 
         # === Section: Across-model Responsibilities and Total Log-Likelihood ===
@@ -1870,9 +1848,14 @@ def _calculate_source_densities(
         rho,
         comp_indices,
         out_y,
+        out_logits,
         scratch_3D = None,
         ):
-    """Calculate scaled sources (y) and per-mixture log-densities (z0).
+    """Calculate scaled sources (y) and per-mixture log-densities (logits).
+
+     Compute logits = log alpha + log p(y) for each component and mixture. Default to
+     generalized Gaussian, then overwrite Laplacian/Gaussian positions using masks.
+     This way is faster since vast majority of values are generalized Gaussian.
     
     Parameters
     ----------
@@ -1908,10 +1891,17 @@ def _calculate_source_densities(
     -------
     y : np.ndarray
         The modified y array containing scaled sources.
-    z0 : np.ndarray
-        A freshly allocated array containing per-mixture log-densities.
+    logits : np.ndarray
+        unnormalized log posterior per mixtures. this is the out_z0 array modified in-place.
+    
+    Notes
+    -----
+    logits == z0 in Fortran code.
     """
     y = out_y
+    N1, nw, num_mix = y.shape
+
+    logits = out_logits
     if scratch_3D is None:
         scratch_3D = np.empty(y.shape)
     # ---------------------------FORTRAN CODE-------------------------
@@ -1920,19 +1910,17 @@ def _calculate_source_densities(
     # !--- get probability
     # select case (pdtype(i,h))
     #-----------------------------------------------------------------
-    if pdftype == 0:
-        # Gaussian            
+    if pdftype == 0: # Gaussian
         #--------------------------FORTRAN CODE-------------------------
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
         #---------------------------------------------------------------
         # 1. Select the parameters for the current model and block
         sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
         mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
-        b_slice = b[:, :]  # Shape: (n_samples, nw)
         # 2. Explicitly align arrays for broadcasting
         sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
         mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
-        b_br = b_slice[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
+        b_br = b[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
         # 3. Calculate and assign result
         b_mu_diff = np.subtract(b_br, mu_br, out=scratch_3D)  # Shape: (n_samples, num_mix, num_comps)
         # align for broadcasting
@@ -1949,47 +1937,47 @@ def _calculate_source_densities(
         #---------------------------------------------------------------
         # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
         # Note: y_slice is already this shape. The others are broadcast.
-        y_slice = y[:, :, :]  # No model indexing needed
         # alpha_orig = alpha.copy()
         alpha_h = alpha[:, comp_indices]
-        rho_h = rho[:, comp_indices]
+        rho_h = rho[:, comp_indices] # All mixtures, components for this model
 
         alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
+
+        # Precompute logarithms for mixture weights and scales
+        log_mix_weight = np.log(alpha_br)
+        log_scale = np.log(sbeta_br)
+
+        # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
+        is_lap = (np.isclose(rho_h, 1.0, atol=1e-12))
+        is_gau = (np.isclose(rho_h, 2.0, atol=1e-12))
         rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
 
-        # 2. Create the boolean masks for each condition
-        # e.g. rho=1 is Laplacian, rho=2 is Gaussian, else is generalized Gaussian.
-        is_rho1 = (np.isclose(rho_br, 1.0, atol=1e-12))
-        is_rho2 = (np.isclose(rho_br, 2.0, atol=1e-12))
+        assert log_mix_weight.shape == (1, nw, num_mix)
+        assert log_scale.shape == (1, nw, num_mix)
+        assert rho_br.shape == (1, nw, num_mix)
 
-        # 3. Calculate the results for ALL THREE possible choices
-        # In-Place
-        log_alpha_br = np.log(alpha_br)
-        log_sbeta_br = np.log(sbeta_br)
-        # assert_allclose(alpha_orig, alpha)
-        # NOTE: I am suprised that this does not overwrite alpha.
-
-        # Choice if rho == 1.0
-        choice_1 = log_alpha_br + log_sbeta_br - np.abs(y_slice) - LOG_2
-
-        # Choice if rho == 2.0
-        choice_2 = log_alpha_br + log_sbeta_br - np.square(y_slice) - LOG_SQRT_PI
-
-        # Default choice (the 'else' case)
-        tmpvec_z0 = np.log(np.abs(y_slice)) # log_abs_y
-        tmpvec2_z0 = np.exp((rho_br) * tmpvec_z0)
-        tmpvec2_slice = tmpvec2_z0[:, :, :]
+        # Default: generalized Gaussian log-prob + log mixture weight
+        # Faster to compute this way than using masking.
+        exp_log_abs_y = np.abs(y, out=logits)
+        exp_log_abs_y = np.log(exp_log_abs_y, out=exp_log_abs_y)
+        exp_log_abs_y = np.exp(rho_br * exp_log_abs_y, out=exp_log_abs_y)
         gamma_log = gammaln(1.0 + 1.0 / rho_br)
-        choice_default = log_alpha_br + log_sbeta_br - tmpvec2_slice - gamma_log - LOG_2
-
-        # 4. Build final array from the choices using the masks.
-        # NOTE: This takes ~10s for 200 iters on the test file; a loop may be faster.
-        conditions = [is_rho1, is_rho2]
-        choices = [choice_1, choice_2]
-        # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
-        # and p(y) is the probability of the scaled source y.
-        z0 = np.select(conditions, choices, default=choice_default)
-        # assert z0.shape == (N1, nw, num_mix)
+        penalty = np.add(exp_log_abs_y, gamma_log, out=exp_log_abs_y)
+        penalty = np.add(exp_log_abs_y, LOG_2, out=exp_log_abs_y)
+        # logits == z0 in Fortran
+        logits = np.subtract(log_mix_weight + log_scale, penalty, out=penalty)
+        assert logits.shape == (N1, nw, num_mix)
+    
+        # Overwrite Laplacian and Gaussian positions
+        for j in range(num_mix):  # over num_mix
+            # We don't need the size-1 0th dimension (which was for broadcasting)
+            common_term = (log_mix_weight[0, :, j] + log_scale[0, :, j])
+            lap_mask = is_lap[j, :]
+            gau_mask = is_gau[j, :]
+            if lap_mask.any():
+                logits[:, lap_mask, j] = common_term[lap_mask] - np.abs(y[:, lap_mask, j]) - LOG_2
+            if gau_mask.any():
+                logits[:, gau_mask, j] = common_term[gau_mask] - np.square(y[:, gau_mask, j]) - LOG_SQRT_PI
     elif pdftype == 1:
         raise NotImplementedError()
     elif pdftype == 2:
@@ -2000,8 +1988,7 @@ def _calculate_source_densities(
         raise ValueError(f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported.")
     # end select
     # !--- end for j
-    # TODO: create a z0 buffer in AmicaWorkspace and write into that instead of allocating here
-    return y, z0
+    return y, logits
 
 
 def compute_scores(
