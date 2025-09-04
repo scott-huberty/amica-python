@@ -998,13 +998,12 @@ def optimize(
             # Add the log-likelihood of this component across mixtures and normalize to z.
             #--------------------------FORTRAN CODE-------------------------
             # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+            # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
             #---------------------------------------------------------------
             component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
             Ptmp[:, h_index] += component_loglik.sum(axis=-1) # across components
             # !--- get normalized z
-            #--------------------------FORTRAN CODE-------------------------
-            # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-            #---------------------------------------------------------------
+            # softmax across mixtures to get responsibilities
             z = softmax(logits, axis=-1)
             # end do (j)
             # end do (i)
@@ -1017,21 +1016,10 @@ def optimize(
         # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
         # vtmp(bstrt:bstp) = dble(0.0)
         # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
-        #---------------------------------------------------------------
-        # Pmax = np.max(Ptmp[:, :], axis=1) # candidate for out parameter
-        # assert Pmax.shape == (N1,)
-        # vtmp = np.zeros(N1) # candidate for out parameter
-
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1 
-            # vtmp[:] += np.exp(Ptmp[:, h_index] - Pmax[:])
-
-        #--------------------------FORTRAN CODE-------------------------
         # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
         #---------------------------------------------------------------
-        # P = Pmax[:] + np.log(vtmp[:])
         P = np.logaddexp.reduce(Ptmp, axis=1)
         assert P.shape == (N1,) # Per-sample total log-likelihood across models.
         LLinc = np.sum(P[:])
@@ -1892,7 +1880,7 @@ def _calculate_source_densities(
     y : np.ndarray
         The modified y array containing scaled sources.
     logits : np.ndarray
-        unnormalized log posterior per mixtures. this is the out_z0 array modified in-place.
+        unnormalized log-probabilies (i.e. posteriors) per mixtures. this is the out_z0 array modified in-place.
     
     Notes
     -----
