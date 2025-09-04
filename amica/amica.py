@@ -860,6 +860,9 @@ def optimize(
         W = state.W
         sbeta = state.sbeta
         rho = state.rho
+        gm = state.gm
+        mu = state.mu
+        alpha = state.alpha
 
         updates.reset()
 
@@ -932,22 +935,100 @@ def optimize(
             h_index = h - 1
             comp_indices = comp_list[:, h_index] - 1
             # --- Subsection: Baseline terms and unmixing ---
-            b, y, z, Ptmp = compute_model_e_step(
-                X=X,
-                config=config,
-                alpha=state.alpha,
-                sbeta=state.sbeta,
-                mu=state.mu,
-                gm=state.gm,
-                rho=state.rho,
-                W=state.W,
-                buffers=work,
-                Dsum=Dsum,
-                sldet=sldet,
-                wc=wc,
-                model_index=h_index,
+            # compute_model_e_step
+            dataseg = X
+            N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
+            # Get workspace buffers using improved interface
+            b = work.get_buffer("b")
+            tmp_3D = work.get_buffer("scratch_3D")
+            y = work.get_buffer("y")
+            z = work.get_buffer("z")
+            Ptmp = work.get_buffer("Ptmp")
+
+            assert b.shape == (N1, nw)              # No model dimension needed
+            assert y.shape == (N1, nw, num_mix)  # No model dimension needed
+            assert z.shape == (N1, nw, num_mix)  # No model dimension needed
+            assert Ptmp.shape == (N1, config.n_models)
+            #--------------------------FORTRAN CODE-------------------------
+            # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
+            #---------------------------------------------------------------
+            # TODO: use np.add with out param to avoid temporary array
+            Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
+            
+            # !--- get b
+            # if update_c and update_A:
+            #--------------------------FORTRAN CODE-------------------------
+            # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
+            #---------------------------------------------------------------
+            # TODO: use np.multiply with out param to avoid temporary array
+            b[:, :] = (-1.0 * wc[:, h_index])[np.newaxis, :]
+            if config.do_reject:
+                #--------------------------FORTRAN CODE-------------------------
+                # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
+                #       W(:,:,h),nw,dble(1.0),b(bstrt:bstp,:,h),tblksize)
+                #---------------------------------------------------------------
+                raise NotImplementedError()
+            else:
+                # Multiply the transpose of the data w/ the transpose of the unmixing matrix
+                #--------------------------FORTRAN CODE-------------------------
+                # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp),nx,W(:,:,h),nw,dble(1.0), &
+                #    b(bstrt:bstp,:,h),tblksize)
+                #---------------------------------------------------------------
+                # TODO: use np.add with out param to avoid temporary array
+                b[:, :] += (dataseg[:, :].T @ W[:, :, h_index].T)
+            # end else
+
+            # --- Subsection: Source density and mixture log-likelihood (z0) ---
+            # Compute scaled sources y and per-mixture log-densities z0 for each component.
+            # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
+            y, z0 = _calculate_source_densities(
+                pdftype=config.pdftype,
+                b=b,
+                scratch_3D=tmp_3D,
+                sbeta=sbeta,
+                mu=mu,
+                alpha=alpha,
+                rho=rho,
                 comp_indices=comp_indices,
-            )
+                out_y=y,
+                )
+
+            # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
+            # Add the log-likelihood of this component across mixtures and normalize to z.
+            #--------------------------FORTRAN CODE-------------------------
+            # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+            # this max call operates across num_mixtures
+            #---------------------------------------------------------------
+            # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
+            # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
+            # Get the logsumexp across the mixtures (robust to overflow/underflow)
+            # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
+            # Pmax_br = np.empty((N1, nw))
+            # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
+            # shift for numerical stability
+            # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
+            # Now take the exponential
+            # exp_term = np.exp(centered_responsibilities)
+            # Sum the results over the mixture axis (axis=2)
+            # np.sum(exp_term, axis=-1, out=ztmp)
+            # ztmp[:, :] += exp_term.sum(axis=-1)
+            
+            # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
+            # TODO: use out params? can we avoid temporary array in sum?
+            component_loglik = np.logaddexp.reduce(z0, axis=-1)
+            Ptmp[:, h_index] += component_loglik.sum(axis=-1)
+            # !--- get normalized z
+            #--------------------------FORTRAN CODE-------------------------
+            # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
+            #---------------------------------------------------------------
+            # NOTE: This deviates slightly from the Fortran code for numerical stability.
+            #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
+            # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :])
+            z = softmax(z0, axis=-1)  # No model indexing needed
+            del z0
+            # end do (j)
+            # end do (i)
+
         # end do (h)
 
         # === Section: Across-model Responsibilities and Total Log-Likelihood ===
@@ -1775,102 +1856,7 @@ def compute_model_e_step(
     This function modifies the `b`, `y`, `z`, and `Ptmp` buffers in-place,
     and returns the modified arrays.
     """
-    # NOTE: Maybe we call this calculate_source_densities
-    dataseg = X
-    N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
-    # Get workspace buffers using improved interface
-    b = buffers.get_buffer("b")
-    tmp_3D = buffers.get_buffer("scratch_3D")
-    y = buffers.get_buffer("y")
-    z = buffers.get_buffer("z")
-    Ptmp = buffers.get_buffer("Ptmp")
-    h_index = model_index
-
-    assert b.shape == (N1, nw)              # No model dimension needed
-    assert y.shape == (N1, nw, num_mix)  # No model dimension needed
-    assert z.shape == (N1, nw, num_mix)  # No model dimension needed
-    assert Ptmp.shape == (N1, config.n_models)
-    #--------------------------FORTRAN CODE-------------------------
-    # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
-    #---------------------------------------------------------------
-    # TODO: use np.add with out param to avoid temporary array
-    Ptmp[:, h_index] = Dsum[h_index] + np.log(gm[h_index]) + sldet
-    
-    # !--- get b
-    # if update_c and update_A:
-    #--------------------------FORTRAN CODE-------------------------
-    # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
-    #---------------------------------------------------------------
-    # TODO: use np.multiply with out param to avoid temporary array
-    b[:, :] = (-1.0 * wc[:, h_index])[np.newaxis, :]
-    if config.do_reject:
-        #--------------------------FORTRAN CODE-------------------------
-        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
-        #       W(:,:,h),nw,dble(1.0),b(bstrt:bstp,:,h),tblksize)
-        #---------------------------------------------------------------
-        raise NotImplementedError()
-    else:
-        # Multiply the transpose of the data w/ the transpose of the unmixing matrix
-        #--------------------------FORTRAN CODE-------------------------
-        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp),nx,W(:,:,h),nw,dble(1.0), &
-        #    b(bstrt:bstp,:,h),tblksize)
-        #---------------------------------------------------------------
-        # TODO: use np.add with out param to avoid temporary array
-        b[:, :] += (dataseg[:, :].T @ W[:, :, h_index].T)
-    # end else
-
-    # --- Subsection: Source density and mixture log-likelihood (z0) ---
-    # Compute scaled sources y and per-mixture log-densities z0 for each component.
-    # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
-    y, z0 = _calculate_source_densities(
-        pdftype=config.pdftype,
-        b=b,
-        scratch_3D=tmp_3D,
-        sbeta=sbeta,
-        mu=mu,
-        alpha=alpha,
-        rho=rho,
-        comp_indices=comp_indices,
-        out_y=y,
-        )
-
-    # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
-    # Add the log-likelihood of this component across mixtures and normalize to z.
-    #--------------------------FORTRAN CODE-------------------------
-    # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
-    # this max call operates across num_mixtures
-    #---------------------------------------------------------------
-    # TODO: scipy.special.logsumexp would be clearer but was ~2x slower in profiling.
-    # Pmax_br[:, :] = np.max(z0[:, :, :], axis=-1)
-    # Get the logsumexp across the mixtures (robust to overflow/underflow)
-    # ztmp = np.empty((N1, nw)) # shape is (N1) in Fortran
-    # Pmax_br = np.empty((N1, nw))
-    # np.max(z0, axis=-1, out=Pmax_br) # logsumexp trick.
-    # shift for numerical stability
-    # centered_responsibilities = z0 - Pmax_br[..., np.newaxis]
-    # Now take the exponential
-    # exp_term = np.exp(centered_responsibilities)
-    # Sum the results over the mixture axis (axis=2)
-    # np.sum(exp_term, axis=-1, out=ztmp)
-    # ztmp[:, :] += exp_term.sum(axis=-1)
-    
-    # component_loglik = Pmax_br[:, :] + np.log(ztmp[:, :])
-    # TODO: use out params? can we avoid temporary array in sum?
-    component_loglik = np.logaddexp.reduce(z0, axis=-1)
-    Ptmp[:, h_index] += component_loglik.sum(axis=-1)
-    # !--- get normalized z
-    #--------------------------FORTRAN CODE-------------------------
-    # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-    #---------------------------------------------------------------
-    # NOTE: This deviates slightly from the Fortran code for numerical stability.
-    #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-    # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :])
-    z = softmax(z0, axis=-1)  # No model indexing needed
-    del z0
-    # end do (j)
-    # end do (i)
-    # Make outputs explicit even though these are modified in-place
-    return b, y, z, Ptmp
+    pass
 
 @line_profiler.profile
 def _calculate_source_densities(
@@ -1952,7 +1938,7 @@ def _calculate_source_densities(
         b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (n_samples, num_mix, nw)
         # In-Place y update
         np.multiply(sbeta_br, b_mu_diff, out=y[:, :, :]) # (n_samples, nw, num_mix)
-        
+        b_mu_diff.fill(0)  # clear for next use
         #------------------Mixture Log-Likelihood for each component----------------
 
         #--------------------------FORTRAN CODE-------------------------
