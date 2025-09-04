@@ -110,56 +110,181 @@ class AmicaState:
 
 @dataclass
 class AmicaWorkspace:
-    """Reusable temporary buffers.
+    """Enhanced workspace with improved buffer management.
 
-    Use `get` to request a named buffer with the desired shape. The same
-    buffer name should always be requested with a consistent shape/dtype.
-    If a name is requested with a different shape/dtype, the buffer is
-    reallocated to match the request.
+    Provides allocation, validation, and access to reusable temporary buffers.
+    Buffers are allocated on-demand with shape/dtype validation to prevent
+    silent bugs from mismatched buffer usage.
     """
 
     dtype: np.dtype = np.float64
     _buffers: Dict[str, NDArray] = field(default_factory=dict)
-
-    def get(
+    
+    def allocate_buffer(
         self,
         name: str,
         shape: Tuple[int, ...],
         *,
         dtype: Optional[np.dtype] = None,
         init: str = "zeros",
+        force_realloc: bool = False,
     ) -> NDArray:
-        """Get or create a buffer by name.
+        """Allocate or reallocate a specific buffer with validation.
 
-        - name: unique identifier, e.g. 'z0', 'Ptmp', 'tmpvec'.
-        - shape: requested shape. If existing buffer differs, it is reallocated.
-        - dtype: if None, defaults to workspace dtype.
-        - init: 'empty'|'zeros'|'ones' controls initialization when allocating.
+        Parameters
+        ----------
+        name : str
+            Unique buffer identifier (e.g., 'b', 'y', 'z0').
+        shape : Tuple[int, ...]
+            Required buffer shape. Must be positive integers.
+        dtype : np.dtype, optional
+            Buffer data type. If None, uses workspace default.
+        init : str, default='zeros'
+            Initialization mode: 'zeros', 'ones', or 'empty'.
+        force_realloc : bool, default=False
+            If True, forces reallocation even if buffer exists with correct shape/dtype.
+
+        Returns
+        -------
+        NDArray
+            The allocated buffer.
+
+        Raises
+        ------
+        ValueError
+            If shape contains non-positive values or init mode is invalid.
+        RuntimeError
+            If attempting to change shape/dtype of existing buffer without force_realloc.
         """
+        # Input validation
+        if not all(isinstance(s, int) and s > 0 for s in shape):
+            raise ValueError(f"Buffer '{name}': shape must contain positive integers, got {shape}")
+        
+        if init not in {"zeros", "ones", "empty"}:
+            raise ValueError(f"Buffer '{name}': invalid init mode '{init}', must be 'zeros', 'ones', or 'empty'")
+
         dtype = self.dtype if dtype is None else dtype
-        arr = self._buffers.get(name)
-        if arr is None or arr.shape != shape or arr.dtype != dtype:
-            if init == "zeros":
-                arr = np.zeros(shape, dtype=dtype)
-            elif init == "ones":
-                arr = np.ones(shape, dtype=dtype)
-            else:
-                arr = np.empty(shape, dtype=dtype)  # Simple empty allocation
-            self._buffers[name] = arr
-        return arr
+        existing_buffer = self._buffers.get(name)
+        
+        # Check for shape/dtype conflicts with existing buffer
+        if existing_buffer is not None:
+            shape_matches = existing_buffer.shape == shape
+            dtype_matches = existing_buffer.dtype == dtype
+            
+            if shape_matches and dtype_matches and not force_realloc:
+                # Buffer exists and matches - return it (optionally reinitialize)
+                if init == "zeros":
+                    existing_buffer.fill(0.0)
+                elif init == "ones":
+                    existing_buffer.fill(1.0)
+                # 'empty' means don't reinitialize
+                return existing_buffer
+            
+            elif not force_realloc:
+                # Shape/dtype mismatch without force_realloc
+                raise RuntimeError(
+                    f"Buffer '{name}' shape/dtype mismatch: "
+                    f"existing=({existing_buffer.shape}, {existing_buffer.dtype}), "
+                    f"requested=({shape}, {dtype}). Use force_realloc=True to override."
+                )
+
+        # Allocate new buffer
+        if init == "zeros":
+            buffer = np.zeros(shape, dtype=dtype)
+        elif init == "ones":
+            buffer = np.ones(shape, dtype=dtype)
+        else:  # init == "empty"
+            buffer = np.empty(shape, dtype=dtype)
+
+        # Store buffer
+        self._buffers[name] = buffer
+        return buffer
+
+    def get_buffer(self, name: str) -> NDArray:
+        """Get an already-allocated buffer.
+
+        Parameters
+        ----------
+        name : str
+            Buffer name.
+
+        Returns
+        -------
+        NDArray
+            The requested buffer.
+
+        Raises
+        ------
+        KeyError
+            If buffer has not been allocated.
+        """
+        try:
+            return self._buffers[name]
+        except KeyError:
+            raise KeyError(
+                f"Buffer '{name}' not allocated. "
+                f"Available buffers: {list(self._buffers.keys())}"
+            )
+
+    def allocate_all(self, buffer_specs: Dict[str, Tuple[int, ...]], *, init: str = "zeros") -> None:
+        """Pre-allocate multiple buffers at once.
+
+        Parameters
+        ----------
+        buffer_specs : Dict[str, Tuple[int, ...]]
+            Mapping of buffer names to their required shapes.
+        init : str, default='zeros'
+            Initialization mode for all buffers.
+
+        Example
+        -------
+        >>> workspace.allocate_all({
+        ...     "b": (512, 32, 1),
+        ...     "y": (512, 32, 3, 1),
+        ...     "z": (512, 32, 3, 1),
+        ... })
+        """
+        for name, shape in buffer_specs.items():
+            self.allocate_buffer(name, shape, init=init)
+
+    def has_buffer(self, name: str) -> bool:
+        """Check if a buffer exists."""
+        return name in self._buffers
+
+    def buffer_info(self, name: str) -> Dict[str, any]:
+        """Get information about a buffer."""
+        if not self.has_buffer(name):
+            raise KeyError(f"Buffer '{name}' not allocated.")
+        
+        buffer = self._buffers[name]
+        return {
+            "shape": buffer.shape,
+            "dtype": buffer.dtype,
+            "size": buffer.size,
+            "nbytes": buffer.nbytes,
+        }
 
     def clear(self, names: Optional[Iterable[str]] = None) -> None:
-        """Drop one or more buffers. If names is None, clear all buffers."""
+        """Drop one or more buffers."""
         if names is None:
             self._buffers.clear()
         else:
-            for n in names:
-                self._buffers.pop(n, None)
+            for name in names:
+                self._buffers.pop(name, None)
     
     def zero_all(self) -> None:
         """Zero all existing buffers in-place."""
         for arr in self._buffers.values():
             arr.fill(0.0)
+
+    def total_memory_usage(self) -> int:
+        """Get total memory usage in bytes."""
+        return sum(buf.nbytes for buf in self._buffers.values())
+
+    # Legacy compatibility method
+    def get(self, name: str, shape: Tuple[int, ...], *, dtype: Optional[np.dtype] = None, init: str = "zeros") -> NDArray:
+        """Legacy compatibility method. Use allocate_buffer() for new code."""
+        return self.allocate_buffer(name, shape, dtype=dtype, init=init)
 
 
 @dataclass(slots=True, repr=False)

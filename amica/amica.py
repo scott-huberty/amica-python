@@ -742,20 +742,39 @@ def _core_amica(
 
     c1 = time.time()
 
+    # Pre-allocate all workspace buffers
     work = AmicaWorkspace()
-    work.get("b", (N1, num_comps, num_models), init="empty")
-    work.get("b_mu_diff", (N1, num_mix, num_comps), init="empty")
-    work.get("v", (N1, num_models), init="empty")
-    work.get("y", (N1, num_comps, num_mix, num_models), init="empty")
-    work.get("z0", (N1, num_comps, num_mix), init="empty")
-    work.get("z", (N1, num_comps, num_mix, num_models), init="empty")
-    work.get("ufp", (N1, num_comps, num_mix), init="empty")
-    work.get("Ptmp", (N1, num_models), init="empty")
-    work.get("modloglik", (num_models, N1), init="zeros")
-    work.get("dWtmp", (num_comps, num_comps, num_models), init="zeros")
+    
+    # Define buffer specifications for this iteration
+    buffer_specs = {
+        # Source and intermediate computation buffers
+        "b": (N1, num_comps),                    # Removed num_models dimension
+        "scratch_3D": (N1, num_mix, num_comps), 
+        "v": (N1, num_models),
+        "y": (N1, num_comps, num_mix),           # Removed num_models dimension
+        "z": (N1, num_comps, num_mix),           # Removed num_models dimension  
+        "ufp": (N1, num_comps, num_mix),
+        "Ptmp": (N1, num_models),
+        # Workspace arrays that need zero initialization
+        "modloglik": (num_models, N1),
+        "dWtmp": (num_comps, num_comps, num_models),
+    }
+    
+    # Allocate most buffers as empty (faster)
+    work.allocate_all({k: v for k, v in buffer_specs.items() 
+                      if k not in {"modloglik", "dWtmp"}}, init="empty")
+    
+    # Allocate buffers that need zero initialization separately
+    work.allocate_buffer("modloglik", buffer_specs["modloglik"], init="zeros")
+    work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
+    
+    # Log workspace memory usage for debugging
+    total_memory_mb = work.total_memory_usage() / (1024 * 1024)
+    print(f"Workspace allocated: {len(buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
 
     lrate = config.lrate
     rholrate = config.rholrate
+    c_start = time.time()
     while iter <= config.max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
@@ -1041,6 +1060,8 @@ def _core_amica(
             iter += 1
         # end if/else
     # end while
+    c_end = time.time()
+    print(f"Finished in {c_end - c_start:.2f} seconds")
     return state, LL
 
 def get_unmixing_matrices(
@@ -1189,11 +1210,17 @@ def get_updates_and_likelihood(
 
 
     # TODO: consider passing by reference
-    ufp = work._buffers["ufp"]
-    v = work._buffers["v"]
-    dWtmp = work._buffers["dWtmp"]
-    modloglik = work._buffers["modloglik"]
-    assert modloglik.shape == (1, 30504)
+    # Get pre-allocated workspace buffers with shape validation
+    ufp = work.get_buffer("ufp")
+    v = work.get_buffer("v") 
+    dWtmp = work.get_buffer("dWtmp")
+    modloglik = work.get_buffer("modloglik")
+    
+    # Validate critical buffer shapes
+    assert ufp.shape == (N1, num_comps, num_mix)
+    assert v.shape == (N1, num_models) 
+    assert dWtmp.shape == (num_comps, num_comps, num_models)
+    assert modloglik.shape == (num_models, N1)
     # !--------- loop over the segments ----------
 
     if do_reject:
@@ -1291,7 +1318,7 @@ def get_updates_and_likelihood(
         #---------------------------------------------------------------
          # TODO: Consider softmax across models once vectorized across h.
         # responsibilities over models per sample
-        # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:, h_index])
+        # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
     # responsibilities over models per sample
     v[:, :] = softmax(Ptmp, axis=1)
 
@@ -1324,7 +1351,7 @@ def get_updates_and_likelihood(
             # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
             # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
             #---------------------------------------------------------------
-            b_slice = b[:, :, h_index] # shape: (block_size, nw)
+            b_slice = b[:, :] # shape: (block_size, nw)
             tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
             dsigma2_numer[:, h_index] += tmpsum_A_vec
             dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
@@ -1355,7 +1382,7 @@ def get_updates_and_likelihood(
         # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
         # usum = sum( u(bstrt:bstp) )
         #---------------------------------------------------------------
-        z_slice = z[:, :, :, h_index]  # shape: (block_size, nw, num_mix)
+        z_slice = z[:, :, :]  # shape: (block_size, nw, num_mix) - no model indexing needed
         # Reshape v_slice for broadcasting over z_slice
         v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
         u = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
@@ -1369,7 +1396,7 @@ def get_updates_and_likelihood(
             assert rho[2, 0] == 1.0
         fp = compute_scores(
             pdftype=pdftype,
-            y_slice=y[:, :, :, h_index],
+            y_slice=y[:, :, :],  # No model indexing needed
             rho=rho,
             comp_indices=comp_indices,
         )
@@ -1417,7 +1444,7 @@ def get_updates_and_likelihood(
             # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
             # ------------------------------------------------------------------
             tmpvec_mat_dlambda = (
-                fp[:, :, :] * y[:, :, :, h_index] - 1.0
+                fp[:, :, :] * y[:, :, :] - 1.0
             )
             tmpsum_dlambda = np.sum(
                 u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
@@ -1476,7 +1503,7 @@ def get_updates_and_likelihood(
         # -----------------------------------------------------------------------
         if np.all(rho[:, comp_indices] <= 2.0):
             # shape : (nw, num_mix)
-            mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :, h_index], axis=0)
+            mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
 
             # shape (num_mix, nw)
             tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
@@ -1503,7 +1530,7 @@ def get_updates_and_likelihood(
         # ----------------------------------------------------------------------
         if np.all(rho[:, comp_indices] <= 2.0):
             tmpsum_dbeta_denom = np.sum(
-                ufp[:, :, :] * y[:, :, :, h_index], axis=0
+                ufp[:, :, :] * y[:, :, :], axis=0
             )
             dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
         else:
@@ -1522,7 +1549,7 @@ def get_updates_and_likelihood(
             # 1. log of absolute value
             tmpy = np.empty((N1, nw, num_mix))
             logab = np.empty((N1, nw, num_mix)) # shape is (N1) in Fortran
-            np.abs(y[:, :, :, h_index], out=tmpy)
+            np.abs(y[:, :, :], out=tmpy)
             np.log(tmpy[:, :, :], out=logab)
             # 2. Exponentiation with rho
             rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
@@ -1570,7 +1597,7 @@ def get_updates_and_likelihood(
         # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
         #---------------------------------------------------------------
         # Wtmp2 has a 3rd dimension for threads in Fortran
-        Wtmp2 = np.dot(g.T, b[:, :, h - 1]) #  # shape (num_comps, num_comps)
+        Wtmp2 = np.dot(g.T, b[:, :]) #  # shape (num_comps, num_comps)
         dWtmp[:, :, h - 1] += Wtmp2
     # end do (h)
     # end do (blk)'
@@ -1591,8 +1618,8 @@ def get_updates_and_likelihood(
         assert_almost_equal(dc_numer[31, 0], 0)
         assert dc_denom[31, 0] == 30504
         assert_allclose(v, 1)
-        assert_almost_equal(z[-808, 31, 2, 0], 0.72907838295502048)
-        assert_almost_equal(z[-1, 31, 2, 0], 0.057629436774909774)
+        assert_almost_equal(z[-808, 31, 2], 0.72907838295502048)
+        assert_almost_equal(z[-1, 31, 2], 0.057629436774909774)
         # assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
         assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
         assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
@@ -1611,7 +1638,7 @@ def get_updates_and_likelihood(
         assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
         assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
         assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-        assert_almost_equal(y[-1, 31, 2, 0], -1.8370080076417346)
+        assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
         assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
         assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
         assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
@@ -1641,8 +1668,8 @@ def get_updates_and_likelihood(
         assert_almost_equal(g[-1, 31], -0.57496468258661515)
         assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
         assert_allclose(v, 1)
-        assert_almost_equal(y[-1, 31, 2, 0], -1.8067399375706592)
-        assert_almost_equal(z[-808, 31, 2, 0], 0.71373487258192514)
+        assert_almost_equal(y[-1, 31, 2], -1.8067399375706592)
+        assert_almost_equal(z[-808, 31, 2], 0.71373487258192514)
         assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
         assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
         #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
@@ -1747,17 +1774,17 @@ def compute_model_e_step(
     # NOTE: Maybe we call this calculate_source_densities
     dataseg = X
     N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
-    b = buffers._buffers["b"]
-    b_mu_diff = buffers._buffers["b_mu_diff"]
-    y = buffers._buffers["y"]
-    z0 = buffers._buffers["z0"]
-    z = buffers._buffers["z"]
-    Ptmp = buffers._buffers["Ptmp"]
+    # Get workspace buffers using improved interface
+    b = buffers.get_buffer("b")
+    tmp_3D = buffers.get_buffer("scratch_3D")
+    y = buffers.get_buffer("y")
+    z = buffers.get_buffer("z")
+    Ptmp = buffers.get_buffer("Ptmp")
     h_index = model_index
 
-    assert b.shape == (N1, nw, config.n_models)
-    assert y.shape == (N1, nw, num_mix, config.n_models)
-    assert z.shape == (N1, nw, num_mix, config.n_models)
+    assert b.shape == (N1, nw)              # No model dimension needed
+    assert y.shape == (N1, nw, num_mix)  # No model dimension needed
+    assert z.shape == (N1, nw, num_mix)  # No model dimension needed
     assert Ptmp.shape == (N1, config.n_models)
     #--------------------------FORTRAN CODE-------------------------
     # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
@@ -1771,7 +1798,7 @@ def compute_model_e_step(
     # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
     #---------------------------------------------------------------
     # TODO: use np.multiply with out param to avoid temporary array
-    b[:, :, h_index] = (-1.0 * wc[:, h_index])[np.newaxis, :]
+    b[:, :] = (-1.0 * wc[:, h_index])[np.newaxis, :]
     if config.do_reject:
         #--------------------------FORTRAN CODE-------------------------
         # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
@@ -1785,7 +1812,7 @@ def compute_model_e_step(
         #    b(bstrt:bstp,:,h),tblksize)
         #---------------------------------------------------------------
         # TODO: use np.add with out param to avoid temporary array
-        b[:, :, h_index] += (dataseg[:, :].T @ W[:, :, h_index].T)
+        b[:, :] += (dataseg[:, :].T @ W[:, :, h_index].T)
     # end else
 
     # --- Subsection: Source density and mixture log-likelihood (z0) ---
@@ -1794,15 +1821,13 @@ def compute_model_e_step(
     y, z0 = _calculate_source_densities(
         pdftype=config.pdftype,
         b=b,
-        b_mu_diff=b_mu_diff,
+        scratch_3D=tmp_3D,
         sbeta=sbeta,
         mu=mu,
         alpha=alpha,
         rho=rho,
         comp_indices=comp_indices,
-        h_index=h_index,
         out_y=y,
-        out_z0=z0
         )
 
     # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
@@ -1835,8 +1860,9 @@ def compute_model_e_step(
     #---------------------------------------------------------------
     # NOTE: This deviates slightly from the Fortran code for numerical stability.
     #    1.0 / np.exp(tmpvec_br[:, :, np.newaxis] - z0[:, :, :])
-    # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :, h_index])
-    z[:, :, :, h_index] = softmax(z0, axis=-1)
+    # np.exp(z0 - tmpvec_br[:, :, np.newaxis], out=z[:, :, :])
+    z = softmax(z0, axis=-1)  # No model indexing needed
+    del z0
     # end do (j)
     # end do (i)
     # Make outputs explicit even though these are modified in-place
@@ -1847,15 +1873,13 @@ def _calculate_source_densities(
         *,
         pdftype,
         b,
-        b_mu_diff,
         sbeta,
         mu,
         alpha,
         rho,
         comp_indices,
-        h_index,
         out_y,
-        out_z0
+        scratch_3D = None,
         ):
     """Calculate scaled sources (y) and per-mixture log-densities (z0).
     
@@ -1897,7 +1921,8 @@ def _calculate_source_densities(
         A freshly allocated array containing per-mixture log-densities.
     """
     y = out_y
-    z0 = out_z0
+    if scratch_3D is None:
+        scratch_3D = np.empty(y.shape)
     # ---------------------------FORTRAN CODE-------------------------
     # !--- get y z
     # do i = 1,nw
@@ -1912,17 +1937,17 @@ def _calculate_source_densities(
         # 1. Select the parameters for the current model and block
         sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
         mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
-        b_slice = b[:, :, h_index]  # Shape: (n_samples, nw)
+        b_slice = b[:, :]  # Shape: (n_samples, nw)
         # 2. Explicitly align arrays for broadcasting
         sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
         mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
         b_br = b_slice[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
         # 3. Calculate and assign result
-        np.subtract(b_br, mu_br, out=b_mu_diff)  # Shape: (n_samples, num_mix, num_comps)
+        b_mu_diff = np.subtract(b_br, mu_br, out=scratch_3D)  # Shape: (n_samples, num_mix, num_comps)
         # align for broadcasting
         b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (n_samples, num_mix, nw)
         # In-Place y update
-        np.multiply(sbeta_br, b_mu_diff, out=y[:, :, :, h_index]) # (n_samples, nw, num_mix)
+        np.multiply(sbeta_br, b_mu_diff, out=y[:, :, :]) # (n_samples, nw, num_mix)
         
         #------------------Mixture Log-Likelihood for each component----------------
 
@@ -1933,7 +1958,7 @@ def _calculate_source_densities(
         #---------------------------------------------------------------
         # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
         # Note: y_slice is already this shape. The others are broadcast.
-        y_slice = y[:, :, :, h_index]
+        y_slice = y[:, :, :]  # No model indexing needed
         # alpha_orig = alpha.copy()
         alpha_h = alpha[:, comp_indices]
         rho_h = rho[:, comp_indices]
@@ -1972,7 +1997,7 @@ def _calculate_source_densities(
         choices = [choice_1, choice_2]
         # z0 represents log(alpha) + log(p(y)), where alpha is the mixture weight
         # and p(y) is the probability of the scaled source y.
-        z0[:,:, :] = np.select(conditions, choices, default=choice_default)
+        z0 = np.select(conditions, choices, default=choice_default)
         # assert z0.shape == (N1, nw, num_mix)
     elif pdftype == 1:
         raise NotImplementedError()
