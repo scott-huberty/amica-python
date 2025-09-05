@@ -1836,7 +1836,7 @@ def _calculate_source_densities(
         mu: Params2D,
         alpha: Params2D,
         rho: Params2D,
-        comp_indices: Index1D,
+        comp_indices: Index1D, # TODO: pass in the pre-indexed arrays instead
         out_sources: Optional[Sources3D] = None,
         out_logits: Optional[Sources3D] = None,
         scratch: Optional[Buffer3D] = None,
@@ -1908,12 +1908,11 @@ def _calculate_source_densities(
         sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
         mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
         # 2. Explicitly align arrays for broadcasting
-        sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
-        mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
-        b_br = b[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
+        sbeta_br = sbeta_h.T[None, :, :] # Shape: (1, nw, num_mix)
+        mu_br = mu_h[None, :, :]         # Shape: (1, num_mix, nw)
+        b_br = b[:, None, :]        # Shape: (n_samples, 1, nw)
         # 3. Center the source estimates
         np.subtract(b_br, mu_br, out=scratch)  # Shape: (n_samples, num_mix, num_comps)
-        # align for broadcasting
         # In-Place y update
         np.multiply(
             sbeta_br, scratch.transpose(0, 2, 1) , out=out_sources
@@ -1932,7 +1931,7 @@ def _calculate_source_densities(
         alpha_h = alpha[:, comp_indices]
         rho_h = rho[:, comp_indices] # All mixtures, components for this model
 
-        alpha_br = alpha_h.T[np.newaxis, :, :]  # Shape: (1, nw, num_mix)
+        alpha_br = alpha_h.T[None, :, :]  # Shape: (1, nw, num_mix)
 
         # Precompute logarithms for mixture weights and scales
         log_mix_weight = np.log(alpha_br)
