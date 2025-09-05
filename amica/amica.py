@@ -69,8 +69,27 @@ from state import (
 
 
 import line_profiler
-# Configure all warnings to be treated as errors
-# warnings.simplefilter('error')
+
+from typing import Annotated, Optional, Tuple, TypeAlias
+import numpy.typing as npt
+
+Samples1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
+"""Alias for a 1D array with shape (n_samples,)."""
+
+Sources2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components)"]
+"""Alias for a 2D array with shape (n_samples, n_components)."""
+
+Sources3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components, n_mixtures)"]
+"""Alias for a 3D array with shape (n_samples, n_components, n_mixtures)."""
+
+Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_mixtures, n_components)"]
+"""Alias for a 2D array with shape (n_mixtures, n_components)."""
+
+Index1D: TypeAlias  = Annotated[npt.NDArray[np.integer], "(n_features,)"]
+"""Alias for a 1D array with shape (n_features,)."""
+
+Buffer3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_mixtures, n_components)"]
+"""Alias for a 3D array with shape (n_samples, n_mixtures, n_components)."""
 
 
 def get_component_indices(num_comps: int, num_models: int):
@@ -949,7 +968,8 @@ def optimize(
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
             modloglik[h_index, :] = np.add(
-                Dsum[h_index], np.log(gm[h_index]) + sldet, out=modloglik[h_index, :]
+                Dsum[h_index], np.log(gm[h_index]) + sldet,
+                out=modloglik[h_index, :]
                 )
             
             # !--- get b
@@ -981,13 +1001,13 @@ def optimize(
             y, logits = _calculate_source_densities(
                 pdftype=config.pdftype,
                 b=b,
-                scratch_3D=tmp_3D,
                 sbeta=sbeta,
                 mu=mu,
                 alpha=alpha,
                 rho=rho,
                 comp_indices=comp_indices,
-                out_y=y,
+                scratch=tmp_3D,
+                out_sources=y,
                 out_logits=z,
                 )
             # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
@@ -999,25 +1019,23 @@ def optimize(
             component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
             modloglik[h_index, :] += component_loglik.sum(axis=-1) # across components
             # !--- get normalized z
-            # softmax across mixtures to get responsibilities
-            z = softmax(logits, axis=-1)
+            z = softmax(logits, axis=-1) # across mixtures to get responsibilities
             # end do (j)
             # end do (i)
         # end do (h)
 
         # === Section: Across-model Responsibilities and Total Log-Likelihood ===
-        #--------------------------FORTRAN CODE-------------------------
+        #--------------------------FORTRAN CODE-----------------------------------------
         # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
         # !--- get LL, v
         # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
         # vtmp(bstrt:bstp) = dble(0.0)
-        # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp))
+        # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp
         # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
-        #---------------------------------------------------------------
+        #-------------------------------------------------------------------------------
         loglik = np.logaddexp.reduce(modloglik, axis=0, out=loglik) # across models
-        assert loglik.shape == (N1,) # Per-sample total log-likelihood across models.
         LLinc = loglik.sum()
         
         for h, _ in enumerate(range(num_models), start=1):
@@ -1035,14 +1053,10 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
             #---------------------------------------------------------------
-            # TODO: Consider softmax across models once vectorized across h.
-            # responsibilities over models per sample
-            # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
         # responsibilities over models per sample
-        v = softmax(modloglik, axis=0).T  # across models
+        v = softmax(modloglik, axis=0).T
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-
         # !--- get g, u, ufp
         # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
         for h, _ in enumerate(range(num_models), start=1):
@@ -1059,7 +1073,6 @@ def optimize(
             # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
             #---------------------------------------------------------------
             
-            # NOTE: VECTORIZED
             # for do (i = 1, nw)
             v_slice = v[:, h_index] # # shape: (block_size,)
             if do_newton:
@@ -1817,17 +1830,17 @@ def compute_model_e_step(
 @line_profiler.profile
 def _calculate_source_densities(
         *,
-        pdftype,
-        b,
-        sbeta,
-        mu,
-        alpha,
-        rho,
-        comp_indices,
-        out_y,
-        out_logits,
-        scratch_3D = None,
-        ):
+        pdftype: int,
+        b: Sources2D,
+        sbeta: Params2D,
+        mu: Params2D,
+        alpha: Params2D,
+        rho: Params2D,
+        comp_indices: Index1D,
+        out_sources: Optional[Sources3D] = None,
+        out_logits: Optional[Sources3D] = None,
+        scratch: Optional[Buffer3D] = None,
+        ) -> Tuple[Sources3D, Sources3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
      Compute logits = log alpha + log p(y) for each component and mixture. Default to
@@ -1839,48 +1852,47 @@ def _calculate_source_densities(
     pdftype : int
         Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
     b : np.ndarray
-        Per-sample, per-component source estimates, of shape (n_samples, n_components, n_models).
+        Per-sample, per-component source estimates, of shape (n_samples, n_components).
         Not modified.
-    b_mu_diff : np.ndarray
-        Temporary buffer for b - mu differences. Shape (n_samples, n_mixtures, n_components).
-        This array is modified in-place.
     sbeta : np.ndarray
-        Scale parameters of shape (n_mixtures, n_components).
+        Scale parameters. Shape (n_mixtures, n_components).
         Not modified.
     mu : np.ndarray
-        Location parameters of shape (n_mixtures, n_components). Not modified.
+        Location parameters. Shape (n_mixtures, n_components). Not modified.
     alpha : np.ndarray
-        Mixture weights of shape (n_mixtures, n_components). Not modified.
+        Mixture weights. Shape (n_mixtures, n_components). Not modified.
     rho : np.ndarray
-        Shape parameters of shape (n_mixtures, n_components). Not modified.
+        Shape parameters. Shape (n_mixtures, n_components). Not modified.
     comp_indices : np.ndarray
-        Array of shape (n_features,) containing component indices for the current model.
-    h_index : int
-        Index of the current model being processed.
-    out_y : np.ndarray
-        Buffer to write scaled sources into. Shape (n_samples, n_components, n_mixtures, n_models).
-        This array is modified in-place.
-    out_z0 : np.ndarray
+        Array containing component indices for the current model.
+    out_sources : np.ndarray
+        Buffer to write scaled sources into. Shape (n_samples, n_components, n_mixtures).
+        This array is modified in-place. This is the `y` array in the Fortran code.
+    out_logits : np.ndarray
         Buffer to write per-mixture log-densities into. Shape (n_samples, n_components, n_mixtures).
-        This array is modified in-place.
+        This array is modified in-place. This is the `z0` array in the Fortran code.
 
     Returns
     -------
-    y : np.ndarray
+    scaled_sources : np.ndarray
         The modified y array containing scaled sources.
-    logits : np.ndarray
+    log_densities : np.ndarray
         unnormalized log-probabilies (i.e. posteriors) per mixtures. this is the out_z0 array modified in-place.
     
     Notes
     -----
-    logits == z0 in Fortran code.
+    logits/log_densities == z0 in Fortran code.
     """
-    y = out_y
-    N1, nw, num_mix = y.shape
+    N1 = b.shape[0]
+    num_mix = alpha.shape[0]
+    nw = len(comp_indices)
 
-    logits = out_logits
-    if scratch_3D is None:
-        scratch_3D = np.empty(y.shape)
+    if out_sources is None:
+        out_sources = np.empty((N1, nw, num_mix))
+    if out_logits is None:
+        out_logits = np.empty((N1, nw, num_mix))
+    if scratch is None:
+        scratch = np.empty_like(out_sources)
     # ---------------------------FORTRAN CODE-------------------------
     # !--- get y z
     # do i = 1,nw
@@ -1891,20 +1903,22 @@ def _calculate_source_densities(
         #--------------------------FORTRAN CODE-------------------------
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
         #---------------------------------------------------------------
-        # 1. Select the parameters for the current model and block
+        
+        # 1. Select the components for this model.
         sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
         mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
         # 2. Explicitly align arrays for broadcasting
         sbeta_br = sbeta_h.T[np.newaxis, :, :] # Shape: (1, nw, num_mix)
         mu_br = mu_h[np.newaxis, :, :]         # Shape: (1, num_mix, nw)
         b_br = b[:, np.newaxis, :]        # Shape: (n_samples, 1, nw)
-        # 3. Calculate and assign result
-        b_mu_diff = np.subtract(b_br, mu_br, out=scratch_3D)  # Shape: (n_samples, num_mix, num_comps)
+        # 3. Center the source estimates
+        np.subtract(b_br, mu_br, out=scratch)  # Shape: (n_samples, num_mix, num_comps)
         # align for broadcasting
-        b_mu_diff = b_mu_diff.transpose(0, 2, 1)  # Shape: (n_samples, num_mix, nw)
         # In-Place y update
-        np.multiply(sbeta_br, b_mu_diff, out=y[:, :, :]) # (n_samples, nw, num_mix)
-        b_mu_diff.fill(0)  # clear for next use
+        np.multiply(
+            sbeta_br, scratch.transpose(0, 2, 1) , out=out_sources
+            ) # (n_samples, nw, num_mix)
+        scratch.fill(0)  # clear for next use TODO: make a rent context manager method
         #------------------Mixture Log-Likelihood for each component----------------
 
         #--------------------------FORTRAN CODE-------------------------
@@ -1924,37 +1938,57 @@ def _calculate_source_densities(
         log_mix_weight = np.log(alpha_br)
         log_scale = np.log(sbeta_br)
 
+        common_term = log_mix_weight + log_scale
+        # We don't need the size-1 0th dimension (which was for broadcasting)
+        common_term = common_term[0, :, :] # (nw, num_mix)
+
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        is_lap = (np.isclose(rho_h, 1.0, atol=1e-12))
-        is_gau = (np.isclose(rho_h, 2.0, atol=1e-12))
+        lap_mask = (np.isclose(rho_h, 1.0, atol=1e-12))
+        gau_mask = (np.isclose(rho_h, 2.0, atol=1e-12))
         rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
 
         assert log_mix_weight.shape == (1, nw, num_mix)
         assert log_scale.shape == (1, nw, num_mix)
         assert rho_br.shape == (1, nw, num_mix)
 
+
         # Default: generalized Gaussian log-prob + log mixture weight
-        # Faster to compute this way than using masking.
-        exp_log_abs_y = np.abs(y, out=logits)
-        exp_log_abs_y = np.log(exp_log_abs_y, out=exp_log_abs_y)
-        exp_log_abs_y = np.exp(rho_br * exp_log_abs_y, out=exp_log_abs_y)
+        # log(|y|) = log(alpha) + log(sbeta) - exp(rho*log(|y|)) - log( Gamma(1+1/rho) ) + log(2)
+        np.abs(out_sources, out=out_logits)
+        np.log(out_logits, out=out_logits)
+        np.exp(rho_br * out_logits, out=out_logits)
         gamma_log = gammaln(1.0 + 1.0 / rho_br)
-        penalty = np.add(exp_log_abs_y, gamma_log, out=exp_log_abs_y)
-        penalty = np.add(exp_log_abs_y, LOG_2, out=exp_log_abs_y)
+        np.add(out_logits, gamma_log, out=out_logits)
+        # penalty term
+        np.add(out_logits, LOG_2, out=out_logits)
         # logits == z0 in Fortran
-        logits = np.subtract(log_mix_weight + log_scale, penalty, out=penalty)
-        assert logits.shape == (N1, nw, num_mix)
+        np.subtract(common_term, out_logits, out=out_logits)
+        assert out_logits.shape == (N1, nw, num_mix)
     
-        # Overwrite Laplacian and Gaussian positions
-        for j in range(num_mix):  # over num_mix
-            # We don't need the size-1 0th dimension (which was for broadcasting)
-            common_term = (log_mix_weight[0, :, j] + log_scale[0, :, j])
-            lap_mask = is_lap[j, :]
-            gau_mask = is_gau[j, :]
-            if lap_mask.any():
-                logits[:, lap_mask, j] = common_term[lap_mask] - np.abs(y[:, lap_mask, j]) - LOG_2
-            if gau_mask.any():
-                logits[:, gau_mask, j] = common_term[gau_mask] - np.square(y[:, gau_mask, j]) - LOG_SQRT_PI
+        # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
+
+        # TODO: all Arrays should follow same convention for shape e.g. (nw, num_mix)
+        # TODO: Ideally we design the standard to minimize cache misses
+        if lap_mask.any():
+            # log(|y|) = log(alpha) + log(sbeta) - |y| - log(2)
+            np.subtract(
+                common_term[lap_mask.T],
+                np.abs(out_sources[:, lap_mask.T]),
+                out=out_logits[:, lap_mask.T]
+                )
+            np.subtract(out_logits[:, lap_mask.T], LOG_2, out=out_logits[:, lap_mask.T])
+        if gau_mask.any():
+            # log(|y|) = log(alpha) + log(sbeta) - y^2 - log(sqrt(pi))
+            np.subtract(
+                common_term[gau_mask.T],
+                np.square(out_sources[:, gau_mask.T]),
+                out=out_logits[:, gau_mask.T]
+                )
+            np.subtract(
+                out_logits[:, gau_mask.T],
+                LOG_SQRT_PI,
+                out=out_logits[:, gau_mask.T]
+                )
     elif pdftype == 1:
         raise NotImplementedError()
     elif pdftype == 2:
@@ -1965,7 +1999,7 @@ def _calculate_source_densities(
         raise ValueError(f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported.")
     # end select
     # !--- end for j
-    return y, logits
+    return out_sources, out_logits
 
 
 def compute_scores(
