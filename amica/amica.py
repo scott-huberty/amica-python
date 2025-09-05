@@ -769,12 +769,12 @@ def optimize(
         "b": (N1, num_comps),                    
         "g": (N1, num_comps),
         "scratch_3D": (N1, num_mix, num_comps), 
-        "v": (N1, num_models),
         "y": (N1, num_comps, num_mix),           
         "z": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         # Workspace arrays that need zero initialization
         "modloglik": (num_models, N1),
+        "loglik": (N1,),
         "dWtmp": (num_comps, num_comps, num_models),
     }
     # Allocate most buffers as empty (faster)
@@ -896,14 +896,13 @@ def optimize(
 
 
         ufp = work.get_buffer("ufp")
-        v = work.get_buffer("v") 
         dWtmp = work.get_buffer("dWtmp")
         modloglik = work.get_buffer("modloglik")
+        loglik = work.get_buffer("loglik")
         g = work.get_buffer("g")
         
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
-        assert v.shape == (N1, num_models) 
         assert dWtmp.shape == (num_comps, num_comps, num_models)
         assert modloglik.shape == (num_models, N1)
         # !--------- loop over the segments ----------
@@ -1017,26 +1016,20 @@ def optimize(
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
         #---------------------------------------------------------------
-        P = np.logaddexp.reduce(modloglik, axis=0) # across models
-        assert P.shape == (N1,) # Per-sample total log-likelihood across models.
-        LLinc = np.sum(P[:])
-        LLtmp = LLinc
+        loglik = np.logaddexp.reduce(modloglik, axis=0, out=loglik) # across models
+        assert loglik.shape == (N1,) # Per-sample total log-likelihood across models.
+        LLinc = loglik.sum()
         
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             if do_reject:
                 raise NotImplementedError()
             else:
+                pass
                 #--------------------------FORTRAN CODE-------------------------
                 # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
                 # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
                 #---------------------------------------------------------------
-                # TODO: 1. Do we really need P as an intermediate?
-                #       2. We need to return loglik or store it somewhere
-                #       3. Since this is within a loop, we are overwriting loglik each time.
-                #       4. loglik is likely used for do_reject.
-                #       5. loglik/P == modloglik[h_index, :]
-                loglik = P # shape: (N1,)
             
             #---------------Total Log-Likelihood and Model Responsibilities-----------------
             #--------------------------FORTRAN CODE-------------------------
@@ -1046,7 +1039,7 @@ def optimize(
             # responsibilities over models per sample
             # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
         # responsibilities over models per sample
-        v[:, :] = softmax(modloglik, axis=0).T  # across models
+        v = softmax(modloglik, axis=0).T  # across models
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
 
@@ -1371,8 +1364,8 @@ def optimize(
             assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
             assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-            assert_almost_equal(P[-1], -111.60532918598989)
-            assert_almost_equal(LLtmp, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            assert_almost_equal(loglik[-1], -111.60532918598989)
+            assert_almost_equal(LLinc, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
         elif iter == 2:
             assert_almost_equal(dc_numer[31, 0], 0)
@@ -1399,9 +1392,9 @@ def optimize(
             assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
             #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
             # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
-            assert_almost_equal(P[-1], -109.77900836816768, decimal=6)
+            assert_almost_equal(loglik[-1], -109.77900836816768, decimal=6)
             assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-            assert_almost_equal(LLtmp, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
+            assert_almost_equal(LLinc, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
 
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
@@ -1415,7 +1408,7 @@ def optimize(
             updates=updates,
             state=state,
             dWtmp=dWtmp,
-            LLtmp=LLtmp,
+            LLtmp=LLinc,
             iter=iter
         )
         metrics.loglik = likelihood
