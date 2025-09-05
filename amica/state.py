@@ -76,8 +76,8 @@ class AmicaState:
     """Persistent model parameters/state.
 
     Arrays follow shapes consistent with the Fortran port:
-    - W:  (ncomp, nchan, nmix)   unmixing matrices per mixture
-    - A:  (ncomp, ncomp, nmix)   mixing matrices per mixture (often inv(W))
+    - W:  (ncomp, n_feature, nmix)   unmixing matrices per mixture
+    - A:  (n_feature, ncomp, nmix)   mixing matrices per mixture (often inv(W))
     - c: (ncomp, n_models)       bias (offset) terms per component and model.
     - mu: (nmix, ncomp)          location parameters per mixture and component
     - sbeta: (nmix, ncomp)       scale parameters per mixture and component
