@@ -773,7 +773,6 @@ def optimize(
         "y": (N1, num_comps, num_mix),           
         "z": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
-        "Ptmp": (N1, num_models),
         # Workspace arrays that need zero initialization
         "modloglik": (num_models, N1),
         "dWtmp": (num_comps, num_comps, num_models),
@@ -943,17 +942,15 @@ def optimize(
             tmp_3D = work.get_buffer("scratch_3D")
             y = work.get_buffer("y")
             z = work.get_buffer("z")
-            Ptmp = work.get_buffer("Ptmp")
 
             assert b.shape == (N1, nw)              # No model dimension needed
             assert y.shape == (N1, nw, num_mix)  # No model dimension needed
             assert z.shape == (N1, nw, num_mix)  # No model dimension needed
-            assert Ptmp.shape == (N1, config.n_models)
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
-            Ptmp[:, h_index] = np.add(
-                Dsum[h_index], np.log(gm[h_index]) + sldet, out=Ptmp[:, h_index]
+            modloglik[h_index, :] = np.add(
+                Dsum[h_index], np.log(gm[h_index]) + sldet, out=modloglik[h_index, :]
                 )
             
             # !--- get b
@@ -1001,7 +998,7 @@ def optimize(
             # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
             #---------------------------------------------------------------
             component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
-            Ptmp[:, h_index] += component_loglik.sum(axis=-1) # across components
+            modloglik[h_index, :] += component_loglik.sum(axis=-1) # across components
             # !--- get normalized z
             # softmax across mixtures to get responsibilities
             z = softmax(logits, axis=-1)
@@ -1020,7 +1017,7 @@ def optimize(
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
         #---------------------------------------------------------------
-        P = np.logaddexp.reduce(Ptmp, axis=1)
+        P = np.logaddexp.reduce(modloglik, axis=0) # across models
         assert P.shape == (N1,) # Per-sample total log-likelihood across models.
         LLinc = np.sum(P[:])
         LLtmp = LLinc
@@ -1034,7 +1031,6 @@ def optimize(
                 # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
                 # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
                 #---------------------------------------------------------------
-                modloglik[h - 1, :] = Ptmp[:, h_index] # shape (num_models, N1)
                 # TODO: 1. Do we really need P as an intermediate?
                 #       2. We need to return loglik or store it somewhere
                 #       3. Since this is within a loop, we are overwriting loglik each time.
@@ -1050,7 +1046,7 @@ def optimize(
             # responsibilities over models per sample
             # v[:, h_index] = 1.0 / np.exp(P[:] - Ptmp[:])
         # responsibilities over models per sample
-        v[:, :] = softmax(Ptmp, axis=1)
+        v[:, :] = softmax(modloglik, axis=0).T  # across models
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
 
