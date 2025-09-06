@@ -2191,26 +2191,22 @@ def accumulate_scores(
     u = responsibilities
     fp = scores
     sbeta = scale_params
+    sbeta_h = sbeta[comp_indices, :] # components for this model
     ufp = out_ufp
     g = out_g
     #--------------------------FORTRAN CODE-------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
     # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
     # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
+    # (bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
     #---------------------------------------------------------------
-    np.multiply(u, fp, out=ufp)
     # === Subsection: Accumulate Statistics for Parameter Updates ===
-    # Build per-parameter numerators/denominators (sufficient statistics) used
-    # later when applying updates to A, alpha, mu, beta, rho, and c.
     # !--- get g
     # if update_A:
-    #--------------------------FORTRAN CODE-------------------------
-    # g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
-    #---------------------------------------------------------------
-    
-    # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
-    S_T = sbeta[comp_indices, :]  # (nw, num_mix)
-    np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True, out=g)
+
+    # einsum is memory-friendly, ~6x faster than naive vectorization on test file
+    np.multiply(u, fp, out=ufp)    
+    np.einsum('tnj,nj->tn', ufp, sbeta_h, optimize=True, out=g)
     return ufp, g
 
 
