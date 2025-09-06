@@ -790,9 +790,9 @@ def optimize(
         # Source and intermediate computation buffers
         "b": (N1, num_comps),                    
         "g": (N1, num_comps),
-        "scratch_3D": (N1, num_comps, num_mix), 
         "y": (N1, num_comps, num_mix),           
         "z": (N1, num_comps, num_mix),
+        "fp": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         # Workspace arrays that need zero initialization
         "modloglik": (N1, num_models),
@@ -960,7 +960,7 @@ def optimize(
             N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
             # Get workspace buffers using improved interface
             b = work.get_buffer("b")
-            tmp_3D = work.get_buffer("scratch_3D")
+            fp = work.get_buffer("fp")
             y = work.get_buffer("y")
             z = work.get_buffer("z")
 
@@ -1127,11 +1127,12 @@ def optimize(
             if iter == 6 and h == 1: # and blk == 1:
                 # and j == 3 and i == 1 
                 assert rho[0, 2] == 1.0
-            fp = compute_scores(
+            fp = compute_source_scores(
                 pdftype=pdftype,
-                y_slice=y[:, :, :],  # No model indexing needed
+                y=y,
                 rho=rho,
                 comp_indices=comp_indices,
+                out_scores=fp,
             )
             assert fp.shape == (N1, nw, num_mix)
             # --- Vectorized calculation of ufp and g update ---
@@ -2050,12 +2051,13 @@ def generalized_gaussian_logprob(
 
 
 
-def compute_scores(
+def compute_source_scores(
         *,
-        pdftype,
-        y_slice,
-        rho,
-        comp_indices,
+        pdftype: int,
+        y: Sources3D,
+        rho: Params2D,
+        comp_indices: Index1D,
+        out_scores: Optional[Sources3D] = None,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
@@ -2063,51 +2065,68 @@ def compute_scores(
     ----------
     pdftype : int
         Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
-    y_slice : np.ndarray
+    y : np.ndarray
         Scaled sources for the current model, of shape (n_samples, n_components, n_mixtures).
         Not modified.
     rho : np.ndarray
         Shape parameters of shape (n_components, n_mixtures). Not modified.
     comp_indices : np.ndarray
         Array containing component indices for the current model.
+    out_scores : Sources3D, optional
+        Buffer to write the computed score function into. Shape (n_samples, n_components,
+        n_mixtures). If None, a new array is allocated. This array is modified in-place.
     Returns
     -------
-    fp : np.ndarray
+    out_scores : np.ndarray
         The computed score function, of shape (n_samples, n_components, n_mixtures).
-        This array is newly allocated.
+        This is out_scores modified in-place. out_scores == fp in Fortran code.
     """
     # Shape assertions for new dimension standard
-    N1, nw, num_mix = y_slice.shape
-    assert y_slice.shape == (N1, nw, num_mix), f"y_slice shape {y_slice.shape} != (N1, nw, num_mix)"
+    N1, nw, num_mix = y.shape
+    assert y.shape == (N1, nw, num_mix), f"y shape {y.shape} != (N1, nw, num_mix)"
     assert rho.shape[0] >= nw, f"rho.shape[0]={rho.shape[0]} must be >= nw={nw}"
     assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
     assert len(comp_indices) == nw, f"len(comp_indices)={len(comp_indices)} != nw={nw}"
     
+    if out_scores is None:
+        out_scores = np.empty((N1, nw, num_mix))
     # !--- get fp, zfp
     if pdftype == 0:
-        #--------------------------FORTRAN CODE-------------------------
+        #-------------------------------FORTRAN CODE-------------------------------------
         # if (rho(j,comp_list(i,h)) == dble(1.0)) then
-        #---------------------------------------------------------------
-        rho_vals = rho[comp_indices, :]  # shape: (nw, num_mix)
-        is_rho1 = (rho_vals == 1.0)  # shape: (nw, num_mix)
-        is_rho2 = (rho_vals == 2.0)  # shape: (nw, num_mix)
+        # fp(bstrt:bstp) = sign(dble(1.0),y(bstrt:bstp,i,j,h))
+        # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
+        # fp(bstrt:bstp) = y(bstrt:bstp,i,j,h) * dble(2.0)
+        # else
+        # tmpvec(bstrt:bstp) = log(abs(y(bstrt:bstp,i,j,h)))
+        # tmpvec2(bstrt:bstp) = exp((rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp))
+        # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)) *
+        #--------------------------------------------------------------------------------
+        
+        # Get components for this model
+        rho_h = rho[comp_indices, :]
 
-        fp_choice_1 = np.sign(y_slice)  # shape: (block_size, nw, num_mix)
-        fp_choice_2 = y_slice * 2.0  # shape: (block_size, nw, num_mix)
-        tmpvec_fp = np.log(np.abs(y_slice))  # + 1e-300) avoid log(0); shape: (block_size, nw, num_mix)
-        np.exp(
-            (rho[comp_indices, :] - 1.0)[np.newaxis, :, :]
-            * tmpvec_fp[:, :, :],
-            out=tmpvec_fp
-        )
-        fp_choice_default = (
-            rho_vals[np.newaxis, :, :]  # shape: (1, nw, num_mix)
-            * np.sign(y_slice)  # shape: (block_size, nw, num_mix)
-            * tmpvec_fp[:, :, :]  # shape: (block_size, nw, num_mix)
-        )
-        conditions = [is_rho1, is_rho2]
-        choices = [fp_choice_1, fp_choice_2]
-        fp = np.select(conditions, choices, default=fp_choice_default)
+        # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
+        lap_mask = (np.isclose(rho_h, 1.0, atol=1e-12))
+        gau_mask = (np.isclose(rho_h, 2.0, atol=1e-12))
+
+        # Default: generalized Gaussian score function        
+        # Step 1. Compute |y|^(rho_h - 1) in-place
+        np.abs(y, out=out_scores)                  # out_scores = |y|
+        np.log(out_scores, out=out_scores)         # log(|y|)
+        np.multiply(rho_h - 1.0, out_scores, out=out_scores)
+        np.exp(out_scores, out=out_scores)         # |y|^(rho_h - 1)
+
+        # Step 2. Multiply by rho_h and sign(y) without np.sign allocation
+        out_scores *= rho_h * np.where(y >= 0, 1.0, -1.0)
+        
+        # Overwrite with Laplacian/Gaussian score function where needed
+        if lap_mask.any():
+            # In-place overwrite
+            np.sign(y[:, lap_mask], out=out_scores[:, lap_mask])
+        if gau_mask.any():
+            # In-place overwrite
+            np.multiply(y[:, gau_mask], 2.0, out=out_scores[:, gau_mask])
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
@@ -2121,7 +2140,8 @@ def compute_scores(
             f"Invalid pdftype value: {pdftype}. "
             "Expected values are 0, 1, 2, 3, or 4."
         )
-    return fp
+    return out_scores
+
 
 def accumulate_scores(
         *,
