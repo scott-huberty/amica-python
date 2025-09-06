@@ -24,7 +24,7 @@ Factory helpers
 Note: This file is intentionally self-contained and does not depend on the
 rest of the code until wired. It is safe to import without side effects.
 
-- Shapes: mu/sbeta/rho use (nmix, ncomp), matching your current usage (e.g., mu[:, comp_indices]).
+- Shapes: mu/sbeta/rho use (ncomp, nmix), matching new standard (e.g., mu[comp_indices, :]).
 - Workspace is intentionally generic (name → buffer). This lets us wire temps one-by-one without locking the shapes prematurely.
 """
 
@@ -79,10 +79,10 @@ class AmicaState:
     - W:  (ncomp, n_feature, nmix)   unmixing matrices per mixture
     - A:  (n_feature, ncomp, nmix)   mixing matrices per mixture (often inv(W))
     - c: (ncomp, n_models)       bias (offset) terms per component and model.
-    - mu: (nmix, ncomp)          location parameters per mixture and component
-    - sbeta: (nmix, ncomp)       scale parameters per mixture and component
-    - rho: (nmix, ncomp)         shape parameters per mixture and component
-    - alpha: (nmix, ncomp)       mixing coefficients per mixture and component
+    - mu: (ncomp, nmix)          location parameters per component and mixture
+    - sbeta: (ncomp, nmix)       scale parameters per component and mixture
+    - rho: (ncomp, nmix)         shape parameters per component and mixture
+    - alpha: (ncomp, nmix)       mixing coefficients per component and mixture
     - gm: (nmix,)                mixture weights (prior over models)
     """
 
@@ -295,10 +295,10 @@ class AmicaUpdates:
     across the get_updates_and_likelihood and update_params functions.
 
     Shapes:
-    - dmu_numer/denom: (nmix, ncomp)
-    - dbeta_numer/denom: (nmix, ncomp)
-    - dalpha_numer/denom: (nmix, ncomp)
-    - drho_numer/denom: (nmix, ncomp)
+    - dmu_numer/denom: (ncomp, nmix)
+    - dbeta_numer/denom: (ncomp, nmix)
+    - dalpha_numer/denom: (ncomp, nmix)
+    - drho_numer/denom: (ncomp, nmix)
     - dgm_numer:       (nmix,)
     - dsigma2_numer/denom, dc_numer/denom, etc. can be added as needed.
     """
@@ -368,10 +368,10 @@ class AmicaNewtonUpdates:
     """Additional accumulators for Newton updates.
 
     Shapes:
-    - dbaralpha_numer/denom: (n_mixtures, n_components, n_models)
-    - dkappa_numer/denom: (n_mixtures, n_components, n_models)
-    - dlambda_numer/denom: (n_mixtures, n_components, n_models)
-    - dsigma2_numer/denom: (n_mixtures, n_components, n_models)
+    - dbaralpha_numer/denom: (n_components, n_mixtures, n_models)
+    - dkappa_numer/denom: (n_components, n_mixtures, n_models)
+    - dlambda_numer/denom: (n_components, n_mixtures, n_models)
+    - dsigma2_numer/denom: (n_components, n_mixtures, n_models)
     """
 
     dbaralpha_numer: NDArray
@@ -473,20 +473,20 @@ def get_initial_state(
     # sbeta, mu, rho - match amica.py patterns
     if "sbeta" in seeds:
         sbeta = np.array(seeds["sbeta"], dtype=dtype)
-        assert sbeta.shape == (num_mix, num_comps)
+        assert sbeta.shape == (num_comps, num_mix)
     else:
-        sbeta = np.empty((num_mix, num_comps))
+        sbeta = np.empty((num_comps, num_mix))
 
     if "mu" in seeds:
         mu = np.array(seeds["mu"], dtype=dtype)  
-        assert mu.shape == (num_mix, num_comps)
+        assert mu.shape == (num_comps, num_mix)
     else:
-        mu = np.zeros((num_mix, num_comps))
+        mu = np.zeros((num_comps, num_mix))
 
-    rho = np.full((num_mix, num_comps), rho0, dtype=dtype)  # Shape parameters
+    rho = np.full((num_comps, num_mix), rho0, dtype=dtype)  # Shape parameters
     
     # Initialize alpha (mixing coefficients) to zeros - will be computed in first iteration
-    alpha = np.zeros((num_mix, num_comps), dtype=dtype)
+    alpha = np.zeros((num_comps, num_mix), dtype=dtype)
 
     gm = np.full(num_models, 1.0 / num_models, dtype=dtype)  # Uniform initialization
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
@@ -510,12 +510,12 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
     do_newton = cfg.do_newton
-    shape_2 = (num_mix, num_comps)
+    shape_2 = (num_comps, num_mix)
 
     # Match amica.py initialization patterns
     dgm_numer = np.zeros(num_models, dtype=dtype)
 
-    # Update accumulators - match amica.py: (num_mix, num_comps) shape
+    # Update accumulators - standardized: (num_comps, num_mix) shape
     dmu_numer = np.zeros(shape_2, dtype=dtype)
     dmu_denom = np.zeros(shape_2, dtype=dtype)
 
@@ -535,7 +535,7 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
 
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
-        shape_3 = (num_mix, num_comps, num_models)
+        shape_3 = (num_comps, num_mix, num_models)
 
         dbaralpha_numer = np.zeros(shape_3, dtype=dtype)
         dbaralpha_denom = np.zeros(shape_3, dtype=dtype)

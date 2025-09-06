@@ -82,14 +82,17 @@ Sources2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_compone
 Sources3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components, n_mixtures)"]
 """Alias for a 3D array with shape (n_samples, n_components, n_mixtures)."""
 
-Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_mixtures, n_components)"]
-"""Alias for a 2D array with shape (n_mixtures, n_components)."""
+Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_mixtures)"]
+"""Alias for a 2D array with shape (n_components, n_mixtures)."""
 
 Index1D: TypeAlias  = Annotated[npt.NDArray[np.integer], "(n_features,)"]
 """Alias for a 1D array with shape (n_features,)."""
 
 Buffer3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_mixtures, n_components)"]
 """Alias for a 3D array with shape (n_samples, n_mixtures, n_components)."""
+
+
+sbetatmp = sbetatmp.T
 
 
 def get_component_indices(num_comps: int, num_models: int):
@@ -550,22 +553,22 @@ def _core_amica(
 
     assert state.gm.shape == (num_models,)
 
-    assert state.alpha.shape == (num_mix, num_comps)
+    assert state.alpha.shape == (num_comps, num_mix)
 
-    assert state.mu.shape == (num_mix, num_comps)
+    assert state.mu.shape == (num_comps, num_mix)
     assert_allclose(state.mu, 0)
 
-    mutmp = np.zeros((num_mix, num_comps))
+    mutmp = np.zeros((num_comps, num_mix))
     
     # if update_mu:
     
-    assert state.sbeta.shape == (num_mix, num_comps)
+    assert state.sbeta.shape == (num_comps, num_mix)
     assert_allclose(state.sbeta, np.nan)
 
-    # sbetatmp = np.zeros((num_mix, num_comps))  # Beta parameters
+    # sbetatmp = np.zeros((num_comps, num_mix))  # Beta parameters
     # if update_beta:
 
-    assert state.rho.shape == (num_mix, num_comps)
+    assert state.rho.shape == (num_comps, num_mix)
     assert_allclose(state.rho, 1.5)
 
     # !------------------- INITIALIZE VARIABLES ----------------------
@@ -581,28 +584,28 @@ def _core_amica(
     if load_alpha:
         raise NotImplementedError()
     else:
-        state.alpha[:num_mix, :] = 1.0 / num_mix
+        state.alpha[:, :num_mix] = 1.0 / num_mix
     if load_mu:
         raise NotImplementedError()
     else:
         values = np.arange(num_mix) - (num_mix - 1) / 2
-        state.mu[:, :] = values[:, np.newaxis]
-        assert state.mu.shape == (num_mix, num_comps) == (3, 32)
-        np.testing.assert_allclose(state.mu[0, :], -1.0)
-        np.testing.assert_allclose(state.mu[1, :], 0.0)
-        np.testing.assert_allclose(state.mu[2, :], 1.0)
+        state.mu[:, :] = values[np.newaxis, :]
+        assert state.mu.shape == (num_comps, num_mix) == (32, 3)
+        np.testing.assert_allclose(state.mu[:, 0], -1.0)
+        np.testing.assert_allclose(state.mu[:, 1], 0.0)
+        np.testing.assert_allclose(state.mu[:, 2], 1.0)
         if not fix_init:
-            mutmp = MUTMP.copy()
-            state.mu[:num_mix, :] = state.mu[:num_mix, :] + 0.05 * (1.0 - 2.0 * mutmp)
+            mutmp = MUTMP.copy().T
+            state.mu[:, :num_mix] = state.mu[:, :num_mix] + 0.05 * (1.0 - 2.0 * mutmp)
             assert_almost_equal(state.mu[0, 0], -1.0009659467356704, decimal=7)
-            assert_almost_equal(state.mu[2, 31], 0.99866076686138183, decimal=7)
+            assert_almost_equal(state.mu[31, 2], 0.99866076686138183, decimal=7)
     if load_beta:
         raise NotImplementedError()
     else:
         if fix_init:
             raise NotImplementedError()
         else:
-            state.sbeta[:num_mix, :] = 1.0 + 0.1 * (0.5 - sbetatmp)
+            state.sbeta[:, :num_mix] = 1.0 + 0.1 * (0.5 - sbetatmp)
             assert_almost_equal(state.sbeta[0, 0], 0.96533589542801645, decimal=7)
             assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
     if load_rho:
@@ -787,12 +790,12 @@ def optimize(
         # Source and intermediate computation buffers
         "b": (N1, num_comps),                    
         "g": (N1, num_comps),
-        "scratch_3D": (N1, num_mix, num_comps), 
+        "scratch_3D": (N1, num_comps, num_mix), 
         "y": (N1, num_comps, num_mix),           
         "z": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         # Workspace arrays that need zero initialization
-        "modloglik": (num_models, N1),
+        "modloglik": (N1, num_models),
         "loglik": (N1,),
         "dWtmp": (num_comps, num_comps, num_models),
     }
@@ -923,7 +926,7 @@ def optimize(
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
         assert dWtmp.shape == (num_comps, num_comps, num_models)
-        assert modloglik.shape == (num_models, N1)
+        assert modloglik.shape == (N1, num_models)
         # !--------- loop over the segments ----------
 
         if do_reject:
@@ -967,9 +970,9 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
-            modloglik[h_index, :] = np.add(
+            modloglik[:, h_index] = np.add(
                 Dsum[h_index], np.log(gm[h_index]) + sldet,
-                out=modloglik[h_index, :]
+                out=modloglik[:, h_index]
                 )
             
             # !--- get b
@@ -1017,7 +1020,7 @@ def optimize(
             # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
             #---------------------------------------------------------------
             component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
-            modloglik[h_index, :] += component_loglik.sum(axis=-1) # across components
+            modloglik[:, h_index] += component_loglik.sum(axis=-1) # across components
             # !--- get normalized z
             z = softmax(logits, axis=-1) # across mixtures to get responsibilities
             # end do (j)
@@ -1035,7 +1038,7 @@ def optimize(
         # LLinc = sum( P(bstrt:bstp) )
         # LLtmp = LLtmp + LLinc
         #-------------------------------------------------------------------------------
-        loglik = np.logaddexp.reduce(modloglik, axis=0, out=loglik) # across models
+        loglik = np.logaddexp.reduce(modloglik, axis=1, out=loglik) # across models
         LLinc = loglik.sum()
         
         for h, _ in enumerate(range(num_models), start=1):
@@ -1054,7 +1057,7 @@ def optimize(
             # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
             #---------------------------------------------------------------
         # responsibilities over models per sample
-        v = softmax(modloglik, axis=0).T
+        v = softmax(modloglik, axis=1)
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
@@ -1082,7 +1085,7 @@ def optimize(
                 # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
                 # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
                 #---------------------------------------------------------------
-                b_slice = b[:, :] # shape: (block_size, nw)
+                b_slice = b[:, :] # shape: (n_samples, nw)
                 tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
                 dsigma2_numer[:, h_index] += tmpsum_A_vec
                 dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
@@ -1121,10 +1124,10 @@ def optimize(
             usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
             assert usum.shape == (32, 3)  # nw, num_mix
             
-            assert rho.shape == (num_mix, config.n_components)
+            assert rho.shape == (config.n_components, num_mix)
             if iter == 6 and h == 1: # and blk == 1:
                 # and j == 3 and i == 1 
-                assert rho[2, 0] == 1.0
+                assert rho[0, 2] == 1.0
             fp = compute_scores(
                 pdftype=pdftype,
                 y_slice=y[:, :, :],  # No model indexing needed
@@ -1162,10 +1165,10 @@ def optimize(
                 comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
                 # 1) Kappa updates (curvature terms for A)
                 ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-                sbeta_vals = sbeta[:, comp_indices] ** 2
-                tmpsum_kappa = ufp_fp_sums.T * sbeta_vals # Shape: (nw, num_mix)
+                sbeta_vals = sbeta[comp_indices, :] ** 2
+                tmpsum_kappa = ufp_fp_sums * sbeta_vals # Shape: (nw, num_mix)
                 dkappa_numer[:, :, h_index] += tmpsum_kappa
-                dkappa_denom[:, :, h_index] += usum.T
+                dkappa_denom[:, :, h_index] += usum
                 
                 # 2) Lambda updates
                 # ---------------------------FORTRAN CODE---------------------------
@@ -1180,8 +1183,8 @@ def optimize(
                 tmpsum_dlambda = np.sum(
                     u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
                 )  # shape: (nw, num_mix)
-                dlambda_numer[:, :, h_index] += tmpsum_dlambda.T
-                dlambda_denom[:, :, h_index] += usum.T
+                dlambda_numer[:, :, h_index] += tmpsum_dlambda
+                dlambda_denom[:, :, h_index] += usum
                 
 
                 # 3) (dbar)Alpha updates
@@ -1190,7 +1193,7 @@ def optimize(
                 # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
                 # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
                 # ------------------------------------------------------------------
-                dbaralpha_numer[:, :, h_index] += usum.T
+                dbaralpha_numer[:, :, h_index] += usum
                 dbaralpha_denom[:,:, h_index] += vsum
 
             # end if (do_newton and iter >= newt_start)
@@ -1209,8 +1212,8 @@ def optimize(
             # That propogate to several other variables due to a dependency chan
             # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
             comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-            dalpha_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
-            dalpha_denom[:, comp_indices] += vsum  # shape: (num_mix, nw)
+            dalpha_numer[comp_indices, :] += usum  # shape: (nw, num_mix)
+            dalpha_denom[comp_indices, :] += vsum  # shape: (nw, num_mix)
 
             # Mu (location)
             # if update_mu:
@@ -1222,7 +1225,7 @@ def optimize(
             # -----------------------------------------------------------------------
             # XXX: Some error in each sum across 59 blocks
             tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            dmu_numer[:, comp_indices] += tmpsum_mu.T
+            dmu_numer[comp_indices, :] += tmpsum_mu
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -1232,13 +1235,13 @@ def optimize(
             # else
             # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
             # -----------------------------------------------------------------------
-            if np.all(rho[:, comp_indices] <= 2.0):
+            if np.all(rho[comp_indices, :] <= 2.0):
                 # shape : (nw, num_mix)
                 mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
 
-                # shape (num_mix, nw)
-                tmpsum_mu_denom = (sbeta[:, comp_indices] * mu_denom_sum.T)
-                dmu_denom[:, comp_indices] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
+                # shape (nw, num_mix)
+                tmpsum_mu_denom = (sbeta[comp_indices, :] * mu_denom_sum)
+                dmu_denom[comp_indices, :] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
             else:
                 raise NotImplementedError()
                 # Let's tackle this when we actually hit this with some data
@@ -1252,18 +1255,18 @@ def optimize(
             # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
             # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
             # ----------------------------------------------------------------------
-            dbeta_numer[:, comp_indices] += usum.T  # shape: (num_mix, nw)
+            dbeta_numer[comp_indices, :] += usum  # shape: (nw, num_mix)
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
             # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
             # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
             # ----------------------------------------------------------------------
-            if np.all(rho[:, comp_indices] <= 2.0):
+            if np.all(rho[comp_indices, :] <= 2.0):
                 tmpsum_dbeta_denom = np.sum(
                     ufp[:, :, :] * y[:, :, :], axis=0
                 )
-                dbeta_denom[:, comp_indices] += tmpsum_dbeta_denom.T  # shape: (num_mix, nw)
+                dbeta_denom[comp_indices, :] += tmpsum_dbeta_denom  # shape: (nw, num_mix)
             else:
                 raise NotImplementedError()
             # end if (update beta)
@@ -1283,8 +1286,8 @@ def optimize(
                 np.abs(y[:, :, :], out=tmpy)
                 np.log(tmpy[:, :, :], out=logab)
                 # 2. Exponentiation with rho
-                rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
-                rho_vals_br = rho_vals.T[np.newaxis, :, :]  # shape: (1, nw, num_mix)
+                rho_vals = rho[comp_indices, :]  # shape: (nw, num_mix)
+                rho_vals_br = rho_vals[np.newaxis, :, :]  # shape: (1, nw, num_mix)
                 # shape: (max_block_size, nw, num_mix)
                 np.multiply(rho_vals_br, logab, out=logab)
                 np.exp(logab, out=tmpy)  # now tmpy is exp(rho * log|y|)
@@ -1311,10 +1314,10 @@ def optimize(
                     * logab[:, :, :]
                 , axis=0
                 )
-                drho_numer[:, comp_indices] += tmpsum_prod.T
-                drho_denom[:, comp_indices] += usum.T
+                drho_numer[comp_indices, :] += tmpsum_prod
+                drho_denom[comp_indices, :] += usum
                 
-                if np.any(rho[:, comp_indices] > 2.0):
+                if np.any(rho[comp_indices, :] > 2.0):
                     raise NotImplementedError()
             elif not dorho:
                 raise NotImplementedError()
@@ -1358,22 +1361,22 @@ def optimize(
             # assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
             assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
             assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
-            assert_almost_equal(dalpha_numer[2, 31], 9499.991274464508, decimal=5)
-            assert dalpha_denom[2, 31] == 30504
-            assert_almost_equal(dmu_numer[2, 31], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
+            assert_almost_equal(dalpha_numer[31, 2], 9499.991274464508, decimal=5)
+            assert dalpha_denom[31, 2] == 30504
+            assert_almost_equal(dmu_numer[31, 2], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
             assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(sbeta[2, 31], 1.0138304802882583)
-            assert_almost_equal(dmu_denom[2, 31], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
+            assert_almost_equal(sbeta[31, 2], 1.0138304802882583)
+            assert_almost_equal(dmu_denom[31, 2], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
             assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[2, 31], 9499.991274464508, decimal=5)
-            assert_almost_equal(dbeta_denom[2, 31], 8739.8711658999582, decimal=6)
+            assert_almost_equal(dbeta_numer[31, 2], 9499.991274464508, decimal=5)
+            assert_almost_equal(dbeta_denom[31, 2], 8739.8711658999582, decimal=6)
             assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
             assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
             assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
             assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
-            assert_almost_equal(drho_numer[2, 31], 469.83886293477855, decimal=5)
-            assert_almost_equal(drho_denom[2, 31], 9499.991274464508, decimal=5)
+            assert_almost_equal(drho_numer[31, 2], 469.83886293477855, decimal=5)
+            assert_almost_equal(drho_denom[31, 2], 9499.991274464508, decimal=5)
             assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
             assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
@@ -1386,8 +1389,8 @@ def optimize(
             assert dc_denom[31, 0] == 30504
             assert dc_denom[0, 0] == 30504
             assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dalpha_numer[2, 31], 9221.7061911138153, decimal=4)
-            assert dalpha_denom[2, 31] == 30504
+            assert_almost_equal(dalpha_numer[31, 2], 9221.7061911138153, decimal=4)
+            assert dalpha_denom[31, 2] == 30504
             assert dalpha_denom[0, 0] == 30504
             assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
             assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
@@ -1443,7 +1446,7 @@ def optimize(
         if iter == 1:
             assert_allclose(state.rho, 1.5)
             
-            assert_almost_equal(state.sbeta[2, 31], 1.0138304802882583)
+            assert_almost_equal(state.sbeta[31, 2], 1.0138304802882583)
             # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
             
@@ -1459,7 +1462,7 @@ def optimize(
         # Iteration 2 checks that our values were set globablly and updated based on the first iteration
         elif iter == 2:
             assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
-            assert_almost_equal(state.sbeta[2, 31], 1.0736514759262248)
+            assert_almost_equal(state.sbeta[31, 2], 1.0736514759262248)
             # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
             # assert P[808] == 0.0
 
@@ -1613,8 +1616,8 @@ def optimize(
                 assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
                 assert not state.rho[state.rho == minrho].any()
                 assert_almost_equal(state.A[31, 31], 0.99984153789378194)
-                assert_almost_equal(state.sbeta[0, 31], 0.97674982753812623)
-                assert_almost_equal(state.mu[0, 31], -0.8568024781696123)
+                assert_almost_equal(state.sbeta[31, 0], 0.97674982753812623)
+                assert_almost_equal(state.mu[31, 0], -0.8568024781696123)
                 assert_almost_equal(state.W[0, 0, 0], 1.0000820892004447)
                 assert_almost_equal(wc[0, 0], 0)
             elif iter == 2:
@@ -1884,8 +1887,17 @@ def _calculate_source_densities(
     logits/log_densities == z0 in Fortran code.
     """
     N1 = b.shape[0]
-    num_mix = alpha.shape[0]
     nw = len(comp_indices)
+    num_mix = alpha.shape[1]
+    
+    # Shape assertions for new dimension standard
+    # These parameters are the full arrays, not indexed yet
+    assert alpha.shape[0] >= nw, f"alpha.shape[0]={alpha.shape[0]} must be >= nw={nw}"
+    assert alpha.shape[1] == num_mix, f"alpha.shape[1]={alpha.shape[1]} != num_mix={num_mix}"
+    assert sbeta.shape == alpha.shape, f"sbeta shape {sbeta.shape} != alpha shape {alpha.shape}"
+    assert mu.shape == alpha.shape, f"mu shape {mu.shape} != alpha shape {alpha.shape}"
+    assert rho.shape == alpha.shape, f"rho shape {rho.shape} != alpha shape {alpha.shape}"
+    assert b.shape == (N1, nw), f"b shape {b.shape} != (N1={N1}, nw={nw})"
 
     if out_sources is None:
         out_sources = np.empty((N1, nw, num_mix))
@@ -1905,17 +1917,17 @@ def _calculate_source_densities(
         #---------------------------------------------------------------
         
         # 1. Select the components for this model.
-        sbeta_h = sbeta[:, comp_indices]      # Shape: (num_mix, nw)
-        mu_h = mu[:, comp_indices]            # Shape: (num_mix, nw)
+        sbeta_h = sbeta[comp_indices, :]      # Shape: (nw, num_mix)
+        mu_h = mu[comp_indices, :]            # Shape: (nw, num_mix)
         # 2. Explicitly align arrays for broadcasting
-        sbeta_br = sbeta_h.T[None, :, :] # Shape: (1, nw, num_mix)
-        mu_br = mu_h[None, :, :]         # Shape: (1, num_mix, nw)
-        b_br = b[:, None, :]        # Shape: (n_samples, 1, nw)
+        sbeta_br = sbeta_h[None, :, :] # Shape: (1, nw, num_mix)
+        mu_br = mu_h[None, :, :]         # Shape: (1, nw, num_mix)
+        b_br = b[:, :, None]        # Shape: (n_samples, nw, 1)
         # 3. Center the source estimates
-        np.subtract(b_br, mu_br, out=scratch)  # Shape: (n_samples, num_mix, num_comps)
+        np.subtract(b_br, mu_br, out=scratch)  # Shape: (n_samples, nw, num_mix)
         # In-Place y update
         np.multiply(
-            sbeta_br, scratch.transpose(0, 2, 1) , out=out_sources
+            sbeta_br, scratch, out=out_sources
             ) # (n_samples, nw, num_mix)
         scratch.fill(0)  # clear for next use TODO: make a rent context manager method
         #------------------Mixture Log-Likelihood for each component----------------
@@ -1928,10 +1940,10 @@ def _calculate_source_densities(
         # 1. Prepare all parameters for broadcasting to shape (tblksize, nw, num_mix)
         # Note: y_slice is already this shape. The others are broadcast.
         # alpha_orig = alpha.copy()
-        alpha_h = alpha[:, comp_indices]
-        rho_h = rho[:, comp_indices] # All mixtures, components for this model
+        alpha_h = alpha[comp_indices, :]
+        rho_h = rho[comp_indices, :] # All mixtures, components for this model
 
-        alpha_br = alpha_h.T[None, :, :]  # Shape: (1, nw, num_mix)
+        alpha_br = alpha_h[None, :, :]  # Shape: (1, nw, num_mix)
 
         # Precompute logarithms for mixture weights and scales
         log_mix_weight = np.log(alpha_br)
@@ -1944,7 +1956,7 @@ def _calculate_source_densities(
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
         lap_mask = (np.isclose(rho_h, 1.0, atol=1e-12))
         gau_mask = (np.isclose(rho_h, 2.0, atol=1e-12))
-        rho_br = rho_h.T[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
+        rho_br = rho_h[np.newaxis, :, :]      # Shape: (1, nw, num_mix)
 
         assert log_mix_weight.shape == (1, nw, num_mix)
         assert log_scale.shape == (1, nw, num_mix)
@@ -1971,22 +1983,22 @@ def _calculate_source_densities(
         if lap_mask.any():
             # log(|y|) = log(alpha) + log(sbeta) - |y| - log(2)
             np.subtract(
-                common_term[lap_mask.T],
-                np.abs(out_sources[:, lap_mask.T]),
-                out=out_logits[:, lap_mask.T]
+                common_term[lap_mask],
+                np.abs(out_sources[:, lap_mask]),
+                out=out_logits[:, lap_mask]
                 )
-            np.subtract(out_logits[:, lap_mask.T], LOG_2, out=out_logits[:, lap_mask.T])
+            np.subtract(out_logits[:, lap_mask], LOG_2, out=out_logits[:, lap_mask])
         if gau_mask.any():
             # log(|y|) = log(alpha) + log(sbeta) - y^2 - log(sqrt(pi))
             np.subtract(
-                common_term[gau_mask.T],
-                np.square(out_sources[:, gau_mask.T]),
-                out=out_logits[:, gau_mask.T]
+                common_term[gau_mask],
+                np.square(out_sources[:, gau_mask]),
+                out=out_logits[:, gau_mask]
                 )
             np.subtract(
-                out_logits[:, gau_mask.T],
+                out_logits[:, gau_mask],
                 LOG_SQRT_PI,
-                out=out_logits[:, gau_mask.T]
+                out=out_logits[:, gau_mask]
                 )
     elif pdftype == 1:
         raise NotImplementedError()
@@ -2018,7 +2030,7 @@ def compute_scores(
         Scaled sources for the current model, of shape (n_samples, n_components, n_mixtures).
         Not modified.
     rho : np.ndarray
-        Shape parameters of shape (n_mixtures, n_components). Not modified.
+        Shape parameters of shape (n_components, n_mixtures). Not modified.
     comp_indices : np.ndarray
         Array containing component indices for the current model.
     Returns
@@ -2027,29 +2039,36 @@ def compute_scores(
         The computed score function, of shape (n_samples, n_components, n_mixtures).
         This array is newly allocated.
     """
+    # Shape assertions for new dimension standard
+    N1, nw, num_mix = y_slice.shape
+    assert y_slice.shape == (N1, nw, num_mix), f"y_slice shape {y_slice.shape} != (N1, nw, num_mix)"
+    assert rho.shape[0] >= nw, f"rho.shape[0]={rho.shape[0]} must be >= nw={nw}"
+    assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
+    assert len(comp_indices) == nw, f"len(comp_indices)={len(comp_indices)} != nw={nw}"
+    
     # !--- get fp, zfp
     if pdftype == 0:
         #--------------------------FORTRAN CODE-------------------------
         # if (rho(j,comp_list(i,h)) == dble(1.0)) then
         #---------------------------------------------------------------
-        rho_vals = rho[:, comp_indices]  # shape: (num_mix, nw)
-        is_rho1 = (rho_vals == 1.0)  # shape: (num_mix, nw)
-        is_rho2 = (rho_vals == 2.0)  # shape: (num_mix, nw)
+        rho_vals = rho[comp_indices, :]  # shape: (nw, num_mix)
+        is_rho1 = (rho_vals == 1.0)  # shape: (nw, num_mix)
+        is_rho2 = (rho_vals == 2.0)  # shape: (nw, num_mix)
 
         fp_choice_1 = np.sign(y_slice)  # shape: (block_size, nw, num_mix)
         fp_choice_2 = y_slice * 2.0  # shape: (block_size, nw, num_mix)
         tmpvec_fp = np.log(np.abs(y_slice))  # + 1e-300) avoid log(0); shape: (block_size, nw, num_mix)
         np.exp(
-            (rho[:, comp_indices] - 1.0).T[np.newaxis, :, :]
+            (rho[comp_indices, :] - 1.0)[np.newaxis, :, :]
             * tmpvec_fp[:, :, :],
             out=tmpvec_fp
         )
         fp_choice_default = (
-            rho_vals.T[np.newaxis, :, :]  # shape: (1, num_mix, nw)
+            rho_vals[np.newaxis, :, :]  # shape: (1, nw, num_mix)
             * np.sign(y_slice)  # shape: (block_size, nw, num_mix)
             * tmpvec_fp[:, :, :]  # shape: (block_size, nw, num_mix)
         )
-        conditions = [is_rho1.T, is_rho2.T]
+        conditions = [is_rho1, is_rho2]
         choices = [fp_choice_1, fp_choice_2]
         fp = np.select(conditions, choices, default=fp_choice_default)
     elif pdftype == 2:
@@ -2088,7 +2107,7 @@ def accumulate_scores(
         The responsibilities (u) of shape (n_samples, n_components, n_mixtures).
         Not modified.
     scale_params : np.ndarray
-        Scale parameters (sbeta) of shape (n_mixtures, n_components).
+        Scale parameters (sbeta) of shape (n_components, n_mixtures).
         Not modified.
     out_ufp : np.ndarray
         The output updates (ufp) of shape (n_components, n_features).
@@ -2104,6 +2123,14 @@ def accumulate_scores(
     out_g : np.ndarray
         accumulated per-sample per-component score weighted by sbeta, shape (n_samples, n_components), modified in place.
     """
+    # Shape assertions for new dimension standard
+    N1, nw, num_mix = scores.shape
+    assert responsibilities.shape == scores.shape, f"responsibilities shape {responsibilities.shape} != scores shape {scores.shape}"
+    assert scale_params.shape[0] >= nw, f"scale_params.shape[0]={scale_params.shape[0]} must be >= nw={nw}"
+    assert scale_params.shape[1] == num_mix, f"scale_params.shape[1]={scale_params.shape[1]} != num_mix={num_mix}"
+    assert out_ufp.shape == scores.shape, f"out_ufp shape {out_ufp.shape} != scores shape {scores.shape}"
+    assert out_g.shape == (N1, nw), f"out_g shape {out_g.shape} != (N1={N1}, nw={nw})"
+    
     u = responsibilities
     fp = scores
     sbeta = scale_params
@@ -2125,7 +2152,7 @@ def accumulate_scores(
     #---------------------------------------------------------------
     
     # Method: einsum (memory-friendly, ~6x faster than naive vectorization on test file)
-    S_T = sbeta[:, comp_indices].T  # (nw, num_mix)
+    S_T = sbeta[comp_indices, :]  # (nw, num_mix)
     np.einsum('tnj,nj->tn', ufp[:, :, :], S_T, optimize=True, out=g)
     return ufp, g
 
@@ -2246,7 +2273,7 @@ def accum_updates_and_likelihood(
             dkap = dkappa_numer_h / dkappa_denom_h
             # --- Update kappa ---
             # Calculate all update terms and sum along the mixture axis
-            kappa_update = np.sum(baralpha_h * dkap, axis=0)
+            kappa_update = np.sum(baralpha_h * dkap, axis=1)
             kappa[:, h_idx] += kappa_update
 
             # --- Update lambda_ ---
@@ -2255,11 +2282,11 @@ def accum_updates_and_likelihood(
             #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
             #---------------------------------------------------------------
             # mu_selected will have shape (num_mix, nw)
-            mu_selected = mu[:, comp_indices_h]
+            mu_selected = mu[comp_indices_h, :]
 
             # Calculate the full lambda update term
             lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
-            lambda_update = np.sum(baralpha_h * lambda_inner_term, axis=0)
+            lambda_update = np.sum(baralpha_h * lambda_inner_term, axis=1)
             lambda_[:, h_idx] += lambda_update
             # end do (j)
             # end do (i)
@@ -2351,7 +2378,7 @@ def accum_updates_and_likelihood(
         #---------------------------------------------------------------
         comp_indices = comp_list[:, h - 1] - 1
         source_columns = gm[h - 1] * dA[:, :, h - 1]
-        dAK[:, comp_indices] += source_columns
+        dAK[comp_indices, :] += source_columns
         zeta[comp_indices] += gm[h - 1]
     
     #--------------------------FORTRAN CODE-------------------------
@@ -2467,7 +2494,7 @@ def update_params(
     # end if (update_gm)
 
     # if update_alpha:
-    # assert alpha.shape == (num_mix, num_comps)
+    # assert alpha.shape == (num_comps, num_mix)
     alpha[:, :] = dalpha_numer / dalpha_denom
     if iter == 1:
         assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
@@ -2572,8 +2599,8 @@ def update_params(
                 / drho_denom
             )
         )
-        rhotmp = np.minimum(maxrho, rho) # shape (num_mix, num_comps)
-        assert rhotmp.shape == (config.n_mixtures, config.n_components)
+        rhotmp = np.minimum(maxrho, rho) # shape (num_comps, num_mix)
+        assert rhotmp.shape == (config.n_components, config.n_mixtures)
         rho[:, :] = np.maximum(minrho, rhotmp)
         if iter == 1:
             assert maxrho == 2
@@ -2600,8 +2627,8 @@ def update_params(
         positive_mask = Anrmk > 0
         if positive_mask.all():
             A[:, positive_mask] /= Anrmk[positive_mask]
-            mu[:, positive_mask] *= Anrmk[positive_mask]
-            sbeta[:, positive_mask] /= Anrmk[positive_mask]
+            mu[positive_mask, :] *= Anrmk[positive_mask, None]
+            sbeta[positive_mask, :] /= Anrmk[positive_mask, None]
         else:
             raise NotImplementedError()            
     # end if (doscaling)
@@ -2621,8 +2648,8 @@ def update_params(
         assert_almost_equal(Anrmk[-1], 0.98448954017506363) # XXX: OK here Anrmk matches the Fortran output
         assert_almost_equal(A[15, 15], 0.99984861847601925)
         assert_almost_equal(A[31, 31], 0.99984153789378194)
-        assert_almost_equal(sbeta[0, 31], 0.97674982753812623)
-        assert_almost_equal(mu[0, 31], -0.8568024781696123)
+        assert_almost_equal(sbeta[31, 0], 0.97674982753812623)
+        assert_almost_equal(mu[31, 0], -0.8568024781696123)
     elif iter == 2:
         assert_almost_equal(Anrmk[0], 0.9838518400665005) # XXX: Much better!
         # assert k == 32
@@ -2723,21 +2750,22 @@ if __name__ == "__main__":
     assert_allclose(LL, LL_f, atol=1e-4)
 
     A_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/A")
-    A_f = A_f.reshape((32, 32)).T # XXX: is there a simpler way to do this?
+    A_f = A_f.reshape((32, 32), order="F")
     assert_almost_equal(A, A_f, decimal=2)
 
     alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
-    alpha_f = alpha_f.reshape((32, 3))
-    alpha_f = alpha_f.T
-    assert_almost_equal(alpha, alpha_f, decimal=2)
+    alpha_f = alpha_f.reshape((3, 32), order="F")
+    # Remember that alpha (and sbeta, mu etc) are (num_comps, num_mix) in Python
+    assert_almost_equal(alpha, alpha_f.T, decimal=2)
 
     c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
-    c_f = c_f.reshape((32, 1)).squeeze()
-    assert_almost_equal(c.squeeze(), c_f)
+    c_f = c_f.reshape((32, 1), order="F")
+    assert_almost_equal(c, c_f)
 
 
     comp_list_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/comp_list", dtype=np.int32)
-    # Something weird is happening there.
+    # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
+    comp_list_f = np.reshape(comp_list_f, (32, 2), order="F")
 
 
     gm_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/gm")
@@ -2747,27 +2775,24 @@ if __name__ == "__main__":
     assert_almost_equal(mean, mean_f)
 
     mu_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mu", dtype=np.float64)
-    mu_f = mu_f.reshape((32, 3))
-    mu_f = mu_f.T
-    assert_almost_equal(mu, mu_f, decimal=0)
+    mu_f = mu_f.reshape((3, 32), order="F")
+    assert_almost_equal(mu, mu_f.T, decimal=0)
 
     rho_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/rho", dtype=np.float64)
-    rho_f = rho_f.reshape((32, 3))
-    rho_f = rho_f.T
-    assert_almost_equal(rho, rho_f, decimal=2)
+    rho_f = rho_f.reshape((3, 32), order="F")
+    assert_almost_equal(rho, rho_f.T, decimal=2)
 
     S_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/S", dtype=np.float64)
-    S_f = S_f.reshape((32, 32,)).T
+    S_f = S_f.reshape((32, 32,), order="F")
     assert_almost_equal(S, S_f)
 
     sbeta_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/sbeta", dtype=np.float64)
-    sbeta_f = sbeta_f.reshape((32, 3))
-    sbeta_f = sbeta_f.T
-    assert_almost_equal(sbeta, sbeta_f, decimal=1)
+    sbeta_f = sbeta_f.reshape((3, 32), order="F")
+    assert_almost_equal(sbeta, sbeta_f.T, decimal=1)
 
     W_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/W", dtype=np.float64)
-    W_f = W_f.reshape((32, 32, 1)).squeeze().T
-    assert_almost_equal(W.squeeze(), W_f, decimal=2)
+    W_f = W_f.reshape((32, 32, 1), order="F")
+    assert_almost_equal(W, W_f, decimal=2)
 
 
     for output in ["python", "fortran"]:
@@ -2817,12 +2842,12 @@ def get_amica_sources(X, W, S, mean):
       X_sphered = S @ X_centered
 
       # 3. Apply ICA unmixing (this is the key step)
-      sources = W @ X_sphered
+      sources = W[:, :, 0] @ X_sphered  # For single model, use W[:,:,0]
 
       return sources
 
 sources_python = get_amica_sources(
-    dataseg, W.squeeze(), S, mean
+    dataseg, W, S, mean
 )
 sources_fortran = get_amica_sources(
     dataseg, W_f, S_f, mean_f
