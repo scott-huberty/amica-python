@@ -790,7 +790,7 @@ def optimize(
     buffer_specs = {
         # Source and intermediate computation buffers
         "b": (N1, num_comps),                    
-        "g": (N1, num_comps),
+        "scratch_2D": (N1, num_comps), # we use this for g and a modloglik intermediate
         "y": (N1, num_comps, num_mix),           
         "z": (N1, num_comps, num_mix),
         "fp": (N1, num_comps, num_mix),
@@ -920,14 +920,12 @@ def optimize(
 
         ufp = work.get_buffer("ufp")
         dWtmp = work.get_buffer("dWtmp")
-        modloglik = work.get_buffer("modloglik")
         loglik = work.get_buffer("loglik")
-        g = work.get_buffer("g")
         
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
         assert dWtmp.shape == (num_comps, num_comps, num_models)
-        assert modloglik.shape == (N1, num_models)
+
         # !--------- loop over the segments ----------
 
         if do_reject:
@@ -952,6 +950,11 @@ def optimize(
         # - Aggregate mixture likelihoods with log-sum-exp
         # - Compute normalized responsibilities within each component
         #---------------------------------------------------------------------------------
+        z = work.get_buffer("z")
+        modloglik = work.get_buffer("modloglik")
+        scratch = work.get_buffer("scratch_2D") # will be reused as g
+        assert z.shape == (N1, nw, num_mix)
+        assert modloglik.shape == (N1, num_models)
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             comp_indices = comp_list[:, h_index] - 1
@@ -963,11 +966,9 @@ def optimize(
             b = work.get_buffer("b")
             fp = work.get_buffer("fp")
             y = work.get_buffer("y")
-            z = work.get_buffer("z")
 
             assert b.shape == (N1, nw)              # No model dimension needed
             assert y.shape == (N1, nw, num_mix)  # No model dimension needed
-            assert z.shape == (N1, nw, num_mix)  # No model dimension needed
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
@@ -1002,7 +1003,8 @@ def optimize(
             # --- Subsection: Source density and mixture log-likelihood (z0) ---
             # Compute scaled sources y and per-mixture log-densities z0 for each component.
             # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
-            y, logits = _compute_source_densities(
+            
+            y, z = _compute_source_densities(
                 pdftype=config.pdftype,
                 b=b,
                 sbeta=sbeta,
@@ -1013,16 +1015,28 @@ def optimize(
                 out_sources=y,
                 out_logits=z,
                 )
+            # z contains per-mixture log-densities; converted to probs in-place below
+            # TODO: consider keeping z and z0 separate once chunking is implemented
+            z0 = z  # log densities (alias for clarity)
+
             # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
             # Add the log-likelihood of this component across mixtures and normalize to z.
             #--------------------------FORTRAN CODE-------------------------
             # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
             # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
             #---------------------------------------------------------------
-            component_loglik = np.logaddexp.reduce(logits, axis=-1) # across mixtures
+            # g's lifetime does not overlap with z's, so we can reuse it as workspace
+            # TODO: consider keeping g and z separate once chunking is implemented
+            component_loglik = np.logaddexp.reduce(z0, axis=-1, out=scratch) # across mixtures
             modloglik[:, h_index] += component_loglik.sum(axis=-1) # across components
+            scratch.fill(0)  # reset scratch for next use
+            scratch = None  # prevent accidental use of scratch until reassigned
+
             # !--- get normalized z
-            z = softmax(logits, axis=-1) # across mixtures to get responsibilities
+            # In-place softmax over mixtures: z = softmax(z0, axis=-1)
+            # Using z itself as workspace: log-densities -> responsibilities
+            z = _inplace_softmax(z0)
+            z0 = None  # prevent accidental use of z0 instead of z
             # end do (j)
             # end do (i)
         # end do (h)
@@ -1040,9 +1054,8 @@ def optimize(
         #-------------------------------------------------------------------------------
         loglik = np.logaddexp.reduce(modloglik, axis=1, out=loglik) # across models
         LLinc = loglik.sum()
-        
+
         for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
             if do_reject:
                 raise NotImplementedError()
             else:
@@ -1056,12 +1069,25 @@ def optimize(
             #--------------------------FORTRAN CODE-------------------------
             # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
             #---------------------------------------------------------------
-        # responsibilities over models per sample
-        v = softmax(modloglik, axis=1)
+        # Model responsibilities (per sample)
+        # in-place softmax over models: modloglik becomes v (responsibilities)
+        # TODO: consider keeping v and modloglik separate once chunking is implemented
+
+        # fast-path: if only one model, skip softmax and set responsibilities to 1
+        if num_models == 1:
+            modloglik.fill(1.0)
+        else:
+            modloglik = _inplace_softmax(modloglik)
+
+        # NOTE: modloglik was mutated in-place to responsibilities (v); do not read as
+        # log-likelihoods afterwards.
+        v = modloglik  # no new array; downstream code can read from this view
+        modloglik = None  # prevent accidental use of corrupted modloglik
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
         # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
+        g = work.get_buffer("scratch_2D")  # reuse for g workspace
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             #--------------------------FORTRAN CODE-------------------------
@@ -1116,10 +1142,9 @@ def optimize(
             # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
             # usum = sum( u(bstrt:bstp) )
             #---------------------------------------------------------------
-            z_slice = z[:, :, :]  # shape: (block_size, nw, num_mix) - no model indexing needed
             # Reshape v_slice for broadcasting over z_slice
             v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-            u = v_slice_reshaped * z_slice  # shape: (block_size, nw, num_mix)
+            u = v_slice_reshaped * z  # shape: (n_samples, nw, num_mix)
             assert u.shape == (N1, nw, num_mix)
             usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
             assert usum.shape == (32, 3)  # nw, num_mix
@@ -2011,6 +2036,15 @@ def _compute_source_densities(
     # !--- end for j
     return out_sources, out_logits
 
+
+def _inplace_softmax(arr):
+    # Stable in-place softmax along last axis.
+    assert arr.ndim >= 1
+    assert arr.shape[-1] >= 1
+    arr -= arr.max(axis=-1, keepdims=True) 
+    np.exp(arr, out=arr)
+    arr /= arr.sum(axis=-1, keepdims=True)
+    return arr  
 
 def generalized_gaussian_logprob(
     *,
