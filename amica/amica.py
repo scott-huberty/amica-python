@@ -1029,8 +1029,9 @@ def optimize(
             # TODO: consider keeping g and z separate once chunking is implemented
             component_loglik = np.logaddexp.reduce(z0, axis=-1, out=scratch) # across mixtures
             modloglik[:, h_index] += component_loglik.sum(axis=-1) # across components
-            scratch.fill(0)  # reset scratch for next use
-            scratch = None  # prevent accidental use of scratch until reassigned
+            # reset for next use and prevent accidental use of scratch until reassigned
+            scratch.fill(0)
+            scratch = None
 
             # !--- get normalized z
             # In-place softmax over mixtures: z = softmax(z0, axis=-1)
