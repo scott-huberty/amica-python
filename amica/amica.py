@@ -1104,7 +1104,7 @@ def optimize(
             #---------------------------------------------------------------
             
             # for do (i = 1, nw)
-            v_slice = v[:, h_index] # # shape: (block_size,)
+            v_h = v[:, h_index] #  select responsibilities for this model
             if do_newton:
                 #--------------------------FORTRAN CODE-------------------------
                 # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
@@ -1113,7 +1113,7 @@ def optimize(
                 # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
                 #---------------------------------------------------------------
                 b_slice = b[:, :] # shape: (n_samples, nw)
-                tmpsum_A_vec = np.sum(v_slice[:, np.newaxis] * b_slice ** 2, axis=0) # # shape: (nw,)
+                tmpsum_A_vec = np.sum(v_h[:, None] * b_slice ** 2, axis=0) # # shape: (nw,)
                 dsigma2_numer[:, h_index] += tmpsum_A_vec
                 dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
             elif not do_newton:
@@ -1128,8 +1128,8 @@ def optimize(
                 #---------------------------------------------------------------
                 # # Vectorized update for dc
                 data_slice = dataseg[:, :]
-                assert data_slice.shape[1] == v_slice.shape[0]  # should match block size
-                tmpsum_c_vec = np.sum(data_slice * v_slice[np.newaxis, :], axis=1)
+                assert data_slice.shape[1] == v_h.shape[0]  # should match block size
+                tmpsum_c_vec = np.sum(data_slice * v_h[None, :], axis=1)
                 # OR...(mathematicaly equivalent but not numerically stable):
                 # tmpsum_c_vec = data_slice @ v_slice 
             # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
@@ -1143,9 +1143,7 @@ def optimize(
             # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
             # usum = sum( u(bstrt:bstp) )
             #---------------------------------------------------------------
-            # Reshape v_slice for broadcasting over z_slice
-            v_slice_reshaped = v_slice[:, np.newaxis, np.newaxis]
-            u = v_slice_reshaped * z  # shape: (n_samples, nw, num_mix)
+            u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
             assert u.shape == (N1, nw, num_mix)
             usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
             assert usum.shape == (32, 3)  # nw, num_mix
