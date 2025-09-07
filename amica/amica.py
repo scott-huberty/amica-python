@@ -1112,8 +1112,7 @@ def optimize(
                 # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
                 # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
                 #---------------------------------------------------------------
-                b_slice = b[:, :] # shape: (n_samples, nw)
-                tmpsum_A_vec = np.sum(v_h[:, None] * b_slice ** 2, axis=0) # # shape: (nw,)
+                tmpsum_A_vec = np.sum(v_h[:, None] * b ** 2, axis=0) # # shape: (nw,)
                 dsigma2_numer[:, h_index] += tmpsum_A_vec
                 dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
             elif not do_newton:
@@ -1127,11 +1126,8 @@ def optimize(
                 # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
                 #---------------------------------------------------------------
                 # # Vectorized update for dc
-                data_slice = dataseg[:, :]
-                assert data_slice.shape[1] == v_h.shape[0]  # should match block size
-                tmpsum_c_vec = np.sum(data_slice * v_h[None, :], axis=1)
-                # OR...(mathematicaly equivalent but not numerically stable):
-                # tmpsum_c_vec = data_slice @ v_slice 
+                assert dataseg.shape[1] == v_h.shape[0]  # should match block size
+                tmpsum_c_vec = np.sum(dataseg * v_h, axis=1)
             # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
             # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
             dc_numer[:, h_index] += tmpsum_c_vec
