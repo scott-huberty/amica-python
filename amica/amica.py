@@ -983,7 +983,7 @@ def optimize(
             # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
             #---------------------------------------------------------------
             # TODO: Make that cleaner...
-            b = np.multiply(-1.0, wc[:, h_index][np.newaxis, :], out=b)
+            b = np.multiply(-1.0, wc[:, h_index], out=b)
             if config.do_reject:
                 #--------------------------FORTRAN CODE-------------------------
                 # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
@@ -997,7 +997,7 @@ def optimize(
                 #    b(bstrt:bstp,:,h),tblksize)
                 #---------------------------------------------------------------
                 # TODO: use np.add with out param to avoid temporary array
-                b[:, :] += (dataseg[:, :].T @ W[:, :, h_index].T)
+                b += (dataseg.T @ W[:, :, h_index].T)
             # end else
 
             # --- Subsection: Source density and mixture log-likelihood (z0) ---
