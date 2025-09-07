@@ -757,6 +757,7 @@ def _core_amica(
     return state, LL
 
 
+@line_profiler.profile
 def optimize(
         *,
         X,
@@ -1731,7 +1732,6 @@ def get_seg_list(raw):
     return blocks_in_sample, num_samples, all_blks
 
 
-@line_profiler.profile
 def get_updates_and_likelihood(
     X,
     *,
@@ -1756,7 +1756,7 @@ def get_updates_and_likelihood(
     """
     pass
 
-@line_profiler.profile
+
 def compute_model_e_step(
         *,
         X,
@@ -1830,7 +1830,7 @@ def compute_model_e_step(
     """
     pass
 
-@line_profiler.profile
+
 def _compute_source_densities(
         *,
         pdftype: int,
