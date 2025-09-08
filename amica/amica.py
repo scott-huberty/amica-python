@@ -76,6 +76,15 @@ import numpy.typing as npt
 Samples1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
 """Alias for a 1D array with shape (n_samples,)."""
 
+Data2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_features, n_samples)"]
+"""Alias for a 2D array with shape (n_features, n_samples)."""
+
+Weights2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components, n_features)"]
+"""Alias for a 2D array with shape (n_components, n_features)."""
+
+Bias1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components,)"]
+"""Alias for a 1D array with shape (n_components,)."""
+
 Sources2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components)"]
 """Alias for a 2D array with shape (n_samples, n_components)."""
 
@@ -950,11 +959,11 @@ def optimize(
         # - Aggregate mixture likelihoods with log-sum-exp
         # - Compute normalized responsibilities within each component
         #---------------------------------------------------------------------------------
+        b = work.get_buffer("b")
         z = work.get_buffer("z")
         modloglik = work.get_buffer("modloglik")
         scratch = work.get_buffer("scratch_2D") # will be reused as g
-        assert z.shape == (N1, nw, num_mix)
-        assert modloglik.shape == (N1, num_models)
+        
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             comp_indices = comp_list[:, h_index] - 1
@@ -963,11 +972,9 @@ def optimize(
             dataseg = X
             N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
             # Get workspace buffers using improved interface
-            b = work.get_buffer("b")
             fp = work.get_buffer("fp")
             y = work.get_buffer("y")
 
-            assert b.shape == (N1, nw)              # No model dimension needed
             assert y.shape == (N1, nw, num_mix)  # No model dimension needed
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
@@ -978,32 +985,17 @@ def optimize(
                 )
             
             # !--- get b
-            # if update_c and update_A:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
-            #---------------------------------------------------------------
-            # TODO: Make that cleaner...
-            b = np.multiply(-1.0, wc[:, h_index], out=b)
-            if config.do_reject:
-                #--------------------------FORTRAN CODE-------------------------
-                # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
-                #       W(:,:,h),nw,dble(1.0),b(bstrt:bstp,:,h),tblksize)
-                #---------------------------------------------------------------
-                raise NotImplementedError()
-            else:
-                # Multiply the transpose of the data w/ the transpose of the unmixing matrix
-                #--------------------------FORTRAN CODE-------------------------
-                # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp),nx,W(:,:,h),nw,dble(1.0), &
-                #    b(bstrt:bstp,:,h),tblksize)
-                #---------------------------------------------------------------
-                # TODO: use np.add with out param to avoid temporary array
-                b += (dataseg.T @ W[:, :, h_index].T)
-            # end else
+            b = compute_preactivations(
+                X=dataseg,
+                unmixing_matrix=state.W[:, :, h_index],
+                bias=wc[:, h_index],
+                do_reject=config.do_reject,
+                out_activations=b,
+            )
 
             # --- Subsection: Source density and mixture log-likelihood (z0) ---
             # Compute scaled sources y and per-mixture log-densities z0 for each component.
             # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
-            
             y, z = _compute_source_densities(
                 pdftype=config.pdftype,
                 b=b,
@@ -1851,6 +1843,77 @@ def compute_model_e_step(
     pass
 
 
+def compute_preactivations(
+        *,
+        X: Data2D,  # (n_features, n_samples)
+        unmixing_matrix: Weights2D,  # (n_components, n_features)
+        bias: Bias1D,  # (n_components,)
+        do_reject=False, 
+        out_activations: Optional[Sources2D] = None,  # (n_samples, n_components)
+) -> Sources2D:
+    """Compute source pre-activations b[t, :] = X_t^T @ W^T - wc for model h.
+    
+    Parameters
+    ----------
+    X : array, shape (n_features, n_samples)
+        Data matrix
+    unmixing_matrix : array, shape (n_components, n_features)
+        Unmixing matrix weights (W) for a single model h, that maps data to sources.
+    bias : array, shape (n_components,)
+        Weight correction (wc) vector for model h e.g. wc[:, h_index]
+    do_reject : bool
+        Whether to perform rejection. Currently not implemented.
+    out_activations : array, shape (T, N)
+        Output buffer for pre-activations (b). If None, a new array is allocated.
+        This array is modified in-place.
+    
+    Returns
+    -------
+    b : array, shape (T, N)
+        Pre-activations matrix of shape (n_samples, n_features)
+    """
+    # if update_c and update_A:
+    #--------------------------FORTRAN CODE-------------------------
+    # call DSCAL(nw*tblksize,dble(0.0),b(bstrt:bstp,:,h),1)
+    #---------------------------------------------------------------
+    # Alias terms for clarity with Fortran code
+    dataseg = X
+    W = unmixing_matrix
+    wc = bias
+    if out_activations is None:
+        n_components = W.shape[0]
+        n_samples = X.shape[1]
+        out_activations = np.empty((n_samples, n_components), dtype=np.float64)
+    b = out_activations
+    assert wc.ndim == 1, f"wc must be 1D, got {wc.ndim}D"
+    assert W.ndim == 2, f"W must be 2D, got {W.ndim}D"
+    assert dataseg.ndim == 2, f"dataseg must be 2D, got {dataseg.ndim}D"
+    assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
+
+    if do_reject:
+        #--------------------------FORTRAN CODE-------------------------
+        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
+        #       W(:,:,h),nw,dble(1.0),b(bstrt:bstp,:,h),tblksize)
+        #---------------------------------------------------------------
+        raise NotImplementedError("do_reject (rejecting bad data) is not implemented.")
+    else:
+        # Multiply the transpose of the data w/ the transpose of the unmixing matrix
+        #--------------------------FORTRAN CODE-------------------------
+        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp),nx,W(:,:,h),nw,dble(1.0), &
+        #    b(bstrt:bstp,:,h),tblksize)
+        #---------------------------------------------------------------
+        
+        # Matrix multiplication to get pre-activations
+        # This is equivalent to (f=features, t=samples, c=components):
+        # np.einsum("ft,cf->tc", dataseg, W)
+        np.matmul(dataseg.T, W.T, out=b)
+    # end else
+    # Subtract the weight correction factor
+    # TODO: when chunking, we may need to init bias first.
+    b -= wc
+    return b
+
+
 def _compute_source_densities(
         *,
         pdftype: int,
@@ -1872,7 +1935,7 @@ def _compute_source_densities(
     Parameters
     ----------
     pdftype : int
-        Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
+        Probability density function type. Currently, only 0 (Gaussian) is supported.
     b : np.ndarray
         Per-sample, per-component source estimates, of shape (n_samples, n_components).
         Not modified.
