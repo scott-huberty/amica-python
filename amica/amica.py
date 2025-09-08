@@ -70,7 +70,7 @@ from state import (
 
 import line_profiler
 
-from typing import Annotated, Optional, Tuple, TypeAlias
+from typing import Annotated, Optional, Tuple, TypeAlias, Literal
 import numpy.typing as npt
 
 Samples1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
@@ -841,17 +841,6 @@ def optimize(
         # ==============================================================================
         
         # !----- get determinants
-        #--------------------------------FORTRAN CODE------------------------------
-        # do h = 1,num_models
-        #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
-        # ....
-        #    call DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
-        # ...
-        # Dtemp(h) = dble(0.0)
-        # do i = 1,nw
-        # ...
-        #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
-        # ------------------------------------------------------------------------
         work.zero_all()
         metrics = IterationMetrics(
             iter=iter,
@@ -860,20 +849,16 @@ def optimize(
         )
         iter = metrics.iter
 
+
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # Use slogdet on the original unmixing matrix to get sign and log|det|
-            sign, logabsdet = np.linalg.slogdet(state.W[:, :, h_index])
-            if sign == 0:
-                print(f"Model {h} determinant is zero!")
-                Dtemp[h_index] = minlog
-                raise ValueError("Determinant is zero. Raising explicitly for now")
-            else:
-                Dtemp[h_index] = logabsdet
-                Dsign[h_index] = 1 if sign > 0 else -1
-
-            # lwork = 5 * nx * nx
-            # assert lwork == 5120            
+            sign, logabsdet = compute_sign_log_determinant(
+                unmixing_matrix=state.W[:, :, h_index],
+                minlog=minlog,
+            )
+            Dtemp[h_index] = logabsdet
+            Dsign[h_index] = sign        
 
             # Determinant computed above via slogdet (sign stored in Dsign)
             if h == 1 and iter == 1:
@@ -1841,6 +1826,73 @@ def compute_model_e_step(
     and returns the modified arrays.
     """
     pass
+
+
+def compute_sign_log_determinant(
+        *,
+        unmixing_matrix: Weights2D,
+        minlog: float = -1500,
+        mode: Literal["strict", "fallback"] = "strict", 
+) -> tuple[Literal[-1, 1], float]:
+    """Compute the sign and log-determinant of the unmixing matrix for a single model.
+    
+    Parameters
+    ----------
+    unmixing_matrix: array, shape (n_components, n_features)
+        The unmixing matrix W for a single model h (i.e. a 2D slice of state.W).
+    minlog: float
+        Minimum log value: log absolute determinant to return if the computed
+        log-determinant is zero. Default is -1500, but currently if the computed
+        log-determinant is zero, an error is raised instead.
+    mode: str
+        Mode for handling cases where the computed log-determinant is zero.
+        default is "strict", Options are:
+        - "strict": Raise a ValueError if the log-determinant is zero.
+        - "fallback": Issue a warning and then set the log-determinant to minlog
+            (default: -1500) and set sign to -1.
+
+    Returns
+    -------
+    sign: {-1, 1}
+        The sign of the determinant (+1 or -1). In "fallback" mode, sign is set to −1 if
+        the determinant is zero, to maintain the invariant that sign ∈ {−1, 1} (never 0).
+    logabsdet: float
+        The (natural) log-determinant of the unmixing matrix. In "fallback" mode, this is
+        set to minlog (default: -1500).
+    """
+    #--------------------------------FORTRAN CODE------------------------------
+    #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
+    # ....
+    #    call DGEQRF(nw,nw,Wtmp,nw,wr,work,lwork,info)
+    # ...
+    # Dtemp(h) = dble(0.0)
+    # ...
+    #   Dtemp(h) = Dtemp(h) + log(abs(Wtmp(i,i)))
+    # ------------------------------------------------------------------------
+    # Alias for clarity with Fortran code
+    W = unmixing_matrix
+    sign, logabsdet = np.linalg.slogdet(W)
+    # TODO: slogdet requires a square unmixing matrix. Confirm that AMICA gaurantees this
+    if logabsdet == -np.inf or sign == 0:  # Model fit has collapsed.
+        msg = (
+                "Unmixing matrix (W) is singular (determinant = 0)\n\n"
+                "Details:\n"
+                f"- shape of W: {W.shape}\n"
+                f"- sign={sign}, log|det|={logabsdet}\n\n"
+                "Things to try:\n"
+                "- Check that your input data is rank-sufficient\n"
+                "- Reduce the number of components\n"
+        )
+        if mode == "strict":
+            # By default Let's raise an error until we can test this case properly
+            raise ValueError(msg)
+        else:
+            print(msg)
+            print(f"Setting log-determinant to {minlog} and sign to -1")
+            # fallback values (numerical hack to let training continue)
+            logabsdet = minlog
+            sign = -1  # matches dsign = 1 if det > 0 else -1 in Fortran
+    return sign, logabsdet
 
 
 def compute_preactivations(
