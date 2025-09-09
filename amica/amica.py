@@ -377,7 +377,7 @@ def amica(
                 print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
             raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
         
-        sldet = 0.0 # Logarithm of the determinant, initialized to zero
+        sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
         sldet -= 0.5 * np.sum(np.log(eigv))
         np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
         np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
@@ -957,25 +957,24 @@ def optimize(
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             comp_indices = comp_list[:, h_index] - 1
-            # --- Subsection: Baseline terms and unmixing ---
-            # compute_model_e_step
             dataseg = X
             N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
-            # Get workspace buffers using improved interface
             fp = work.get_buffer("fp")
             y = work.get_buffer("y")
 
-            assert y.shape == (N1, nw, num_mix)  # No model dimension needed
-
-            # -- 0. Baseline terms for per-sample model log-likelihood --
-            #--------------------------FORTRAN CODE-------------------------
-            # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
-            #---------------------------------------------------------------
-            modloglik[:, h_index] = np.add(
-                Dsum[h_index], np.log(gm[h_index]) + sldet,
-                out=modloglik[:, h_index]
-                )
+            # -- 0. Baseline terms for per-sample model log-likelihood --            
+            initial = get_initial_model_log_likelihood(
+                    unmixing_logdet=Dtemp[h_index],
+                    whitening_logdet=sldet,
+                    model_weight=gm[h_index],
+            )
+            # Broadcast to all samples
+            modloglik[:, h_index].fill(initial)
             
+            # ===========================================================================
+            #                       Expectation Step (E-step)
+            # ===========================================================================
+
             # 1. --- Compute source pre-activations
             # !--- get b
             b = compute_preactivations(
@@ -986,7 +985,7 @@ def optimize(
                 out_activations=b,
             )
 
-            # --- 2. Source densities, and per-sample mixture log-densities (logits) ---
+            # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
             y, z = _compute_source_densities(
                 pdftype=config.pdftype,
                 b=b,
@@ -1000,7 +999,7 @@ def optimize(
                 )
             z0 = z  # log densities (alias for clarity with Fortran code)
 
-            # --- 3. Aggregate mixture logits into per-sample model log likelihoods
+            # 3. --- Aggregate mixture logits into per-sample model log likelihoods
             compute_per_sample_model_loglikelihood(
                 log_densities=z0,
                 out_modloglik=modloglik[:, h_index],
@@ -1009,17 +1008,13 @@ def optimize(
             scratch.fill(0.0) # clear scratch for reuse
             scratch = None # guard against misuse until reassignment
             
-            
-            # -- 4. Responsibilities within each component ---
+            # 4. -- Responsibilities within each component ---
             # !--- get normalized z
             z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
             z0 = None  # Let's stick with one name to avoid confusion
-            
-            # end do (j)
-            # end do (i)
         # end do (h)
 
-        # === Section: Across-model Responsibilities and Total Log-Likelihood ===
+        # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
         #--------------------------FORTRAN CODE-----------------------------------------
         # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
         # !--- get LL, v
@@ -1892,6 +1887,48 @@ def compute_sign_log_determinant(
             logabsdet = minlog
             sign = -1  # matches dsign = 1 if det > 0 else -1 in Fortran
     return sign, logabsdet
+
+
+def get_initial_model_log_likelihood(
+        *,
+        unmixing_logdet: float,
+        whitening_logdet: float,
+        model_weight: float,
+) -> float:
+    """
+    Initialize the per-sample model log-likelihood with baseline terms.
+    
+    Parameters
+    ----------
+    unmixing_logdet : float
+        The log-determinant of the unmixing matrix (W) for this model.
+    whitening_logdet : float
+        The log-determinant of the sphering/whitening transform (S),
+        computed from the input data's whitening/sphering matrix. e.g. It's computed
+        as -0.5 ∑ log(λ_i) where λ_i are covariance eigenvalues.
+    model_weight : float
+        The mixture proportion (prior probability) for this model.
+
+    Returns
+    -------
+    initial_modloglik : float
+        A scalar baseline log-likelihood value. This should be broadcast across all
+        samples of the model log-likelihood array at the call site.
+    
+    Notes
+    -----
+    - The Jacobian from x → u is |det(W S)|, so log|det(W S)| = log|det(W)| +
+    log|det(S)| = Dsum[h] + sldet.
+    - S is positive-definite with full-rank whitening, so sldet has no sign
+    issue
+    """
+    if model_weight <= 0:
+        raise ValueError(f"model_weight must be > 0, got {model_weight}")  # pragma no cover noqa: E501
+    #--------------------------FORTRAN CODE-------------------------
+    # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
+    #---------------------------------------------------------------
+    initial_modloglik = unmixing_logdet + np.log(model_weight) + whitening_logdet
+    return initial_modloglik
 
 
 def compute_preactivations(
