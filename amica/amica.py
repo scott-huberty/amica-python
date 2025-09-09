@@ -998,7 +998,6 @@ def optimize(
                 out_sources=y,
                 out_logits=z,
                 )
-            # # TODO: consider keeping z and z0 separate once chunking is implemented
             z0 = z  # log densities (alias for clarity with Fortran code)
 
             # --- 3. Aggregate mixture logits into per-sample model log likelihoods
@@ -1008,13 +1007,13 @@ def optimize(
                 scratch=scratch,
             )
             scratch.fill(0.0) # clear scratch for reuse
-            scratch = None # prevent accidental use of scratch
+            scratch = None # guard against misuse until reassignment
             
             
             # -- 4. Responsibilities within each component ---
             # !--- get normalized z
             z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-            z0 = None  # end of z0's lifetime; prevent accidental use
+            z0 = None  # Let's stick with one name to avoid confusion
             
             # end do (j)
             # end do (i)
@@ -1058,10 +1057,9 @@ def optimize(
         else:
             modloglik = _inplace_softmax(modloglik)
 
-        # NOTE: modloglik was mutated in-place to responsibilities (v); do not read as
-        # log-likelihoods afterwards.
-        v = modloglik  # no new array; downstream code can read from this view
-        modloglik = None  # prevent accidental use of corrupted modloglik
+        # NOTE: modloglik was mutated in-place to responsibilities (v)
+        v = modloglik
+        modloglik = None  # guard against use of mutated modloglik
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
