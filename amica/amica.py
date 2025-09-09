@@ -97,9 +97,11 @@ Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_mixt
 Index1D: TypeAlias  = Annotated[npt.NDArray[np.integer], "(n_features,)"]
 """Alias for a 1D array with shape (n_features,)."""
 
-Buffer3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_mixtures, n_components)"]
-"""Alias for a 3D array with shape (n_samples, n_mixtures, n_components)."""
+Buffer3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components, n_mixtures)"]
+"""Alias for a 3D array with shape (n_samples, n_components, n_mixtures)."""
 
+Likelihood2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_models)"]
+"""Alias for a 2D array with shape (n_samples, n_models)."""
 
 sbetatmp = sbetatmp.T
 
@@ -125,6 +127,9 @@ def get_component_indices(num_comps: int, num_models: int):
     comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
     return comp_list, comp_used
 
+
+# TODO's
+# - consider keeping z and z0 separate once chunking is implemented
 
 def amica(
         X,
@@ -961,6 +966,8 @@ def optimize(
             y = work.get_buffer("y")
 
             assert y.shape == (N1, nw, num_mix)  # No model dimension needed
+
+            # -- 0. Baseline terms for per-sample model log-likelihood --
             #--------------------------FORTRAN CODE-------------------------
             # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
             #---------------------------------------------------------------
@@ -969,6 +976,7 @@ def optimize(
                 out=modloglik[:, h_index]
                 )
             
+            # 1. --- Compute source pre-activations
             # !--- get b
             b = compute_preactivations(
                 X=dataseg,
@@ -978,9 +986,7 @@ def optimize(
                 out_activations=b,
             )
 
-            # --- Subsection: Source density and mixture log-likelihood (z0) ---
-            # Compute scaled sources y and per-mixture log-densities z0 for each component.
-            # Handles Gaussian/Laplacian/generalized Gaussian via rho-specific branches.
+            # --- 2. Source densities, and per-sample mixture log-densities (logits) ---
             y, z = _compute_source_densities(
                 pdftype=config.pdftype,
                 b=b,
@@ -992,29 +998,25 @@ def optimize(
                 out_sources=y,
                 out_logits=z,
                 )
-            # z contains per-mixture log-densities; converted to probs in-place below
-            # TODO: consider keeping z and z0 separate once chunking is implemented
-            z0 = z  # log densities (alias for clarity)
+            # # TODO: consider keeping z and z0 separate once chunking is implemented
+            z0 = z  # log densities (alias for clarity with Fortran code)
 
-            # --- Subsection: Aggregate mixtures (log-sum-exp) and responsibilities z ---
-            # Add the log-likelihood of this component across mixtures and normalize to z.
-            #--------------------------FORTRAN CODE-------------------------
-            # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
-            # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
-            #---------------------------------------------------------------
-            # g's lifetime does not overlap with z's, so we can reuse it as workspace
-            # TODO: consider keeping g and z separate once chunking is implemented
-            component_loglik = np.logaddexp.reduce(z0, axis=-1, out=scratch) # across mixtures
-            modloglik[:, h_index] += component_loglik.sum(axis=-1) # across components
-            # reset for next use and prevent accidental use of scratch until reassigned
-            scratch.fill(0)
-            scratch = None
-
-            # !--- get normalized z
+            # --- 3. Aggregate mixture logits into per-sample model log likelihoods
+            compute_per_sample_model_loglikelihood(
+                log_densities=z0,
+                out_modloglik=modloglik[:, h_index],
+                scratch=scratch,
+            )
+            scratch.fill(0.0) # clear scratch for reuse
+            scratch = None # prevent accidental use of scratch
+            
+            
+            # -- 4. Responsibilities within each component ---
+            # !--- get normalized z            
             # In-place softmax over mixtures: z = softmax(z0, axis=-1)
             # Using z itself as workspace: log-densities -> responsibilities
             z = _inplace_softmax(z0)
-            z0 = None  # prevent accidental use of z0 instead of z
+            z0 = None  # end of z0's lifetime; prevent accidental use
             # end do (j)
             # end do (i)
         # end do (h)
@@ -2020,6 +2022,10 @@ def _compute_source_densities(
     Notes
     -----
     logits/log_densities == z0 in Fortran code.
+
+    For each sample t, component i, mixture j, evaluate the log of the source
+    distribution density: How likely each individual source sample is under each
+    mixture component.
     """
     N1 = b.shape[0]
     nw = len(comp_indices)
@@ -2146,6 +2152,50 @@ def _compute_source_densities(
     # !--- end for j
     return out_sources, out_logits
 
+
+def compute_per_sample_model_loglikelihood(
+        *,
+        log_densities: Sources3D,
+        out_modloglik: Optional[Samples1D] = None,
+        scratch: Optional[Sources2D] = None,
+):
+    """Compute the per-sample log-likelihood for a single model h.
+
+    Computes Logsumexp across mixtures for each component, then sums across components
+    to get the per-sample log-likelihood for this model.
+    
+    Parameters
+    ----------
+    log_densities : array, shape (N1, nw, num_mix)
+        Per-sample, per-component, per-mixture log-densities.
+    out_modloglik : array, shape (N1,)
+        Output array for per-sample log-likelihood for this model. If None,
+        a new array is allocated. This array is mutated in-place.
+    scratch : array, shape (N1, nw)
+        Scratch array for intermediate computations. If None, a new array is
+        allocated. This array is mutated in-place and then discarded.
+    """
+    assert log_densities.ndim == 3, f"log_densities must be 3D, got {log_densities.ndim}D"
+    N1 = log_densities.shape[0]
+    nw = log_densities.shape[1]
+    if out_modloglik is None:
+        out_modloglik = np.zeros((N1,), dtype=np.float64)
+    if scratch is None:
+        scratch = np.zeros((N1, nw), dtype=np.float64)
+    assert out_modloglik.shape == (N1,)
+    assert scratch.shape == (N1, nw)
+    # Alias for clarity with Fortran code
+    z0 = log_densities
+
+    #--------------------------FORTRAN CODE-------------------------
+    # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
+    # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
+    #---------------------------------------------------------------
+    # NOTE that the scratch array that was passe in will also be used for the g update.
+    # TODO: consider keeping g and z separate once chunking is implemented
+    component_loglik = np.logaddexp.reduce(z0, axis=-1, out=scratch) # across mixtures
+    out_modloglik += component_loglik.sum(axis=-1) # across components
+    return out_modloglik
 
 def _inplace_softmax(arr):
     # Stable in-place softmax along last axis.
