@@ -1015,17 +1015,11 @@ def optimize(
         # end do (h)
 
         # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
-        #--------------------------FORTRAN CODE-----------------------------------------
-        # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
-        # !--- get LL, v
-        # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
-        # vtmp(bstrt:bstp) = dble(0.0)
-        # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp
-        # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
-        # LLinc = sum( P(bstrt:bstp) )
-        # LLtmp = LLtmp + LLinc
-        #-------------------------------------------------------------------------------
-        loglik = np.logaddexp.reduce(modloglik, axis=1, out=loglik) # across models
+        loglik = compute_total_loglikelihood_per_sample(
+            modloglik=modloglik,
+            out_loglik=loglik,
+        )
+        # Total log-likelihood across all samples
         LLinc = loglik.sum()
 
         for h, _ in enumerate(range(num_models), start=1):
@@ -1037,7 +1031,7 @@ def optimize(
                 # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
                 # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
                 #---------------------------------------------------------------
-            
+
             #---------------Total Log-Likelihood and Model Responsibilities-----------------
             #--------------------------FORTRAN CODE-------------------------
             # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
@@ -2316,6 +2310,67 @@ def compute_mixture_responsibilities(
         z = _inplace_softmax(z)
     return z
 
+
+def compute_total_loglikelihood_per_sample(
+        *,
+        modloglik: Likelihood2D,
+        out_loglik: Optional[Samples1D] = None,
+) -> Samples1D:
+    """
+    Compute the total log-likelihood for each sample marginalized across models.
+    
+    Implements a stable log-sum-exp across the model axis for each sample.
+
+    Parameters
+    ----------
+    modloglik : array, shape (n_samples, n_models)
+        Per-sample, per-model log-likelihoods.
+    out_loglik : array, shape (n_samples,)
+        Output buffer. If provided, results are written in-place and returned. Must be
+        float64 and length n_samples. If None, a new array is allocated.
+    
+    Returns
+    -------
+    loglik : array, shape (n_samples,)
+        Total log-likelihood across models per sample.
+    
+    Notes
+    -----
+    Fortran reference:
+        Pmax = maxval(Ptmp, 2)
+        vtmp = sum(exp(Ptmp - Pmax), axis=1)
+        P = Pmax + log(vtmp)
+        dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
+    """
+    assert modloglik.ndim == 2, (
+        f"modloglik must be 2D (n_samples, n_models), got {modloglik.ndim}D"
+    )
+    assert modloglik.dtype == np.float64, (
+        f"modloglik must be float64, got {modloglik.dtype}"
+    )
+    if out_loglik is not None:
+        assert out_loglik.ndim == 1, (
+            f"out_loglik must be 1D, got {out_loglik.shape.ndim}D"
+        )
+        assert out_loglik.dtype == np.float64, (
+            f"out_loglik must be float64, got {out_loglik.dtype}"
+        )
+        assert out_loglik.shape[0] == modloglik.shape[0], (
+            f"out_loglik length {out_loglik.shape[0]} != modloglik n_samples "
+            f"{modloglik.shape[0]}"
+        )
+    #--------------------------FORTRAN CODE-----------------------------------------
+    # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
+    # !--- get LL, v
+    # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
+    # vtmp(bstrt:bstp) = dble(0.0)
+    # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp
+    # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
+    # LLinc = sum( P(bstrt:bstp) )
+    # LLtmp = LLtmp + LLinc
+    #-------------------------------------------------------------------------------
+    loglik = np.logaddexp.reduce(modloglik, axis=1, out=out_loglik) # across models
+    return loglik
 
 def compute_source_scores(
         *,
