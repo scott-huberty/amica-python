@@ -1012,11 +1012,10 @@ def optimize(
             
             
             # -- 4. Responsibilities within each component ---
-            # !--- get normalized z            
-            # In-place softmax over mixtures: z = softmax(z0, axis=-1)
-            # Using z itself as workspace: log-densities -> responsibilities
-            z = _inplace_softmax(z0)
+            # !--- get normalized z
+            z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
             z0 = None  # end of z0's lifetime; prevent accidental use
+            
             # end do (j)
             # end do (i)
         # end do (h)
@@ -2243,6 +2242,44 @@ def generalized_gaussian_logprob(
     np.subtract(out_logits, gamma_log + LOG_2, out=out_logits)
     return out_logits
 
+
+def compute_mixture_responsibilities(
+        *,
+        log_densities: Sources3D,
+        inplace: Literal[True, False] = True
+        ) -> Sources3D:
+    """
+    Convert per-mixture log-densities to responsibilities via softmax.
+    
+    Mutates log_densities in-place and returns it if inplace=True (default).
+
+    Parameters
+    ----------
+    log_densities : array, shape (N1, nw, num_mix)
+        Per-sample, per-component, per-mixture log-densities.
+    inplace : bool, default True
+        If True, mutates log_densities in-place and returns it.
+        If False, returns a new array and leaves log_densities unchanged.
+
+    Returns
+    -------
+    responsibilities : array, shape (N1, nw, num_mix)
+        Per-sample, per-component, per-mixture responsibilities.
+        Each slice [:, i, :] sums to 1 over axis=-1 (mixtures).
+    """
+    assert log_densities.ndim == 3, f"log_densities must be (N1, nw, num_mix), got {log_densities.shape}"
+    num_mix = log_densities.shape[-1]
+    if inplace:
+        # Use z as workspace: log-densities mutates into responsibilities
+        z = log_densities
+    else:
+        z = log_densities.copy()
+    # fast-path: if only 1 mixture, skip softmax and set responsibilities to 1
+    if num_mix == 1:
+        z.fill(1.0)
+    else:
+        z = _inplace_softmax(z)
+    return z
 
 
 def compute_source_scores(
