@@ -1000,7 +1000,7 @@ def optimize(
             z0 = z  # log densities (alias for clarity with Fortran code)
 
             # 3. --- Aggregate mixture logits into per-sample model log likelihoods
-            compute_per_sample_model_loglikelihood(
+            compute_model_loglikelihood_per_sample(
                 log_densities=z0,
                 out_modloglik=modloglik[:, h_index],
                 scratch=scratch,
@@ -2181,7 +2181,7 @@ def _compute_source_densities(
     return out_sources, out_logits
 
 
-def compute_per_sample_model_loglikelihood(
+def compute_model_loglikelihood_per_sample(
         *,
         log_densities: Sources3D,
         out_modloglik: Optional[Samples1D] = None,
