@@ -1051,7 +1051,8 @@ def optimize(
             #---------------------------------------------------------------
             
             # for do (i = 1, nw)
-            if do_newton:
+            if do_newton and iter >= newt_start:
+                # NOTE: Fortran computes this for in all iterations, but its not necessary
                 #--------------------------FORTRAN CODE-------------------------
                 # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
                 # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
@@ -1061,7 +1062,7 @@ def optimize(
                 tmpsum_A_vec = np.sum(v_h[:, None] * b ** 2, axis=0) # # shape: (nw,)
                 dsigma2_numer[:, h_index] += tmpsum_A_vec
                 dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
-            elif not do_newton:
+            elif not do_newton and iter >= newt_start:
                 raise NotImplementedError()
             # if update_c:
             if do_reject:
@@ -1313,9 +1314,6 @@ def optimize(
             assert dgm_numer[0] == 30504
             # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
             # assert_almost_equal(tmpsum, -52.929467835976844)
-            assert dsigma2_denom[31, 0] == 30504
-            assert_almost_equal(dsigma2_numer[31, 0], 30521.3202213734, decimal=6) # XXX: watch this
-            assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
             assert_almost_equal(dc_numer[31, 0], 0)
             assert dc_denom[31, 0] == 30504
             assert_allclose(v, 1)
@@ -2620,18 +2618,8 @@ def accum_updates_and_likelihood(
         # call MPI_REDUCE(dlambda_denom_tmp,dlambda_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dsigma2_numer_tmp,dsigma2_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dsigma2_denom_tmp,dsigma2_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # dbaralpha_numer[:, :, :] = dbaralpha_numer_tmp[:, :, :].copy()
-        # dbaralpha_denom[:, :, :] = dbaralpha_denom_tmp[:, :, :].copy()
         #---------------------------------------------------------------
         assert dbaralpha_denom[0, 0, 0] == 30504
-        # dkappa_numer[:, :, :] = dkappa_numer_tmp[:, :, :].copy()
-        # dkappa_denom[:, :, :] = dkappa_denom_tmp[:, :, :].copy()
-        # dlambda_numer[:, :, :] = dlambda_numer_tmp[:, :, :].copy()
-        # dlambda_denom[:, :, :] = dlambda_denom_tmp[:, :, :].copy()
-        # dsigma2_numer[:, :] = dsigma2_numer_tmp[:, :].copy()
-        # dsigma2_denom[:, :] = dsigma2_denom_tmp[:, :].copy()
-        # NOTE: This is the first newton iteration, and we are already pretty far from the expected values
-        # NOTE: The differences are huge.
 
 
     # if (seg_rank == 0) then
@@ -2807,9 +2795,6 @@ def accum_updates_and_likelihood(
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert dgm_numer[0] == 30504
-        # FIXME: this shouldnt be true... dsigma2_number should not be assigned until iter 50
-        assert_almost_equal(dsigma2_numer[0, 0], 30517.927488143538, decimal=6)
-        assert dsigma2_denom[31, 0] == 30504
         
         assert np.all(dkappa_numer == 0)
         assert np.all(dkappa_denom == 0)
@@ -2822,9 +2807,7 @@ def accum_updates_and_likelihood(
         assert_almost_equal(dAK[0, 0], 0.44757153346268763)
         assert_almost_equal(nd[0], 0.20135421232976469)
     elif iter == 2:
-        assert dgm_numer[0] == 30504
-        assert dsigma2_denom[31, 0] == 30504
-        assert_almost_equal(dsigma2_numer[31, 0], 30519.2998249066, decimal=6)              
+        assert dgm_numer[0] == 30504            
         assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
         assert_almost_equal(dAK[0, 0], 0.32313767684058614)
 
