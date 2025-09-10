@@ -1039,16 +1039,10 @@ def optimize(
         # Model responsibilities (per sample)
         # in-place softmax over models: modloglik becomes v (responsibilities)
         # TODO: consider keeping v and modloglik separate once chunking is implemented
-
-        # fast-path: if only one model, skip softmax and set responsibilities to 1
-        if num_models == 1:
-            modloglik.fill(1.0)
-        else:
-            modloglik = _inplace_softmax(modloglik)
-
+        modloglik = compute_model_responsibilities(modloglik=modloglik, inplace=True)
         # NOTE: modloglik was mutated in-place to responsibilities (v)
         v = modloglik
-        modloglik = None  # guard against use of mutated modloglik
+        modloglik = None  # guard against use of stale name
 
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
@@ -2371,6 +2365,41 @@ def compute_total_loglikelihood_per_sample(
     #-------------------------------------------------------------------------------
     loglik = np.logaddexp.reduce(modloglik, axis=1, out=out_loglik) # across models
     return loglik
+
+
+def compute_model_responsibilities(
+        *, modloglik: Likelihood2D,
+        inplace: bool = True
+        ) -> Likelihood2D:
+    """
+    Compute model responsibilities via softmax over models.
+
+    Parameters
+    ----------
+    modloglik : array, shape (n_samples, n_models)
+        Per-sample, per-model log-likelihoods.
+    inplace : bool, optional
+        If True, perform the operation in-place, mutating `modloglik`.
+        If False, return a new array with the responsibilities.
+    
+    Returns
+    -------
+    responsibilities : array, shape (n_samples, n_models)
+        Per-sample, per-model responsibilities (posterior probabilities).
+    """
+    assert modloglik.ndim == 2, (
+        f"Expected 2D array (n_samples, n_models) for modloglik, got {modloglik.shape}"
+    )
+    num_models = modloglik.shape[1]
+    if not inplace:
+        modloglik = modloglik.copy()
+    # fast-path: if only one model, skip softmax and set responsibilities to 1
+    if num_models == 1:
+        modloglik.fill(1.0)
+    else:
+        modloglik = _inplace_softmax(modloglik)
+    return modloglik
+
 
 def compute_source_scores(
         *,
