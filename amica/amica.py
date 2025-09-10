@@ -886,6 +886,7 @@ def optimize(
         alpha = state.alpha
 
         updates.reset()
+        import pdb; pdb.set_trace()
 
         dgm_numer = updates.dgm_numer
         dmu_numer = updates.dmu_numer
@@ -1079,14 +1080,18 @@ def optimize(
             # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
             dc_numer[:, h_index] += tmpsum_c_vec
             dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
-            
-            
+
             #--------------------------FORTRAN CODE-------------------------
             # for do (j = 1, num_mix)
             # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
             # usum = sum( u(bstrt:bstp) )
             #---------------------------------------------------------------
-            u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
+            # per-sample, per-component, per-mixture responsibilities weighted by model responsibility
+            # fast-path: for num_models == 1, v is all ones and thus u == z
+            if num_models == 1:
+                u = z
+            else:
+                u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
             assert u.shape == (N1, nw, num_mix)
             usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
             assert usum.shape == (32, 3)  # nw, num_mix
@@ -1171,17 +1176,17 @@ def optimize(
 
             # Alpha (mixture weights)
             # if update_alpha:
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
-            # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
-            # -----------------------------------------------------------------------
             # NOTE: the vectorization of this variable results in some numerical differences
             # That propogate to several other variables due to a dependency chan
             # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
             comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-            dalpha_numer[comp_indices, :] += usum  # shape: (nw, num_mix)
-            dalpha_denom[comp_indices, :] += vsum  # shape: (nw, num_mix)
+
+            dalpha_numer[comp_indices, :], dalpha_denom[comp_indices, :] = accumulate_alpha_stats(
+                                usum=usum,
+                                vsum=vsum,
+                                out_numer=dalpha_numer[comp_indices, :],
+                                out_denom=dalpha_denom[comp_indices, :],
+            )
 
             # Mu (location)
             # if update_mu:
@@ -2552,6 +2557,64 @@ def accumulate_scores(
     np.einsum('tnj,nj->tn', ufp, sbeta_h, optimize=True, out=g)
     return ufp, g
 
+
+def accumulate_alpha_stats(
+        *,
+        usum: Params2D,
+        vsum: np.float64,
+        out_numer: Params2D,
+        out_denom: Params2D
+        ) -> Tuple[Params2D, Params2D]:
+    """
+    Accumulate sufficient statistics for alpha (mixture weights) update.
+    
+    Parameters
+    ----------
+    usum : np.ndarray
+        Shape (nw, num_mix). The per-source, per-mixture total
+        responsibility mass across all samples (i.e. the sum across samples).
+    vsum : float
+        the total responsibility mass for the current model across all
+        samples (i.e. the sum across samples).
+    out_numer : np.ndarray
+        Shape (nw, num_mix). Accumulator for the numerator of the alpha
+        gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (nw, num_mix). Accumulator for the denominator of the alpha
+        gradient. This array is mutated in-place and returned.
+    
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+    
+    Notes
+    -----
+    Fortran reference:
+        for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
+            dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
+            dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
+    
+    ..Warning::
+        If you pass a slice created via fancy indexing, NumPy will return a copy, so you
+        must reassign the result back into the parent array.
+    """
+    assert out_numer.shape == usum.shape, (
+        f"out_numer shape {out_numer.shape} != usum shape {usum.shape}"
+    )
+    assert np.isscalar(vsum), f"vsum must be a scalar, got {vsum}"
+    # -------------------------------FORTRAN--------------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
+    # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
+    # -----------------------------------------------------------------------
+    out_numer += usum
+    out_denom += vsum
+    return out_numer, out_denom
 
 def accum_updates_and_likelihood(
         config,
