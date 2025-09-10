@@ -942,13 +942,6 @@ def optimize(
         tblksize = int(bsize / num_thrds)
         # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
         '''
-        
-        # === Section: E-step per Model ===
-        # - Transform data via unmixing (b = W^T @ X)
-        # - Evaluate source densities (per component and mixture)
-        # - Aggregate mixture likelihoods with log-sum-exp
-        # - Compute normalized responsibilities within each component
-        #---------------------------------------------------------------------------------
         b = work.get_buffer("b")
         z = work.get_buffer("z")
         modloglik = work.get_buffer("modloglik")
@@ -1011,7 +1004,7 @@ def optimize(
             # 4. -- Responsibilities within each component ---
             # !--- get normalized z
             z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-            z0 = None  # Let's stick with one name to avoid confusion
+            z0 = None  # guard against use of stale name
         # end do (h)
 
         # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
@@ -1022,28 +1015,22 @@ def optimize(
         # Total log-likelihood across all samples
         LLinc = loglik.sum()
 
-        for h, _ in enumerate(range(num_models), start=1):
-            if do_reject:
-                raise NotImplementedError()
-            else:
-                pass
-                #--------------------------FORTRAN CODE-------------------------
-                # dataseg(seg)%modloglik(h,xstrt:xstp) = Ptmp(bstrt:bstp,h)
-                # dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
-                #---------------------------------------------------------------
-
-            #---------------Total Log-Likelihood and Model Responsibilities-----------------
-            #--------------------------FORTRAN CODE-------------------------
-            # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
-            #---------------------------------------------------------------
-        # Model responsibilities (per sample)
-        # in-place softmax over models: modloglik becomes v (responsibilities)
-        # TODO: consider keeping v and modloglik separate once chunking is implemented
-        modloglik = compute_model_responsibilities(modloglik=modloglik, inplace=True)
-        # NOTE: modloglik was mutated in-place to responsibilities (v)
+        if do_reject:
+            raise NotImplementedError()
+        else:    
+            # 6. --- Responsibilities for each model ---
+            modloglik = compute_model_responsibilities(modloglik=modloglik, inplace=True)
+            # NOTE: modloglik was mutated in-place to responsibilities (v)
+            # consider keeping v and modloglik separate
         v = modloglik
         modloglik = None  # guard against use of stale name
 
+        # ================================ M-STEP =======================================
+        # === Maximization-step: Parameter Updates ===
+        # - Update parameters based on current responsibilities
+        # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
+        # ===============================================================================
+        
         # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
         # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
@@ -1054,7 +1041,8 @@ def optimize(
             # vsum = sum( v(bstrt:bstp,h) )
             # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
             #---------------------------------------------------------------
-            vsum = v[:, h_index].sum()
+            v_h = v[:, h_index] #  select responsibilities for this model
+            vsum = v_h.sum()
             dgm_numer[h_index] += vsum
 
             # if update_A:
@@ -1063,7 +1051,6 @@ def optimize(
             #---------------------------------------------------------------
             
             # for do (i = 1, nw)
-            v_h = v[:, h_index] #  select responsibilities for this model
             if do_newton:
                 #--------------------------FORTRAN CODE-------------------------
                 # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
@@ -2386,20 +2373,28 @@ def compute_model_responsibilities(
     -------
     responsibilities : array, shape (n_samples, n_models)
         Per-sample, per-model responsibilities (posterior probabilities).
+    
+    Notes
+    -----
+    Fortran reference:
+        v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
     """
     assert modloglik.ndim == 2, (
         f"Expected 2D array (n_samples, n_models) for modloglik, got {modloglik.shape}"
     )
     num_models = modloglik.shape[1]
-    if not inplace:
-        modloglik = modloglik.copy()
+    assert num_models >= 1, f"modloglik must have at least one model. Got {num_models}"
+    v = modloglik if inplace else modloglik.copy()
+    #--------------------------FORTRAN CODE-------------------------
+    # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
+    #---------------------------------------------------------------
+
     # fast-path: if only one model, skip softmax and set responsibilities to 1
     if num_models == 1:
-        modloglik.fill(1.0)
+        v.fill(1.0)
     else:
-        modloglik = _inplace_softmax(modloglik)
-    return modloglik
-
+        v = _inplace_softmax(v)
+    return v
 
 def compute_source_scores(
         *,
