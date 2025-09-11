@@ -1059,20 +1059,15 @@ def optimize(
                 out_denom=dc_denom[:, h_index],
             )
 
-            #--------------------------FORTRAN CODE-------------------------
-            # for do (j = 1, num_mix)
-            # u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
-            # usum = sum( u(bstrt:bstp) )
-            #---------------------------------------------------------------
-            # per-sample, per-component, per-mixture responsibilities weighted by model responsibility
-            # fast-path: for num_models == 1, v is all ones and thus u == z
-            if num_models == 1:
-                u = z
-            else:
-                u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
+
+            u = compute_weighted_responsibilities(
+                mixture_responsibilities=z,
+                model_responsibilities=v_h,
+                single_model=(num_models == 1),
+            )
             assert u.shape == (N1, nw, num_mix)
-            usum = u[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            assert usum.shape == (32, 3)  # nw, num_mix
+            usum = u.sum(axis=0)  # shape: (nw, num_mix)
+            assert usum.shape == (nw, num_mix)  # nw, num_mix
             
             assert rho.shape == (config.n_components, num_mix)
             if iter == 6 and h == 1: # and blk == 1:
@@ -2288,6 +2283,65 @@ def compute_model_responsibilities(
     else:
         v = _inplace_softmax(v)
     return v
+
+
+def compute_weighted_responsibilities(
+        *,
+        mixture_responsibilities: Sources3D,
+        model_responsibilities: Samples1D,
+        single_model: bool = True,
+) -> Sources3D:
+    """
+    Compute per-sample, per-component, per-mixture responsibilities...
+
+    Weighted by model responsibility.
+
+    Parameters
+    ----------
+    mixture_responsibilities : array, shape (n_samples, n_components, n_mixtures)
+        Per-sample, per-component, per-mixture responsibilities, such that
+        for each sample and component, the responsibilities sum to 1 across
+        mixtures. This is `z` in the Fortran code.
+    model_responsibilities : array, shape (n_samples,)
+        Per-sample responsibilities for the current model. If single_model is True,
+        this array is all ones. This is `v(:, h)` in the Fortran code.
+    single_model : bool, default=True
+        If True, indicates that there is only one model. In this case,
+        the model responsibilities are all 1, and the weighted
+        responsibilities are equal to the mixture responsibilities. This
+        unlocks an optimization to avoid unnecessary computation.
+
+    Returns
+    -------
+    weighted_responsibilities : array, shape (n_samples, n_components, n_mixtures)
+        Per-sample, per-component, per-mixture responsibilities weighted by
+        the model responsibility. This is `u` in the Fortran code. Note that if
+        `single_model` is True, weighted_responsibilities is a view of
+        mixture_responsibilities (no copy is made).
+    
+    Notes
+    -----
+    Fortran reference:
+        u(bstrt:bstp) = v(bstrt:bstp,h) * z(bstrt:bstp,i,j,h)
+    """
+    # Alias for clarity with Fortran code
+    z = mixture_responsibilities
+    v_h = model_responsibilities
+
+
+    assert z.ndim == 3, f"z must be 3D, got {z.ndim}D"
+    assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
+    assert z.shape[0] == v_h.shape[0], (
+        f"z.shape[0]={z.shape[0]} != v_h.shape[0]={v_h.shape[0]}"
+    )
+    # fast-path: for num_models == 1, v is all ones and thus u == z
+    if single_model:
+        return z  # NOTE: returns a view of z, no copy 
+    else:
+        # Weight mixture responsibilities by model responsibility
+        u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
+    return u
+
 
 def compute_source_scores(
         *,
