@@ -135,6 +135,9 @@ def get_component_slice(h: int, n_components: int) -> slice:
 
 # TODO's
 # - consider keeping z and z0 separate once chunking is implemented
+# - consider giving g its own array one chunking is implemented
+# - if we never chunk process the M-step, then numer/denom updates are once per iteration
+#   so we can assign directly instead of accumulating e.g. dalpha_denom.fill(vsum)
 
 def amica(
         X,
@@ -1155,76 +1158,32 @@ def optimize(
             # end if (do_newton and iter >= newt_start)
             elif not do_newton and iter >= newt_start:
                 raise NotImplementedError()
-            # end if (update_A)
 
             # Alpha (mixture weights)
-            # if update_alpha:
-            # NOTE: the vectorization of this variable results in some numerical differences
-            # That propogate to several other variables due to a dependency chan
-            # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
-            dalpha_numer[comp_slice, :], dalpha_denom[comp_slice, :] = accumulate_alpha_stats(
-                                usum=usum,
-                                vsum=vsum,
-                                out_numer=dalpha_numer[comp_slice, :],
-                                out_denom=dalpha_denom[comp_slice, :],
+            accumulate_alpha_stats(
+                usum=usum,
+                vsum=vsum,
+                out_numer=dalpha_numer[comp_slice, :],
+                out_denom=dalpha_denom[comp_slice, :],
             )
-
             # Mu (location)
-            # if update_mu:
-            # 1. update numerator
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # tmpsum = sum( ufp(bstrt:bstp) )
-            # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
-            # -----------------------------------------------------------------------
-            # XXX: Some error in each sum across 59 blocks
-            tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            dmu_numer[comp_slice, :] += tmpsum_mu
-            # 2. update denominator
-            # -------------------------------FORTRAN--------------------------------
-            # for (i = 1, nw) ... for (j = 1, num_mix)
-            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
-            # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
-            # else
-            # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
-            # -----------------------------------------------------------------------
-            if np.all(rho[comp_slice, :] <= 2.0):
-                # shape : (nw, num_mix)
-                mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
-
-                # shape (nw, num_mix)
-                tmpsum_mu_denom = (sbeta[comp_slice, :] * mu_denom_sum)
-                dmu_denom[comp_slice, :] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
-            else:
-                raise NotImplementedError()
-                # Let's tackle this when we actually hit this with some data
-                # So that we can compare the result against the Fortran output.
-            # end if (update mu)
-
+            accumulate_mu_stats(
+                ufp=ufp,
+                y=y,
+                sbeta=sbeta[comp_slice, :],
+                rho=rho[comp_slice, :],
+                out_numer=dmu_numer[comp_slice, :],
+                out_denom=dmu_denom[comp_slice, :],
+            )
             # Beta (scale/precision)
-            # if update_beta:
-            # 1. update numerator
-            # -------------------------------FORTRAN--------------------------------
-            # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
-            # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
-            # ----------------------------------------------------------------------
-            dbeta_numer[comp_slice, :] += usum  # shape: (nw, num_mix)
-            # 2. update denominator
-            # -------------------------------FORTRAN--------------------------------
-            # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
-            # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
-            # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
-            # ----------------------------------------------------------------------
-            if np.all(rho[comp_slice, :] <= 2.0):
-                tmpsum_dbeta_denom = np.sum(
-                    ufp[:, :, :] * y[:, :, :], axis=0
-                )
-                dbeta_denom[comp_slice, :] += tmpsum_dbeta_denom  # shape: (nw, num_mix)
-            else:
-                raise NotImplementedError()
-            # end if (update beta)
-            
+            accumulate_beta_stats(
+                usum=usum,
+                rho=rho[comp_slice, :],
+                ufp=ufp,
+                y=y,
+                out_numer=dbeta_numer[comp_slice, :],
+                out_denom=dbeta_denom[comp_slice, :],
+            )
             # Rho (shape parameter of generalized Gaussian)
             if dorho:
                 # -------------------------------FORTRAN--------------------------------
@@ -2593,9 +2552,143 @@ def accumulate_alpha_stats(
     # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
     # dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
     # -----------------------------------------------------------------------
+    # TODO: if this is a single contribution per iteration, safe to assign directly.
     out_numer += usum
     out_denom += vsum
     return out_numer, out_denom
+
+
+def accumulate_mu_stats(
+        *,
+        ufp: Sources3D,
+        rho: Params2D,
+        sbeta: Params2D,
+        y: Sources3D,
+        out_numer: Params2D,
+        out_denom: Params2D,
+        ) -> Tuple[Params2D, Params2D]:
+    """
+    Accumulate sufficient statistics for mu (location) update.
+    
+    Parameters
+    ----------
+    ufp : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The elementwise product of
+        responsibilities and score function.
+    rho : np.ndarray
+        Shape (n_components, n_mixtures). The shape parameters.
+    sbeta : np.ndarray
+        Shape (n_components, n_mixtures). The scale parameters.
+    y : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The scaled sources for the
+        current model.
+    out_numer : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the numerator of the
+        mu gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the denominator of the
+        mu gradient. This array is mutated in-place and returned.
+    
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+    
+    Notes
+    -----
+    Fortran reference:
+        for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
+            dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + sum( ufp(bstrt:bstp) )
+            dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + rho(j,comp_list(i,h)) * sum( abs(ufp(bstrt:bstp)) )
+    """
+    assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D" 
+    assert out_denom.ndim == 2, f"out_denom must be 2D, got {out_denom.ndim}D"
+    # -------------------------------FORTRAN--------------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # tmpsum = sum( ufp(bstrt:bstp) )
+    # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
+    # -----------------------------------------------------------------------
+    tmpsum_mu = ufp.sum(axis=0)  # shape: (nw, num_mix)
+    out_numer += tmpsum_mu
+    # -------------------------------FORTRAN--------------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+    # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
+    # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
+    # else
+    # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
+    # -----------------------------------------------------------------------
+    if np.all(rho <= 2.0):
+        mu_denom_sum = np.sum(ufp / y, axis=0)
+        tmpsum_mu_denom = (sbeta * mu_denom_sum)
+        out_denom += tmpsum_mu_denom
+    else:
+        raise NotImplementedError("Generalized Gaussian mu update not implemented yet.")
+
+
+def accumulate_beta_stats(
+        *,
+        usum: Params2D,
+        rho: Params2D,
+        ufp: Sources3D,
+        y: Sources3D,
+        out_numer: Params2D,
+        out_denom: Params2D,
+        ) -> Tuple[Params2D, Params2D]:
+    """
+    Get the numerator and denominator for the scale updates.
+
+    Parameters
+    ----------
+    usum : np.ndarray
+        Shape (n_components, n_mixtures). The per-source, per-mixture total
+        responsibility mass across all samples (i.e. the sum across samples).
+    rho : np.ndarray
+        Shape (n_components, n_mixtures). The shape parameters.
+    ufp : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The elementwise product of
+        responsibilities and score function.
+    y : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The scaled sources for the
+        current model.
+    out_numer : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the numerator of the
+        beta gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the denominator of the
+        beta gradient. This array is mutated in-place and returned.
+
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+    """
+    # -------------------------------FORTRAN--------------------------------
+    # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
+    # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
+    # ----------------------------------------------------------------------
+    out_numer += usum  # shape: (nw, num_mix)
+    # -------------------------------FORTRAN--------------------------------
+    # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
+    # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+    # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
+    # ----------------------------------------------------------------------
+    if np.all(rho <= 2.0):
+        tmpsum_dbeta_denom = np.sum(
+            ufp * y, axis=0
+        )
+        out_denom += tmpsum_dbeta_denom  # shape: (nw, num_mix)
+    else:
+        raise NotImplementedError()
+
 
 def accum_updates_and_likelihood(
         config,
