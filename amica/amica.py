@@ -106,26 +106,31 @@ Likelihood2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_mode
 sbetatmp = sbetatmp.T
 
 
-def get_component_indices(num_comps: int, num_models: int):
-    """Return column-shaped comp_list and its boolean mask.
+def get_component_slice(h: int, n_components: int) -> slice:
+    """Return slice for components of model h.
 
     Parameters
-    - num_comps: number of components (nw)
-    - num_models: number of models
+    - h: model number (1-based)
+    - n_components: number of components per model (nw)
 
     Returns
-    - comp_list: ndarray of shape (num_comps, num_models), dtype=int64
-    - comp_used: ndarray of shape (num_comps,), dtype=bool
+    - slice object for components of model h
+
+    Notes
+    -----
+    - Creating a slice ensures that we get a view when indexing arrays.
+    - The fortran code pre-computes comp_list(num_components, num_models). We avoid this
+        by computing the slice on-the-fly and thus avoiding fancy indexing.
+    
+    Fortran reference:
+        do h = 1,num_models
+            do i = 1,nw
+                comp_list(i,h) = (h-1) * nw + i
     """
-    comp_list = np.empty((num_comps, num_models), dtype=int)
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        col = h_index * num_comps + np.arange(1, num_comps + 1)
-        comp_list[:, h_index] = col
-    # Right now comp_used are always all True.
-    # This will change if we implement shared components across models.
-    comp_used = np.ones(num_comps, dtype=bool)  # Mask for used components
-    return comp_list, comp_used
+    h_index = h - 1  # Convert to 0-based index
+    start = h_index * n_components
+    end = start + n_components
+    return slice(start, end)
 
 
 # TODO's
@@ -634,12 +639,12 @@ def _core_amica(
     if load_A:
         raise NotImplementedError()
     else:
-        comp_list, _ = get_component_indices(config.n_components, config.n_models)
+        comp_slice = get_component_slice(h=1, n_components=num_comps)
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
             # TODO: if A has a num_models dimension, this fancy indexing isnt needed
             # FIXME: This indexing will fail if num_models > 1
-            state.A[:, (h_index)*num_comps:h*num_comps] = 0.01 * (0.5 - WTMP)
+            state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)
             if h == 1:
                 assert_almost_equal(state.A[0, 0], 0.0041003901044031916, decimal=7)
             idx = np.arange(num_comps)
@@ -670,14 +675,8 @@ def _core_amica(
                 assert_almost_equal(state.A[0, 7], -0.0049493288857340749)
                 assert_almost_equal(state.A[0, 31], 0.0033698692262480665)
 
-                assert_equal(comp_list[0, 0], 1)
-                assert_equal(comp_list[1, 0], 2)
-                assert_equal(comp_list[2, 0], 3)
-                assert_equal(comp_list[3, 0], 4)
-                assert_equal(comp_list[4, 0], 5)
-                assert_equal(comp_list[5, 0], 6)
-                assert_equal(comp_list[6, 0], 7)
-                assert_equal(comp_list[31, 0], 32)
+                assert_equal(comp_slice.start, 0)
+                assert_equal(comp_slice.stop, 32)
             else:
                 raise ValueError("Unexpected model index")
     # end load_A
@@ -686,7 +685,7 @@ def _core_amica(
         iterating=iterating,
         c=state.c,
         A=state.A,
-        comp_list=comp_list,
+        comp_slice=comp_slice,
         W=state.W,
         num_models=num_models,
     )
@@ -697,21 +696,6 @@ def _core_amica(
     # load_comp_list
     # if load_comp_list:
     #    raise NotImplementedError()
-    # XXX: Seems like the Fortran code duplicated this step?
-    for h, _ in enumerate(range(num_models), start=1):
-        h_index = h - 1
-        comp_list[:, h_index] = h_index * num_comps + np.arange(1, num_comps + 1)
-    if h == 1:
-        assert_equal(comp_list[0, 0], 1)
-        assert_equal(comp_list[1, 0], 2)
-        assert_equal(comp_list[2, 0], 3)
-        assert_equal(comp_list[3, 0], 4)
-        assert_equal(comp_list[4, 0], 5)
-        assert_equal(comp_list[5, 0], 6)
-        assert_equal(comp_list[6, 0], 7)
-        assert_equal(comp_list[31, 0], 32)
-    else:
-        raise NotImplementedError("Unexpected model index")
     
     # if (print_debug) then
     #  print *, 'data ='; call flush(6)
@@ -875,7 +859,6 @@ def optimize(
         # ============================== Subsection ====================================
         # updates, metrics = get_updates_and_likelihood()
         
-        comp_list, _ = get_component_indices(config.n_components, config.n_models)
         nw = num_comps
 
         W = state.W
@@ -886,7 +869,6 @@ def optimize(
         alpha = state.alpha
 
         updates.reset()
-        import pdb; pdb.set_trace()
 
         dgm_numer = updates.dgm_numer
         dmu_numer = updates.dmu_numer
@@ -949,8 +931,8 @@ def optimize(
         scratch = work.get_buffer("scratch_2D") # will be reused as g
         
         for h, _ in enumerate(range(num_models), start=1):
+            comp_slice = get_component_slice(h, num_comps)
             h_index = h - 1
-            comp_indices = comp_list[:, h_index] - 1
             dataseg = X
             N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
             fp = work.get_buffer("fp")
@@ -987,7 +969,7 @@ def optimize(
                 mu=mu,
                 alpha=alpha,
                 rho=rho,
-                comp_indices=comp_indices,
+                comp_slice=comp_slice,
                 out_sources=y,
                 out_logits=z,
                 )
@@ -1037,6 +1019,7 @@ def optimize(
         # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
         g = work.get_buffer("scratch_2D")  # reuse for g workspace
         for h, _ in enumerate(range(num_models), start=1):
+            comp_slice = get_component_slice(h, num_comps)
             h_index = h - 1
             #--------------------------FORTRAN CODE-------------------------
             # vsum = sum( v(bstrt:bstp,h) )
@@ -1104,7 +1087,7 @@ def optimize(
                 pdftype=pdftype,
                 y=y,
                 rho=rho,
-                comp_indices=comp_indices,
+                comp_slice=comp_slice,
                 out_scores=fp,
             )
             assert fp.shape == (N1, nw, num_mix)
@@ -1115,7 +1098,7 @@ def optimize(
                 scores=fp,
                 responsibilities=u,
                 scale_params=sbeta,
-                comp_indices=comp_indices,
+                comp_slice=comp_slice,
                 out_ufp=ufp,
                 out_g=g,
             )
@@ -1135,10 +1118,10 @@ def optimize(
                 # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
                 #---------------------------------------------------------------
 
-                comp_indices = comp_list[:, h_index] - 1  # Shape: (nw,)
+
                 # 1) Kappa updates (curvature terms for A)
                 ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-                sbeta_vals = sbeta[comp_indices, :] ** 2
+                sbeta_vals = sbeta[comp_slice, :] ** 2
                 tmpsum_kappa = ufp_fp_sums * sbeta_vals # Shape: (nw, num_mix)
                 dkappa_numer[:, :, h_index] += tmpsum_kappa
                 dkappa_denom[:, :, h_index] += usum
@@ -1179,13 +1162,11 @@ def optimize(
             # NOTE: the vectorization of this variable results in some numerical differences
             # That propogate to several other variables due to a dependency chan
             # e.g. dalpha_numer_tmp -> dalpha_numer -> alpha -> z0 etc.
-            comp_indices = comp_list[:, h_index] - 1  # TODO: do this once and re-use
-
-            dalpha_numer[comp_indices, :], dalpha_denom[comp_indices, :] = accumulate_alpha_stats(
+            dalpha_numer[comp_slice, :], dalpha_denom[comp_slice, :] = accumulate_alpha_stats(
                                 usum=usum,
                                 vsum=vsum,
-                                out_numer=dalpha_numer[comp_indices, :],
-                                out_denom=dalpha_denom[comp_indices, :],
+                                out_numer=dalpha_numer[comp_slice, :],
+                                out_denom=dalpha_denom[comp_slice, :],
             )
 
             # Mu (location)
@@ -1198,7 +1179,7 @@ def optimize(
             # -----------------------------------------------------------------------
             # XXX: Some error in each sum across 59 blocks
             tmpsum_mu = ufp[:, :, :].sum(axis=0)  # shape: (nw, num_mix)
-            dmu_numer[comp_indices, :] += tmpsum_mu
+            dmu_numer[comp_slice, :] += tmpsum_mu
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -1208,13 +1189,13 @@ def optimize(
             # else
             # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
             # -----------------------------------------------------------------------
-            if np.all(rho[comp_indices, :] <= 2.0):
+            if np.all(rho[comp_slice, :] <= 2.0):
                 # shape : (nw, num_mix)
                 mu_denom_sum = np.sum(ufp[:, :, :] / y[:, :, :], axis=0)
 
                 # shape (nw, num_mix)
-                tmpsum_mu_denom = (sbeta[comp_indices, :] * mu_denom_sum)
-                dmu_denom[comp_indices, :] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
+                tmpsum_mu_denom = (sbeta[comp_slice, :] * mu_denom_sum)
+                dmu_denom[comp_slice, :] += tmpsum_mu_denom  # XXX: Errors accumulate across 59 additions
             else:
                 raise NotImplementedError()
                 # Let's tackle this when we actually hit this with some data
@@ -1228,18 +1209,18 @@ def optimize(
             # dbeta_numer_tmp(j,comp_list(i,h)) = dbeta_numer_tmp(j,comp_list(i,h)) + usum
             # dbeta_numer_tmp[j - 1, comp_list[i - 1, h - 1] - 1] += usum
             # ----------------------------------------------------------------------
-            dbeta_numer[comp_indices, :] += usum  # shape: (nw, num_mix)
+            dbeta_numer[comp_slice, :] += usum  # shape: (nw, num_mix)
             # 2. update denominator
             # -------------------------------FORTRAN--------------------------------
             # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
             # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
             # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
             # ----------------------------------------------------------------------
-            if np.all(rho[comp_indices, :] <= 2.0):
+            if np.all(rho[comp_slice, :] <= 2.0):
                 tmpsum_dbeta_denom = np.sum(
                     ufp[:, :, :] * y[:, :, :], axis=0
                 )
-                dbeta_denom[comp_indices, :] += tmpsum_dbeta_denom  # shape: (nw, num_mix)
+                dbeta_denom[comp_slice, :] += tmpsum_dbeta_denom  # shape: (nw, num_mix)
             else:
                 raise NotImplementedError()
             # end if (update beta)
@@ -1259,7 +1240,7 @@ def optimize(
                 np.abs(y[:, :, :], out=tmpy)
                 np.log(tmpy[:, :, :], out=logab)
                 # 2. Exponentiation with rho
-                rho_vals = rho[comp_indices, :]  # shape: (nw, num_mix)
+                rho_vals = rho[comp_slice, :]  # shape: (nw, num_mix)
                 rho_vals_br = rho_vals[np.newaxis, :, :]  # shape: (1, nw, num_mix)
                 # shape: (max_block_size, nw, num_mix)
                 np.multiply(rho_vals_br, logab, out=logab)
@@ -1287,10 +1268,10 @@ def optimize(
                     * logab[:, :, :]
                 , axis=0
                 )
-                drho_numer[comp_indices, :] += tmpsum_prod
-                drho_denom[comp_indices, :] += usum
-                
-                if np.any(rho[comp_indices, :] > 2.0):
+                drho_numer[comp_slice, :] += tmpsum_prod
+                drho_denom[comp_slice, :] += usum
+
+                if np.any(rho[comp_slice, :] > 2.0):
                     raise NotImplementedError()
             elif not dorho:
                 raise NotImplementedError()
@@ -1638,7 +1619,7 @@ def get_unmixing_matrices(
         iterating,
         c,
         A,
-        comp_list,
+        comp_slice: slice,
         W,
         num_models,
         ):
@@ -1646,8 +1627,8 @@ def get_unmixing_matrices(
     if not iterating:
         # ugly hack to check if we are in the first iteration
         # All these shoudl be true first time get_unmixing_matrices is called which is before the iteration starts
-        assert_almost_equal(A[0, comp_list[0, 0] - 1], 0.99987950295221151)
-        assert_almost_equal(A[2, comp_list[2, 0] - 1], 0.99987541322177442)
+        assert_almost_equal(A[0, 0], 0.99987950295221151)
+        assert_almost_equal(A[2, 2], 0.99987541322177442)
 
     wc = np.zeros_like(c)
     for h, _ in enumerate(range(num_models), start=1):
@@ -1656,7 +1637,7 @@ def get_unmixing_matrices(
         # call DCOPY(nw*nw,A(:,comp_list(:,h)),1,W(:,:,h),1)
         #---------------------------------------------------------------
         # TODO: assign on the fly without passing in W
-        W[:, :, h - 1] = A[:, comp_list[:, h - 1] - 1].copy()
+        W[:, :, h - 1] = A[:, comp_slice].copy()
         if not iterating:
             assert_almost_equal(W[0, 0, h - 1], 0.99987950295221151)
             assert_almost_equal(W[2, 2, h - 1], 0.99987541322177442)
@@ -1738,7 +1719,7 @@ def compute_model_e_step(
         W,
         buffers,
         model_index,
-        comp_indices,
+        comp_slice,
         Dsum,
         sldet,
         wc,
@@ -1781,8 +1762,8 @@ def compute_model_e_step(
     model_index : int
         Index of the current model being processed. This is used to index arrays
         with a dimension for models.
-    comp_indices : np.ndarray
-        Array of shape (n_features,) containing component indices for the current model.
+    comp_slice : slice
+        Slice object containing component indices for the current model.
     Dsum : np.ndarray
         Precomputed sum of squared data projections for each component values for
         the current model of shape (n_components,). This array is not modified.
@@ -1988,7 +1969,7 @@ def _compute_source_densities(
         mu: Params2D,
         alpha: Params2D,
         rho: Params2D,
-        comp_indices: Index1D, # TODO: pass in the pre-indexed arrays instead
+        comp_slice: slice, # TODO: pass in the pre-indexed arrays instead
         out_sources: Optional[Sources3D] = None,
         out_logits: Optional[Sources3D] = None,
         ) -> Tuple[Sources3D, Sources3D]:
@@ -2014,8 +1995,8 @@ def _compute_source_densities(
         Mixture weights. Shape (n_components, n_mixtures). Not modified.
     rho : np.ndarray
         Shape parameters. Shape (n_components, n_mixtures). Not modified.
-    comp_indices : np.ndarray
-        Array containing component indices for the current model.
+    comp_slice : slice
+        slice containing component indices for the current model.
     out_sources : np.ndarray
         Buffer to write scaled sources into. Shape (n_samples, n_components, n_mixtures).
         This array is modified in-place. This is the `y` array in the Fortran code.
@@ -2040,7 +2021,7 @@ def _compute_source_densities(
     mixture component.
     """
     N1 = b.shape[0]
-    nw = len(comp_indices)
+    nw = comp_slice.stop - comp_slice.start
     num_mix = alpha.shape[1]
     
     # Shape assertions for new dimension standard
@@ -2098,10 +2079,10 @@ def _compute_source_densities(
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
         #---------------------------------------------------------------
         # 1. Select the components for this model.
-        alpha_h = alpha[comp_indices, :]
-        rho_h = rho[comp_indices, :] # All mixtures, components for this model
-        sbeta_h = sbeta[comp_indices, :]      # Shape: (nw, num_mix)
-        mu_h = mu[comp_indices, :]            # Shape: (nw, num_mix)
+        alpha_h = alpha[comp_slice, :]
+        rho_h = rho[comp_slice, :] # All mixtures, components for this model
+        sbeta_h = sbeta[comp_slice, :]      # Shape: (nw, num_mix)
+        mu_h = mu[comp_slice, :]            # Shape: (nw, num_mix)
         
         # 1. Center and scale the source estimates (In-place)
         np.subtract(b[:, :, None], mu_h[None, :, :], out=out_sources)
@@ -2404,7 +2385,7 @@ def compute_source_scores(
         pdftype: int,
         y: Sources3D,
         rho: Params2D,
-        comp_indices: Index1D,
+        comp_slice: slice,
         out_scores: Optional[Sources3D] = None,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
@@ -2418,8 +2399,8 @@ def compute_source_scores(
         Not modified.
     rho : np.ndarray
         Shape parameters of shape (n_components, n_mixtures). Not modified.
-    comp_indices : np.ndarray
-        Array containing component indices for the current model.
+    comp_slice : slice
+        Slice object containing component indices for the current model.
     out_scores : Sources3D, optional
         Buffer to write the computed score function into. Shape (n_samples, n_components,
         n_mixtures). If None, a new array is allocated. This array is modified in-place.
@@ -2434,8 +2415,8 @@ def compute_source_scores(
     assert y.shape == (N1, nw, num_mix), f"y shape {y.shape} != (N1, nw, num_mix)"
     assert rho.shape[0] >= nw, f"rho.shape[0]={rho.shape[0]} must be >= nw={nw}"
     assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
-    assert len(comp_indices) == nw, f"len(comp_indices)={len(comp_indices)} != nw={nw}"
-    
+    assert comp_slice.stop - comp_slice.start == nw, f"len(comp_slice)={comp_slice.stop - comp_slice.start} != nw={nw}"
+
     if out_scores is None:
         out_scores = np.empty((N1, nw, num_mix))
     # !--- get fp, zfp
@@ -2452,7 +2433,7 @@ def compute_source_scores(
         #--------------------------------------------------------------------------------
         
         # Get components for this model
-        rho_h = rho[comp_indices, :]
+        rho_h = rho[comp_slice, :]
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
         lap_mask = (np.isclose(rho_h, 1.0, atol=1e-12))
@@ -2496,7 +2477,7 @@ def accumulate_scores(
         scores,
         responsibilities,
         scale_params,
-        comp_indices,
+        comp_slice: slice,
         out_ufp,
         out_g,
 ):
@@ -2539,7 +2520,7 @@ def accumulate_scores(
     u = responsibilities
     fp = scores
     sbeta = scale_params
-    sbeta_h = sbeta[comp_indices, :] # components for this model
+    sbeta_h = sbeta[comp_slice, :] # components for this model
     ufp = out_ufp
     g = out_g
     #--------------------------FORTRAN CODE-------------------------
@@ -2639,8 +2620,6 @@ def accum_updates_and_likelihood(
     # call MPI_REDUCE(dc_numer_tmp,dc_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     #---------------------------------------------------------------
-    comp_list, comp_used = get_component_indices(config.n_components, config.n_models)
-
     num_comps = config.n_components
     nw = num_comps
     num_models = config.n_models
@@ -2701,6 +2680,7 @@ def accum_updates_and_likelihood(
         kappa = np.zeros((num_comps, num_models), dtype=np.float64)
         lambda_ = np.zeros((num_comps, num_models), dtype=np.float64)
         for h, _ in enumerate(range(num_models), start=1):
+            comp_slice = get_component_slice(h, num_comps)
             h_idx = h - 1  # For easier indexing
             # NOTE: VECTORIZED
             # In Fortran, this is a nested for loop...
@@ -2714,7 +2694,6 @@ def accum_updates_and_likelihood(
             dlambda_numer_h = dlambda_numer[:, :, h_idx]
             dlambda_denom_h = dlambda_denom[:, :, h_idx]
             # Get the component indices for this model 'h'
-            comp_indices_h = comp_list[:, h_idx] - 1 # shape (nw,)
 
             # Calculate dkap for all mixtures 
             # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
@@ -2731,7 +2710,7 @@ def accum_updates_and_likelihood(
             #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
             #---------------------------------------------------------------
             # mu_selected will have shape (num_mix, nw)
-            mu_selected = mu[comp_indices_h, :]
+            mu_selected = mu[comp_slice, :]
 
             # Calculate the full lambda update term
             lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
@@ -2747,6 +2726,7 @@ def accum_updates_and_likelihood(
 
     no_newt = False
     for h, _ in enumerate(range(num_models), start=1):
+        comp_slice = get_component_slice(h, num_comps)
         h_index = h - 1
         #--------------------------FORTRAN CODE-------------------------
         # if (print_debug) then
@@ -2812,11 +2792,12 @@ def accum_updates_and_likelihood(
         # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
         #---------------------------------------------------------------
         dA[:, :, h - 1] = 0.0
-        dA[:, :, h - 1] += np.dot(A[:, comp_list[:, h - 1] - 1], Wtmp_working)
+        dA[:, :, h - 1] += np.dot(A[:, comp_slice], Wtmp_working)
     # end do (h)
 
     zeta = np.zeros(num_comps, dtype=np.float64)
     for h, _ in enumerate(range(num_models), start=1):
+        comp_slice = get_component_slice(h, num_comps)
         h_index = h - 1
         # NOTE: I had an indexing bug in the looped version of this code.
         # But it didn't seem to affect the results.
@@ -2825,10 +2806,9 @@ def accum_updates_and_likelihood(
         # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
         # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
         #---------------------------------------------------------------
-        comp_indices = comp_list[:, h - 1] - 1
         source_columns = gm[h - 1] * dA[:, :, h - 1]
-        dAK[comp_indices, :] += source_columns
-        zeta[comp_indices] += gm[h - 1]
+        dAK[comp_slice, :] += source_columns
+        zeta[comp_slice] += gm[h - 1]
     
     #--------------------------FORTRAN CODE-------------------------
     # dAk(:,k) = dAk(:,k) / zeta(k)
@@ -2841,6 +2821,9 @@ def accum_updates_and_likelihood(
     assert nd.shape == (num_comps,)
 
     # comp_used should be 32 length vector of True
+    # In Fortran Comp used was always be an all True bollean representation of comp_slice
+    # Unless identify_shared_comps was run. I have no plans to implement that.
+    comp_used = np.ones(num_comps, dtype=bool)
     assert isinstance(comp_used, np.ndarray)
     assert comp_used.shape == (num_comps,)
     assert comp_used.dtype == bool
@@ -2885,7 +2868,6 @@ def update_params(
         metrics,
         wc,
 ):
-    comp_list, _ = get_component_indices(config.n_components, config.n_models)
     n_models = config.n_models
     nw = config.n_components
     do_newton = config.do_newton
@@ -3109,7 +3091,7 @@ def update_params(
         iterating=True,
         c=c,
         A=A,
-        comp_list=comp_list,
+        comp_slice=get_component_slice(1, nw), # FIXME
         W=W,
         num_models=num_models,
     )
