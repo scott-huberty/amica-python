@@ -1131,19 +1131,15 @@ def optimize(
                     out_numer=dsigma2_numer[:, h_index],
                     out_denom=dsigma2_denom[:, h_index],
                 )
-                #--------------------------FORTRAN CODE-------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
-                # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
-                # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
-                #---------------------------------------------------------------
                 # 1) Kappa updates (curvature terms for A)
-                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-                sbeta_vals = sbeta[comp_slice, :] ** 2
-                tmpsum_kappa = ufp_fp_sums * sbeta_vals # Shape: (nw, num_mix)
-                dkappa_numer[:, :, h_index] += tmpsum_kappa
-                dkappa_denom[:, :, h_index] += usum
-                
+                accumulate_kappa_stats(
+                    ufp=ufp,
+                    fp=fp,
+                    sbeta=sbeta[comp_slice, :],
+                    usum=usum,
+                    out_numer=dkappa_numer[:, :, h_index],
+                    out_denom=dkappa_denom[:, :, h_index],
+                )                
                 # 2) Lambda updates
                 # ---------------------------FORTRAN CODE---------------------------
                 # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
@@ -2911,6 +2907,73 @@ def accumulate_sigma2_stats(
     out_denom += vsum
     return out_numer, out_denom
 
+
+def accumulate_kappa_stats(
+        *,
+        ufp: Sources3D,
+        fp: Sources3D,
+        sbeta: Params2D,
+        usum: Params2D,
+        out_numer: Params2D,
+        out_denom: Params2D,
+        ) -> Tuple[Params2D, Params2D]:
+    """
+    Get sufficient statistics for kappa (curvature) update.
+    
+    Parameters
+    ufp : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The elementwise product of
+        responsibilities and score function.
+    fp : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The score function.
+    sbeta : np.ndarray
+        Shape (n_components, n_mixtures). The scale parameters.
+    usum : np.ndarray
+        Shape (n_components, n_mixtures). The per-source, per-mixture total
+        responsibility mass across all samples (i.e. the sum across samples).
+    out_numer : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the numerator of the
+        kappa gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the denominator of the
+        kappa gradient. This array is mutated in-place and returned.
+
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+    
+    Notes
+    -----
+    Fortran reference:
+        for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
+            tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
+            dkappa_numer_tmp(j,comp_list(i,h)) = dkappa_numer_tmp(j,comp_list(i,h)) + sbeta(j,comp_list(i,h)) * tmpsum
+            dkappa_denom_tmp(j,comp_list(i,h)) = dkappa_denom_tmp(j,comp_list(i,h)) + usum
+    """
+    assert ufp.ndim == 3, f"ufp must be 3D, got {ufp.ndim}D"
+    assert fp.ndim == 3, f"fp must be 3D, got {fp.ndim}D"
+    assert sbeta.ndim == 2, f"sbeta must be 2D, got {sbeta.ndim}D"
+    assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D"
+    assert out_denom.ndim == 2, f"out_denom must be 2D, got {out_denom.ndim}D"
+    assert ufp.shape == fp.shape, f"ufp {ufp.shape} != fp {fp.shape}"
+    assert out_numer.shape == sbeta.shape and out_denom.shape == sbeta.shape
+    #--------------------------FORTRAN CODE-------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
+    # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
+    # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
+    #---------------------------------------------------------------
+    # (s=n_samples, i=n_components, j=n_mixtures)
+    # Same as (ufp * fp).sum(axis=0) but avoids the intermediate allocation of ufp * fp
+    out_numer += np.einsum('sij,sij->ij', ufp, fp, optimize=True) * (sbeta**2)
+    out_denom += usum
+    
+    return out_numer, out_denom
 
 def accum_updates_and_likelihood(
         config,
