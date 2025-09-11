@@ -718,33 +718,6 @@ def _core_amica(
     else:
         # call allocate_blocks
         N1 = dataseg.shape[-1] # 2 * block_size * num_thrds
-        # assert N1 == 1024 # 10240
-        # b = np.zeros((N1, nw, num_models))  # Allocate b
-        # v = np.zeros((N1, num_models)) # posterior probability for each model
-        # y = np.zeros((N1, nw, num_mix, num_models))
-        # z = np.zeros((N1, nw, num_mix, num_models))  # normalized mixture responsibilities within each component
-        # z0 = np.zeros((N1, num_mix))  # Allocate z0
-        # z0 = np.zeros((N1, nw, num_mix)) # per-mixture evidence: mixture-weighted density for sample m, component i, mixture j
-        # fp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # ufp = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        #u = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # utmp = np.zeros(N1)
-        # ztmp = np.zeros((N1, nw)) # shape is (N1) in Fortran
-        # vtmp = np.zeros(N1)
-        # logab = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # tmpy = np.zeros((N1, nw, num_mix)) # shape is (N1) in Fortran
-        # Ptmp = np.zeros((N1, num_models)) #  per-sample, per-model Log likelihood
-        # git = np.zeros((N1, nw, num_models)) # Python only: per-sample, per-component, per-model LSE across mixtures.
-        # P = np.zeros(N1) # Per-sample total log-likelihood across models.
-        # Pmax = np.zeros(N1)
-        # Pmax_br = np.zeros((N1, nw)) # Python only
-        # tmpvec = np.zeros(N1)
-        # tmpvec_z0 = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec_mat_dlambda = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec_fp = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec2 = np.zeros(N1)
-        # tmpvec2_fp = np.zeros((N1, nw, num_mix)) # Python only
-        # tmpvec2_z0 = np.zeros((N1, nw, num_mix)) # Python only
     myrank = 0
     print(f"{myrank + 1}: block size = {N1}")
     # for seg, _ in enumerate(range(numsegs), start=1):
@@ -2442,8 +2415,8 @@ def accumulate_scores(
         The score function weighted by model-weighted mixture-responsibilities.
         shape (n_samples, n_components, n_mixtures), modified in place.
     out_g : np.ndarray
-        out_ufp weighted by model scales (sbeta), shape (n_samples, n_components),
-        modified in place.
+        out_ufp further weighted by the per-component mixture scale parameters, summed
+        over mixtures shape (n_samples, n_components), modified in place.
     """
     # Shape assertions for new dimension standard
     N1, nw, num_mix = scores.shape
