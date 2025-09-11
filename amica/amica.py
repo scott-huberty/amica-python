@@ -233,14 +233,10 @@ def amica(
     if n_components is None:
         n_components = nx
     print("getting the mean ...")
-    meantmp = dataseg.sum(axis=1) # Sum across time points for each channel
-    assert_almost_equal(meantmp[0], -113139.76889015333)
-    mean = meantmp / dataseg.shape[1]  # Divide by number of time points to get mean
+    mean = dataseg.mean(axis=1)
     assert_almost_equal(mean[0], -3.7090141912586323)
     assert_almost_equal(mean[1], -6.7516788952437894)
     assert_almost_equal(mean[2], 2.5880450259870105)
-    # We did in two steps what we could have done in one:
-    np.testing.assert_array_almost_equal(mean, dataseg.mean(axis=1))
 
     # !--- subtract the mean
     dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
@@ -530,7 +526,6 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
-
     assert config.n_components == 32
     assert config.n_models == 1
     assert config.n_mixtures == 3
