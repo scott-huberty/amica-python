@@ -531,19 +531,6 @@ def _core_amica(
         is less than tol.
     """
 
-    '''n_components=n_components,
-    n_models=n_models,
-    n_mixtures=n_mixtures,
-    max_iter=max_iter,
-    pdftype=pdftype,
-    do_reject=do_reject,
-    tol=tol,
-    lrate=lrate,
-    rholrate=rholrate,
-    do_newton=do_newton,
-    newt_start=newt_start,
-    newtrate=newtrate,
-    newt_ramp=newt_ramp,'''
     assert config.n_components == 32
     assert config.n_models == 1
     assert config.n_mixtures == 3
