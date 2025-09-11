@@ -1140,22 +1140,15 @@ def optimize(
                     out_numer=dkappa_numer[:, :, h_index],
                     out_denom=dkappa_denom[:, :, h_index],
                 )                
-                # 2) Lambda updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
-                # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
-                # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
-                # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
-                # ------------------------------------------------------------------
-                tmpvec_mat_dlambda = (
-                    fp[:, :, :] * y[:, :, :] - 1.0
+                # 2) Lambda updates (nonlinearity shape parameter)
+                accumulate_lambda_stats(
+                    fp=fp,
+                    y=y,
+                    u=u,
+                    usum=usum,
+                    out_numer=dlambda_numer[:, :, h_index],
+                    out_denom=dlambda_denom[:, :, h_index],
                 )
-                tmpsum_dlambda = np.sum(
-                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
-                )  # shape: (nw, num_mix)
-                dlambda_numer[:, :, h_index] += tmpsum_dlambda
-                dlambda_denom[:, :, h_index] += usum
-
                 # 3) (dbar)Alpha updates
                 # ---------------------------FORTRAN CODE---------------------------
                 # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -2972,8 +2965,81 @@ def accumulate_kappa_stats(
     # Same as (ufp * fp).sum(axis=0) but avoids the intermediate allocation of ufp * fp
     out_numer += np.einsum('sij,sij->ij', ufp, fp, optimize=True) * (sbeta**2)
     out_denom += usum
-    
     return out_numer, out_denom
+
+
+def accumulate_lambda_stats(
+        *,
+        fp: Sources3D,
+        y: Sources3D,
+        u: Sources3D,
+        usum: Params2D,
+        out_numer: Params2D,
+        out_denom: Params2D,
+) -> Tuple[Params2D, Params2D]:
+    """
+    Get sufficient statistics for lambda (nonlinearity) update.
+
+    Parameters
+    fp : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The score function.
+    y : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The scaled sources for the
+        current model.
+    u : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The mixture responsibilities
+        weighted by the model responsibility.
+    usum : np.ndarray
+        Shape (n_components, n_mixtures). The per-source, per-mixture total
+        responsibility mass across all samples (i.e. the sum across samples).
+    out_numer : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the numerator of the
+        lambda gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the denominator of the
+        lambda gradient. This array is mutated in-place and returned.
+
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+
+    Notes
+    -----
+    Fortran reference:
+        for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
+            tmpsum = sum( fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
+            dlambda_numer_tmp(j,comp_list(i,h)) = dlambda_numer_tmp(j,comp_list(i,h)) + tmpsum
+            dlambda_denom_tmp(j,comp_list(i,h)) = dlambda_denom_tmp(j,comp_list(i,h)) + usum
+    """
+    assert fp.ndim == 3, f"fp must be 3D, got {fp.ndim}D"
+    assert y.ndim == 3, f"y must be 3D, got {y.ndim}D"
+    assert u.ndim == 3, f"u must be 3D, got {u.ndim}D"
+    assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D"
+    assert out_denom.ndim == 2, f"out_denom must be 2D, got {out_denom.ndim}D"
+    assert fp.shape == y.shape == u.shape, f"fp {fp.shape}, y {y.shape}, u {u.shape} shape mismatch"
+    assert out_numer.shape == out_denom.shape == usum.shape, (
+        f"out_numer {out_numer.shape}, out_denom {out_denom.shape}, usum {usum.shape} shape mismatch"
+    )
+    # ---------------------------FORTRAN CODE---------------------------
+    # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
+    # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
+    # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
+    # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
+    # ------------------------------------------------------------------
+    # (s=n_samples, i=n_components, j=n_mixtures)
+    # Same as (u * (fp * y - 1.0)**2).sum(axis=0) but avoids 3 intermediate allocations
+    tmp = fp * y # one allocation
+    tmp -= 1.0
+    tmp **= 2
+    out_numer += np.einsum('sij,sij->ij', u, tmp, optimize=True)
+    out_denom += usum
+    return out_numer, out_denom
+
 
 def accum_updates_and_likelihood(
         config,
