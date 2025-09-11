@@ -1034,31 +1034,6 @@ def optimize(
             #---------------------------------------------------------------
             v_h = v[:, h_index] #  select responsibilities for this model
             vsum = v_h.sum()
-            dgm_numer[h_index] += vsum
-            
-            if do_newton and iter >= newt_start:
-                # NOTE: Fortran computes this for in all iterations, but its not necessary
-                #--------------------------FORTRAN CODE-------------------------
-                # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
-                # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
-                # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
-                # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
-                #---------------------------------------------------------------
-                tmpsum_A_vec = np.sum(v_h[:, None] * b ** 2, axis=0) # # shape: (nw,)
-                dsigma2_numer[:, h_index] += tmpsum_A_vec
-                dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
-            elif not do_newton and iter >= newt_start:
-                raise NotImplementedError()
-
-            # c (bias)  
-            accumulate_c_stats(
-                X=dataseg,
-                model_responsibilities=v_h,
-                vsum=vsum,
-                out_numer=dc_numer[:, h_index],
-                out_denom=dc_denom[:, h_index],
-            )
-
 
             u = compute_weighted_responsibilities(
                 mixture_responsibilities=z,
@@ -1094,56 +1069,17 @@ def optimize(
             )
             assert ufp.shape == (N1, nw, num_mix)   
 
-            # --- Vectorized Newton-Raphson Updates ---
-            if do_newton and iter >= newt_start:
-
-                if iter == 50: # and blk == 1:
-                    assert np.all(dkappa_numer == 0.0)
-                    assert np.all(dkappa_denom == 0.0)
-
-                #--------------------------FORTRAN CODE-------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
-                # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
-                # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
-                #---------------------------------------------------------------
-
-                # 1) Kappa updates (curvature terms for A)
-                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
-                sbeta_vals = sbeta[comp_slice, :] ** 2
-                tmpsum_kappa = ufp_fp_sums * sbeta_vals # Shape: (nw, num_mix)
-                dkappa_numer[:, :, h_index] += tmpsum_kappa
-                dkappa_denom[:, :, h_index] += usum
-                
-                # 2) Lambda updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
-                # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
-                # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
-                # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
-                # ------------------------------------------------------------------
-                tmpvec_mat_dlambda = (
-                    fp[:, :, :] * y[:, :, :] - 1.0
-                )
-                tmpsum_dlambda = np.sum(
-                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
-                )  # shape: (nw, num_mix)
-                dlambda_numer[:, :, h_index] += tmpsum_dlambda
-                dlambda_denom[:, :, h_index] += usum
-
-                # 3) (dbar)Alpha updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
-                # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
-                # ------------------------------------------------------------------
-                dbaralpha_numer[:, :, h_index] += usum
-                dbaralpha_denom[:,:, h_index] += vsum
-
-            # end if (do_newton and iter >= newt_start)
-            elif not do_newton and iter >= newt_start:
-                raise NotImplementedError()
-
+            # --- Stochastic Gradient Descent Updates ---
+            # gm (model weights)
+            dgm_numer[h_index] += vsum
+            # c (bias)  
+            accumulate_c_stats(
+                X=dataseg,
+                model_responsibilities=v_h,
+                vsum=vsum,
+                out_numer=dc_numer[:, h_index],
+                out_denom=dc_denom[:, h_index],
+            )
             # Alpha (mixture weights)
             accumulate_alpha_stats(
                 usum=usum,
@@ -1179,6 +1115,65 @@ def optimize(
                 out_numer=drho_numer[comp_slice, :],
                 out_denom=drho_denom[comp_slice, :],
             )
+
+            # --- Newton-Raphson Updates ---
+            if do_newton and iter >= newt_start:
+                if iter == 50: # and blk == 1:
+                    assert np.all(dkappa_numer == 0.0)
+                    assert np.all(dkappa_denom == 0.0)
+
+                # NOTE: Fortran computes dsigma_* for in all iterations, but its not necessary
+                #--------------------------FORTRAN CODE-------------------------
+                # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
+                # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
+                # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
+                # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
+                #---------------------------------------------------------------
+                tmpsum_A_vec = np.sum(v_h[:, None] * b ** 2, axis=0) # # shape: (nw,)
+                dsigma2_numer[:, h_index] += tmpsum_A_vec
+                dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
+
+                #--------------------------FORTRAN CODE-------------------------
+                # for (i = 1, nw) ... for (j = 1, num_mix)
+                # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
+                # dkappa_numer_tmp(j,i,h) = dkappa_numer_tmp(j,i,h) + tmpsum
+                # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
+                #---------------------------------------------------------------
+                # 1) Kappa updates (curvature terms for A)
+                ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
+                sbeta_vals = sbeta[comp_slice, :] ** 2
+                tmpsum_kappa = ufp_fp_sums * sbeta_vals # Shape: (nw, num_mix)
+                dkappa_numer[:, :, h_index] += tmpsum_kappa
+                dkappa_denom[:, :, h_index] += usum
+                
+                # 2) Lambda updates
+                # ---------------------------FORTRAN CODE---------------------------
+                # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)
+                # tmpsum = sum( u(bstrt:bstp) * tmpvec(bstrt:bstp) * tmpvec(bstrt:bstp) )
+                # dlambda_numer_tmp(j,i,h) = dlambda_numer_tmp(j,i,h) + tmpsum
+                # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
+                # ------------------------------------------------------------------
+                tmpvec_mat_dlambda = (
+                    fp[:, :, :] * y[:, :, :] - 1.0
+                )
+                tmpsum_dlambda = np.sum(
+                    u[:, :, :] * np.square(tmpvec_mat_dlambda[:, :, :]), axis=0
+                )  # shape: (nw, num_mix)
+                dlambda_numer[:, :, h_index] += tmpsum_dlambda
+                dlambda_denom[:, :, h_index] += usum
+
+                # 3) (dbar)Alpha updates
+                # ---------------------------FORTRAN CODE---------------------------
+                # for (i = 1, nw) ... for (j = 1, num_mix)
+                # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
+                # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
+                # ------------------------------------------------------------------
+                dbaralpha_numer[:, :, h_index] += usum
+                dbaralpha_denom[:,:, h_index] += vsum
+
+            # end if (do_newton and iter >= newt_start)
+            elif not do_newton and iter >= newt_start:
+                raise NotImplementedError()
 
             # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
             # if update_A:
