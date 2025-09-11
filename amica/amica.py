@@ -1185,55 +1185,15 @@ def optimize(
                 out_denom=dbeta_denom[comp_slice, :],
             )
             # Rho (shape parameter of generalized Gaussian)
-            if dorho:
-                # -------------------------------FORTRAN--------------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
-                # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
-                # tmpy(bstrt:bstp) = exp(rho(j,comp_list(i,h))*logab(bstrt:bstp))
-                # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
-                # ----------------------------------------------------------------------
-                # 1. log of absolute value
-                tmpy = np.empty((N1, nw, num_mix))
-                logab = np.empty((N1, nw, num_mix)) # shape is (N1) in Fortran
-                np.abs(y[:, :, :], out=tmpy)
-                np.log(tmpy[:, :, :], out=logab)
-                # 2. Exponentiation with rho
-                rho_vals = rho[comp_slice, :]  # shape: (nw, num_mix)
-                rho_vals_br = rho_vals[np.newaxis, :, :]  # shape: (1, nw, num_mix)
-                # shape: (max_block_size, nw, num_mix)
-                np.multiply(rho_vals_br, logab, out=logab)
-                np.exp(logab, out=tmpy)  # now tmpy is exp(rho * log|y|)
-                # shape: (max_block_size, nw, num_mix)
-                np.log(tmpy, out=logab)
-                
-                # -------------------------------FORTRAN--------------------------------
-                # where (tmpy(bstrt:bstp) < epsdble)
-                        #    logab(bstrt:bstp) = dble(0.0)
-                        # end where
-                # ----------------------------------------------------------------------
-                # Set values below epsdble to 0.0
-                logab[tmpy < epsdble] = 0.0
-                # -------------------------------FORTRAN--------------------------------
-                # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
-                # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
-                # drho_numer_tmp(j,comp_list(i,h)) =  drho_numer_tmp(j,comp_list(i,h)) + tmpsum
-                # drho_denom_tmp(j,comp_list(i,h)) =  drho_denom_tmp(j,comp_list(i,h)) + usum
-                # ----------------------------------------------------------------------
-                #tmpsum = np.sum(u[bstrt-1:bstp] * tmpy[bstrt-1:bstp] * logab[bstrt-1:bstp])
-                tmpsum_prod = np.sum(
-                    u[:, :, :]
-                    * tmpy[:, :, :]
-                    * logab[:, :, :]
-                , axis=0
-                )
-                drho_numer[comp_slice, :] += tmpsum_prod
-                drho_denom[comp_slice, :] += usum
-
-                if np.any(rho[comp_slice, :] > 2.0):
-                    raise NotImplementedError()
-            elif not dorho:
-                raise NotImplementedError()
+            accumulate_rho_stats(
+                y=y,
+                rho=rho[comp_slice, :],
+                u=u,
+                usum=usum,
+                epsdble=epsdble,
+                out_numer=drho_numer[comp_slice, :],
+                out_denom=drho_denom[comp_slice, :],
+            )
 
             # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
             # if update_A:
@@ -1283,8 +1243,8 @@ def optimize(
             assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
             assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
-            assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
-            assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
+            #assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
+            #assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
             assert_almost_equal(drho_numer[31, 2], 469.83886293477855, decimal=5)
             assert_almost_equal(drho_denom[31, 2], 9499.991274464508, decimal=5)
             assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
@@ -1314,8 +1274,8 @@ def optimize(
             assert_allclose(v, 1)
             assert_almost_equal(y[-1, 31, 2], -1.8067399375706592)
             assert_almost_equal(z[-808, 31, 2], 0.71373487258192514)
-            assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
-            assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
+            #assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
+            #assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
             #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
             # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
             assert_almost_equal(loglik[-1], -109.77900836816768, decimal=6)
@@ -2690,6 +2650,92 @@ def accumulate_beta_stats(
         raise NotImplementedError()
 
 
+def accumulate_rho_stats(
+        *,
+        y: Sources3D,
+        rho: Params2D,
+        epsdble: float,
+        u: Sources3D,
+        usum: Params2D,
+        out_numer: Params2D,
+        out_denom: Params2D,
+        ) -> Tuple[Params2D, Params2D]:
+    """
+    Compute the numerator and denominator for the shape updates.
+
+    Parameters
+    y : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The scaled sources for the
+        current model.
+    rho : np.ndarray
+        Shape (n_components, n_mixtures). The shape parameters.
+    epsdble : float
+        Default 1.0e-16. Floor for log-exp underflow handling;
+        values with exp(rho*log|y|) < epsdble zero the log contribution.
+    u : np.ndarray
+        Shape (n_samples, n_components, n_mixtures). The responsibilities.
+    usum : np.ndarray
+        Shape (n_components, n_mixtures). The per-source, per-mixture total
+        responsibility mass across all samples (i.e. the sum across samples).
+    out_numer : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the numerator of the
+        rho gradient. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components, n_mixtures). Accumulator for the denominator of the
+        rho gradient. This array is mutated in-place and returned.
+    
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components, n_mixtures). This is
+        out_numer mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components, n_mixtures). This is
+        out_denom mutated in-place.
+    """
+    assert y.ndim == 3, f"y must be 3D, got {y.ndim}D"
+    assert u.shape == y.shape, f"u shape {u.shape} != y shape {y.shape}"
+    assert rho.ndim == 2, f"rho must be 2D, got {rho.ndim}D"
+    assert usum.shape == rho.shape, f"usum shape {usum.shape} != rho shape {rho.shape}"
+    assert np.isscalar(epsdble), f"epsdble must be a scalar, got {epsdble}"
+    assert out_numer.shape == rho.shape, f"out_numer shape {out_numer.shape} != rho shape {rho.shape}"
+    assert out_denom.shape == rho.shape, f"out_denom shape {out_denom.shape} != rho shape {rho.shape}"
+    # -------------------------------FORTRAN--------------------------------
+    # for (i = 1, nw) ... for (j = 1, num_mix)
+    # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
+    # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
+    # tmpy(bstrt:bstp) = exp(rho(j,comp_list(i,h))*logab(bstrt:bstp))
+    # logab(bstrt:bstp) = log(tmpy(bstrt:bstp))
+    # where (tmpy(bstrt:bstp) < epsdble)
+            #    logab(bstrt:bstp) = dble(0.0)
+            # end where
+    # logab[bstrt-1:bstp][tmpy[bstrt-1:bstp] < epsdble] = 0.0
+    # tmpsum = sum( u(bstrt:bstp) * tmpy(bstrt:bstp) * logab(bstrt:bstp) )
+    # drho_numer_tmp(j,comp_list(i,h)) =  drho_numer_tmp(j,comp_list(i,h)) + tmpsum
+    # drho_denom_tmp(j,comp_list(i,h)) =  drho_denom_tmp(j,comp_list(i,h)) + usum
+    # ----------------------------------------------------------------------
+    tmpy = np.empty_like(y)
+    logab = np.empty_like(y)
+    # 1. log|y| into logab, and also keep |y| in tmpy
+    np.abs(y, out=tmpy)
+    np.log(tmpy, out=logab)
+    # 2. logab = rho * log|y|
+    np.multiply(rho[None, :, :], logab, out=logab)
+    # 3. tmpy = |y|^rho
+    np.exp(logab, out=tmpy)
+    # 4) Zero small contributions in logab based on tmpy threshold
+    logab[tmpy < epsdble] = 0.0
+    # 5. Numerator: sum(u * |y|^rho * log(|y|^rho)) over samples
+    np.multiply(u, tmpy, out=tmpy)
+    np.multiply(tmpy, logab, out=tmpy)
+    # Sum over samples -> (nw, num_mix) and accumulate
+    out_numer += tmpy.sum(axis=0)
+    out_denom += usum
+    if np.any(rho > 2.0):
+        raise NotImplementedError()
+    return out_numer, out_denom
+
+
 def accum_updates_and_likelihood(
         config,
         updates,
@@ -3106,33 +3152,32 @@ def update_params(
         assert not sbeta[sbeta == 0].any()
     # end if (update_beta)
 
-    if dorho:
-        if iter == 1:
-            assert_allclose(rho, 1.5)
-        rho[:, :] += (
-             rholrate
-             * (
-                 1.0
-                 - (rho / psi(1.0 + 1.0 / rho))
-                * drho_numer
-                / drho_denom
-            )
+
+    if iter == 1:
+        assert_allclose(rho, 1.5)
+    rho[:, :] += (
+            rholrate
+            * (
+                1.0
+                - (rho / psi(1.0 + 1.0 / rho))
+            * drho_numer
+            / drho_denom
         )
-        rhotmp = np.minimum(maxrho, rho) # shape (num_comps, num_mix)
-        assert rhotmp.shape == (config.n_components, config.n_mixtures)
-        rho[:, :] = np.maximum(minrho, rhotmp)
-        if iter == 1:
-            assert maxrho == 2
-            assert minrho == 1
-            assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
-            assert not rhotmp[rhotmp == maxrho].any()
-            assert_almost_equal(rho[0, 0], 1.4573165687688203)
-            assert not rho[rho == minrho].any()
-        elif iter == 2:
-            assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
-            assert not rhotmp[rhotmp == maxrho].any()
-            assert not rhotmp[rhotmp == maxrho].any()
-    # end if (dorho)
+    )
+    rhotmp = np.minimum(maxrho, rho) # shape (num_comps, num_mix)
+    assert rhotmp.shape == (config.n_components, config.n_mixtures)
+    rho[:, :] = np.maximum(minrho, rhotmp)
+    if iter == 1:
+        assert maxrho == 2
+        assert minrho == 1
+        assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
+        assert not rhotmp[rhotmp == maxrho].any()
+        assert_almost_equal(rho[0, 0], 1.4573165687688203)
+        assert not rho[rho == minrho].any()
+    elif iter == 2:
+        assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
+        assert not rhotmp[rhotmp == maxrho].any()
+        assert not rhotmp[rhotmp == maxrho].any()
 
     # !--- rescale
     # !print *, 'rescaling A ...'; call flush(6)
