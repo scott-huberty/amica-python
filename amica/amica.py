@@ -76,6 +76,9 @@ import numpy.typing as npt
 Samples1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
 """Alias for a 1D array with shape (n_samples,)."""
 
+Components1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components,)"]
+"""Alias for a 1D array with shape (n_components,)."""
+
 Data2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_features, n_samples)"]
 """Alias for a 2D array with shape (n_features, n_samples)."""
 
@@ -93,6 +96,9 @@ Sources3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_compone
 
 Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_mixtures)"]
 """Alias for a 2D array with shape (n_components, n_mixtures)."""
+
+ParamsModel2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_models)"]
+"""Alias for a 2D array with shape (n_components, n_models)."""
 
 Index1D: TypeAlias  = Annotated[npt.NDArray[np.integer], "(n_features,)"]
 """Alias for a 1D array with shape (n_features,)."""
@@ -1017,9 +1023,7 @@ def optimize(
         # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
         # ===============================================================================
         
-        # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
         # !--- get g, u, ufp
-        # !print *, myrank+1,':', thrdnum+1,': getting g ...'; call flush(6)
         g = work.get_buffer("scratch_2D")  # reuse for g workspace
         for h, _ in enumerate(range(num_models), start=1):
             comp_slice = get_component_slice(h, num_comps)
@@ -1031,13 +1035,7 @@ def optimize(
             v_h = v[:, h_index] #  select responsibilities for this model
             vsum = v_h.sum()
             dgm_numer[h_index] += vsum
-
-            # if update_A:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
-            #---------------------------------------------------------------
             
-            # for do (i = 1, nw)
             if do_newton and iter >= newt_start:
                 # NOTE: Fortran computes this for in all iterations, but its not necessary
                 #--------------------------FORTRAN CODE-------------------------
@@ -1051,21 +1049,15 @@ def optimize(
                 dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
             elif not do_newton and iter >= newt_start:
                 raise NotImplementedError()
-            # if update_c:
-            if do_reject:
-                raise NotImplementedError()
-                # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstrt:xstp)) )
-            else:
-                #--------------------------FORTRAN CODE-------------------------
-                # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
-                #---------------------------------------------------------------
-                # # Vectorized update for dc
-                assert dataseg.shape[1] == v_h.shape[0]  # should match block size
-                tmpsum_c_vec = np.sum(dataseg * v_h, axis=1)
-            # dc_numer_tmp(i,h) = dc_numer_tmp(i,h) + tmpsum
-            # dc_denom_tmp(i,h) = dc_denom_tmp(i,h) + vsum
-            dc_numer[:, h_index] += tmpsum_c_vec
-            dc_denom[:, h_index] += vsum  # # vsum is scalar, broadcasts
+
+            # c (bias)  
+            accumulate_c_stats(
+                X=dataseg,
+                model_responsibilities=v_h,
+                vsum=vsum,
+                out_numer=dc_numer[:, h_index],
+                out_denom=dc_denom[:, h_index],
+            )
 
             #--------------------------FORTRAN CODE-------------------------
             # for do (j = 1, num_mix)
@@ -1121,7 +1113,6 @@ def optimize(
                 # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
                 #---------------------------------------------------------------
 
-
                 # 1) Kappa updates (curvature terms for A)
                 ufp_fp_sums = np.sum(ufp[:, :, :] * fp[:, :, :], axis=0)
                 sbeta_vals = sbeta[comp_slice, :] ** 2
@@ -1144,7 +1135,6 @@ def optimize(
                 )  # shape: (nw, num_mix)
                 dlambda_numer[:, :, h_index] += tmpsum_dlambda
                 dlambda_denom[:, :, h_index] += usum
-                
 
                 # 3) (dbar)Alpha updates
                 # ---------------------------FORTRAN CODE---------------------------
@@ -2456,6 +2446,80 @@ def accumulate_scores(
     np.multiply(u, fp, out=ufp)    
     np.einsum('tnj,nj->tn', ufp, sbeta_h, optimize=True, out=g)
     return ufp, g
+
+def accumulate_c_stats(
+        *,
+        X: Data2D,
+        model_responsibilities: Samples1D,
+        vsum: float,
+        do_reject: bool = False,
+        out_numer: Components1D,
+        out_denom: Components1D,
+        ) -> Tuple[ParamsModel2D, ParamsModel2D]:
+    """
+    Get sufficient statistics for model bias vector c.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Shape (n_features, n_samples). The input data.
+    model_responsibilities : np.ndarray
+        Shape (n_samples,). The model responsibilities.
+    vsum : float
+        The total responsibility mass for the current model across all samples
+        (i.e. the sum across samples).
+    do_reject : bool, default False
+        Currently only False (no outlier rejection) is supported.
+    out_numer : np.ndarray
+        Shape (n_components,). Accumulator for the numerator of the c
+        gradient For one model. This array is mutated in-place and returned.
+    out_denom : np.ndarray
+        Shape (n_components,). Accumulator for the denominator of the c
+        gradient for one model. This array is mutated in-place and returned.
+    
+    Returns
+    -------
+    out_numer : np.ndarray
+        Sum of X weighted by the model responsibilities (n_features, n_features).
+        This is out_numer mutated in-place.
+    out_denom : np.ndarray
+        Total responsibility mass for the model, broadcasted to (n_components, n_mixtures)
+        This is out_denom mutated in-place.
+    
+    Notes
+    -----
+    Fortran reference:
+        tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
+        dc_numer_tmp(:,i,h) = dc_numer_tmp(:,i,h) + tmpsum
+        dc_denom_tmp(:,i,h) = dc_denom_tmp(:,i,h) + vsum
+    """
+    # Alias for clarity with Fortran code
+    dataseg = X
+    v = model_responsibilities
+    assert X.ndim == 2, f"X must be 2D, got {X.ndim}D"
+    assert v.ndim == 1, f"model responsibilities must be 1D, got {v.ndim}D"
+    assert X.shape[1] == v.shape[0], (
+        f"X n_samples {X.shape[1]} != model responsibilities length {v.shape[0]}"
+    )
+    assert np.isscalar(vsum), f"vsum must be a scalar, got {vsum}"
+    assert out_numer.shape == (X.shape[0],), (
+        f"out_numer shape {out_numer.shape} != (n_components,) "
+    )
+    assert out_denom.shape == (X.shape[0],), (
+        f"out_denom shape {out_denom.shape} != (n_components,) "
+        f"= ({X.shape[0]},)"
+    )
+    if do_reject:
+        raise NotImplementedError()
+        # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,dataseg(seg)%goodinds(xstr
+    else:
+        #--------------------------FORTRAN CODE-------------------------
+        # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
+        #---------------------------------------------------------------
+        tmpsum_c_vec = dataseg @ v  # Shape: (n_components,)
+    out_numer += tmpsum_c_vec
+    out_denom += vsum
+    return out_numer, out_denom
 
 
 def accumulate_alpha_stats(
