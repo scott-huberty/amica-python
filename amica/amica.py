@@ -1122,17 +1122,15 @@ def optimize(
                     assert np.all(dkappa_numer == 0.0)
                     assert np.all(dkappa_denom == 0.0)
 
-                # NOTE: Fortran computes dsigma_* for in all iterations, but its not necessary
-                #--------------------------FORTRAN CODE-------------------------
-                # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
-                # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
-                # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
-                # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
-                #---------------------------------------------------------------
-                tmpsum_A_vec = np.sum(v_h[:, None] * b ** 2, axis=0) # # shape: (nw,)
-                dsigma2_numer[:, h_index] += tmpsum_A_vec
-                dsigma2_denom[:, h_index] += vsum  # vsum is scalar, broadcasts to all
-
+                # NOTE: Fortran computes dsigma_* for in all iters, but its not necessary
+                # Sigma^2 updates (noise variance)
+                accumulate_sigma2_stats(
+                    model_responsibilities=v_h,
+                    source_estimates=b,
+                    vsum=vsum,
+                    out_numer=dsigma2_numer[:, h_index],
+                    out_denom=dsigma2_denom[:, h_index],
+                )
                 #--------------------------FORTRAN CODE-------------------------
                 # for (i = 1, nw) ... for (j = 1, num_mix)
                 # tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) ) * sbeta(j,comp_list(i,h))**2
@@ -2846,6 +2844,71 @@ def accumulate_rho_stats(
     out_denom += usum
     if np.any(rho > 2.0):
         raise NotImplementedError()
+    return out_numer, out_denom
+
+
+def accumulate_sigma2_stats(
+        *,
+        model_responsibilities: Samples1D,
+        source_estimates: Sources2D,
+        vsum: float,
+        out_numer: Components1D,
+        out_denom: Components1D,
+):
+    """Get sufficient statistics for sigma2 (noise variance) update.
+
+    Parameters
+    ----------
+    model_responsibilities : np.ndarray
+        Shape (n_samples,). The model responsibilities. This is `v(:, h)` in the Fortran
+        code.
+    source_estimates : np.ndarray
+        Shape (n_samples, n_components). The source estimates. This is `b` in the
+        Fortran code.
+    vsum : float
+        The sum of the model responsibilities.
+    out_numer : np.ndarray
+        Shape (n_components,). The numerator accumulator.
+    out_denom : np.ndarray
+        Shape (n_components,). The denominator accumulator.
+    
+    Returns
+    -------
+    out_numer : np.ndarray
+        Updated numerator accumulator (n_components,). This is out_numer
+        mutated in-place.
+    out_denom : np.ndarray
+        Updated denominator accumulator (n_components,). This is out_denom
+        mutated in-place.
+    
+    Notes
+    -----
+    Fortran reference:
+        for (h = num_models) ... for (i = 1, nw)
+            tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
+            dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
+            dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
+
+    Fortran updates dsigma2_numer and dsigma2_denom in all iterations, but that is not
+    necessary.
+    """
+    # Alias for clarity with Fortran code
+    v_h = model_responsibilities
+    b = source_estimates
+    assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
+    assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
+    assert np.isscalar(vsum), f"vsum must be a scalar, got {vsum}"
+    assert b.shape[0] == v_h.shape[0], f"samples dimension mismatch {b.shape[0]} != {v_h.shape[0]}"
+    #--------------------------FORTRAN CODE-------------------------
+    # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
+    # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
+    # dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
+    # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
+    #---------------------------------------------------------------
+    # weighted column-wise sum of squares: (s=n_samples, i=n_components)
+    # Same as v_h @ (b**2) but avoids the intermediate b**2 allocation
+    out_numer += np.einsum('s,si,si->i', v_h, b, b, optimize=True)
+    out_denom += vsum
     return out_numer, out_denom
 
 
