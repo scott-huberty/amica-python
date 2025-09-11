@@ -1115,14 +1115,12 @@ def optimize(
                 out_numer=drho_numer[comp_slice, :],
                 out_denom=drho_denom[comp_slice, :],
             )
-
             # --- Newton-Raphson Updates ---
             if do_newton and iter >= newt_start:
                 if iter == 50: # and blk == 1:
                     assert np.all(dkappa_numer == 0.0)
                     assert np.all(dkappa_denom == 0.0)
-
-                # NOTE: Fortran computes dsigma_* for in all iters, but its not necessary
+                # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
                 # Sigma^2 updates (noise variance)
                 accumulate_sigma2_stats(
                     model_responsibilities=v_h,
@@ -1131,7 +1129,7 @@ def optimize(
                     out_numer=dsigma2_numer[:, h_index],
                     out_denom=dsigma2_denom[:, h_index],
                 )
-                # 1) Kappa updates (curvature terms for A)
+                # Kappa updates (curvature terms for A)
                 accumulate_kappa_stats(
                     ufp=ufp,
                     fp=fp,
@@ -1140,7 +1138,7 @@ def optimize(
                     out_numer=dkappa_numer[:, :, h_index],
                     out_denom=dkappa_denom[:, :, h_index],
                 )                
-                # 2) Lambda updates (nonlinearity shape parameter)
+                # Lambda updates (nonlinearity shape parameter)
                 accumulate_lambda_stats(
                     fp=fp,
                     y=y,
@@ -1149,15 +1147,9 @@ def optimize(
                     out_numer=dlambda_numer[:, :, h_index],
                     out_denom=dlambda_denom[:, :, h_index],
                 )
-                # 3) (dbar)Alpha updates
-                # ---------------------------FORTRAN CODE---------------------------
-                # for (i = 1, nw) ... for (j = 1, num_mix)
-                # dbaralpha_numer_tmp(j,i,h) = dbaralpha_numer_tmp(j,i,h) + usum
-                # dbaralpha_denom_tmp(j,i,h) = dbaralpha_denom_tmp(j,i,h) + vsum
-                # ------------------------------------------------------------------
+                # (dbar)Alpha updates
                 dbaralpha_numer[:, :, h_index] += usum
                 dbaralpha_denom[:,:, h_index] += vsum
-
             # end if (do_newton and iter >= newt_start)
             elif not do_newton and iter >= newt_start:
                 raise NotImplementedError()
@@ -1253,9 +1245,6 @@ def optimize(
         # !$OMP END PARALLEL
         # !print *, myrank+1,': finished segment ', seg; call flush(6)
         
-        # XXX: Later we'll figure out which variables we actually need to return
-        # For now literally return any variable that has been assigned or updated
-        # In alphabetical order
         likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
             config=config,
             updates=updates,
@@ -2450,9 +2439,11 @@ def accumulate_scores(
     Returns
     -------
     out_ufp : np.ndarray
-        elementwise product responsibilities * scores, shape (n_samples, n_components, n_mixtures), modified in place.
+        The score function weighted by model-weighted mixture-responsibilities.
+        shape (n_samples, n_components, n_mixtures), modified in place.
     out_g : np.ndarray
-        accumulated per-sample per-component score weighted by sbeta, shape (n_samples, n_components), modified in place.
+        out_ufp weighted by model scales (sbeta), shape (n_samples, n_components),
+        modified in place.
     """
     # Shape assertions for new dimension standard
     N1, nw, num_mix = scores.shape
