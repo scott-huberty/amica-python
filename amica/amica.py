@@ -232,14 +232,14 @@ def amica(
     # TODO: n_components gets set twice. Thats an anti-pattern.
     if n_components is None:
         n_components = nx
+    # -- Center the data
     print("getting the mean ...")
     mean = dataseg.mean(axis=1)
+    # !--- subtract the mean
+    dataseg -= mean[:, None]  # Subtract mean from each channel
     assert_almost_equal(mean[0], -3.7090141912586323)
     assert_almost_equal(mean[1], -6.7516788952437894)
-    assert_almost_equal(mean[2], 2.5880450259870105)
-
-    # !--- subtract the mean
-    dataseg -= mean[:, np.newaxis]  # Subtract mean from each channel
+    assert_almost_equal(mean[2], 2.5880450259870105)    
     assert_almost_equal(dataseg[0, 0], -32.088471160303868)
     assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
     assert_almost_equal(dataseg[2, 0], -29.36477079502998)
@@ -2688,10 +2688,9 @@ def accumulate_beta_stats(
     # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
     # ----------------------------------------------------------------------
     if np.all(rho <= 2.0):
-        tmpsum_dbeta_denom = np.sum(
-            ufp * y, axis=0
-        )
-        out_denom += tmpsum_dbeta_denom  # shape: (nw, num_mix)
+        # (s=samples, i=n_components, j=num_mixtures)
+        # Same as np.sum(ufp * y, axis=0) but avoid the temporary allocation
+        out_denom += np.einsum("sij,sij->ij", ufp, y, optimize=True)  # shape: (nw, num_mix)
     else:
         raise NotImplementedError()
 
