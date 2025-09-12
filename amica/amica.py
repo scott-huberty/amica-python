@@ -225,9 +225,9 @@ def amica(
     if do_reject:
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X.copy()
+
     do_mean = True if centering else False
     do_sphere = True if whiten else False
-
     dataseg, whitening_matrix, sldet, whitening_inverse, mean = pre_whiten(
         X=dataseg,
         n_components=n_components,
@@ -264,7 +264,7 @@ def pre_whiten(
         do_sphere: bool = True,
         do_approx_sphere: bool = False,
         inplace: bool = True,
-) -> Tuple[Data2D, Weights2D, Weights2D, Components1D, float]:
+) -> Tuple[Data2D, Weights2D, float, Weights2D, Components1D | None]:
     """
     Pre-whiten the input data matrix X prior to ICA.
     
@@ -368,7 +368,6 @@ def pre_whiten(
                 raise NotImplementedError()
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
-                # whitening_matrix = eigvecs_descending.T @ eigvecs_descending_scaled
                 whitening_matrix = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
         else:
             # if (do_approx_sphere) then
