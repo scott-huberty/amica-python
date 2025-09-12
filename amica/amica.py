@@ -276,10 +276,10 @@ def amica(
     assert Cov.shape == (nx, nx) == (32, 32)
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
 
-    eigs, eigvecs = np.linalg.eigh(Cov) # ascending order
+    eigvals, eigvecs = np.linalg.eigh(Cov) # ascending order
 
-    min_eigs = eigs[:min(nx//2, 3)]
-    max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
+    min_eigs = eigvals[:min(nx//2, 3)]
+    max_eigs = eigvals[::-1][:3]
     print(f"minimum eigenvalues: {min_eigs}")
     print(f"maximum eigenvalues: {max_eigs}")
 
@@ -294,11 +294,11 @@ def amica(
         max_eigs_fortran
     )
     pcakeep = n_components
-    numeigs = min(pcakeep, sum(eigs > mineig)) # np.linalg.matrix_rank?
-    print(f"num eigs kept: {numeigs}")
+    numeigs = min(pcakeep, sum(eigvals > mineig)) # np.linalg.matrix_rank?
+    print(f"num eigvals kept: {numeigs}")
     assert numeigs == nx == 32
 
-    eigs_descending = np.flip(eigs) # Reverse the eigenvalues
+    eigs_descending = np.flip(eigvals) # Reverse the eigenvalues
     eigvecs_descending = np.flip(eigvecs[:, :nx], axis=1).T   # Reverse the order of eigenvectors (columns)
 
     np.testing.assert_almost_equal(abs(eigvecs_descending[0, 0]), 0.21635948345763786)
@@ -365,8 +365,8 @@ def amica(
     # call DCOPY(nx*nx,S,1,Stmp2,1)
     print(f"numeigs = {numeigs}, nw = {nw}")
 
-    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
-    Winv = (eigvecs * np.sqrt(eigs)) @ eigvecs.T  # Inverse of the whitening matrix 
+    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
+    Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix 
     assert_almost_equal(Winv[0, 0], 33.11301219430311)
 
     # if (seg_rank == 0 .and. print_debug) then
