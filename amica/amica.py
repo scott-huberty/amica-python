@@ -296,29 +296,11 @@ def amica(
     pcakeep = n_components
     numeigs = min(pcakeep, sum(eigvals > mineig)) # np.linalg.matrix_rank?
     print(f"num eigvals kept: {numeigs}")
-    assert numeigs == nx == 32
 
-    eigs_descending = np.flip(eigvals) # Reverse the eigenvalues
-    eigvecs_descending = np.flip(eigvecs[:, :nx], axis=1).T   # Reverse the order of eigenvectors (columns)
+    # Log determinant of the whitening matrix
+    sldet = -0.5 * np.sum(np.log(eigvals))
+    np.testing.assert_almost_equal(sldet, -65.935050239880198)
 
-    np.testing.assert_almost_equal(abs(eigvecs_descending[0, 0]), 0.21635948345763786)
-    np.testing.assert_almost_equal(abs(eigvecs_descending[0, 1]), 0.054216688971114729)
-    np.testing.assert_almost_equal(abs(eigvecs_descending[1, 0]), 0.43483598508694776)
-    
-    sqrt_eigs = np.sqrt(eigs_descending)
-    eigvecs_descending_scaled = eigvecs_descending / sqrt_eigs[:, None]
-    non_finite_check = ~np.isfinite(eigvecs_descending_scaled)
-    if non_finite_check.any():
-        non_finite_indices = np.where(non_finite_check)[0]
-        unique_rows_with_non_finite = np.unique(non_finite_indices)
-        for i in unique_rows_with_non_finite:
-            print(f"Non-finite value detected! i = {i}, eigv = {eigs_descending[i]}")
-        raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-
-    sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
-    sldet -= 0.5 * np.sum(np.log(eigs_descending))
-    np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
-    np.testing.assert_almost_equal(abs(eigvecs_descending_scaled[0, 0]), 0.0021955369949589743)
     # do sphere
     if do_sphere:
         if numeigs == nx:
@@ -327,7 +309,8 @@ def amica(
                 raise NotImplementedError()
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
-                whitening_matrix = eigvecs_descending.T @ eigvecs_descending_scaled
+                # whitening_matrix = eigvecs_descending.T @ eigvecs_descending_scaled
+                whitening_matrix = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
         else:
             # if (do_approx_sphere) then
             raise NotImplementedError()
