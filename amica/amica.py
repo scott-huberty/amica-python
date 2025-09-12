@@ -228,11 +228,11 @@ def amica(
     do_mean = True if centering else False
     do_sphere = True if whiten else False
     # !---------------------------- get the mean --------------------------------
-    nx = dataseg.shape[0]  # Number of channels
-    # TODO: n_components gets set twice. Thats an anti-pattern.
+    nx, n_samples = dataseg.shape
     if n_components is None:
         n_components = nx
-    # -- Center the data
+    
+    # ---- Mean-centering ----
     if do_mean:
         print("getting the mean ...")
         mean = dataseg.mean(axis=1)
@@ -244,35 +244,22 @@ def amica(
         assert_almost_equal(dataseg[0, 0], -32.088471160303868)
         assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
         assert_almost_equal(dataseg[2, 0], -29.36477079502998)
-    else:
-        mean = np.zeros((nx, 1))
 
-    # !------------------------ sphere the data -------------------------------
-    Stmp = np.zeros((nx, nx))
-    Stmp_2 = np.zeros((nx, nx))
+    # ---- Covariance ----
     print(" Getting the covariance matrix ...")
-    # call DSCAL(nx*nx,dble(0.0),Stmp,1)
     # Compute the covariance matrix
-    # The Fortran code processes the data in blocks
-    # and appears to only update the lower triangular part of the covariance matrix
-    # But in practice, you usually want to compute the full covariance matrix?
-    # e.g. Stmp = np.cov(dataseg)
+    # The Fortran code only updates the lower triangular part of the covariance matrix
 
-    # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
+    # -------------------- FORTRAN CODE ---------------------------------------
+    # call DSCAL(nx*nx,dble(0.0),Stmp,1)
+    # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp)...
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
-    n_samples = dataseg.shape[-1]
-    full_cov = dataseg @ dataseg.T / n_samples
-    Cov = np.zeros((nx, nx))
-    # Copy the lower triangular part of the covariance matrix to be consistent with Fortran code
-    Cov[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-
+    #------------------------------------------------------------------------
+    Cov = dataseg @ dataseg.T / n_samples
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
 
-    #### Do Eigenvalue Decomposition (ONCE) ####
+    # ---- Eigen-decomposition
     print(f"doing eig nx = {nx}")
-    assert Cov.shape == (nx, nx) == (32, 32)
-    np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
-
     eigvals, eigvecs = np.linalg.eigh(Cov) # ascending order
 
     min_eigs = eigvals[:min(nx//2, 3)]
@@ -282,24 +269,20 @@ def amica(
 
     min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
     max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-    np.testing.assert_array_almost_equal(
-        min_eigs,
-        min_eigs_fortran
-    )
-    np.testing.assert_array_almost_equal(
-        max_eigs,
-        max_eigs_fortran
-    )
-    pcakeep = n_components
-    numeigs = min(pcakeep, sum(eigvals > mineig)) # np.linalg.matrix_rank?
+    assert_allclose(min_eigs, min_eigs_fortran)
+    assert_allclose(max_eigs, max_eigs_fortran)
+    
+    # keep only valid eigs  
+    numeigs = min(n_components, sum(eigvals > mineig)) # np.linalg.matrix_rank?
     print(f"num eigvals kept: {numeigs}")
 
     # Log determinant of the whitening matrix
     sldet = -0.5 * np.sum(np.log(eigvals))
     np.testing.assert_almost_equal(sldet, -65.935050239880198)
 
-    # do sphere
+    # ---- Sphere or variance normalize ----
     if do_sphere:
+        print("Sphering the data...")
         if numeigs == nx:
             # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
@@ -316,8 +299,6 @@ def amica(
         # !--- just normalize by the channel variances (don't sphere)
         raise NotImplementedError()
 
-
-    print("Sphering the data...")
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
@@ -338,21 +319,15 @@ def amica(
     assert_almost_equal(dataseg[20, 29710], 0.26516668950937816, decimal=7)
     assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
 
-    nw = numeigs # Number of weights, as per Fortran code
 
-    # ! get the pseudoinverse of S
-    # Compute the pseudo-inverse of the sphering matrix (for later use?)
-    # call DCOPY(nx*nx,S,1,Stmp2,1)
+    nw = numeigs # Number of weights, as per Fortran code
     print(f"numeigs = {numeigs}, nw = {nw}")
 
+    # ! get the pseudoinverse of the sphering matrix
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
     Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix 
     assert_almost_equal(Winv[0, 0], 33.11301219430311)
 
-    # if (seg_rank == 0 .and. print_debug) then
-    #    print *, 'S = '; call flush(6)
-    #   call matout(S(1:2,1:2),2,2)
-    #   print *, 'Sphered data = '; call flush(6)
     if n_components is None:
         # TODO
         # In the Fortran code n_components == nw IF num_models == 1
@@ -363,7 +338,6 @@ def amica(
         n_components = nw
     elif n_components > nw:
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
-    
     
     state, LL = _core_amica(
         X=dataseg,
