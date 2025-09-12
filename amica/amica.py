@@ -233,16 +233,19 @@ def amica(
     if n_components is None:
         n_components = nx
     # -- Center the data
-    print("getting the mean ...")
-    mean = dataseg.mean(axis=1)
-    # !--- subtract the mean
-    dataseg -= mean[:, None]  # Subtract mean from each channel
-    assert_almost_equal(mean[0], -3.7090141912586323)
-    assert_almost_equal(mean[1], -6.7516788952437894)
-    assert_almost_equal(mean[2], 2.5880450259870105)    
-    assert_almost_equal(dataseg[0, 0], -32.088471160303868)
-    assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
-    assert_almost_equal(dataseg[2, 0], -29.36477079502998)
+    if do_mean:
+        print("getting the mean ...")
+        mean = dataseg.mean(axis=1)
+        # !--- subtract the mean
+        dataseg -= mean[:, None]  # Subtract mean from each channel
+        assert_almost_equal(mean[0], -3.7090141912586323)
+        assert_almost_equal(mean[1], -6.7516788952437894)
+        assert_almost_equal(mean[2], 2.5880450259870105)
+        assert_almost_equal(dataseg[0, 0], -32.088471160303868)
+        assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
+        assert_almost_equal(dataseg[2, 0], -29.36477079502998)
+    else:
+        mean = np.zeros((nx, 1))
 
     # !------------------------ sphere the data -------------------------------
     Stmp = np.zeros((nx, nx))
@@ -259,24 +262,24 @@ def amica(
     X = dataseg.copy()
     full_cov = X @ X.T
     Stmp_2[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-   
+
     S = Stmp_2.copy()  # Copy the lower triangular part to S
     np.testing.assert_almost_equal(S[0, 0], 45778661.956294745, decimal=6)
     cnt = 30504 # Number of time points, as per the Fortran code
     # Normalize the covariance matrix by dividing by the number of samples
     # S is the final covariance matrix
-    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1) 
+    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
     S /= cnt
     np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
 
     # Better approach: vectorized.
     full_cov = dataseg @ dataseg.T
     # The fortran code only computes the lower triangle for efficiency
-    # So lets set the upper triangle to zero for consistency    
+    # So lets set the upper triangle to zero for consistency
     Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
     np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
 
-    #### Do Eigenvalue Decomposition ####
+    #### Do Eigenvalue Decomposition (ONCE) ####
     lwork = 10 * nx * nx  # Work array size, as per Fortran code
     eigs = np.zeros(nx)
     eigv = np.zeros(nx)
@@ -287,7 +290,10 @@ def amica(
     assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
 
     # call DSYEV('V','L',nx,Stmp,nx,eigs,work,lwork,info)
-    eigs, eigv = np.linalg.eigh(Stmp)  # Eigenvalue decomposition
+    # This is the single, shared EVD result
+    shared_eigs, shared_eigv = np.linalg.eigh(Stmp)
+    eigs, eigv = shared_eigs, shared_eigv  # Assign to legacy variables for asserts
+
     assert eigs.ndim == 1
     assert len(eigs) == 32
     assert eigv.shape == (32, 32) # in Fortran, eigv is 32 and is used to store the reversed eigenvalues
@@ -308,11 +314,11 @@ def amica(
     )
     np.testing.assert_array_almost_equal(
         biggest_eigs,
-        want_big_eigs        
+        want_big_eigs
     )
     print(f"minimum eigenvalues: {lowest_eigs}")
     print(f"maximum eigenvalues: {biggest_eigs}")
-    
+
     # wrappers for the fortran program either set pcakeep to nchans
     # or to nchans-1 in case of an average reference.
     pcakeep = n_components
@@ -332,18 +338,20 @@ def amica(
     np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
     eigv = np.sort(eigs)[::-1]
     np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
-    np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7) 
+    np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7)
     np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
 
     # do sphere
     if do_sphere:
         # This is a duplicate of the previous step
-        print(f"doing eig nx = {nx}, lwork = {lwork}")
+        print(f"doing eig nx = {nx}, lwork = {lwork} (REUSING EVD RESULT)")
         assert S.shape == (nx, nx) == (32, 32)
         np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
         Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
 
-        eigs, eigvecs = np.linalg.eigh(Stmp)  # eigvecs: columns are eigenvectors
+        # DE-DUPLICATION: The second EVD call is removed. We reuse the results from above.
+        eigs, eigvecs = shared_eigs, shared_eigv
+
         Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
 
         min_eigs = eigs[:min(nx//2, 3)]
@@ -386,18 +394,18 @@ def amica(
             for i in unique_rows_with_non_finite:
                 print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
             raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-        
+
         sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
         sldet -= 0.5 * np.sum(np.log(eigv))
         np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
         np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
         if numeigs == nx:
-            # call DSCAL(nx*nx,dble(0.0),S,1) 
+            # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
                 raise NotImplementedError()
             else:
-                # call DCOPY(nx*nx,Stmp2,1,S,1)  
+                # call DCOPY(nx*nx,Stmp2,1,S,1)
                 S = Stmp.T @ Stmp2
         else:
             # if (do_approx_sphere) then
@@ -406,15 +414,15 @@ def amica(
     else:
         # !--- just normalize by the channel variances (don't sphere)
         raise NotImplementedError()
-   
+
     print("Sphering the data...")
 
     # Apply the sphering matrix to the data (whitening)
     fieldsize = dataseg.shape[1]
     assert fieldsize == 30504
     # TODO: this is all very inefficient. We should be able to do this in one go with a single matrix multiplication
-    # e.g. 
-    
+    # e.g.
+
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
@@ -439,7 +447,7 @@ def amica(
     assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
 
     nw = numeigs # Number of weights, as per Fortran code
-    
+
     # ! get the pseudoinverse of S
     # Compute the pseudo-inverse of the sphering matrix (for later use?)
     assert S.shape == (nx, nx) == (32, 32)
@@ -453,7 +461,7 @@ def amica(
     sVtmp = np.zeros((numeigs, nx))
     assert sVtmp.shape == (32, 32)
     print(f"numeigs = {numeigs}, nw = {nw}")
-    
+
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
     sUtmp, eigs, sVtmp = np.linalg.svd(Stmp2, full_matrices=False)
     assert sUtmp.shape == (nx, nw) == (32, 32)
