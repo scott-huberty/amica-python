@@ -261,31 +261,30 @@ def amica(
     # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
     X = dataseg.copy()
     full_cov = X @ X.T
-    Stmp_2[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
+    Cov = np.zeros((nx, nx))
+    # Copy the lower triangular part of the covariance matrix to be consistent with Fortran code
+    Cov[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
 
-    S = Stmp_2.copy()  # Copy the lower triangular part to S
-    np.testing.assert_almost_equal(S[0, 0], 45778661.956294745, decimal=6)
-    cnt = 30504 # Number of time points, as per the Fortran code
+    np.testing.assert_almost_equal(Cov[0, 0], 45778661.956294745, decimal=6)
+    n_samples = dataseg.shape[-1]
     # Normalize the covariance matrix by dividing by the number of samples
-    # S is the final covariance matrix
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
-    S /= cnt
-    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-
-    # Better approach: vectorized.
-    full_cov = dataseg @ dataseg.T
+    Cov /= n_samples
+    np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
+    
+    '''full_cov = dataseg @ dataseg.T
     # The fortran code only computes the lower triangle for efficiency
     # So lets set the upper triangle to zero for consistency
     Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-    np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
+    np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)'''
 
     #### Do Eigenvalue Decomposition (ONCE) ####
     print(f"doing eig nx = {nx}, lwork =(REUSING EVD RESULT)")
-    assert S.shape == (nx, nx) == (32, 32)
-    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-    Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
+    assert Cov.shape == (nx, nx) == (32, 32)
+    np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
+    # Stmp = Cov.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
 
-    eigs, eigvecs = np.linalg.eigh(Stmp)
+    eigs, eigvecs = np.linalg.eigh(Cov)
 
     Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
 
@@ -304,9 +303,8 @@ def amica(
         max_eigs,
         max_eigs_fortran
     )
-
     pcakeep = n_components
-    numeigs = min(pcakeep, sum(eigs > mineig))
+    numeigs = min(pcakeep, sum(eigs > mineig)) # np.linalg.matrix_rank?
     print(f"num eigs kept: {numeigs}")
     assert numeigs == nx == 32
 
