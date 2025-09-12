@@ -224,7 +224,7 @@ def amica(
         raise NotImplementedError("n_models > 1 not yet supported")
     if do_reject:
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
-    dataseg = X
+    dataseg = X.copy()
     do_mean = True if centering else False
     do_sphere = True if whiten else False
     # !---------------------------- get the mean --------------------------------
@@ -259,8 +259,7 @@ def amica(
     # e.g. Stmp = np.cov(dataseg)
 
     # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
-    X = dataseg.copy()
-    full_cov = X @ X.T
+    full_cov = dataseg @ dataseg.T
     Cov = np.zeros((nx, nx))
     # Copy the lower triangular part of the covariance matrix to be consistent with Fortran code
     Cov[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
@@ -271,22 +270,13 @@ def amica(
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
     Cov /= n_samples
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
-    
-    '''full_cov = dataseg @ dataseg.T
-    # The fortran code only computes the lower triangle for efficiency
-    # So lets set the upper triangle to zero for consistency
-    Stmp[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
-    np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)'''
 
     #### Do Eigenvalue Decomposition (ONCE) ####
     print(f"doing eig nx = {nx}, lwork =(REUSING EVD RESULT)")
     assert Cov.shape == (nx, nx) == (32, 32)
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
-    # Stmp = Cov.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
 
-    eigs, eigvecs = np.linalg.eigh(Cov)
-
-    Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
+    eigs, eigvecs = np.linalg.eigh(Cov) # ascending order
 
     min_eigs = eigs[:min(nx//2, 3)]
     max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
@@ -308,32 +298,27 @@ def amica(
     print(f"num eigs kept: {numeigs}")
     assert numeigs == nx == 32
 
-    Stmp2 = np.zeros((numeigs, nx))
-    assert Stmp2.shape == (numeigs, nx) == (32, 32)
-    eigv = np.zeros(nx)
-    assert eigv.shape == (nx,) == (32,)
-    eigv = np.flip(eigs) # Reverse the eigenvalues
-    Stmp2 = np.flip(Stmp[:, :nx], axis=1).T  # Reverse the order of eigenvectors (columns)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729)
-    np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
+    eigs_descending = np.flip(eigs) # Reverse the eigenvalues
+    eigvecs_descending = np.flip(eigvecs[:, :nx], axis=1).T   # Reverse the order of eigenvectors (columns)
 
-    Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-    sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
-    Stmp2 /= sqrt_eigv
-    non_finite_check = ~np.isfinite(Stmp2)
+    np.testing.assert_almost_equal(abs(eigvecs_descending[0, 0]), 0.21635948345763786)
+    np.testing.assert_almost_equal(abs(eigvecs_descending[0, 1]), 0.054216688971114729)
+    np.testing.assert_almost_equal(abs(eigvecs_descending[1, 0]), 0.43483598508694776)
+    
+    sqrt_eigs = np.sqrt(eigs_descending)
+    eigvecs_descending_scaled = eigvecs_descending / sqrt_eigs[:, None]
+    non_finite_check = ~np.isfinite(eigvecs_descending_scaled)
     if non_finite_check.any():
         non_finite_indices = np.where(non_finite_check)[0]
         unique_rows_with_non_finite = np.unique(non_finite_indices)
         for i in unique_rows_with_non_finite:
-            print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
+            print(f"Non-finite value detected! i = {i}, eigv = {eigs_descending[i]}")
         raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
 
     sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
-    sldet -= 0.5 * np.sum(np.log(eigv))
+    sldet -= 0.5 * np.sum(np.log(eigs_descending))
     np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
-
+    np.testing.assert_almost_equal(abs(eigvecs_descending_scaled[0, 0]), 0.0021955369949589743)
     # do sphere
     if do_sphere:
         if numeigs == nx:
@@ -342,32 +327,23 @@ def amica(
                 raise NotImplementedError()
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
-                S = Stmp.T @ Stmp2
+                whitening_matrix = eigvecs_descending.T @ eigvecs_descending_scaled
         else:
             # if (do_approx_sphere) then
             raise NotImplementedError()
-        np.testing.assert_almost_equal(S[0, 0], 0.043377346952119616, decimal=7)
+        np.testing.assert_almost_equal(whitening_matrix[0, 0], 0.043377346952119616)
     else:
         # !--- just normalize by the channel variances (don't sphere)
         raise NotImplementedError()
 
+
     print("Sphering the data...")
-
-    # Apply the sphering matrix to the data (whitening)
-    fieldsize = dataseg.shape[1]
-    assert fieldsize == 30504
-    # TODO: this is all very inefficient. We should be able to do this in one go with a single matrix multiplication
-    # e.g.
-
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
-    X = dataseg.copy() # TODO: unnecessary copy?
-    xtmp = np.zeros(shape=((nx, dataseg.shape[1])))
-    xtmp[:, :] = S @ X # Apply the sphering matrix
-    dataseg[:, :] = xtmp[:, :]
+    dataseg = whitening_matrix @ dataseg # Apply the sphering matrix
 
     # Lets check dataseg
     assert_almost_equal(dataseg[0, 0], -0.18746213684159407, decimal=7)
@@ -386,35 +362,12 @@ def amica(
 
     # ! get the pseudoinverse of S
     # Compute the pseudo-inverse of the sphering matrix (for later use?)
-    assert S.shape == (nx, nx) == (32, 32)
-    # assert S[0, 0] == 0.043377346952119616
     # call DCOPY(nx*nx,S,1,Stmp2,1)
-    Stmp2 = S.copy()
-    Spinv = np.zeros((nx, numeigs))
-    assert Spinv.shape == (nx, nw) == (32, 32)
-    sUtmp = np.zeros((numeigs, numeigs))
-    assert sUtmp.shape == (32, 32)
-    sVtmp = np.zeros((numeigs, nx))
-    assert sVtmp.shape == (32, 32)
     print(f"numeigs = {numeigs}, nw = {nw}")
 
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigs, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
-    sUtmp, eigs, sVtmp = np.linalg.svd(Stmp2, full_matrices=False)
-    assert sUtmp.shape == (nx, nw) == (32, 32)
-    assert sVtmp.shape == (nw, nx) == (32, 32)
-    assert_almost_equal(abs(sUtmp[0, 0]), 0.011415317812644162)
-    assert_almost_equal(abs(sUtmp[0, 1]), 0.022133957340276716)
-    assert_almost_equal(abs(sVtmp[0, 0]),  0.011415317812644188)
-    assert_almost_equal(abs(sVtmp[0, 1]), 0.0004865397257969421)
-    assert_almost_equal(eigs[0], 0.45268334)
-
-    sVtmp[:numeigs, :] /= eigs[:numeigs, np.newaxis]  # Normalize eigenvectors by eigenvalues
-    assert_almost_equal(abs(sVtmp[0, 0]), 0.025217004224530888)
-    assert_almost_equal(abs(sVtmp[31, 31]), 12.0494339875739)
-    # Explicitly index to ensure the shape remains (nx, nw)
-    # call DGEMM('T','T',nx,numeigs,numeigs,dble(1.0),sVtmp,numeigs,sUtmp,numeigs,dble(0.0),Spinv,nx)
-    Spinv[:, :] = sVtmp.T @ sUtmp.T  # Pseudo-inverse of the sphering matrix
-    assert_almost_equal(Spinv[0, 0], 33.11301219430311)
+    Winv = (eigvecs * np.sqrt(eigs)) @ eigvecs.T  # Inverse of the whitening matrix 
+    assert_almost_equal(Winv[0, 0], 33.11301219430311)
 
     # if (seg_rank == 0 .and. print_debug) then
     #    print *, 'S = '; call flush(6)
@@ -430,6 +383,8 @@ def amica(
         n_components = nw
     elif n_components > nw:
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
+    
+    
     state, LL = _core_amica(
         X=dataseg,
         config=config,
@@ -444,7 +399,7 @@ def amica(
     A = state.A
     c = state.c
     alpha = state.alpha
-    return S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
+    return whitening_matrix, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
 
 def _core_amica(
