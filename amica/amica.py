@@ -259,20 +259,17 @@ def amica(
     # e.g. Stmp = np.cov(dataseg)
 
     # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),Stmp,nx)
-    full_cov = dataseg @ dataseg.T
+    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
+    n_samples = dataseg.shape[-1]
+    full_cov = dataseg @ dataseg.T / n_samples
     Cov = np.zeros((nx, nx))
     # Copy the lower triangular part of the covariance matrix to be consistent with Fortran code
     Cov[np.tril_indices(nx)] = full_cov[np.tril_indices(nx)]
 
-    np.testing.assert_almost_equal(Cov[0, 0], 45778661.956294745, decimal=6)
-    n_samples = dataseg.shape[-1]
-    # Normalize the covariance matrix by dividing by the number of samples
-    # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
-    Cov /= n_samples
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
 
     #### Do Eigenvalue Decomposition (ONCE) ####
-    print(f"doing eig nx = {nx}, lwork =(REUSING EVD RESULT)")
+    print(f"doing eig nx = {nx}")
     assert Cov.shape == (nx, nx) == (32, 32)
     np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
 
