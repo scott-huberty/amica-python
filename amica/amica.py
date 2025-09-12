@@ -280,126 +280,64 @@ def amica(
     np.testing.assert_almost_equal(Stmp, Stmp_2, decimal=7)
 
     #### Do Eigenvalue Decomposition (ONCE) ####
-    lwork = 10 * nx * nx  # Work array size, as per Fortran code
-    eigs = np.zeros(nx)
-    eigv = np.zeros(nx)
-    print(f"doing eig nx = {nx}, lwork = {lwork}")
-    # call DCOPY(nx*nx,S,1,Stmp,1)
-    Stmp = S.copy()  # Copy S to Stmp
-    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
-    assert np.isclose(S[0, 0], 1500.7429175286763, atol=1e-6)
+    print(f"doing eig nx = {nx}, lwork =(REUSING EVD RESULT)")
+    assert S.shape == (nx, nx) == (32, 32)
+    np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
+    Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
 
-    # call DSYEV('V','L',nx,Stmp,nx,eigs,work,lwork,info)
-    # This is the single, shared EVD result
-    shared_eigs, shared_eigv = np.linalg.eigh(Stmp)
-    eigs, eigv = shared_eigs, shared_eigv  # Assign to legacy variables for asserts
+    eigs, eigvecs = np.linalg.eigh(Stmp)
 
-    assert eigs.ndim == 1
-    assert len(eigs) == 32
-    assert eigv.shape == (32, 32) # in Fortran, eigv is 32 and is used to store the reversed eigenvalues
-    # eigv is == to Stmp in the Fortran code
-    np.testing.assert_almost_equal(abs(eigv[0][0]), 0.01141531781264421, decimal=7)
-    np.testing.assert_almost_equal(abs(eigv[0][1]), 0.022133957340276893, decimal=7)
-    np.testing.assert_almost_equal(abs(eigv[1][0]), abs(-0.00048653972579690302), decimal=7)
-    np.testing.assert_almost_equal(eigs[0], 4.8799005132501803, decimal=7)
-    np.testing.assert_almost_equal(eigs[1], 6.9201197127079803, decimal=7)
-    np.testing.assert_almost_equal(eigs[2], 7.6562147928880702, decimal=7)
-    lowest_eigs = np.sort(eigs)[:3]
-    want_low_eigs = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-    biggest_eigs = np.sort(eigs)[-3:][::-1]
-    want_big_eigs = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
+    Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
+
+    min_eigs = eigs[:min(nx//2, 3)]
+    max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
+    print(f"minimum eigenvalues: {min_eigs}")
+    print(f"maximum eigenvalues: {max_eigs}")
+
+    min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
+    max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
     np.testing.assert_array_almost_equal(
-        lowest_eigs,
-        want_low_eigs
+        min_eigs,
+        min_eigs_fortran
     )
     np.testing.assert_array_almost_equal(
-        biggest_eigs,
-        want_big_eigs
+        max_eigs,
+        max_eigs_fortran
     )
-    print(f"minimum eigenvalues: {lowest_eigs}")
-    print(f"maximum eigenvalues: {biggest_eigs}")
 
-    # wrappers for the fortran program either set pcakeep to nchans
-    # or to nchans-1 in case of an average reference.
     pcakeep = n_components
-    assert isinstance(pcakeep, int)
-    # TODO: use np.linalg.matrix_rank?
     numeigs = min(pcakeep, sum(eigs > mineig))
-    assert numeigs == nx == 32
     print(f"num eigs kept: {numeigs}")
+    assert numeigs == nx == 32
 
-    # if load_sphere:
-    #    raise NotImplementedError()
-    # else:
-    # !--- get the sphering matrix
-    print("Getting the sphering matrix ...")
-    # reverse the order of eigenvectors
-    Stmp2 = eigv.copy()[:, ::-1]  # Reverse the order of eigenvectors
-    np.testing.assert_almost_equal(Stmp2[0, 0], eigv[0, 31], decimal=7)
-    eigv = np.sort(eigs)[::-1]
-    np.testing.assert_almost_equal(eigv[0], 9711.1430838537090, decimal=7)
-    np.testing.assert_almost_equal(eigs[31], 9711.1430838537090, decimal=7)
-    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786, decimal=7)
+    Stmp2 = np.zeros((numeigs, nx))
+    assert Stmp2.shape == (numeigs, nx) == (32, 32)
+    eigv = np.zeros(nx)
+    assert eigv.shape == (nx,) == (32,)
+    eigv = np.flip(eigs) # Reverse the eigenvalues
+    Stmp2 = np.flip(Stmp[:, :nx], axis=1).T  # Reverse the order of eigenvectors (columns)
+    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786)
+    np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729)
+    np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
+
+    Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
+    sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
+    Stmp2 /= sqrt_eigv
+    non_finite_check = ~np.isfinite(Stmp2)
+    if non_finite_check.any():
+        non_finite_indices = np.where(non_finite_check)[0]
+        unique_rows_with_non_finite = np.unique(non_finite_indices)
+        for i in unique_rows_with_non_finite:
+            print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
+        raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
+
+    sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
+    sldet -= 0.5 * np.sum(np.log(eigv))
+    np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
+    np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
 
     # do sphere
     if do_sphere:
-        # This is a duplicate of the previous step
-        print(f"doing eig nx = {nx}, lwork = {lwork} (REUSING EVD RESULT)")
-        assert S.shape == (nx, nx) == (32, 32)
-        np.testing.assert_almost_equal(S[0, 0], 1500.7429175286763, decimal=6)
-        Stmp = S.copy() # call DCOPY(nx*nx,S,1,Stmp,1)
-
-        # DE-DUPLICATION: The second EVD call is removed. We reuse the results from above.
-        eigs, eigvecs = shared_eigs, shared_eigv
-
-        Stmp = eigvecs.copy()  # Overwrite Stmp with eigenvectors, just like Fortran
-
-        min_eigs = eigs[:min(nx//2, 3)]
-        max_eigs = eigs[::-1][:3] # eigs[nx:(nx-min(nx//2, 3)):-1]
-        print(f"minimum eigenvalues: {min_eigs}")
-        print(f"maximum eigenvalues: {max_eigs}")
-
-        min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-        max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-        np.testing.assert_array_almost_equal(
-            min_eigs,
-            min_eigs_fortran
-        )
-        np.testing.assert_array_almost_equal(
-            max_eigs,
-            max_eigs_fortran
-        )
-
-        numeigs = min(pcakeep, sum(eigs > mineig))
-        print(f"num eigs kept: {numeigs}")
-        assert numeigs == nx == 32
-
-        Stmp2 = np.zeros((numeigs, nx))
-        assert Stmp2.shape == (numeigs, nx) == (32, 32)
-        eigv = np.zeros(nx)
-        assert eigv.shape == (nx,) == (32,)
-        eigv = np.flip(eigs) # Reverse the eigenvalues
-        Stmp2 = np.flip(Stmp[:, :nx], axis=1).T  # Reverse the order of eigenvectors (columns)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.21635948345763786)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 1]), 0.054216688971114729)
-        np.testing.assert_almost_equal(abs(Stmp2[1, 0]), 0.43483598508694776)
-
-        Stmp = Stmp2.copy()  # Copy the reversed eigenvectors to Stmp
-        sqrt_eigv = np.sqrt(eigv).reshape(-1, 1)
-        Stmp2 /= sqrt_eigv
-        non_finite_check = ~np.isfinite(Stmp2)
-        if non_finite_check.any():
-            non_finite_indices = np.where(non_finite_check)[0]
-            unique_rows_with_non_finite = np.unique(non_finite_indices)
-            for i in unique_rows_with_non_finite:
-                print(f"Non-finite value detected! i = {i}, eigv = {eigv[i]}")
-            raise NotImplementedError("Non-finite values detected in Stmp2 after division.")
-
-        sldet = 0.0 # Log determinant of the whitening matrix, initialized to zero
-        sldet -= 0.5 * np.sum(np.log(eigv))
-        np.testing.assert_almost_equal(sldet, -65.935050239880198, decimal=7)
-        np.testing.assert_almost_equal(abs(Stmp2[0, 0]), 0.0021955369949589743, decimal=7)
-
         if numeigs == nx:
             # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
