@@ -227,6 +227,85 @@ def amica(
     dataseg = X.copy()
     do_mean = True if centering else False
     do_sphere = True if whiten else False
+
+    dataseg, whitening_matrix, sldet, whitening_inverse, mean = pre_whiten(
+        X=dataseg,
+        n_components=n_components,
+        mineig=mineig,
+        do_mean=do_mean,
+        do_sphere=do_sphere,
+        do_approx_sphere=False,
+        inplace=True,
+        )
+
+    state, LL = _core_amica(
+        X=dataseg,
+        config=config,
+        state=state,
+        sldet=sldet,
+        )
+    gm = state.gm
+    mu = state.mu
+    rho = state.rho
+    sbeta = state.sbeta
+    W = state.W
+    A = state.A
+    c = state.c
+    alpha = state.alpha
+    return whitening_matrix, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
+
+
+def pre_whiten(
+        *,
+        X: Data2D,
+        n_components: Optional[int] = None,
+        mineig: float = 1e-6,
+        do_mean: bool = True,
+        do_sphere: bool = True,
+        do_approx_sphere: bool = False,
+        inplace: bool = True,
+) -> Tuple[Data2D, Weights2D, Weights2D, Components1D, float]:
+    """
+    Pre-whiten the input data matrix X prior to ICA.
+    
+    Parameters
+    ----------
+    X : array, shape (n_features, n_samples)
+        Input data matrix to be whitened. If inplace is True, X will be mutated and
+        returned as the whitened data. Otherwise a copy will be made and returned.
+    n_components : int or None
+        Number of components to keep. If None, all components are kept.
+    mineig : float
+        Minimum eigenvalue threshold for keeping components. Eigenvalues below this will
+        be discarded.
+    do_mean : bool
+        If True, mean-center the data before whitening.
+    do_sphere : bool
+        If True, perform sphering (whitening). If False, only variance normalization
+        is performed (not implemented)
+    do_approx_sphere : bool
+        If True, use approximate sphering (not implemented).
+    inplace : bool
+        If True, modify X in place. If False, make a copy of X and modify that.
+    
+    Returns
+    -------
+    X : array, shape (n_features, n_samples)
+        The whitened data matrix. This is a copy of the input data if inplace is False,
+        otherwise it is the mutated input data itself.
+    whitening_matrix : array, shape (n_features, n_features)
+        The whitening/sphering matrix applied to the data. If do_sphere is False, then
+        this is the variance normalization matrix (not implemented).
+    sldet : float
+        The log-determinant of the whitening matrix.
+    whitening_inverse : array, shape (n_features, n_features)
+        The pseudoinverse of the whitening matrix. Only returned if do_sphere is True.
+        otherwise None.
+    mean : array, shape (n_features,)
+        The mean of each feature that was subtracted if do_mean is True. Only returned
+        if do_mean is True, otherwise None.
+    """
+    dataseg = X if inplace else X.copy()
     # !---------------------------- get the mean --------------------------------
     nx, n_samples = dataseg.shape
     if n_components is None:
@@ -339,21 +418,9 @@ def amica(
     elif n_components > nw:
         raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
     
-    state, LL = _core_amica(
-        X=dataseg,
-        config=config,
-        state=state,
-        sldet=sldet,
-        )
-    gm = state.gm
-    mu = state.mu
-    rho = state.rho
-    sbeta = state.sbeta
-    W = state.W
-    A = state.A
-    c = state.c
-    alpha = state.alpha
-    return whitening_matrix, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
+    if not do_mean:
+        mean = None
+    return dataseg, whitening_matrix, sldet, Winv, mean
 
 
 def _core_amica(
