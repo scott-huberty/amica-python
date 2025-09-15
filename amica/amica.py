@@ -1866,16 +1866,16 @@ def _compute_source_densities(
     
         # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
         if lap_mask.any():
-            # In-place overwrite
-            laplacian_logprob(
+            # NOTE: boolean indexing creates a copy so in-place overwrite not guaranteed
+            out_logits[:, lap_mask] = laplacian_logprob(
                 sources=out_sources[:, lap_mask],
                 log_alpha=log_mixture_weights[lap_mask],
                 log_sbeta=log_scales[lap_mask],
                 out_logits=out_logits[:, lap_mask]
             )
         if gau_mask.any():
-            # In-place overwrite
-            gaussian_logprob(
+            # NOTE: boolean indexing creates a copy so in-place overwrite not guaranteed
+            out_logits[:, gau_mask] = gaussian_logprob(
                 sources=out_sources[:, gau_mask],
                 log_alpha=log_mixture_weights[gau_mask],
                 log_sbeta=log_scales[gau_mask],
