@@ -83,7 +83,7 @@ class AmicaState:
     - sbeta: (ncomp, nmix)       scale parameters per component and mixture
     - rho: (ncomp, nmix)         shape parameters per component and mixture
     - alpha: (ncomp, nmix)       mixing coefficients per component and mixture
-    - gm: (nmix,)                mixture weights (prior over models)
+    - gm: (n_models,)                mixture weights (prior over models)
     """
 
     W: NDArray
