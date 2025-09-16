@@ -682,14 +682,11 @@ def optimize(
         "fp": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         # Workspace arrays that need zero initialization
-        "modloglik": (X.shape[1], num_models),
-        "loglik": (X.shape[1],),
         "dWtmp": (num_comps, num_comps, num_models),
     }
     # Allocate most buffers as empty (faster)
     work.allocate_all(buffer_specs, init="empty")
     # Allocate buffers that need zero initialization separately
-    work.allocate_buffer("modloglik", buffer_specs["modloglik"], init="zeros")
     work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
     # Log workspace memory usage for debugging
     total_memory_mb = work.total_memory_usage() / (1024 * 1024)
@@ -701,8 +698,9 @@ def optimize(
     Dtemp = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
-    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood
-
+    modloglik =  np.zeros((X.shape[1], num_models), dtype=np.float64)  # Model log likelihood
+    loglik = np.zeros((X.shape[1],), dtype=np.float64)  # per sample log likelihood
+    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood history
 
     lrate = config.lrate
     rholrate = config.rholrate
@@ -718,6 +716,8 @@ def optimize(
         
         # !----- get determinants
         work.zero_all()
+        modloglik.fill(0.0)
+        loglik.fill(0.0)
         metrics = IterationMetrics(
             iter=iter,
             lrate=lrate,
@@ -786,7 +786,6 @@ def optimize(
 
         ufp = work.get_buffer("ufp")
         dWtmp = work.get_buffer("dWtmp")
-        loglik = work.get_buffer("loglik")
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
         assert dWtmp.shape == (num_comps, num_comps, num_models)
@@ -810,7 +809,6 @@ def optimize(
         '''
         b = work.get_buffer("b")
         z = work.get_buffer("z")
-        modloglik = work.get_buffer("modloglik")
 
         # Move modloglik initialization outside the chunk loop
         # -- 0. Baseline terms for per-sample model log-likelihood --            
@@ -3149,8 +3147,8 @@ def accum_updates_and_likelihood(
         # LL(iter) = LLtmp2 / dble(numgoodsum*nw)
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
-        LLtmp2 = total_LL  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        likelihood = LLtmp2 / (all_blks * nw)
+        # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
+        likelihood = total_LL / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert dgm_numer[0] == 30504
