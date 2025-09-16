@@ -7,10 +7,11 @@ import mne
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
-# from pyAMICA.pyAMICA.amica_utils import psifun
+
 from scipy import linalg
 from scipy.special import gammaln, psi, softmax
 
+from chunking import ChunkIterator
 from constants import (
     fix_init,
     mineig,
@@ -153,15 +154,16 @@ def amica(
         n_components=None,
         n_models=1,
         n_mixtures=3,
-        pdftype=0,
         max_iter=500,
         tol=1e-7,
         lrate=0.05,
         rholrate=0.05,
+        pdftype=0,
         do_newton=True,
         newt_start=50,
         newtrate=1,
         newt_ramp=10,
+        chunk_size=None,
         do_reject=False,
         random_state=None,
 ):
@@ -196,6 +198,8 @@ def amica(
         If None, the random number generator is the RandomState instance used
         by `np.random`.
     """
+    if chunk_size is None:
+        chunk_size = np.array_split(X, 3, axis=1)[0].shape[1]
     # Step 1: Create config and state objects (new dataclass approach)
     config = AmicaConfig(
         n_features=X.shape[0],  # Number of channels (corrected from X.shape[1])
@@ -203,6 +207,7 @@ def amica(
         n_models=n_models,
         n_mixtures=n_mixtures,
         max_iter=max_iter,
+        chunk_size=chunk_size,
         pdftype=pdftype,
         tol=tol,
         lrate=lrate,
@@ -618,7 +623,7 @@ def _core_amica(
         raise NotImplementedError()
     else:
         # call allocate_blocks
-        N1 = dataseg.shape[-1] # 2 * block_size * num_thrds
+        N1 = config.chunk_size # dataseg.shape[-1] # 2 * block_size * num_thrds
     myrank = 0
     print(f"{myrank + 1}: block size = {N1}")
     # for seg, _ in enumerate(range(numsegs), start=1):
@@ -651,8 +656,8 @@ def optimize(
     leave = False
     iter = 1
     numrej = 0
-    N1 = X.shape[1]
-    assert N1 == 30504
+    N1 = min(config.chunk_size, X.shape[1])
+    # assert N1 == 30504
 
     n_models = config.n_models
     n_mixtures = config.n_mixtures
@@ -677,19 +682,15 @@ def optimize(
         "fp": (N1, num_comps, num_mix),
         "ufp": (N1, num_comps, num_mix),
         # Workspace arrays that need zero initialization
-        "modloglik": (N1, num_models),
-        "loglik": (N1,),
         "dWtmp": (num_comps, num_comps, num_models),
     }
     # Allocate most buffers as empty (faster)
     work.allocate_all(buffer_specs, init="empty")
     # Allocate buffers that need zero initialization separately
-    work.allocate_buffer("modloglik", buffer_specs["modloglik"], init="zeros")
     work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
     # Log workspace memory usage for debugging
     total_memory_mb = work.total_memory_usage() / (1024 * 1024)
     print(f"Workspace allocated: {len(buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
-    
     # Initialize updates container
     updates = initialize_updates(config)
     
@@ -697,8 +698,9 @@ def optimize(
     Dtemp = np.zeros(num_models, dtype=np.float64)
     # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
-    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood
-
+    modloglik =  np.zeros((X.shape[1], num_models), dtype=np.float64)  # Model log likelihood
+    loglik = np.zeros((X.shape[1],), dtype=np.float64)  # per sample log likelihood
+    LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood history
 
     lrate = config.lrate
     rholrate = config.rholrate
@@ -714,6 +716,8 @@ def optimize(
         
         # !----- get determinants
         work.zero_all()
+        modloglik.fill(0.0)
+        loglik.fill(0.0)
         metrics = IterationMetrics(
             iter=iter,
             lrate=lrate,
@@ -779,14 +783,9 @@ def optimize(
         # Initialize arrays for likelihood computations and parameter updates
         # Set up numerator/denominator accumulators for gradient updates
         #-------------------------------------------------------------------------------
-        N1 = X.shape[-1]
-        assert N1 == 30504  # number of samples in data segment
-
 
         ufp = work.get_buffer("ufp")
         dWtmp = work.get_buffer("dWtmp")
-        loglik = work.get_buffer("loglik")
-        
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
         assert dWtmp.shape == (num_comps, num_comps, num_models)
@@ -810,238 +809,243 @@ def optimize(
         '''
         b = work.get_buffer("b")
         z = work.get_buffer("z")
-        modloglik = work.get_buffer("modloglik")
-        scratch = work.get_buffer("scratch_2D") # will be reused as g
-        
-        for h, _ in enumerate(range(num_models), start=1):
-            comp_slice = get_component_slice(h, num_comps)
-            h_index = h - 1
-            dataseg = X
-            N1, nw, num_mix = dataseg.shape[-1], config.n_components, config.n_mixtures
-            fp = work.get_buffer("fp")
-            y = work.get_buffer("y")
 
-            # -- 0. Baseline terms for per-sample model log-likelihood --            
-            initial = get_initial_model_log_likelihood(
-                    unmixing_logdet=Dtemp[h_index],
-                    whitening_logdet=sldet,
-                    model_weight=gm[h_index],
-            )
-            # Broadcast to all samples
-            modloglik[:, h_index].fill(initial)
-            
-            # ===========================================================================
-            #                       Expectation Step (E-step)
-            # ===========================================================================
-
-            # 1. --- Compute source pre-activations
-            # !--- get b
-            b = compute_preactivations(
-                X=dataseg,
-                unmixing_matrix=state.W[:, :, h_index],
-                bias=wc[:, h_index],
-                do_reject=config.do_reject,
-                out_activations=b,
-            )
-
-            # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
-            y, z = _compute_source_densities(
-                pdftype=config.pdftype,
-                b=b,
-                sbeta=sbeta,
-                mu=mu,
-                alpha=alpha,
-                rho=rho,
-                comp_slice=comp_slice,
-                out_sources=y,
-                out_logits=z,
-                )
-            z0 = z  # log densities (alias for clarity with Fortran code)
-
-            # 3. --- Aggregate mixture logits into per-sample model log likelihoods
-            compute_model_loglikelihood_per_sample(
-                log_densities=z0,
-                out_modloglik=modloglik[:, h_index],
-                scratch=scratch,
-            )
-            scratch.fill(0.0) # clear scratch for reuse
-            scratch = None # guard against misuse until reassignment
-            
-            # 4. -- Responsibilities within each component ---
-            # !--- get normalized z
-            z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-            z0 = None  # guard against use of stale name
-        # end do (h)
-
-        # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
-        loglik = compute_total_loglikelihood_per_sample(
-            modloglik=modloglik,
-            out_loglik=loglik,
+        # Move modloglik initialization outside the chunk loop
+        # -- 0. Baseline terms for per-sample model log-likelihood --            
+        initial = get_initial_model_log_likelihood(
+                unmixing_logdet=Dtemp[h_index],
+                whitening_logdet=sldet,
+                model_weight=gm[h_index],
         )
-        # Total log-likelihood across all samples
-        LLinc = loglik.sum()
+        # Broadcast to all samples
+        modloglik[:, h_index].fill(initial)
+        chunks = ChunkIterator(X, axis=1, chunk_size=N1)
+        for data_slice, chunk_slice in chunks:
+            for h, _ in enumerate(range(num_models), start=1):
+                comp_slice = get_component_slice(h, num_comps)
+                h_index = h - 1
+                N1, nw, num_mix = data_slice.shape[-1], config.n_components, config.n_mixtures
+                fp = work.get_buffer("fp")
+                y = work.get_buffer("y")
+                
+                # ===========================================================================
+                #                       Expectation Step (E-step)
+                # ===========================================================================
 
-        if do_reject:
-            raise NotImplementedError()
-        else:    
-            # 6. --- Responsibilities for each model ---
-            modloglik = compute_model_responsibilities(modloglik=modloglik, inplace=True)
-            # NOTE: modloglik was mutated in-place to responsibilities (v)
-            # consider keeping v and modloglik separate
-        v = modloglik
-        modloglik = None  # guard against use of stale name
-
-        # ================================ M-STEP =======================================
-        # === Maximization-step: Parameter Updates ===
-        # - Update parameters based on current responsibilities
-        # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
-        # ===============================================================================
-        
-        # !--- get g, u, ufp
-        g = work.get_buffer("scratch_2D")  # reuse for g workspace
-        for h, _ in enumerate(range(num_models), start=1):
-            comp_slice = get_component_slice(h, num_comps)
-            h_index = h - 1
-            #--------------------------FORTRAN CODE-------------------------
-            # vsum = sum( v(bstrt:bstp,h) )
-            # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
-            #---------------------------------------------------------------
-            v_h = v[:, h_index] #  select responsibilities for this model
-            vsum = v_h.sum()
-
-            u = compute_weighted_responsibilities(
-                mixture_responsibilities=z,
-                model_responsibilities=v_h,
-                single_model=(num_models == 1),
-            )
-            assert u.shape == (N1, nw, num_mix)
-            usum = u.sum(axis=0)  # shape: (nw, num_mix)
-            assert usum.shape == (nw, num_mix)  # nw, num_mix
-            
-            assert rho.shape == (config.n_components, num_mix)
-            if iter == 6 and h == 1: # and blk == 1:
-                # and j == 3 and i == 1 
-                assert rho[0, 2] == 1.0
-            fp = compute_source_scores(
-                pdftype=pdftype,
-                y=y,
-                rho=rho,
-                comp_slice=comp_slice,
-                out_scores=fp,
-            )
-            assert fp.shape == (N1, nw, num_mix)
-            # --- Vectorized calculation of ufp and g update ---
-            if iter == 1 and h == 1: # and blk == 1 
-                assert g[0, 0] == 0.0
-            ufp, g = accumulate_scores(
-                scores=fp,
-                responsibilities=u,
-                scale_params=sbeta,
-                comp_slice=comp_slice,
-                out_ufp=ufp,
-                out_g=g,
-            )
-            assert ufp.shape == (N1, nw, num_mix)   
-
-            # --- Stochastic Gradient Descent Updates ---
-            # gm (model weights)
-            dgm_numer[h_index] += vsum
-            # c (bias)  
-            accumulate_c_stats(
-                X=dataseg,
-                model_responsibilities=v_h,
-                vsum=vsum,
-                out_numer=dc_numer[:, h_index],
-                out_denom=dc_denom[:, h_index],
-            )
-            # Alpha (mixture weights)
-            accumulate_alpha_stats(
-                usum=usum,
-                vsum=vsum,
-                out_numer=dalpha_numer[comp_slice, :],
-                out_denom=dalpha_denom[comp_slice, :],
-            )
-            # Mu (location)
-            accumulate_mu_stats(
-                ufp=ufp,
-                y=y,
-                sbeta=sbeta[comp_slice, :],
-                rho=rho[comp_slice, :],
-                out_numer=dmu_numer[comp_slice, :],
-                out_denom=dmu_denom[comp_slice, :],
-            )
-            # Beta (scale/precision)
-            accumulate_beta_stats(
-                usum=usum,
-                rho=rho[comp_slice, :],
-                ufp=ufp,
-                y=y,
-                out_numer=dbeta_numer[comp_slice, :],
-                out_denom=dbeta_denom[comp_slice, :],
-            )
-            # Rho (shape parameter of generalized Gaussian)
-            accumulate_rho_stats(
-                y=y,
-                rho=rho[comp_slice, :],
-                u=u,
-                usum=usum,
-                epsdble=epsdble,
-                out_numer=drho_numer[comp_slice, :],
-                out_denom=drho_denom[comp_slice, :],
-            )
-            # --- Newton-Raphson Updates ---
-            if do_newton and iter >= newt_start:
-                if iter == 50: # and blk == 1:
-                    assert np.all(dkappa_numer == 0.0)
-                    assert np.all(dkappa_denom == 0.0)
-                # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
-                # Sigma^2 updates (noise variance)
-                accumulate_sigma2_stats(
-                    model_responsibilities=v_h,
-                    source_estimates=b,
-                    vsum=vsum,
-                    out_numer=dsigma2_numer[:, h_index],
-                    out_denom=dsigma2_denom[:, h_index],
+                # 1. --- Compute source pre-activations
+                # !--- get b
+                b = compute_preactivations(
+                    X=data_slice,
+                    unmixing_matrix=state.W[:, :, h_index],
+                    bias=wc[:, h_index],
+                    do_reject=config.do_reject,
+                    out_activations=b,
                 )
-                # Kappa updates (curvature terms for A)
-                accumulate_kappa_stats(
-                    ufp=ufp,
-                    fp=fp,
-                    sbeta=sbeta[comp_slice, :],
-                    usum=usum,
-                    out_numer=dkappa_numer[:, :, h_index],
-                    out_denom=dkappa_denom[:, :, h_index],
-                )                
-                # Lambda updates (nonlinearity shape parameter)
-                accumulate_lambda_stats(
-                    fp=fp,
-                    y=y,
-                    u=u,
-                    usum=usum,
-                    out_numer=dlambda_numer[:, :, h_index],
-                    out_denom=dlambda_denom[:, :, h_index],
+                
+                # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
+                y, z = _compute_source_densities(
+                    pdftype=config.pdftype,
+                    b=b,
+                    sbeta=sbeta,
+                    mu=mu,
+                    alpha=alpha,
+                    rho=rho,
+                    comp_slice=comp_slice,
+                    out_sources=y,
+                    out_logits=z,
+                    )
+                z0 = z  # log densities (alias for clarity with Fortran code)
+                # 3. --- Aggregate mixture logits into per-sample model log likelihoods
+                scratch = work.get_buffer("scratch_2D")  # reuse for scratch workspace
+                compute_model_loglikelihood_per_sample(
+                    log_densities=z0,
+                    out_modloglik=modloglik[chunk_slice, h_index],
+                    scratch=scratch,
                 )
-                # (dbar)Alpha updates
-                dbaralpha_numer[:, :, h_index] += usum
-                dbaralpha_denom[:,:, h_index] += vsum
-            # end if (do_newton and iter >= newt_start)
-            elif not do_newton and iter >= newt_start:
+                scratch.fill(0.0) # clear scratch for reuse
+                scratch = None # guard against misuse until reassignment
+                
+                # 4. -- Responsibilities within each component ---
+                # !--- get normalized z
+                z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
+                z0 = None  # guard against use of stale name
+            # end do (h)
+
+            # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
+            loglik[chunk_slice] = compute_total_loglikelihood_per_sample(
+                modloglik=modloglik[chunk_slice, :],
+                out_loglik=loglik[chunk_slice]
+            )
+            # Total log-likelihood across all samples
+            # NOTE: we can probably compute this outside of the chunk loop?
+            # If we don't need per-chunk monitoring.
+            # LLinc = loglik[chunk_slice].sum()
+            # total_LL += LLinc
+
+            if do_reject:
                 raise NotImplementedError()
+            else:    
+                # 6. --- Responsibilities for each model ---
+                v = compute_model_responsibilities(
+                    modloglik=modloglik[chunk_slice, :],
+                    inplace=False
+                    )
+                # NOTE: modloglik was mutated in-place to responsibilities (v)
+                # consider keeping v and modloglik separate
+            # v = modloglik[chunk, :]
+            # modloglik = None  # guard against use of stale name
 
-            # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-            # if update_A:
-            #--------------------------FORTRAN CODE-------------------------
-            # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
-            # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
-            #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
-            # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
-            #---------------------------------------------------------------
-            # Wtmp2 has a 3rd dimension for threads in Fortran
-            Wtmp2 = np.dot(g.T, b[:, :]) #  # shape (num_comps, num_comps)
-            dWtmp[:, :, h - 1] += Wtmp2
-        # end do (h)
+            # ================================ M-STEP =======================================
+            # === Maximization-step: Parameter Updates ===
+            # - Update parameters based on current responsibilities
+            # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
+            # ===============================================================================
+            
+            # !--- get g, u, ufp
+            g = work.get_buffer("scratch_2D")  # reuse for g workspace
+            for h, _ in enumerate(range(num_models), start=1):
+                comp_slice = get_component_slice(h, num_comps)
+                h_index = h - 1
+                #--------------------------FORTRAN CODE-------------------------
+                # vsum = sum( v(bstrt:bstp,h) )
+                # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
+                #---------------------------------------------------------------
+                v_h = v[:, h_index] #  select responsibilities for this model
+                vsum = v_h.sum()
+
+                u = compute_weighted_responsibilities(
+                    mixture_responsibilities=z,
+                    model_responsibilities=v_h,
+                    single_model=(num_models == 1),
+                )
+                assert u.shape == (N1, nw, num_mix)
+                usum = u.sum(axis=0)  # shape: (nw, num_mix)
+                assert usum.shape == (nw, num_mix)  # nw, num_mix
+                
+                assert rho.shape == (config.n_components, num_mix)
+                if iter == 6 and h == 1 and chunk_slice.start == 0:
+                    # and j == 3 and i == 1 
+                    assert rho[0, 2] == 1.0
+                fp = compute_source_scores(
+                    pdftype=pdftype,
+                    y=y,
+                    rho=rho,
+                    comp_slice=comp_slice,
+                    out_scores=fp,
+                )
+                assert fp.shape == (N1, nw, num_mix)
+                # --- Vectorized calculation of ufp and g update ---
+                if iter == 1 and h == 1: # and blk == 1 
+                    assert g[0, 0] == 0.0
+                ufp, g = accumulate_scores(
+                    scores=fp,
+                    responsibilities=u,
+                    scale_params=sbeta,
+                    comp_slice=comp_slice,
+                    out_ufp=ufp,
+                    out_g=g,
+                )
+                assert ufp.shape == (N1, nw, num_mix)   
+
+                # --- Stochastic Gradient Descent Updates ---
+                # gm (model weights)
+                dgm_numer[h_index] += vsum
+                # c (bias)  
+                accumulate_c_stats(
+                    X=data_slice,
+                    model_responsibilities=v_h,
+                    vsum=vsum,
+                    out_numer=dc_numer[:, h_index],
+                    out_denom=dc_denom[:, h_index],
+                )
+                # Alpha (mixture weights)
+                accumulate_alpha_stats(
+                    usum=usum,
+                    vsum=vsum,
+                    out_numer=dalpha_numer[comp_slice, :],
+                    out_denom=dalpha_denom[comp_slice, :],
+                )
+                # Mu (location)
+                accumulate_mu_stats(
+                    ufp=ufp,
+                    y=y,
+                    sbeta=sbeta[comp_slice, :],
+                    rho=rho[comp_slice, :],
+                    out_numer=dmu_numer[comp_slice, :],
+                    out_denom=dmu_denom[comp_slice, :],
+                )
+                # Beta (scale/precision)
+                accumulate_beta_stats(
+                    usum=usum,
+                    rho=rho[comp_slice, :],
+                    ufp=ufp,
+                    y=y,
+                    out_numer=dbeta_numer[comp_slice, :],
+                    out_denom=dbeta_denom[comp_slice, :],
+                )
+                # Rho (shape parameter of generalized Gaussian)
+                accumulate_rho_stats(
+                    y=y,
+                    rho=rho[comp_slice, :],
+                    u=u,
+                     usum=usum,
+                    epsdble=epsdble,
+                    out_numer=drho_numer[comp_slice, :],
+                    out_denom=drho_denom[comp_slice, :],
+                )
+                # --- Newton-Raphson Updates ---
+                if do_newton and iter >= newt_start:
+                    if iter == 50 and chunk_slice.start == 0:
+                        assert np.all(dkappa_numer == 0.0)
+                        assert np.all(dkappa_denom == 0.0)
+                    # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
+                    # Sigma^2 updates (noise variance)
+                    accumulate_sigma2_stats(
+                        model_responsibilities=v_h,
+                        source_estimates=b,
+                        vsum=vsum,
+                        out_numer=dsigma2_numer[:, h_index],
+                        out_denom=dsigma2_denom[:, h_index],
+                    )
+                    # Kappa updates (curvature terms for A)
+                    accumulate_kappa_stats(
+                        ufp=ufp,
+                        fp=fp,
+                        sbeta=sbeta[comp_slice, :],
+                        usum=usum,
+                        out_numer=dkappa_numer[:, :, h_index],
+                        out_denom=dkappa_denom[:, :, h_index],
+                    )                
+                    # Lambda updates (nonlinearity shape parameter)
+                    accumulate_lambda_stats(
+                        fp=fp,
+                        y=y,
+                        u=u,
+                        usum=usum,
+                        out_numer=dlambda_numer[:, :, h_index],
+                        out_denom=dlambda_denom[:, :, h_index],
+                    )
+                    # (dbar)Alpha updates
+                    dbaralpha_numer[:, :, h_index] += usum
+                    dbaralpha_denom[:,:, h_index] += vsum
+                # end if (do_newton and iter >= newt_start)
+                elif not do_newton and iter >= newt_start:
+                    raise NotImplementedError()
+
+                # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
+                # if update_A:
+                #--------------------------FORTRAN CODE-------------------------
+                # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
+                # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
+                #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
+                # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
+                #---------------------------------------------------------------
+                # Wtmp2 has a 3rd dimension for threads in Fortran
+                Wtmp2 = np.dot(g.T, b[:, :]) #  # shape (num_comps, num_comps)
+                dWtmp[:, :, h - 1] += Wtmp2
+            # end do (h)
         # end do (blk)'
-        if iter == 1: # and blk == 59:
+        if iter == 1:
             # j is 3 and i is 32 by this point
             # assert j == 3
             # assert i == 32
@@ -1084,7 +1088,7 @@ def optimize(
             assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
             assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
             assert_almost_equal(loglik[-1], -111.60532918598989)
-            assert_almost_equal(LLinc, -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
+            assert_almost_equal(loglik.sum(), -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
             # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
         elif iter == 2:
             assert_almost_equal(dc_numer[31, 0], 0)
@@ -1113,7 +1117,7 @@ def optimize(
             # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
             assert_almost_equal(loglik[-1], -109.77900836816768, decimal=6)
             assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-            assert_almost_equal(LLinc, -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
+            assert_almost_equal(loglik.sum(), -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
 
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
@@ -1124,7 +1128,7 @@ def optimize(
             updates=updates,
             state=state,
             dWtmp=dWtmp,
-            LLtmp=LLinc,
+            total_LL=loglik.sum(),
             iter=iter
         )
         metrics.loglik = likelihood
@@ -1651,8 +1655,8 @@ def compute_preactivations(
     
     Parameters
     ----------
-    X : array, shape (n_features, n_samples)
-        Data matrix
+    X : array, shape (n_features, chunk_size)
+        Data matrix. Can be the entire input data or a chunk. Not modified.
     unmixing_matrix : array, shape (n_components, n_features)
         Unmixing matrix weights (W) for a single model h, that maps data to sources.
     bias : array, shape (n_components,)
@@ -1705,7 +1709,6 @@ def compute_preactivations(
         np.matmul(dataseg.T, W.T, out=b)
     # end else
     # Subtract the weight correction factor
-    # TODO: when chunking, we may need to init bias first.
     b -= wc
     return b
 
@@ -1933,7 +1936,7 @@ def compute_model_loglikelihood_per_sample(
     # Pmax(bstrt:bstp) = maxval(z0(bstrt:bstp,:),2)
     # z(bstrt:bstp,i,j,h) = dble(1.0) / exp(tmpvec(bstrt:bstp) - z0(bstrt:bstp,j))
     #---------------------------------------------------------------
-    # NOTE that the scratch array that was passe in will also be used for the g update.
+    # NOTE that the scratch array that was pass in will also be used for the g update.
     # TODO: consider keeping g and z separate once chunking is implemented
     component_loglik = np.logaddexp.reduce(z0, axis=-1, out=scratch) # across mixtures
     out_modloglik += component_loglik.sum(axis=-1) # across components
@@ -2910,7 +2913,7 @@ def accum_updates_and_likelihood(
         updates,
         state,
         dWtmp,
-        LLtmp,
+        total_LL,  # this is LLtmp in Fortran
         iter
         ):
     # !--- add to the cumulative dtmps
@@ -3144,8 +3147,8 @@ def accum_updates_and_likelihood(
         # LL(iter) = LLtmp2 / dble(numgoodsum*nw)
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
-        LLtmp2 = LLtmp  # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        likelihood = LLtmp2 / (all_blks * nw)
+        # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
+        likelihood = total_LL / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     if iter == 1:
         assert dgm_numer[0] == 30504
