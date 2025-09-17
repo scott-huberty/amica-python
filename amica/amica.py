@@ -1,6 +1,7 @@
 from copy import copy
 from pathlib import Path
 import time
+from typing import Literal, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import mne
@@ -66,48 +67,19 @@ from state import (
     initialize_accumulators,
     AmicaWorkspace,
 )
-
+from _typing import (
+    SamplesVector,
+    ComponentsVector,
+    DataArray2D,
+    WeightsArray,
+    SourceArray2D,
+    SourceArray3D,
+    ParamsArray,
+    ParamsModelArray,
+    LikelihoodArray,
+)
 
 import line_profiler
-
-from typing import Annotated, Optional, Tuple, TypeAlias, Literal
-import numpy.typing as npt
-
-Samples1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
-"""Alias for a 1D array with shape (n_samples,)."""
-
-Components1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components,)"]
-"""Alias for a 1D array with shape (n_components,)."""
-
-Data2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_features, n_samples)"]
-"""Alias for a 2D array with shape (n_features, n_samples)."""
-
-Weights2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components, n_features)"]
-"""Alias for a 2D array with shape (n_components, n_features)."""
-
-Bias1D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_components,)"]
-"""Alias for a 1D array with shape (n_components,)."""
-
-Sources2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components)"]
-"""Alias for a 2D array with shape (n_samples, n_components)."""
-
-Sources3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components, n_mixtures)"]
-"""Alias for a 3D array with shape (n_samples, n_components, n_mixtures)."""
-
-Params2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_mixtures)"]
-"""Alias for a 2D array with shape (n_components, n_mixtures)."""
-
-ParamsModel2D: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_models)"]
-"""Alias for a 2D array with shape (n_components, n_models)."""
-
-Index1D: TypeAlias  = Annotated[npt.NDArray[np.integer], "(n_features,)"]
-"""Alias for a 1D array with shape (n_features,)."""
-
-Buffer3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_components, n_mixtures)"]
-"""Alias for a 3D array with shape (n_samples, n_components, n_mixtures)."""
-
-Likelihood2D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_models)"]
-"""Alias for a 2D array with shape (n_samples, n_models)."""
 
 sbetatmp = sbetatmp.T
 
@@ -273,14 +245,14 @@ def amica(
 
 def pre_whiten(
         *,
-        X: Data2D,
+        X: DataArray2D,
         n_components: Optional[int] = None,
         mineig: float = 1e-6,
         do_mean: bool = True,
         do_sphere: bool = True,
         do_approx_sphere: bool = False,
         inplace: bool = True,
-) -> Tuple[Data2D, Weights2D, float, Weights2D, Components1D | None]:
+) -> Tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
     """
     Pre-whiten the input data matrix X prior to ICA.
     
@@ -1190,7 +1162,7 @@ def compute_model_e_step(
 
 def compute_sign_log_determinant(
         *,
-        unmixing_matrix: Weights2D,
+        unmixing_matrix: WeightsArray,
         minlog: float = -1500,
         mode: Literal["strict", "fallback"] = "strict", 
 ) -> tuple[Literal[-1, 1], float]:
@@ -1299,12 +1271,12 @@ def get_initial_model_log_likelihood(
 
 def compute_preactivations(
         *,
-        X: Data2D,  # (n_features, n_samples)
-        unmixing_matrix: Weights2D,  # (n_components, n_features)
-        bias: Bias1D,  # (n_components,)
+        X: DataArray2D,  # (n_features, n_samples)
+        unmixing_matrix: WeightsArray,  # (n_components, n_features)
+        bias: ComponentsVector,  # (n_components,)
         do_reject=False, 
-        out_activations: Optional[Sources2D] = None,  # (n_samples, n_components)
-) -> Sources2D:
+        out_activations: Optional[SourceArray2D] = None,  # (n_samples, n_components)
+) -> SourceArray2D:
     """Compute source pre-activations b[t, :] = X_t^T @ W^T - wc for model h.
     
     Parameters
@@ -1370,15 +1342,15 @@ def compute_preactivations(
 def _compute_source_densities(
         *,
         pdftype: int,
-        b: Sources2D,
-        sbeta: Params2D,
-        mu: Params2D,
-        alpha: Params2D,
-        rho: Params2D,
+        b: SourceArray2D,
+        sbeta: ParamsArray,
+        mu: ParamsArray,
+        alpha: ParamsArray,
+        rho: ParamsArray,
         comp_slice: slice, # TODO: pass in the pre-indexed arrays instead
-        out_sources: Optional[Sources3D] = None,
-        out_logits: Optional[Sources3D] = None,
-        ) -> Tuple[Sources3D, Sources3D]:
+        out_sources: Optional[SourceArray3D] = None,
+        out_logits: Optional[SourceArray3D] = None,
+        ) -> Tuple[SourceArray3D, SourceArray3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
      Compute logits = log alpha + log p(y) for each component and mixture. Default to
@@ -1554,9 +1526,9 @@ def _compute_source_densities(
 
 def compute_model_loglikelihood_per_sample(
         *,
-        log_densities: Sources3D,
-        out_modloglik: Optional[Samples1D] = None,
-        scratch: Optional[Sources2D] = None,
+        log_densities: SourceArray3D,
+        out_modloglik: Optional[SamplesVector] = None,
+        scratch: Optional[SourceArray2D] = None,
 ):
     """Compute the per-sample log-likelihood for a single model h.
 
@@ -1607,11 +1579,11 @@ def _inplace_softmax(arr):
 
 def generalized_gaussian_logprob(
     *,
-    sources: Sources3D,
-    rho: Params2D,
-    sbeta: Params2D,
-    alpha: Params2D,
-    out_logits: Optional[Sources3D] = None,
+    sources: SourceArray3D,
+    rho: ParamsArray,
+    sbeta: ParamsArray,
+    alpha: ParamsArray,
+    out_logits: Optional[SourceArray3D] = None,
 ):
     """
     Compute generalized Gaussian log-probability.
@@ -1645,9 +1617,9 @@ def generalized_gaussian_logprob(
 
 def compute_mixture_responsibilities(
         *,
-        log_densities: Sources3D,
+        log_densities: SourceArray3D,
         inplace: Literal[True, False] = True
-        ) -> Sources3D:
+        ) -> SourceArray3D:
     """
     Convert per-mixture log-densities to responsibilities via softmax.
     
@@ -1684,9 +1656,9 @@ def compute_mixture_responsibilities(
 
 def compute_total_loglikelihood_per_sample(
         *,
-        modloglik: Likelihood2D,
-        out_loglik: Optional[Samples1D] = None,
-) -> Samples1D:
+        modloglik: LikelihoodArray,
+        out_loglik: Optional[SamplesVector] = None,
+) -> SamplesVector:
     """
     Compute the total log-likelihood for each sample marginalized across models.
     
@@ -1745,9 +1717,9 @@ def compute_total_loglikelihood_per_sample(
 
 
 def compute_model_responsibilities(
-        *, modloglik: Likelihood2D,
+        *, modloglik: LikelihoodArray,
         inplace: bool = True
-        ) -> Likelihood2D:
+        ) -> LikelihoodArray:
     """
     Compute model responsibilities via softmax over models.
 
@@ -1789,10 +1761,10 @@ def compute_model_responsibilities(
 
 def compute_weighted_responsibilities(
         *,
-        mixture_responsibilities: Sources3D,
-        model_responsibilities: Samples1D,
+        mixture_responsibilities: SourceArray3D,
+        model_responsibilities: SamplesVector,
         single_model: bool = True,
-) -> Sources3D:
+) -> SourceArray3D:
     """
     Compute per-sample, per-component, per-mixture responsibilities...
 
@@ -1848,10 +1820,10 @@ def compute_weighted_responsibilities(
 def compute_source_scores(
         *,
         pdftype: int,
-        y: Sources3D,
-        rho: Params2D,
+        y: SourceArray3D,
+        rho: ParamsArray,
         comp_slice: slice,
-        out_scores: Optional[Sources3D] = None,
+        out_scores: Optional[SourceArray3D] = None,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
@@ -1866,7 +1838,7 @@ def compute_source_scores(
         Shape parameters of shape (n_components, n_mixtures). Not modified.
     comp_slice : slice
         Slice object containing component indices for the current model.
-    out_scores : Sources3D, optional
+    out_scores : SourceArray3D, optional
         Buffer to write the computed score function into. Shape (n_samples, n_components,
         n_mixtures). If None, a new array is allocated. This array is modified in-place.
     Returns
@@ -2007,13 +1979,13 @@ def accumulate_scores(
 
 def accumulate_c_stats(
         *,
-        X: Data2D,
-        model_responsibilities: Samples1D,
+        X: DataArray2D,
+        model_responsibilities: SamplesVector,
         vsum: float,
         do_reject: bool = False,
-        out_numer: Components1D,
-        out_denom: Components1D,
-        ) -> Tuple[ParamsModel2D, ParamsModel2D]:
+        out_numer: ComponentsVector,
+        out_denom: ComponentsVector,
+        ) -> Tuple[ParamsModelArray, ParamsModelArray]:
     """
     Get sufficient statistics for model bias vector c.
 
@@ -2082,11 +2054,11 @@ def accumulate_c_stats(
 
 def accumulate_alpha_stats(
         *,
-        usum: Params2D,
+        usum: ParamsArray,
         vsum: np.float64,
-        out_numer: Params2D,
-        out_denom: Params2D
-        ) -> Tuple[Params2D, Params2D]:
+        out_numer: ParamsArray,
+        out_denom: ParamsArray
+        ) -> Tuple[ParamsArray, ParamsArray]:
     """
     Accumulate sufficient statistics for alpha (mixture weights) update.
     
@@ -2142,13 +2114,13 @@ def accumulate_alpha_stats(
 
 def accumulate_mu_stats(
         *,
-        ufp: Sources3D,
-        rho: Params2D,
-        sbeta: Params2D,
-        y: Sources3D,
-        out_numer: Params2D,
-        out_denom: Params2D,
-        ) -> Tuple[Params2D, Params2D]:
+        ufp: SourceArray3D,
+        rho: ParamsArray,
+        sbeta: ParamsArray,
+        y: SourceArray3D,
+        out_numer: ParamsArray,
+        out_denom: ParamsArray,
+        ) -> Tuple[ParamsArray, ParamsArray]:
     """
     Accumulate sufficient statistics for mu (location) update.
     
@@ -2214,13 +2186,13 @@ def accumulate_mu_stats(
 
 def accumulate_beta_stats(
         *,
-        usum: Params2D,
-        rho: Params2D,
-        ufp: Sources3D,
-        y: Sources3D,
-        out_numer: Params2D,
-        out_denom: Params2D,
-        ) -> Tuple[Params2D, Params2D]:
+        usum: ParamsArray,
+        rho: ParamsArray,
+        ufp: SourceArray3D,
+        y: SourceArray3D,
+        out_numer: ParamsArray,
+        out_denom: ParamsArray,
+        ) -> Tuple[ParamsArray, ParamsArray]:
     """
     Get the numerator and denominator for the scale accumulators.
 
@@ -2273,14 +2245,14 @@ def accumulate_beta_stats(
 
 def accumulate_rho_stats(
         *,
-        y: Sources3D,
-        rho: Params2D,
+        y: SourceArray3D,
+        rho: ParamsArray,
         epsdble: float,
-        u: Sources3D,
-        usum: Params2D,
-        out_numer: Params2D,
-        out_denom: Params2D,
-        ) -> Tuple[Params2D, Params2D]:
+        u: SourceArray3D,
+        usum: ParamsArray,
+        out_numer: ParamsArray,
+        out_denom: ParamsArray,
+        ) -> Tuple[ParamsArray, ParamsArray]:
     """
     Compute the numerator and denominator for the shape accumulators.
 
@@ -2359,11 +2331,11 @@ def accumulate_rho_stats(
 
 def accumulate_sigma2_stats(
         *,
-        model_responsibilities: Samples1D,
-        source_estimates: Sources2D,
+        model_responsibilities: SamplesVector,
+        source_estimates: SourceArray2D,
         vsum: float,
-        out_numer: Components1D,
-        out_denom: Components1D,
+        out_numer: ComponentsVector,
+        out_denom: ComponentsVector,
 ):
     """Get sufficient statistics for sigma2 (noise variance) update.
 
@@ -2424,13 +2396,13 @@ def accumulate_sigma2_stats(
 
 def accumulate_kappa_stats(
         *,
-        ufp: Sources3D,
-        fp: Sources3D,
-        sbeta: Params2D,
-        usum: Params2D,
-        out_numer: Params2D,
-        out_denom: Params2D,
-        ) -> Tuple[Params2D, Params2D]:
+        ufp: SourceArray3D,
+        fp: SourceArray3D,
+        sbeta: ParamsArray,
+        usum: ParamsArray,
+        out_numer: ParamsArray,
+        out_denom: ParamsArray,
+        ) -> Tuple[ParamsArray, ParamsArray]:
     """
     Get sufficient statistics for kappa (curvature) update.
     
@@ -2491,13 +2463,13 @@ def accumulate_kappa_stats(
 
 def accumulate_lambda_stats(
         *,
-        fp: Sources3D,
-        y: Sources3D,
-        u: Sources3D,
-        usum: Params2D,
-        out_numer: Params2D,
-        out_denom: Params2D,
-) -> Tuple[Params2D, Params2D]:
+        fp: SourceArray3D,
+        y: SourceArray3D,
+        u: SourceArray3D,
+        usum: ParamsArray,
+        out_numer: ParamsArray,
+        out_denom: ParamsArray,
+) -> Tuple[ParamsArray, ParamsArray]:
     """
     Get sufficient statistics for lambda (nonlinearity) update.
 
@@ -3005,7 +2977,7 @@ if __name__ == "__main__":
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica(
         X=dataseg,
         max_iter=200,
-        tol=.0001, # 1e-7,
+        tol=1e-7,
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
