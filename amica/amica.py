@@ -64,7 +64,7 @@ from state import (
     AmicaConfig,
     IterationMetrics,
     get_initial_state,
-    initialize_updates,
+    initialize_accumulators,
     AmicaWorkspace,
 )
 
@@ -143,7 +143,7 @@ def get_component_slice(h: int, n_components: int) -> slice:
 # TODO's
 # - consider keeping z and z0 separate once chunking is implemented
 # - consider giving g its own array one chunking is implemented
-# - if we never chunk process the M-step, then numer/denom updates are once per iteration
+# - if we never chunk process the M-step, then numer/denom accumulators are once per iteration
 #   so we can assign directly instead of accumulating e.g. dalpha_denom.fill(vsum)
 
 def amica(
@@ -338,7 +338,7 @@ def pre_whiten(
     # ---- Covariance ----
     print(" Getting the covariance matrix ...")
     # Compute the covariance matrix
-    # The Fortran code only updates the lower triangular part of the covariance matrix
+    # The Fortran code only accumulators the lower triangular part of the covariance matrix
 
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*nx,dble(0.0),Stmp,1)
@@ -545,8 +545,8 @@ def optimize(
     # Log workspace memory usage for debugging
     total_memory_mb = work.total_memory_usage() / (1024 * 1024)
     print(f"Workspace allocated: {len(work.buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
-    # Initialize updates container
-    updates = initialize_updates(config)
+    # Initialize accumulators container
+    accumulators = initialize_accumulators(config)
     
     # We allocate these separately.
     Dtemp = np.zeros(num_models, dtype=np.float64)
@@ -562,9 +562,6 @@ def optimize(
     while iter <= config.max_iter:
         # ============================== Subsection ====================================
         # === Update the unmixing matrices and compute the determinants ===
-        # The Fortran code computed log|det(W)| indirectly via QR factorization
-        # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
-        # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
         # ===============================================================================
         
         # !----- get determinants
@@ -581,21 +578,18 @@ def optimize(
 
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
-            # The Fortran code computed log|det(W)| indirectly via QR factorization# 
+            # The Fortran code computed log|det(W)| indirectly via QR factorization
             # We use slogdet on the original unmixing matrix to get sign and log|det|
             sign, logabsdet = compute_sign_log_determinant(
                 unmixing_matrix=state.W[:, :, h_index],
                 minlog=minlog,
             )
             Dtemp[h_index] = logabsdet
-            Dsign[h_index] = sign        
-
-            # Determinant computed above via slogdet (sign stored in Dsign)
-         
+            Dsign[h_index] = sign                 
         Dsum = Dtemp.copy() # shape (num_models,)
 
         # ============================== Subsection =====================================
-        # updates, metrics = get_updates_and_likelihood()
+        # accumulators, metrics = get_accumulators_and_likelihood()
         # ===============================================================================
         nw = num_comps
 
@@ -606,35 +600,35 @@ def optimize(
         mu = state.mu
         alpha = state.alpha
 
-        updates.reset()
+        accumulators.reset()
 
-        dgm_numer = updates.dgm_numer
-        dmu_numer = updates.dmu_numer
-        dmu_denom = updates.dmu_denom
-        dalpha_numer = updates.dalpha_numer
-        dalpha_denom = updates.dalpha_denom
-        dbeta_numer = updates.dbeta_numer
-        dbeta_denom = updates.dbeta_denom
-        drho_numer = updates.drho_numer
-        drho_denom = updates.drho_denom
-        dc_numer = updates.dc_numer
-        dc_denom = updates.dc_denom
+        dgm_numer = accumulators.dgm_numer
+        dmu_numer = accumulators.dmu_numer
+        dmu_denom = accumulators.dmu_denom
+        dalpha_numer = accumulators.dalpha_numer
+        dalpha_denom = accumulators.dalpha_denom
+        dbeta_numer = accumulators.dbeta_numer
+        dbeta_denom = accumulators.dbeta_denom
+        drho_numer = accumulators.drho_numer
+        drho_denom = accumulators.drho_denom
+        dc_numer = accumulators.dc_numer
+        dc_denom = accumulators.dc_denom
 
         if do_newton:
-            dbaralpha_numer = updates.newton.dbaralpha_numer
-            dbaralpha_denom = updates.newton.dbaralpha_denom
-            dkappa_numer = updates.newton.dkappa_numer
-            dkappa_denom = updates.newton.dkappa_denom
-            dlambda_numer = updates.newton.dlambda_numer
-            dlambda_denom = updates.newton.dlambda_denom
-            dsigma2_numer = updates.newton.dsigma2_numer
-            dsigma2_denom = updates.newton.dsigma2_denom
+            dbaralpha_numer = accumulators.newton.dbaralpha_numer
+            dbaralpha_denom = accumulators.newton.dbaralpha_denom
+            dkappa_numer = accumulators.newton.dkappa_numer
+            dkappa_denom = accumulators.newton.dkappa_denom
+            dlambda_numer = accumulators.newton.dlambda_numer
+            dlambda_denom = accumulators.newton.dlambda_denom
+            dsigma2_numer = accumulators.newton.dsigma2_numer
+            dsigma2_denom = accumulators.newton.dsigma2_denom
 
-        # === Section: Initialize Accumulators & Buffers ===
-        # Initialize arrays for likelihood computations and parameter updates
-        # Set up numerator/denominator accumulators for gradient updates
-        #-------------------------------------------------------------------------------
-
+        # ============================== Subsection =====================================
+        # Retrieve arrays for likelihood computations and parameter accumulators
+        # ===============================================================================
+        b = work.get_buffer("b")
+        z = work.get_buffer("z")
         ufp = work.get_buffer("ufp")
         dWtmp = work.get_buffer("dWtmp")
         # Validate critical buffer shapes
@@ -642,26 +636,18 @@ def optimize(
         assert dWtmp.shape == (num_comps, num_comps, num_models)
 
         # !--------- loop over the segments ----------
-
         if do_reject:
             raise NotImplementedError()
         else:
             pass
-
         # !--------- loop over the blocks ----------
         '''
         # In Fortran, the OMP parallel region would start before the lines below.
         # !$OMP PARALLEL DEFAULT(SHARED) &
-        # !$OMP & PRIVATE (thrdnum,tblksize,t,h,i,j,k,xstrt,xstp,bstrt,bstp,LLinc,tmpsum,usum,vsum)
-        # thrdnum = omp_get_thread_num()
-        # tblksize = bsize / num_thrds
-        tblksize = int(bsize / num_thrds)
+        # ...
         # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
         '''
-        b = work.get_buffer("b")
-        z = work.get_buffer("z")
 
-        # Move modloglik initialization outside the chunk loop
         # -- 0. Baseline terms for per-sample model log-likelihood --            
         initial = get_initial_model_log_likelihood(
                 unmixing_logdet=Dtemp[h_index],
@@ -670,12 +656,11 @@ def optimize(
         )
         # Broadcast to all samples
         modloglik[:, h_index].fill(initial)
-        chunks = ChunkIterator(X, axis=1, chunk_size=N1)
-        if iter == 1:
-            print(
-                f"Processing Data in {len(chunks)} chunk(s) of size up to "
-                f"{chunks.chunk_size} ..."
-                )
+        
+        #=============================== Subsection =====================================
+        # === Begin chunk loop ===
+        # ===============================================================================
+        chunks = ChunkIterator(X, axis=1, chunk_size=N1)           
         for chunk_idx, (data_slice, chunk_slice) in enumerate(chunks):
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
@@ -711,6 +696,7 @@ def optimize(
                     out_logits=z,
                     )
                 z0 = z  # log densities (alias for clarity with Fortran code)
+
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
                 scratch = work.get_buffer("scratch_2D")  # reuse for scratch workspace
                 compute_model_loglikelihood_per_sample(
@@ -732,11 +718,6 @@ def optimize(
                 modloglik=modloglik[chunk_slice, :],
                 out_loglik=loglik[chunk_slice]
             )
-            # Total log-likelihood across all samples
-            # NOTE: we can probably compute this outside of the chunk loop?
-            # If we don't need per-chunk monitoring.
-            # LLinc = loglik[chunk_slice].sum()
-            # total_LL += LLinc
 
             if do_reject:
                 raise NotImplementedError()
@@ -751,11 +732,11 @@ def optimize(
             # v = modloglik[chunk, :]
             # modloglik = None  # guard against use of stale name
 
-            # ================================ M-STEP =======================================
-            # === Maximization-step: Parameter Updates ===
+            # ================================ M-STEP ===================================
+            # === Maximization-step: Parameter accumulators ===
             # - Update parameters based on current responsibilities
             # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
-            # ===============================================================================
+            # ===========================================================================
             
             # !--- get g, u, ufp
             g = work.get_buffer("scratch_2D")  # reuse for g workspace
@@ -800,7 +781,7 @@ def optimize(
                 )
                 assert ufp.shape == (N1, nw, num_mix)   
 
-                # --- Stochastic Gradient Descent Updates ---
+                # --- Stochastic Gradient Descent accumulators ---
                 # gm (model weights)
                 dgm_numer[h_index] += vsum
                 # c (bias)  
@@ -846,13 +827,13 @@ def optimize(
                     out_numer=drho_numer[comp_slice, :],
                     out_denom=drho_denom[comp_slice, :],
                 )
-                # --- Newton-Raphson Updates ---
+                # --- Newton-Raphson accumulators ---
                 if do_newton and iter >= newt_start:
                     if iter == 50 and chunk_slice.start == 0:
                         assert np.all(dkappa_numer == 0.0)
                         assert np.all(dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
-                    # Sigma^2 updates (noise variance)
+                    # Sigma^2 accumulators (noise variance)
                     accumulate_sigma2_stats(
                         model_responsibilities=v_h,
                         source_estimates=b,
@@ -860,7 +841,7 @@ def optimize(
                         out_numer=dsigma2_numer[:, h_index],
                         out_denom=dsigma2_denom[:, h_index],
                     )
-                    # Kappa updates (curvature terms for A)
+                    # Kappa accumulators (curvature terms for A)
                     accumulate_kappa_stats(
                         ufp=ufp,
                         fp=fp,
@@ -869,7 +850,7 @@ def optimize(
                         out_numer=dkappa_numer[:, :, h_index],
                         out_denom=dkappa_denom[:, :, h_index],
                     )                
-                    # Lambda updates (nonlinearity shape parameter)
+                    # Lambda accumulators (nonlinearity shape parameter)
                     accumulate_lambda_stats(
                         fp=fp,
                         y=y,
@@ -878,7 +859,7 @@ def optimize(
                         out_numer=dlambda_numer[:, :, h_index],
                         out_denom=dlambda_denom[:, :, h_index],
                     )
-                    # (dbar)Alpha updates
+                    # (dbar)Alpha accumulators
                     dbaralpha_numer[:, :, h_index] += usum
                     dbaralpha_denom[:,:, h_index] += vsum
                 # end if (do_newton and iter >= newt_start)
@@ -905,7 +886,7 @@ def optimize(
         
         likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
             config=config,
-            updates=updates,
+            accumulators=accumulators,
             state=state,
             dWtmp=dWtmp,
             total_LL=loglik.sum(),
@@ -914,8 +895,8 @@ def optimize(
         metrics.loglik = likelihood
         metrics.ndtmpsum = ndtmpsum
         metrics.no_newt = no_newt
-        updates.dAK = dAK
-        # return updates, metrics
+        accumulators.dAK = dAK
+        # return accumulators, metrics
 
         # ==============================================================================
         ndtmpsum = metrics.ndtmpsum
@@ -924,7 +905,7 @@ def optimize(
         startover = False
         numincs = 0
         numdecs = 0
-        # XXX: checking get_updates_and_likelihood set things globally
+        # XXX: checking get_accumulators_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
         # Iteration 1 checks that are values were set globally and are correct form baseline
              
@@ -1026,12 +1007,12 @@ def optimize(
         if startover:
             raise NotImplementedError()
         else:
-            # !----- do updates: gm, alpha, mu, sbeta, rho, W
+            # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
             # the updated lrate & rholrate for the next iteration
             lrate, rholrate, state, wc = update_params(
                 config=config,
                 state=state,
-                updates=updates,
+                accumulators=accumulators,
                 metrics=metrics,
                 wc=wc,
             )
@@ -1111,19 +1092,19 @@ def get_seg_list(raw):
     return blocks_in_sample, num_samples, all_blks
 
 
-def get_updates_and_likelihood(
+def get_accumulators_and_likelihood(
     X,
     *,
     config,
     state,
-    updates,
+    accumulators,
     metrics,
     work,
     sldet,
     Dsum,
     wc,
 ):
-    """Get updates and likelihood for AMICA.
+    """Get accumulators and likelihood for AMICA.
     
     Purpose:
         - E-step: compute per-model/per-component log-likelihoods and responsibilities.
@@ -1983,7 +1964,7 @@ def accumulate_scores(
         Scale parameters (sbeta) of shape (n_components, n_mixtures).
         Not modified.
     out_ufp : np.ndarray
-        The output updates (ufp) of shape (n_components, n_features).
+        The output accumulators (ufp) of shape (n_components, n_features).
         Modified in place.
     out_g : np.ndarray
         The output gradients (g) of shape (n_components, n_features).
@@ -2018,7 +1999,7 @@ def accumulate_scores(
     # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
     # (bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
     #---------------------------------------------------------------
-    # === Subsection: Accumulate Statistics for Parameter Updates ===
+    # === Subsection: Accumulate Statistics for Parameter accumulators ===
     # !--- get g
     # if update_A:
 
@@ -2244,7 +2225,7 @@ def accumulate_beta_stats(
         out_denom: Params2D,
         ) -> Tuple[Params2D, Params2D]:
     """
-    Get the numerator and denominator for the scale updates.
+    Get the numerator and denominator for the scale accumulators.
 
     Parameters
     ----------
@@ -2304,7 +2285,7 @@ def accumulate_rho_stats(
         out_denom: Params2D,
         ) -> Tuple[Params2D, Params2D]:
     """
-    Compute the numerator and denominator for the shape updates.
+    Compute the numerator and denominator for the shape accumulators.
 
     Parameters
     y : np.ndarray
@@ -2421,7 +2402,7 @@ def accumulate_sigma2_stats(
             dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
             dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
 
-    Fortran updates dsigma2_numer and dsigma2_denom in all iterations, but that is not
+    Fortran accumulators dsigma2_numer and dsigma2_denom in all iterations, but that is not
     necessary.
     """
     # Alias for clarity with Fortran code
@@ -2586,7 +2567,7 @@ def accumulate_lambda_stats(
 
 def accum_updates_and_likelihood(
         config,
-        updates,
+        accumulators,
         state,
         dWtmp,
         total_LL,  # this is LLtmp in Fortran
@@ -2618,18 +2599,18 @@ def accum_updates_and_likelihood(
     gm = state.gm
     mu = state.mu
     
-    dgm_numer = updates.dgm_numer
-    dAK = updates.dAK
+    dgm_numer = accumulators.dgm_numer
+    dAK = accumulators.dAK
 
     if do_newton:
-        dbaralpha_numer = updates.newton.dbaralpha_numer
-        dbaralpha_denom = updates.newton.dbaralpha_denom
-        dsigma2_numer = updates.newton.dsigma2_numer
-        dsigma2_denom = updates.newton.dsigma2_denom
-        dkappa_numer = updates.newton.dkappa_numer
-        dkappa_denom = updates.newton.dkappa_denom
-        dlambda_numer = updates.newton.dlambda_numer
-        dlambda_denom = updates.newton.dlambda_denom
+        dbaralpha_numer = accumulators.newton.dbaralpha_numer
+        dbaralpha_denom = accumulators.newton.dbaralpha_denom
+        dsigma2_numer = accumulators.newton.dsigma2_numer
+        dsigma2_denom = accumulators.newton.dsigma2_denom
+        dkappa_numer = accumulators.newton.dkappa_numer
+        dkappa_denom = accumulators.newton.dkappa_denom
+        dlambda_numer = accumulators.newton.dlambda_numer
+        dlambda_denom = accumulators.newton.dlambda_denom
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     
@@ -2831,7 +2812,7 @@ def update_params(
         *,
         config,
         state,
-        updates,
+        accumulators,
         metrics,
         wc,
 ):
@@ -2854,18 +2835,18 @@ def update_params(
     rho = state.rho
     gm = state.gm
 
-    dgm_numer = updates.dgm_numer
-    dalpha_numer = updates.dalpha_numer
-    dalpha_denom = updates.dalpha_denom
-    dc_numer = updates.dc_numer
-    dc_denom = updates.dc_denom
-    dmu_numer = updates.dmu_numer
-    dmu_denom = updates.dmu_denom
-    dbeta_numer = updates.dbeta_numer
-    dbeta_denom = updates.dbeta_denom
-    drho_numer = updates.drho_numer
-    drho_denom = updates.drho_denom
-    dAK = updates.dAK
+    dgm_numer = accumulators.dgm_numer
+    dalpha_numer = accumulators.dalpha_numer
+    dalpha_denom = accumulators.dalpha_denom
+    dc_numer = accumulators.dc_numer
+    dc_denom = accumulators.dc_denom
+    dmu_numer = accumulators.dmu_numer
+    dmu_denom = accumulators.dmu_denom
+    dbeta_numer = accumulators.dbeta_numer
+    dbeta_denom = accumulators.dbeta_denom
+    drho_numer = accumulators.drho_numer
+    drho_denom = accumulators.drho_denom
+    dAK = accumulators.dAK
 
     iter = metrics.iter
     lrate = metrics.lrate
@@ -2890,7 +2871,7 @@ def update_params(
     # assert c.shape == (nw, num_models)
     c[:, :] = dc_numer / dc_denom
     
-    # === Section: Apply Parameter Updates & Rescale ===
+    # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
     # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp

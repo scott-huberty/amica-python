@@ -13,7 +13,7 @@ Key containers
     - Includes to_dict() for easy serialization.
 - AmicaWorkspace: reusable temporary buffer registry (allocated on demand).
     - get(name, shape, dtype=None, init='empty'|'zeros'|'ones') allocates lazily and reuses.
-- AmicaUpdates: per-iteration aggregated numerators/denominators and grads.
+- AmicaAccumulators: per-iteration aggregated numerators/denominators and grads.
     - (dalpha/dbeta/dmu/drho numerators/denominators, dgm_numer, loglik_sum).
 - AmicaMetrics: optional diagnostics for logging/inspection.
 
@@ -332,11 +332,14 @@ class AmicaWorkspace:
 
 
 @dataclass(slots=True, repr=False)
-class AmicaUpdates:
-    """Aggregated updates computed in one iteration.
+class AmicaAccumulators:
+    """Arrays that accumulate across chunks within in one iteration.
 
     This container mainly helps to shuttle a number of arrays together
-    across the get_updates_and_likelihood and update_params functions.
+    across functions. All these arrays are zeroed at the start of each
+    iteration but must persist across chunks within the iteration. If processing the
+    dataset in one chunk, these are just calculated once per iteration (thus they are not
+    really "accumulators" in that case).
 
     Shapes:
     - dmu_numer/denom: (ncomp, nmix)
@@ -367,7 +370,7 @@ class AmicaUpdates:
     dAK: NDArray
     loglik_sum: float = 0.0
 
-    newton: Optional[AmicaNewtonUpdates] = None
+    newton: Optional[AmicaNewtonAccumulators] = None
 
     def reset(self) -> None:
         """Zero all per-iteration accumulators in-place.
@@ -408,7 +411,7 @@ class AmicaUpdates:
             self.newton.dsigma2_denom.fill(0.0)
 
 @dataclass(slots=True, repr=False)
-class AmicaNewtonUpdates:
+class AmicaNewtonAccumulators:
     """Additional accumulators for Newton updates.
 
     Shapes:
@@ -546,8 +549,8 @@ def get_workspace(cfg: AmicaConfig, *, block_size: Optional[int] = None) -> Amic
     return AmicaWorkspace(block_size=bsize, dtype=cfg.dtype)
 
 
-# TODO: consider making this a class method of AmicaUpdates
-def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
+# TODO: consider making this a class method of AmicaAccumulators
+def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     """Allocate zeroed update accumulators with shapes from the config."""
     num_comps = cfg.n_components
     num_models = cfg.n_models  
@@ -594,7 +597,7 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
         dsigma2_numer = np.zeros((num_comps, num_models), dtype=dtype)
         dsigma2_denom = np.zeros((num_comps, num_models), dtype=dtype)
 
-        newton = AmicaNewtonUpdates(
+        newton = AmicaNewtonAccumulators(
             dbaralpha_numer=dbaralpha_numer,
             dbaralpha_denom=dbaralpha_denom,
             dkappa_numer=dkappa_numer,
@@ -607,7 +610,7 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     else:
         newton = None
 
-    return AmicaUpdates(
+    return AmicaAccumulators(
         dgm_numer=dgm_numer,
         dmu_numer=dmu_numer,
         dmu_denom=dmu_denom,
@@ -625,10 +628,10 @@ def initialize_updates(cfg: AmicaConfig) -> AmicaUpdates:
     )
 
 
-def reset_updates(u: AmicaUpdates) -> None:
+def reset_accumulators(u: AmicaAccumulators) -> None:
     """Zero all per-iteration accumulators in-place.
 
-    This avoids reallocations by reusing the same AmicaUpdates instance across
+    This avoids reallocations by reusing the same AmicaAccumulators instance across
     iterations. It resets numerators/denominators, the weight gradients, the
     mixture numerators, and Newton accumulators if present.
     """
@@ -668,10 +671,10 @@ __all__ = [
     "AmicaConfig",
     "AmicaState",
     "AmicaWorkspace",
-    "AmicaUpdates",
+    "AmicaAccumulators",
     "AmicaMetrics",
     "get_initial_state",
     "get_workspace",
-    "initialize_updates",
-    "reset_updates",
+    "initialize_accumulators",
+    "reset_accumulators",
 ]
