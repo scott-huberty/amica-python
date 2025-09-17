@@ -11,7 +11,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 from scipy import linalg
 from scipy.special import gammaln, psi, softmax
 
-from chunking import ChunkIterator
+from chunking import ChunkIterator, choose_chunk_size
 from constants import (
     fix_init,
     mineig,
@@ -178,6 +178,14 @@ def amica(
         Number of components to extract. If None, all components are used.
     n_mixtures: int, optional
         Number of mixtures to use in the AMICA algorithm.
+    chunk_size : int, optional
+        Chunk size for processing data in chunks along the samples axis. If ``None``,
+        chunking is chosen automatically to keep peak memory under ~1.5 GB, and
+        warns if the chunk size is below ~8k samples (If the input data is small enough
+        to process in one shot, no chunking is used). If you want to enforce no chunking,
+        you can override this memory cap by setting chunk_size explicitly, e.g. to
+        `X.shape[1]` to process all samples at once.", but note that this may lead to
+        high memory usage for large datasets.
     whiten : boolean, optional
         If True perform an initial whitening of the data.
         If False, the data is assumed to have already been
@@ -199,7 +207,11 @@ def amica(
         by `np.random`.
     """
     if chunk_size is None:
-        chunk_size = np.array_split(X, 3, axis=1)[0].shape[1]
+        chunk_size = choose_chunk_size(
+            N=X.shape[1],
+            n_comps=n_components if n_components is not None else X.shape[0],
+            n_mix=n_mixtures,
+        )
     # Step 1: Create config and state objects (new dataclass approach)
     config = AmicaConfig(
         n_features=X.shape[0],  # Number of channels (corrected from X.shape[1])
@@ -322,12 +334,6 @@ def pre_whiten(
         mean = dataseg.mean(axis=1)
         # !--- subtract the mean
         dataseg -= mean[:, None]  # Subtract mean from each channel
-        assert_almost_equal(mean[0], -3.7090141912586323)
-        assert_almost_equal(mean[1], -6.7516788952437894)
-        assert_almost_equal(mean[2], 2.5880450259870105)
-        assert_almost_equal(dataseg[0, 0], -32.088471160303868)
-        assert_almost_equal(dataseg[1, 0], 9.0595228188125141)
-        assert_almost_equal(dataseg[2, 0], -29.36477079502998)
 
     # ---- Covariance ----
     print(" Getting the covariance matrix ...")
@@ -340,7 +346,6 @@ def pre_whiten(
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
     #------------------------------------------------------------------------
     Cov = dataseg @ dataseg.T / n_samples
-    np.testing.assert_almost_equal(Cov[0, 0], 1500.7429175286763, decimal=6)
 
     # ---- Eigen-decomposition
     print(f"doing eig nx = {nx}")
@@ -353,8 +358,7 @@ def pre_whiten(
 
     min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
     max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-    assert_allclose(min_eigs, min_eigs_fortran)
-    assert_allclose(max_eigs, max_eigs_fortran)
+
     
     # keep only valid eigs  
     numeigs = min(n_components, sum(eigvals > mineig)) # np.linalg.matrix_rank?
@@ -362,7 +366,6 @@ def pre_whiten(
 
     # Log determinant of the whitening matrix
     sldet = -0.5 * np.sum(np.log(eigvals))
-    np.testing.assert_almost_equal(sldet, -65.935050239880198)
 
     # ---- Sphere or variance normalize ----
     if do_sphere:
@@ -377,7 +380,6 @@ def pre_whiten(
         else:
             # if (do_approx_sphere) then
             raise NotImplementedError()
-        np.testing.assert_almost_equal(whitening_matrix[0, 0], 0.043377346952119616)
     else:
         # !--- just normalize by the channel variances (don't sphere)
         raise NotImplementedError()
@@ -390,17 +392,6 @@ def pre_whiten(
     dataseg = whitening_matrix @ dataseg # Apply the sphering matrix
 
     # Lets check dataseg
-    assert_almost_equal(dataseg[0, 0], -0.18746213684159407, decimal=7)
-    assert_almost_equal(dataseg[0, 1], -0.15889933957961194, decimal=7)
-    assert_almost_equal(dataseg[1, 0], 0.44527165614822528, decimal=7)
-    assert_almost_equal(dataseg[-1, -1], -0.79980176796607527, decimal=7)
-    assert_almost_equal(dataseg[0, 15252], 0.78073780455880826, decimal=7)
-    assert_almost_equal(dataseg[0, 29696], 0.31586289746943713, decimal=7)
-    assert_almost_equal(dataseg[0, 29700], 0.34534557250740822, decimal=7)
-    assert_almost_equal(dataseg[15, 29701], 1.2248470873789368, decimal=7)
-    assert_almost_equal(dataseg[31, 0],0.70942796672956288, decimal=7)
-    assert_almost_equal(dataseg[20, 29710], 0.26516668950937816, decimal=7)
-    assert_almost_equal(dataseg[31, 30503], -0.79980176796607527, decimal=7)
 
 
     nw = numeigs # Number of weights, as per Fortran code
@@ -409,7 +400,6 @@ def pre_whiten(
     # ! get the pseudoinverse of the sphering matrix
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
     Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix 
-    assert_almost_equal(Winv[0, 0], 33.11301219430311)
 
     if n_components is None:
         # TODO
@@ -450,19 +440,7 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
-    assert config.n_components == 32
-    assert config.n_models == 1
-    assert config.n_mixtures == 3
-    assert config.max_iter == 200
-    assert config.pdftype == 0
-    assert config.tol == 1e-7
-    assert not config.do_reject
-    assert config.rholrate == 0.05
-    assert config.do_newton
-    assert config.newt_start == 50
-    assert config.newtrate == 1
-    assert config.newt_ramp == 10
-    assert_almost_equal(sldet, -65.935050239880198)
+
 
     # The API will use n_components but under the hood we'll match the Fortran naming
     # TODO: Maybe rename n_components to num_comps in the config dataclass?
@@ -473,128 +451,60 @@ def _core_amica(
     print("Allocating variables ...")
     # TODO: I think this should have a num_models dimension
 
-    assert state.A.shape == (num_comps, num_comps)
-    assert_allclose(state.A, 0)
-
-    assert state.W.shape == (num_comps, num_comps, num_models)
-    assert state.W.dtype == np.float64
-
-
     # These are all passed to get_updates_and_likelihood
     
     # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
     # nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
 
-    assert state.gm.shape == (num_models,)
-
-    assert state.alpha.shape == (num_comps, num_mix)
-
-    assert state.mu.shape == (num_comps, num_mix)
-    assert_allclose(state.mu, 0)
 
     mutmp = np.zeros((num_comps, num_mix))
     
     # if update_mu:
     
-    assert state.sbeta.shape == (num_comps, num_mix)
-    assert_allclose(state.sbeta, np.nan)
+
 
     # sbetatmp = np.zeros((num_comps, num_mix))  # Beta parameters
     # if update_beta:
 
-    assert state.rho.shape == (num_comps, num_mix)
-    assert_allclose(state.rho, 1.5)
+
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
     # if (seg_rank == 0) then
     print("Initializing variables ...")
 
-    if load_gm:
+    assert_allclose(state.gm.sum(), 1.0)
+    # load_alpha:
+    state.alpha[:, :num_mix] = 1.0 / num_mix
+    # load_mu:
+    values = np.arange(num_mix) - (num_mix - 1) / 2
+    state.mu[:, :] = values[np.newaxis, :]
+    if not fix_init:
+        mutmp = MUTMP.copy().T
+        state.mu[:, :num_mix] = state.mu[:, :num_mix] + 0.05 * (1.0 - 2.0 * mutmp)
+    # load_beta:
+    if fix_init:
         raise NotImplementedError()
     else:
-        # gm[:] = int(1.0 / num_models)
-        assert_allclose(state.gm.sum(), 1.0)
-    if load_alpha:
-        raise NotImplementedError()
-    else:
-        state.alpha[:, :num_mix] = 1.0 / num_mix
-    if load_mu:
-        raise NotImplementedError()
-    else:
-        values = np.arange(num_mix) - (num_mix - 1) / 2
-        state.mu[:, :] = values[np.newaxis, :]
-        assert state.mu.shape == (num_comps, num_mix) == (32, 3)
-        np.testing.assert_allclose(state.mu[:, 0], -1.0)
-        np.testing.assert_allclose(state.mu[:, 1], 0.0)
-        np.testing.assert_allclose(state.mu[:, 2], 1.0)
-        if not fix_init:
-            mutmp = MUTMP.copy().T
-            state.mu[:, :num_mix] = state.mu[:, :num_mix] + 0.05 * (1.0 - 2.0 * mutmp)
-            assert_almost_equal(state.mu[0, 0], -1.0009659467356704, decimal=7)
-            assert_almost_equal(state.mu[31, 2], 0.99866076686138183, decimal=7)
-    if load_beta:
-        raise NotImplementedError()
-    else:
-        if fix_init:
-            raise NotImplementedError()
-        else:
-            state.sbeta[:, :num_mix] = 1.0 + 0.1 * (0.5 - sbetatmp)
-            assert_almost_equal(state.sbeta[0, 0], 0.96533589542801645, decimal=7)
-            assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
-    if load_rho:
-        raise NotImplementedError()
-    else:
-        np.testing.assert_allclose(state.rho, 1.5)
-    if load_c:
-        raise NotImplementedError()
-    else:
-        state.c[:, :] = 0.0
-        assert state.c.shape == (num_comps, num_models) == (32, 1)
-    if load_A:
-        raise NotImplementedError()
-    else:
-        comp_slice = get_component_slice(h=1, n_components=num_comps)
-        for h, _ in enumerate(range(num_models), start=1):
-            h_index = h - 1
-            # TODO: if A has a num_models dimension, this fancy indexing isnt needed
-            # FIXME: This indexing will fail if num_models > 1
-            state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)
-            if h == 1:
-                assert_almost_equal(state.A[0, 0], 0.0041003901044031916, decimal=7)
-            idx = np.arange(num_comps)
-            cols = h_index * num_comps + idx
-            state.A[idx, cols] = 1.0
-            Anrmk = np.linalg.norm(state.A[:, cols], axis=0)
-            if h == 1:
-                assert_almost_equal(Anrmk[0], 1.0001205115690768)
-                assert_almost_equal(Anrmk[1], 1.0001597653323635)
-                assert_almost_equal(Anrmk[2], 1.0001246023020249)
-                assert_almost_equal(Anrmk[3], 1.0001246214648813)
-                assert_almost_equal(Anrmk[4], 1.0001391792172245)
-                assert_almost_equal(Anrmk[5], 1.0001153695881879)
-                assert_almost_equal(Anrmk[6], 1.0001348988545486)
-                assert_almost_equal(Anrmk[31], 1.0001690977165658)
-            else:
-                raise ValueError("Unexpected model index")
-            state.A[:, cols] /= Anrmk
+        state.sbeta[:, :num_mix] = 1.0 + 0.1 * (0.5 - sbetatmp)
+    # load_c:
+    state.c[:, :] = 0.0
+    # load_A:
+    comp_slice = get_component_slice(h=1, n_components=num_comps)
+    for h, _ in enumerate(range(num_models), start=1):
+        h_index = h - 1
+        # TODO: if A has a num_models dimension, this fancy indexing isnt needed
+        # FIXME: This indexing will fail if num_models > 1
+        state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)
+        
+        idx = np.arange(num_comps)
+        cols = h_index * num_comps + idx
+        state.A[idx, cols] = 1.0
+        Anrmk = np.linalg.norm(state.A[:, cols], axis=0)
 
-            if h == 1:
-                assert_almost_equal(state.A[0, 0], 0.99987950295221151)
-                assert_almost_equal(state.A[0, 1], 0.0031751973942113266)
-                assert_almost_equal(state.A[0, 2], 0.0032972413345084516)
-                assert_almost_equal(state.A[0, 3], -0.0039658956397471655)
-                assert_almost_equal(state.A[0, 4], -0.003799613000692897)
-                assert_almost_equal(state.A[0, 5], 0.0028189089968969124)
-                assert_almost_equal(state.A[0, 6], -0.0049667241649223011)
-                assert_almost_equal(state.A[0, 7], -0.0049493288857340749)
-                assert_almost_equal(state.A[0, 31], 0.0033698692262480665)
-
-                assert_equal(comp_slice.start, 0)
-                assert_equal(comp_slice.stop, 32)
-            else:
-                raise ValueError("Unexpected model index")
+        state.A[:, cols] /= Anrmk   
     # end load_A
+    
     iterating = True if "iter" in locals() else False
     W, wc = get_unmixing_matrices(
         iterating=iterating,
@@ -604,34 +514,15 @@ def _core_amica(
         W=state.W,
         num_models=num_models,
     )
-    assert_almost_equal(W[0, 0, 0], 1.0000898173968631, decimal=7)
     state.W = W.copy()
     del W # safe guard against accidental use of W instead of state.W
 
-    # load_comp_list
-    # if load_comp_list:
-    #    raise NotImplementedError()
-    
-    # if (print_debug) then
-    #  print *, 'data ='; call flush(6)
-
-    # if load_rej:
-    #    raise NotImplementedError()    
 
     # !-------------------- Determine optimal block size -------------------
-    if do_opt_block:
-        raise NotImplementedError()
-    else:
-        # call allocate_blocks
-        N1 = config.chunk_size # dataseg.shape[-1] # 2 * block_size * num_thrds
-    myrank = 0
-    print(f"{myrank + 1}: block size = {N1}")
-    # for seg, _ in enumerate(range(numsegs), start=1):
+    print(f"1: block size = {config.chunk_size}")
 
-    # v[:, :] = 1.0 / num_models
 
-    print(f"{myrank+1} : entering the main loop ...")
-
+    print(f"1 : entering the main loop ...")
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     state, LL = optimize(
         X=X,
@@ -657,7 +548,6 @@ def optimize(
     iter = 1
     numrej = 0
     N1 = min(config.chunk_size, X.shape[1])
-    # assert N1 == 30504
 
     n_models = config.n_models
     n_mixtures = config.n_mixtures
@@ -737,10 +627,7 @@ def optimize(
             Dsign[h_index] = sign        
 
             # Determinant computed above via slogdet (sign stored in Dsign)
-            if h == 1 and iter == 1:
-                assert_almost_equal(Dtemp[h - 1], 0.0044558350900245226)
-            elif h == 1 and iter == 2:
-                assert_almost_equal(Dtemp[h - 1], 0.0039077958090355637)
+         
         Dsum = Dtemp.copy() # shape (num_models,)
 
         # ============================== Subsection ====================================
@@ -820,7 +707,12 @@ def optimize(
         # Broadcast to all samples
         modloglik[:, h_index].fill(initial)
         chunks = ChunkIterator(X, axis=1, chunk_size=N1)
-        for data_slice, chunk_slice in chunks:
+        if iter == 1:
+            print(
+                f"Processing Data in {len(chunks)} chunk(s) of size up to "
+                f"{chunks.chunk_size} ..."
+                )
+        for chunk_idx, (data_slice, chunk_slice) in enumerate(chunks):
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
@@ -923,9 +815,7 @@ def optimize(
                 assert usum.shape == (nw, num_mix)  # nw, num_mix
                 
                 assert rho.shape == (config.n_components, num_mix)
-                if iter == 6 and h == 1 and chunk_slice.start == 0:
-                    # and j == 3 and i == 1 
-                    assert rho[0, 2] == 1.0
+
                 fp = compute_source_scores(
                     pdftype=pdftype,
                     y=y,
@@ -935,8 +825,7 @@ def optimize(
                 )
                 assert fp.shape == (N1, nw, num_mix)
                 # --- Vectorized calculation of ufp and g update ---
-                if iter == 1 and h == 1: # and blk == 1 
-                    assert g[0, 0] == 0.0
+
                 ufp, g = accumulate_scores(
                     scores=fp,
                     responsibilities=u,
@@ -1045,79 +934,6 @@ def optimize(
                 dWtmp[:, :, h - 1] += Wtmp2
             # end do (h)
         # end do (blk)'
-        if iter == 1:
-            # j is 3 and i is 32 by this point
-            # assert j == 3
-            # assert i == 32
-            assert h == 1
-            assert_allclose(rho, 1.5)
-            assert_almost_equal(g[-808, 0], 0.19658642673900478)
-            assert_almost_equal(g[-1, 31], -0.22482758905985217)
-            assert dgm_numer[0] == 30504
-            # XXX: this gets explicitly tested against tmpsum_prod in the dorho block.
-            # assert_almost_equal(tmpsum, -52.929467835976844)
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert dc_denom[31, 0] == 30504
-            assert_allclose(v, 1)
-            assert_almost_equal(z[-808, 31, 2], 0.72907838295502048)
-            assert_almost_equal(z[-1, 31, 2], 0.057629436774909774)
-            # assert_almost_equal(z0[-808, 31, 2], -1.7145368856186436)
-            assert_almost_equal(u[-808, 31, 2], 0.72907838295502048)
-            assert_almost_equal(u[-1, 31, 2], 0.057629436774909774)
-            # assert_almost_equal(tmpvec_fp[-808, 31, 2], -2.1657430925146017)
-            # assert_almost_equal(tmpvec2_fp[-1, 31, 2], 1.3553626849082627)
-            assert_almost_equal(fp[-808, 31, 2], 0.50793264023957352)
-            assert_almost_equal(ufp[-808, 31, 2], 0.37032270799594241)
-            assert_almost_equal(dalpha_numer[31, 2], 9499.991274464508, decimal=5)
-            assert dalpha_denom[31, 2] == 30504
-            assert_almost_equal(dmu_numer[31, 2], -3302.4441649143237, decimal=5) # XXX: test another indice since this is numerically unstable
-            assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-            assert_almost_equal(sbeta[31, 2], 1.0138304802882583)
-            assert_almost_equal(dmu_denom[31, 2], 28929.343372016403, decimal=2) # XXX: watch this for numerical stability
-            assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-            assert_almost_equal(dbeta_numer[31, 2], 9499.991274464508, decimal=5)
-            assert_almost_equal(dbeta_denom[31, 2], 8739.8711658999582, decimal=6)
-            assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-            assert_almost_equal(y[-1, 31, 2], -1.8370080076417346)
-            #assert_almost_equal(logab[-808, 31,2], -3.2486146387719028)
-            #assert_almost_equal(tmpy[-808, 31, 2], 0.038827961341319203)
-            assert_almost_equal(drho_numer[31, 2], 469.83886293477855, decimal=5)
-            assert_almost_equal(drho_denom[31, 2], 9499.991274464508, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 2014.2985887030379, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 8967.4993064961727, decimal=5)
-            assert_almost_equal(dWtmp[31, 0, 0], 143.79140032913983, decimal=6)
-            assert_almost_equal(loglik[-1], -111.60532918598989)
-            assert_almost_equal(loglik.sum(), -3429802.6457936931, decimal=5) # XXX: check this value after some iterations
-            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-        elif iter == 2:
-            assert_almost_equal(dc_numer[31, 0], 0)
-            assert_almost_equal(dc_numer[0, 0],  0)
-            assert dc_denom[31, 0] == 30504
-            assert dc_denom[0, 0] == 30504
-            assert_almost_equal(dalpha_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dalpha_numer[31, 2], 9221.7061911138153, decimal=4)
-            assert dalpha_denom[31, 2] == 30504
-            assert dalpha_denom[0, 0] == 30504
-            assert_almost_equal(dmu_numer[0, 0], 3302.9474389348984, decimal=4)
-            assert_almost_equal(dmu_denom[0, 0], 25142.015091515364, decimal=1)
-            assert_almost_equal(dbeta_numer[0, 0], 7861.9637766408878, decimal=5)
-            assert_almost_equal(dbeta_denom[0, 0], 6061.5281979061665, decimal=5)
-            assert_almost_equal(drho_numer[0, 0], 23.719323447428629, decimal=5)
-            assert_almost_equal(drho_denom[0, 0], 7861.9637766408878, decimal=5)  
-            assert_almost_equal(g[-808, 0], 0.92578280732700213)
-            assert_almost_equal(g[-1, 31], -0.57496468258661515)
-            assert_almost_equal(u[-808, 31, 2], 0.71373487258192514)
-            assert_allclose(v, 1)
-            assert_almost_equal(y[-1, 31, 2], -1.8067399375706592)
-            assert_almost_equal(z[-808, 31, 2], 0.71373487258192514)
-            #assert_almost_equal(tmpy[-808, 31, 2], 0.12551286724858962)
-            #assert_almost_equal(logab[-808, 31, 2], -2.075346997788714)
-            #assert_almost_equal(tmpvec_fp[-808,31,2], -1.3567967124454048)
-            # assert_almost_equal(tmpvec2_fp[-1,31,2], 1.3678868714057633)
-            assert_almost_equal(loglik[-1], -109.77900836816768, decimal=6)
-            assert_almost_equal(dWtmp[31, 0, 0], 264.40460848250513, decimal=5)
-            assert_almost_equal(loglik.sum(), -3385986.7900999608, decimal=3) # XXX: check this value after some iterations
 
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
@@ -1147,54 +963,6 @@ def optimize(
         # XXX: checking get_updates_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
         # Iteration 1 checks that are values were set globally and are correct form baseline
-        if iter == 1:
-            assert_allclose(state.rho, 1.5)
-            
-            assert_almost_equal(state.sbeta[31, 2], 1.0138304802882583)
-            # assert_almost_equal(Wtmp2[31,31, 0], 260.86288741506081, decimal=6)
-            # assert_almost_equal(LLinc, -89737.92559533281, decimal=6)
-            
-            # These shouldnt get updated until the start of newton_optimization
-
-            # These should also not change until the start of newton_optimization
-
-            # accum_updates_and_likelihood checks..
-            # This should also give an idea of the vars that are assigned within that function.
-            assert metrics.no_newt is False
-            assert_almost_equal(ndtmpsum, 0.057812635452922263)
-            assert_almost_equal(LL[0], -3.5136812444614773)
-        # Iteration 2 checks that our values were set globablly and updated based on the first iteration
-        elif iter == 2:
-            assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
-            assert_almost_equal(state.sbeta[31, 2], 1.0736514759262248)
-            # assert_almost_equal(Wtmp2[31,31, 0], 401.76754944355537, decimal=5)
-            # assert P[808] == 0.0
-
-            # accum_updates_and_likelihood checks..
-            assert metrics.no_newt is False
-            assert_almost_equal(ndtmpsum, 0.02543823967703519)
-            # assert_almost_equal(Wtmp[0, 0], 0.32349815400356108)
-            assert_almost_equal(LL[1], -3.4687938365664754)
-        # Iteration 6 was the first iteration with a non-zero value of `fp` bc rho[idx, idx] == 1.0 instead of 1.5
-        elif iter == 6:
-            assert_almost_equal(state.rho[0, 0], 1.6596808063060098, decimal=6)
-            assert_almost_equal(LL[5], -3.4553318810532221, decimal=6)
-        # iteration 13 was the first iteration with rho[idx, idx] == 2.0 instead of 1.5 or 1.0
-        elif iter == 13:
-            assert state.rho[0, 0] == 2
-            assert_almost_equal(LL[12], -3.4479767404904833, decimal=6)
-        # Iteration 49 is the last iteration before Newton optimization starts
-        elif iter == 49:
-            assert_almost_equal(LL[48], -3.4413377213179359, decimal=5)
-        elif iter == 50:
-            # This is the first iteration with newton optimization.
-            assert_almost_equal(LL[49], -3.441215133563345, decimal=5)
-
-            # This is the first iteration with newton optimization.
-            #assert_almost_equal(dkappa_denom[2,31,0], 8873.0781815692208, decimal=0)
-        elif iter == 51:
-            # accum_updates_and_likelihood checks..
-            assert_almost_equal(LL[50], -3.4410166239008801, decimal=5) # At least this is close to the Fortran output!
              
         # !----- display log likelihood of data
         # if (seg_rank == 0) then
@@ -1303,46 +1071,6 @@ def optimize(
                 metrics=metrics,
                 wc=wc,
             )
-            if iter == 1:
-                # XXX: making sure all variables were globally set.
-                # assert_almost_equal(Anrmk[-1], 0.98448954017506363)
-                assert state.gm[0] == 1
-                assert_almost_equal(state.alpha[0, 0], 0.29397781623708935, decimal=5)
-                assert_almost_equal(state.c[0, 0], 0.0)
-                assert posdef is True
-                assert_almost_equal(config.lrate, 0.05)
-                assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(config.rholrate, 0.05)
-                assert_almost_equal(rholrate, 0.05)
-                assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
-                assert maxrho == 2
-                assert minrho == 1
-                assert_almost_equal(state.rho[0, 0], 1.4573165687688203)
-                assert not state.rho[state.rho == minrho].any()
-                assert_almost_equal(state.A[31, 31], 0.99984153789378194)
-                assert_almost_equal(state.sbeta[31, 0], 0.97674982753812623)
-                assert_almost_equal(state.mu[31, 0], -0.8568024781696123)
-                assert_almost_equal(state.W[0, 0, 0], 1.0000820892004447)
-                assert_almost_equal(wc[0, 0], 0)
-            elif iter == 2:
-                # assert_almost_equal(Anrmk[-1], 0.99554375802233519)
-                assert state.gm[0] == 1
-                assert_almost_equal(state.alpha[0, 0], 0.25773550277474716)
-                assert_almost_equal(state.c[0, 0], 0.0)
-                assert posdef is True
-                assert_almost_equal(config.lrate, 0.05)
-                assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(config.rholrate, 0.05)
-                assert_almost_equal(rholrate, 0.05)
-                assert_almost_equal(sbetatmp[0, 0], 1.0583363176203351)
-                assert maxrho == 2
-                assert minrho == 1
-                assert_almost_equal(state.rho[0, 0], 1.5062036957555023)
-                assert_almost_equal(state.A[31, 31], 0.99985752877785194)
-                assert_almost_equal(state.sbeta[0, 0], 1.07570700640128)
-                assert_almost_equal(state.mu[0, 0], -0.53783126597732789)
-                assert_almost_equal(state.W[0, 0, 0], 1.0002289118030874)
-                assert_almost_equal(wc[0, 0], 0)
 
             # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
 
@@ -1367,6 +1095,8 @@ def optimize(
     print(f"Finished in {c_end - c_start:.2f} seconds")
     return state, LL
 
+
+
 def get_unmixing_matrices(
         *,
         iterating,
@@ -1377,11 +1107,6 @@ def get_unmixing_matrices(
         num_models,
         ):
     """Get unmixing matrices for AMICA."""
-    if not iterating:
-        # ugly hack to check if we are in the first iteration
-        # All these shoudl be true first time get_unmixing_matrices is called which is before the iteration starts
-        assert_almost_equal(A[0, 0], 0.99987950295221151)
-        assert_almost_equal(A[2, 2], 0.99987541322177442)
 
     wc = np.zeros_like(c)
     for h, _ in enumerate(range(num_models), start=1):
@@ -1391,10 +1116,7 @@ def get_unmixing_matrices(
         #---------------------------------------------------------------
         # TODO: assign on the fly without passing in W
         W[:, :, h - 1] = A[:, comp_slice].copy()
-        if not iterating:
-            assert_almost_equal(W[0, 0, h - 1], 0.99987950295221151)
-            assert_almost_equal(W[2, 2, h - 1], 0.99987541322177442)
-            assert_almost_equal(W[31, 31, h - 1], 0.99983093087263752)
+
 
         #--------------------------FORTRAN CODE-------------------------
         # call DGETRF(nw,nw,W(:,:,h),nw,ipivnw,info)
@@ -1409,21 +1131,11 @@ def get_unmixing_matrices(
             print(f"Matrix W[:,:,{h-1}] is singular!")
             raise e
 
-        if not iterating:
-            assert_almost_equal(W[0, 0, 0], 1.0000898173968631)
-            assert_almost_equal(W[5, 10, 0], 0.00024088142376377521)
-            assert_almost_equal(W[5, 30, 0], 0.00045275279060370794)
-            assert_almost_equal(W[15, 29, 0], -0.0012173272878070241)
-            assert_almost_equal(W[25, 5, 0], 0.0022362764540665224)
-            assert_almost_equal(W[25, 15, 0], 0.0048541279923070843, decimal=7)
-            assert_almost_equal(W[31, 31, 0], 1.0001435790123032, decimal=7)
-
         #--------------------------FORTRAN CODE-------------------------
         # call DGEMV('N',nw,nw,dble(1.0),W(:,:,h),nw,c(:,h),1,dble(0.0),wc(:,h),1)
         #---------------------------------------------------------------
         wc[:, h - 1] = W[:, :, h - 1] @ c[:, h - 1]
-        if not iterating:
-            assert_allclose(wc[:, 0], 0)
+
     return W, wc
 
 def get_seg_list(raw):
@@ -3048,7 +2760,6 @@ def accum_updates_and_likelihood(
         if do_reject:
             raise NotImplementedError()
         else:
-            assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
             dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
             
         np.fill_diagonal(dA[:, :, h_index], dA[:, :, h_index].diagonal() + 1.0)
@@ -3071,7 +2782,6 @@ def accum_updates_and_likelihood(
             # off-diagonal elements
             i_indices, k_indices = np.meshgrid(np.arange(nw), np.arange(num_comps), indexing='ij')
             off_diag_mask = i_indices != k_indices
-            assert np.any(off_diag_mask)  # Ensure there are off-diagonal elements
             sk1 = sigma2[i_indices, h-1] * kappa[k_indices, h-1]
             sk2 = sigma2[k_indices, h-1] * kappa[i_indices, h-1]
             positive_mask = (sk1 * sk2 > 0.0)
@@ -3150,24 +2860,6 @@ def accum_updates_and_likelihood(
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         likelihood = total_LL / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
-    if iter == 1:
-        assert dgm_numer[0] == 30504
-        
-        assert np.all(dkappa_numer == 0)
-        assert np.all(dkappa_denom == 0)
-        assert np.all(dlambda_numer == 0)
-        assert np.all(dlambda_denom == 0)
-        assert np.all(dbaralpha_numer == 0)
-        assert np.all(dbaralpha_denom == 0)
-        assert_almost_equal(Wtmp_working[0, 0], 0.44757740890010089)
-        assert_almost_equal(dA[31, 31, 0], 0.3099478996731922)
-        assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-        assert_almost_equal(nd[0], 0.20135421232976469)
-    elif iter == 2:
-        assert dgm_numer[0] == 30504            
-        assert_almost_equal(dA[31, 31, 0], 0.088792324147082199)
-        assert_almost_equal(dAK[0, 0], 0.32313767684058614)
-
     return (likelihood, ndtmpsum, dAK, no_newt)
 
 
@@ -3224,27 +2916,15 @@ def update_params(
         # gm = dgm_numer / dble(numgoodsum)
     else:
         gm[:] = dgm_numer / all_blks 
-        if iter == 1:
-            assert dgm_numer == 30504
-            assert all_blks == 30504
-            assert gm[0] == 1
     # end if (update_gm)
 
     # if update_alpha:
     # assert alpha.shape == (num_comps, num_mix)
     alpha[:, :] = dalpha_numer / dalpha_denom
-    if iter == 1:
-        assert_almost_equal(dalpha_numer[0, 0], 8967.4993064961727, decimal=5)
-        assert dalpha_denom[0, 0] == 30504
-        assert_almost_equal(alpha[0, 0], 0.29397781623708935, decimal=5)
 
     # if update_c:
     # assert c.shape == (nw, num_models)
     c[:, :] = dc_numer / dc_denom
-    if iter == 1:
-        assert_almost_equal(dc_numer[0, 0], 0)
-        assert dc_denom[0, 0] == 30504
-        assert_almost_equal(c[0, 0], 0)
     
     # === Section: Apply Parameter Updates & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
@@ -3252,27 +2932,12 @@ def update_params(
     # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if (iter < share_start or (iter % share_iter > 5)):
         if do_newton and (not metrics.no_newt) and (iter >= newt_start):
-            if iter == 50:
-                assert lrate == .05
-                assert rholrate == .05
-                assert lrate0 == .05
-                assert rholrate0 == .05
-                assert newtrate == 1
-                assert newt_ramp == 10
-                assert_almost_equal(dAK[0, 0], 0.020958681999945186, decimal=4)
-                # NOTE: Vectorizing the dorho block loses 1 order of magnitude precision (decimal=5 to decimal=4)
-                assert_almost_equal(A[0, 0], 0.96757837792896018, decimal=4)
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
             lrate = min(newtrate, lrate + min(1.0 / newt_ramp, lrate))
             rholrate = rholrate0
             A[:, :] -= lrate * dAK
-            if iter == 50:
-                assert lrate == 0.1
-                assert rholrate == 0.05
-                # NOTE: Vectorizing the dorho block loses 1 order of magnitude precision (decimal=5 to decimal=4)
-                assert_almost_equal(A[0, 0], 0.96548250972896565, decimal=4)
         else:
             if not posdef:
                 print("Hessian not positive definite, using natural gradient")
@@ -3283,50 +2948,26 @@ def update_params(
                 )
             
             rholrate = rholrate0
-            if iter == 1:
-                assert_almost_equal(lrate0, 0.05)
-                assert_almost_equal(lrate, 0.05)
-                assert_almost_equal(rholrate0, 0.05)
-                assert_almost_equal(rholrate, 0.05)
+            
 
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
             A[:, :] -= lrate * dAK
-            if iter == 1:
-                assert_almost_equal(dAK[0, 0], 0.44757153346268763)
-                assert_almost_equal(A[0, 0], 0.97750092627907714)
+            
         # end if do_newton
     # end if (update_A)
 
     # if update_mu:
     mu[:, :] += dmu_numer / dmu_denom
-    if iter == 1:
-        assert_almost_equal(dmu_numer[0, 0], 6907.8603204569654, decimal=5)
-        assert_almost_equal(dmu_denom[0, 0], 22471.172722479747, decimal=3)
-        assert_almost_equal(mu[0, 0], -0.69355607517402873)
-    
+     
     # if update_beta:
-    if iter == 1:
-        assert_almost_equal(sbeta[0, 0], 0.96533589542801645)
-        assert_almost_equal(dbeta_numer[0, 0], 8967.4993064961727, decimal=5)
-        assert_almost_equal(dbeta_denom[0, 0], 10124.98913119294, decimal=5)
-        assert_almost_equal(sbetatmp[0, 0], 0.84664104055448097)
-        assert invsigmax == 100
-        assert invsigmin == 0
+    
     sbeta[:, :] *= np.sqrt(dbeta_numer / dbeta_denom)
     sbetatmp[:, :] = np.minimum(invsigmax, sbeta)
-    if iter == 1:
-        assert_almost_equal(sbeta[0, 0], 0.90848309104731939)
-        assert_almost_equal(sbetatmp[0, 0], 0.90848309104731939)
-        assert not sbetatmp[sbetatmp == 100].any()
+   
     sbeta[:, :] = np.maximum(invsigmin, sbetatmp)
-    if iter == 1:
-        assert_almost_equal(sbeta[0, 0], 0.90848309104731939) # NOTE: this gets updated again below
-        assert not sbeta[sbeta == 0].any()
+   
     # end if (update_beta)
 
-
-    if iter == 1:
-        assert_allclose(rho, 1.5)
     rho[:, :] += (
             rholrate
             * (
@@ -3339,17 +2980,6 @@ def update_params(
     rhotmp = np.minimum(maxrho, rho) # shape (num_comps, num_mix)
     assert rhotmp.shape == (config.n_components, config.n_mixtures)
     rho[:, :] = np.maximum(minrho, rhotmp)
-    if iter == 1:
-        assert maxrho == 2
-        assert minrho == 1
-        assert_almost_equal(rhotmp[0, 0], 1.4573165687688203)
-        assert not rhotmp[rhotmp == maxrho].any()
-        assert_almost_equal(rho[0, 0], 1.4573165687688203)
-        assert not rho[rho == minrho].any()
-    elif iter == 2:
-        assert_almost_equal(rhotmp[0, 0], 1.5062036957555023)
-        assert not rhotmp[rhotmp == maxrho].any()
-        assert not rhotmp[rhotmp == maxrho].any()
 
     # !--- rescale
     # !print *, 'rescaling A ...'; call flush(6)
@@ -3368,28 +2998,6 @@ def update_params(
         else:
             raise NotImplementedError()            
     # end if (doscaling)
-    if iter == 1:
-        # and k == 1
-        # assert_almost_equal(A[0, 0], 0.97750092627907714)
-        # assert_almost_equal(A[15, 15], 0.984237369637182)
-        # assert_almost_equal(A[31, 31], 0.98433353588897787)
-        assert_almost_equal(Anrmk[0], 0.98139710406763181, decimal=2) # XXX: watch this value
-        # max_rel_error = np.max(np.abs((A - A_FORTRAN) / A_FORTRAN))
-        # print(f"Maximum relative error: {max_rel_error:.2e}")  # Should be ~3e-7
-        # Since we are vectorizing this wont be true. Id have to go back and get this array
-        # From fortran at the 32nd iteration.
-        # assert_allclose(A, A_FORTRAN, atol=1e-7)
-        # assert max_rel_error < 1e-6  # Very reasonable tolerance
-        # assert k == 32  # Just a sanity check for the loop above
-        assert_almost_equal(Anrmk[-1], 0.98448954017506363) # XXX: OK here Anrmk matches the Fortran output
-        assert_almost_equal(A[15, 15], 0.99984861847601925)
-        assert_almost_equal(A[31, 31], 0.99984153789378194)
-        assert_almost_equal(sbeta[31, 0], 0.97674982753812623)
-        assert_almost_equal(mu[31, 0], -0.8568024781696123)
-    elif iter == 2:
-        assert_almost_equal(Anrmk[0], 0.9838518400665005) # XXX: Much better!
-        # assert k == 32
-        assert_almost_equal(Anrmk[-1], 0.99554375802233519)
 
     if (share_comps and (iter >= share_start) and (iter-share_iter % share_iter == 0)):
         raise NotImplementedError()
@@ -3405,9 +3013,7 @@ def update_params(
         W=W,
         num_models=num_models,
     )
-    if iter == 1:
-        assert_almost_equal(W[0, 0, 0], 1.0000820892004447)
-        assert_almost_equal(wc[0, 0], 0)
+
 
     
     # if (print_debug) then
@@ -3438,25 +3044,10 @@ if __name__ == "__main__":
     fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
     raw = mne.io.read_raw_eeglab(fpath)
     blocks_in_sample, num_samples, all_blks = get_seg_list(raw)
-    assert blocks_in_sample == 30504
-    assert num_samples == 1
-    assert all_blks == 30504
+    
     dataseg: np.ndarray = raw.get_data() # shape (n_channels, n_times) = (32, 30504)
-    assert dataseg.shape == (32, 30504)
     dataseg *= 1e6  # Convert to microvolts
     # Check our value against the Fortran output
-    assert_almost_equal(dataseg[0, 0], -35.7974853515625)
-    assert_almost_equal(dataseg[1, 0], 2.3078439235687256)
-    assert_almost_equal(dataseg[2, 0], -26.776725769042969)
-
-    assert_almost_equal(dataseg[0, 1], -21.326353073120117)
-    assert_almost_equal(dataseg[-1, -1], 12.871612548828125)
-    assert_almost_equal(dataseg[0, 15252], 28.903553009033203)
-    assert_almost_equal(dataseg[0, 29696], -0.48521178960800171)
-    assert_almost_equal(dataseg[0, 29700], -2.2563831806182861)
-    assert_almost_equal(dataseg[15, 29701], 14.67259693145752)
-    assert_almost_equal(dataseg[31, 0], -9.5071401596069336)
-    assert_almost_equal(dataseg[20, 29710], -11.413822174072266)
 
     #if (do_reject) then
     #    allocate(dataseg(1)%gooddata(dataseg(1)%lastdim),stat=ierr); call tststat(ierr)
@@ -3480,7 +3071,6 @@ if __name__ == "__main__":
 
     # call write_output
     # The final comparison with Fortran saved outputs.
-
     LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
     assert_almost_equal(LL, LL_f, decimal=4)
     assert_allclose(LL, LL_f, atol=1e-4)

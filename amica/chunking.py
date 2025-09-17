@@ -66,9 +66,87 @@ class ChunkIterator:
             return iter(())
 
         idx = [slice(None)] * self.X.ndim
+        assert (stop - start) // step == len(self)  # sanity check
         for s in range(start, stop, step):
             e = min(s + step, stop)
             blk_slice = slice(s, e)
             idx[axis] = blk_slice
             yield self.X[tuple(idx)], blk_slice
+    
+    def __len__(self) -> int:
+        return self.X.shape[self.axis] // self.chunk_size
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(Data shape: {self.X.shape}, "
+            f"Chunked axis: {self.axis}, chunk_size: {self.chunk_size}, "
+            f"n_chunks: {len(self)})"
+        )
+
+def choose_chunk_size(
+        *,
+        N: int,
+        n_comps: int,
+        n_mix: int,
+        dtype: np.dtype = np.float64,
+        memory_cap: float = 1.5 * 1024**3,  # 1.5 GB
+        ) -> int:
+    """
+    Choose chunk size for processing data in chunks.
+
+    Parameters
+    ----------
+    N : int
+        Total number of samples.
+    n_comps : int
+        Number of components to be learned in the model, e.g. size of the n_components
+        dimension of the data.
+    n_mix : int
+        Number of mixture components per source/component to be learned in the model.
+    dtype : np.dtype, optional
+        Data type of the input data, by default np.float64.
+    memory_cap : float, optional
+        Maximum memory (in bytes) to be used for processing, by default
+        ``1.5 * 1024**3`` (1.5 GB).
+
+    Notes
+    -----
+    The chunk size is primarily determined by the estimated size of the pre-allocated hot
+    buffers in AmicaWorkspace, which scale with the size of n_samples, n_comps, and n_mix:
+    - Two arrays of shape (N, n_comps): b, scratch_2ds
+    - Four arrays of shape (N, n_comps, n_mix): y, z, fp, ufp
+    """
+    dtype_size = np.dtype(dtype).itemsize
+
+    # per-sample cost across pre-allocated buffers in AmicaWorkspace
+    bytes_per_sample = (
+        2 * n_comps +
+        4 * n_comps * n_mix
+    ) * dtype_size
+    # Add small overhead headroom for temporary ops and Python/NumPy overhead
+    bytes_per_sample = int(bytes_per_sample * 1.1)
+
+    # Heuristic floor, we don't want absurdly small chunks or chunks that are too
+    # small relative to the model complexity (n_comps)
+    # This heuristic works well for typical ICA regimes, where n_comps is < 256
+    min_chunk_size = max(8192, n_comps * 32)  # at least 32 samples per component
+    min_chunk_size = min(min_chunk_size, N)  # Cannot exceed N
+
+    # maximum allowed samples under memory cap
+    max_chunk_size = memory_cap // bytes_per_sample
+
+    # Ensure at least 1 sample. This should only trigger if n_comps and n_mix are huge.
+    if max_chunk_size < 1:
+        raise MemoryError(
+            f"Cannot fit even 1 sample within memory cap of "
+            f"{memory_cap / 1024**3:.2f} GB. "
+            f"Per-sample memory cost is {bytes_per_sample / 1024**3:.2f} GB."
+        )
+    chunk_size = int(min(N, max_chunk_size))
+
+    if chunk_size < min_chunk_size:
+        print(
+            f"Warning: To stay within the memory cap, chunk size is {chunk_size}, "
+            f"which is below the recommended minimum of {min_chunk_size}."
+        )
+    return chunk_size
