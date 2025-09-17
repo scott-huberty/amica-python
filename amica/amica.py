@@ -449,24 +449,7 @@ def _core_amica(
     num_mix = config.n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
     print("Allocating variables ...")
-    # TODO: I think this should have a num_models dimension
-
-    # These are all passed to get_updates_and_likelihood
-    
-    # allocate( wr(nw),stat=ierr); call tststat(ierr); wr = dble(0.0)
-    # nd = np.zeros((max(1, max_iter), num_comps), dtype=np.float64)
-
-
     mutmp = np.zeros((num_comps, num_mix))
-    
-    # if update_mu:
-    
-
-
-    # sbetatmp = np.zeros((num_comps, num_mix))  # Beta parameters
-    # if update_beta:
-
-
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
@@ -477,8 +460,8 @@ def _core_amica(
     # load_alpha:
     state.alpha[:, :num_mix] = 1.0 / num_mix
     # load_mu:
-    values = np.arange(num_mix) - (num_mix - 1) / 2
-    state.mu[:, :] = values[np.newaxis, :]
+    mu_values = np.arange(num_mix) - (num_mix - 1) / 2
+    state.mu[:, :] = mu_values[None, :]
     if not fix_init:
         mutmp = MUTMP.copy().T
         state.mu[:, :num_mix] = state.mu[:, :num_mix] + 0.05 * (1.0 - 2.0 * mutmp)
@@ -488,20 +471,17 @@ def _core_amica(
     else:
         state.sbeta[:, :num_mix] = 1.0 + 0.1 * (0.5 - sbetatmp)
     # load_c:
-    state.c[:, :] = 0.0
+    state.c.fill(0.0)
+    
     # load_A:
-    comp_slice = get_component_slice(h=1, n_components=num_comps)
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
-        # TODO: if A has a num_models dimension, this fancy indexing isnt needed
-        # FIXME: This indexing will fail if num_models > 1
-        state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)
-        
+        comp_slice = get_component_slice(h=h, n_components=num_comps)
+        state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)        
         idx = np.arange(num_comps)
         cols = h_index * num_comps + idx
         state.A[idx, cols] = 1.0
         Anrmk = np.linalg.norm(state.A[:, cols], axis=0)
-
         state.A[:, cols] /= Anrmk   
     # end load_A
     
@@ -520,10 +500,9 @@ def _core_amica(
 
     # !-------------------- Determine optimal block size -------------------
     print(f"1: block size = {config.chunk_size}")
-
-
-    print(f"1 : entering the main loop ...")
+    
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    print(f"1 : entering the main loop ...")
     state, LL = optimize(
         X=X,
         sldet=sldet,
@@ -547,7 +526,7 @@ def optimize(
     leave = False
     iter = 1
     numrej = 0
-    N1 = min(config.chunk_size, X.shape[1])
+    N1 = config.chunk_size
 
     n_models = config.n_models
     n_mixtures = config.n_mixtures
