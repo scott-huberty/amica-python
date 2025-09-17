@@ -111,16 +111,38 @@ class AmicaState:
 
 @dataclass
 class AmicaWorkspace:
-    """Enhanced workspace with improved buffer management.
+    """Workspace for reusable temporary hot buffers.
 
-    Provides allocation, validation, and access to reusable temporary buffers.
-    Buffers are allocated on-demand with shape/dtype validation to prevent
-    silent bugs from mismatched buffer usage.
+    All arrays in this container can be overwritten between chunks/iterations. They
+    do not need to persist. The motivation is to avoid repeated allocations and
+    deallocations of temporary arrays within tight loops, especially since most of these
+    arrays have overlapping lifetimes within a single iteration/chunk.
     """
-
+    n_samples: int
+    n_components: int
+    n_mixtures: int
+    n_models: int
     dtype: np.dtype = np.float64
     _buffers: Dict[str, NDArray] = field(default_factory=dict)
-    
+
+    def __post_init__(self):
+        # Validate sizes
+        if self.n_samples <= 0:
+            raise ValueError(f"n_samples must be positive, got {self.n_samples}")
+        if self.n_components <= 0:
+            raise ValueError(f"n_components must be positive, got {self.n_components}")
+        if self.n_mixtures <= 0:
+            raise ValueError(f"n_mixtures must be positive, got {self.n_mixtures}")
+        if self.n_models <= 0:
+            raise ValueError(f"n_models must be positive, got {self.n_models}")
+        # Pre-allocate commonly used buffers
+        self.allocate_buffers(
+            n_samples=self.n_samples,
+            n_components=self.n_components,
+            n_mixtures=self.n_mixtures,
+            n_models=self.n_models,
+        )
+
     def allocate_buffer(
         self,
         name: str,
@@ -227,6 +249,27 @@ class AmicaWorkspace:
                 f"Available buffers: {list(self._buffers.keys())}"
             )
 
+    def allocate_buffers(
+            self, n_samples: int, n_components: int, n_mixtures: int, n_models: int
+            ) -> dict[str, NDArray]:
+            """Allocate hot buffers that are used by AMICA."""
+            buffer_specs = {
+                # Source and intermediate computation buffers
+                "b": (n_samples, n_components),                    
+                "scratch_2D": (n_samples, n_components), # we use this for g and a modloglik intermediate
+                "y": (n_samples, n_components, n_mixtures),           
+                "z": (n_samples, n_components, n_mixtures),
+                "fp": (n_samples, n_components, n_mixtures),
+                "ufp": (n_samples, n_components, n_mixtures),
+                # Workspace arrays that need zero initialization
+                "dWtmp": (n_components, n_components, n_models),
+            }
+            self.allocate_all(buffer_specs, init="zeros")
+            self.buffer_specs = buffer_specs
+            return buffer_specs
+
+
+    
     def allocate_all(self, buffer_specs: Dict[str, Tuple[int, ...]], *, init: str = "zeros") -> None:
         """Pre-allocate multiple buffers at once.
 

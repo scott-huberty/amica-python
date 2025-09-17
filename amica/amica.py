@@ -527,7 +527,6 @@ def optimize(
     iter = 1
     numrej = 0
     N1 = config.chunk_size
-
     n_models = config.n_models
     n_mixtures = config.n_mixtures
     num_comps = config.n_components
@@ -540,32 +539,17 @@ def optimize(
     num_mix = n_mixtures
     
     # Pre-allocate all workspace buffers
-    work = AmicaWorkspace()
-    # Define buffer specifications for this iteration
-    buffer_specs = {
-        # Source and intermediate computation buffers
-        "b": (N1, num_comps),                    
-        "scratch_2D": (N1, num_comps), # we use this for g and a modloglik intermediate
-        "y": (N1, num_comps, num_mix),           
-        "z": (N1, num_comps, num_mix),
-        "fp": (N1, num_comps, num_mix),
-        "ufp": (N1, num_comps, num_mix),
-        # Workspace arrays that need zero initialization
-        "dWtmp": (num_comps, num_comps, num_models),
-    }
-    # Allocate most buffers as empty (faster)
-    work.allocate_all(buffer_specs, init="empty")
-    # Allocate buffers that need zero initialization separately
-    work.allocate_buffer("dWtmp", buffer_specs["dWtmp"], init="zeros")
+    work = AmicaWorkspace(
+        n_samples=N1, n_components=num_comps, n_mixtures=num_mix, n_models=n_models
+    )
     # Log workspace memory usage for debugging
     total_memory_mb = work.total_memory_usage() / (1024 * 1024)
-    print(f"Workspace allocated: {len(buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
+    print(f"Workspace allocated: {len(work.buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
     # Initialize updates container
     updates = initialize_updates(config)
     
-    # Initialize updates structure - replaces individual d*_numer/denom arrays    
+    # We allocate these separately.
     Dtemp = np.zeros(num_models, dtype=np.float64)
-    # Track determinant sign per model for completeness (not used in likelihood)
     Dsign = np.zeros(num_models, dtype=np.int8)
     modloglik =  np.zeros((X.shape[1], num_models), dtype=np.float64)  # Model log likelihood
     loglik = np.zeros((X.shape[1],), dtype=np.float64)  # per sample log likelihood
@@ -581,7 +565,7 @@ def optimize(
         # The Fortran code computed log|det(W)| indirectly via QR factorization
         # and summing log(abs(diag(R))). We use numpy's slogdet which is more direct.
         # Amica uses log|det(W)|, and not the sign, but we store Dsign for completeness.
-        # ==============================================================================
+        # ===============================================================================
         
         # !----- get determinants
         work.zero_all()
@@ -597,7 +581,8 @@ def optimize(
 
         for h, _ in enumerate(range(num_models), start=1):
             h_index = h - 1
-            # Use slogdet on the original unmixing matrix to get sign and log|det|
+            # The Fortran code computed log|det(W)| indirectly via QR factorization# 
+            # We use slogdet on the original unmixing matrix to get sign and log|det|
             sign, logabsdet = compute_sign_log_determinant(
                 unmixing_matrix=state.W[:, :, h_index],
                 minlog=minlog,
@@ -609,9 +594,9 @@ def optimize(
          
         Dsum = Dtemp.copy() # shape (num_models,)
 
-        # ============================== Subsection ====================================
+        # ============================== Subsection =====================================
         # updates, metrics = get_updates_and_likelihood()
-        
+        # ===============================================================================
         nw = num_comps
 
         W = state.W
