@@ -32,7 +32,6 @@ from constants import (
     invsigmax,
     use_min_dll,
     use_grad_norm,
-    min_dll,
     maxincs,
     maxdecs,
     outstep,
@@ -555,6 +554,8 @@ def optimize(
     loglik = np.zeros((X.shape[1],), dtype=np.float64)  # per sample log likelihood
     LL = np.zeros(max(1, config.max_iter), dtype=np.float64)  # Log likelihood history
 
+    min_dll = config.tol
+    numincs = 0  # number of consecutive iterations where likelihood increased by less than tol/min_dll
     lrate = config.lrate
     rholrate = config.rholrate
     c_start = time.time()
@@ -903,7 +904,6 @@ def optimize(
         LL[iter - 1] = metrics.loglik
         # init
         startover = False
-        numincs = 0
         numdecs = 0
         # XXX: checking get_accumulators_and_likelihood set things globally
         # This should also give an idea of the vars that are assigned within that function.
@@ -969,14 +969,12 @@ def optimize(
             if use_min_dll:
                 if (LL[iter - 1] - LL[iter - 2]) < min_dll:
                     numincs += 1
-                    assert 1 == 0
                     if numincs > maxincs:
                         leave = True
                         print(
                             f"Exiting because likelihood increasing by less than {min_dll} "
                             f"for more than {maxincs} iterations ..."
                             )
-                        assert 1 == 0
                 else:
                     numincs = 0
                 if iter == 2:
@@ -1002,8 +1000,7 @@ def optimize(
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
 
         if leave:
-            assert 1 == 0  # Stop to check that exit condition is correct
-            exit()
+            return state, LL
         if startover:
             raise NotImplementedError()
         else:
@@ -3008,14 +3005,15 @@ if __name__ == "__main__":
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica(
         X=dataseg,
         max_iter=200,
-        tol=1e-7,
+        tol=.0001, # 1e-7,
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
         )
-
     # call write_output
     # The final comparison with Fortran saved outputs.
+    # If we set tol to .0001 then we can assert that Amica solves at iteration 106
+    # Just like Fortran does.
     LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
     assert_almost_equal(LL, LL_f, decimal=4)
     assert_allclose(LL, LL_f, atol=1e-4)
