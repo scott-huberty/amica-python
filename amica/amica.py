@@ -850,7 +850,7 @@ def optimize(
         # !$OMP END PARALLEL
         # !print *, myrank+1,': finished segment ', seg; call flush(6)
         
-        likelihood, ndtmpsum, dAK, no_newt = accum_updates_and_likelihood(
+        likelihood, ndtmpsum, no_newt = accum_updates_and_likelihood(
             config=config,
             accumulators=accumulators,
             state=state,
@@ -860,7 +860,6 @@ def optimize(
         metrics.loglik = likelihood
         metrics.ndtmpsum = ndtmpsum
         metrics.no_newt = no_newt
-        accumulators.dAK = dAK
         # return accumulators, metrics
 
         # ==============================================================================
@@ -2730,7 +2729,7 @@ def accum_updates_and_likelihood(
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         likelihood = total_LL / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
-    return (likelihood, ndtmpsum, dAK, no_newt)
+    return (likelihood, ndtmpsum, no_newt)
 
 
 def update_params(
