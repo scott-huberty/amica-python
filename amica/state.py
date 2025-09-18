@@ -35,6 +35,7 @@ from typing import Dict, Iterable, Mapping, Optional, Tuple, List
 
 import numpy as np
 from numpy.typing import NDArray
+import torch
 
 from constants import rho0
 
@@ -69,7 +70,7 @@ class AmicaConfig:
     newt_ramp: int = 10
 
     # Numeric
-    dtype: np.dtype = np.float64
+    dtype: torch.dtype = torch.float64
 
 
 @dataclass(slots=True, repr=False)
@@ -122,7 +123,7 @@ class AmicaWorkspace:
     n_components: int
     n_mixtures: int
     n_models: int
-    dtype: np.dtype = np.float64
+    dtype: torch.dtype = torch.float64
     _buffers: Dict[str, NDArray] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -148,7 +149,7 @@ class AmicaWorkspace:
         name: str,
         shape: Tuple[int, ...],
         *,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[torch.dtype] = None,
         init: str = "zeros",
         force_realloc: bool = False,
     ) -> NDArray:
@@ -160,7 +161,7 @@ class AmicaWorkspace:
             Unique buffer identifier (e.g., 'b', 'y', 'z0').
         shape : Tuple[int, ...]
             Required buffer shape. Must be positive integers.
-        dtype : np.dtype, optional
+        dtype : torch.dtype, optional
             Buffer data type. If None, uses workspace default.
         init : str, default='zeros'
             Initialization mode: 'zeros', 'ones', or 'empty'.
@@ -197,9 +198,9 @@ class AmicaWorkspace:
             if shape_matches and dtype_matches and not force_realloc:
                 # Buffer exists and matches - return it (optionally reinitialize)
                 if init == "zeros":
-                    existing_buffer.fill(0.0)
+                    existing_buffer.fill_(0.0)
                 elif init == "ones":
-                    existing_buffer.fill(1.0)
+                    existing_buffer.fill_(1.0)
                 # 'empty' means don't reinitialize
                 return existing_buffer
             
@@ -213,11 +214,11 @@ class AmicaWorkspace:
 
         # Allocate new buffer
         if init == "zeros":
-            buffer = np.zeros(shape, dtype=dtype)
+            buffer = torch.zeros(shape, dtype=dtype)
         elif init == "ones":
-            buffer = np.ones(shape, dtype=dtype)
+            buffer = torch.ones(shape, dtype=dtype)
         else:  # init == "empty"
-            buffer = np.empty(shape, dtype=dtype)
+            buffer = torch.empty(shape, dtype=dtype)
 
         # Store buffer
         self._buffers[name] = buffer
@@ -319,14 +320,14 @@ class AmicaWorkspace:
     def zero_all(self) -> None:
         """Zero all existing buffers in-place."""
         for arr in self._buffers.values():
-            arr.fill(0.0)
+            arr.fill_(0.0)
 
     def total_memory_usage(self) -> int:
         """Get total memory usage in bytes."""
         return sum(buf.nbytes for buf in self._buffers.values())
 
     # Legacy compatibility method
-    def get(self, name: str, shape: Tuple[int, ...], *, dtype: Optional[np.dtype] = None, init: str = "zeros") -> NDArray:
+    def get(self, name: str, shape: Tuple[int, ...], *, dtype: Optional[torch.dtype] = None, init: str = "zeros") -> NDArray:
         """Legacy compatibility method. Use allocate_buffer() for new code."""
         return self.allocate_buffer(name, shape, dtype=dtype, init=init)
 
@@ -379,36 +380,36 @@ class AmicaAccumulators:
         next iteration. Extensible: if new fields are added, include them here.
         """
         # Core accumulators
-        self.dmu_numer.fill(0.0)
-        self.dmu_denom.fill(0.0)
+        self.dmu_numer.fill_(0.0)
+        self.dmu_denom.fill_(0.0)
 
-        self.dbeta_numer.fill(0.0)
-        self.dbeta_denom.fill(0.0)
+        self.dbeta_numer.fill_(0.0)
+        self.dbeta_denom.fill_(0.0)
 
-        self.dalpha_numer.fill(0.0)
-        self.dalpha_denom.fill(0.0)
+        self.dalpha_numer.fill_(0.0)
+        self.dalpha_denom.fill_(0.0)
 
-        self.drho_numer.fill(0.0)
-        self.drho_denom.fill(0.0)
+        self.drho_numer.fill_(0.0)
+        self.drho_denom.fill_(0.0)
 
-        self.dgm_numer.fill(0.0)
+        self.dgm_numer.fill_(0.0)
 
-        self.dc_numer.fill(0.0)
-        self.dc_denom.fill(0.0)
+        self.dc_numer.fill_(0.0)
+        self.dc_denom.fill_(0.0)
 
-        self.dAK.fill(0.0)
+        self.dAK.fill_(0.0)
         self.loglik_sum = 0.0
 
         # If Newton accumulators are present, zero them as well
         if self.newton is not None:
-            self.newton.dbaralpha_numer.fill(0.0)
-            self.newton.dbaralpha_denom.fill(0.0)
-            self.newton.dkappa_numer.fill(0.0)
-            self.newton.dkappa_denom.fill(0.0)
-            self.newton.dlambda_numer.fill(0.0)
-            self.newton.dlambda_denom.fill(0.0)
-            self.newton.dsigma2_numer.fill(0.0)
-            self.newton.dsigma2_denom.fill(0.0)
+            self.newton.dbaralpha_numer.fill_(0.0)
+            self.newton.dbaralpha_denom.fill_(0.0)
+            self.newton.dkappa_numer.fill_(0.0)
+            self.newton.dkappa_denom.fill_(0.0)
+            self.newton.dlambda_numer.fill_(0.0)
+            self.newton.dlambda_denom.fill_(0.0)
+            self.newton.dsigma2_numer.fill_(0.0)
+            self.newton.dsigma2_denom.fill_(0.0)
 
 @dataclass(slots=True, repr=False)
 class AmicaNewtonAccumulators:
@@ -471,11 +472,11 @@ class AmicaHistory:
         self.metrics.append(m)
 
     # Convenience accessors (kept minimal)
-    def loglik_array(self) -> np.ndarray:
-        return np.array([m.loglik for m in self.metrics], dtype=float)
+    def loglik_array(self) -> torch.Tensor:
+        return torch.tensor([m.loglik for m in self.metrics], dtype=torch.float64)
 
-    def ll_inc_array(self) -> np.ndarray:
-        return np.array([m.ll_inc for m in self.metrics], dtype=float)
+    def ll_inc_array(self) -> torch.Tensor:
+        return torch.tensor([m.ll_inc for m in self.metrics], dtype=torch.float64)
 
     def last(self) -> Optional[IterationMetrics]:
         return self.metrics[-1] if self.metrics else None
@@ -506,36 +507,37 @@ def get_initial_state(
 
     # W - match amica.py: W = np.zeros((num_comps, num_comps, num_models))
     if "W" in seeds:
-        W = np.array(seeds["W"], dtype=dtype)
+        W = torch.tensor(seeds["W"], dtype=dtype)
         assert W.shape == (num_comps, num_comps, num_models), (
             f"W seed shape {W.shape} != {(num_comps, num_comps, num_models)}"
         )
     else:
-        W = np.empty((num_comps, num_comps, num_models))  # Weights for each model
+        W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)  # Weights for each model
+    assert W.dtype == torch.float64
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))  
-    A = np.zeros((num_comps, num_comps))
+    A = torch.zeros((num_comps, num_comps), dtype=dtype)
 
-    c = np.zeros((num_comps, num_models))  # Bias terms per component and model
+    c = torch.zeros((num_comps, num_models), dtype=dtype)  # Bias terms per component and model
     # sbeta, mu, rho - match amica.py patterns
     if "sbeta" in seeds:
-        sbeta = np.array(seeds["sbeta"], dtype=dtype)
+        sbeta = torch.tensor(seeds["sbeta"], dtype=dtype)
         assert sbeta.shape == (num_comps, num_mix)
     else:
-        sbeta = np.empty((num_comps, num_mix))
+        sbeta = torch.empty((num_comps, num_mix), dtype=dtype)
 
     if "mu" in seeds:
-        mu = np.array(seeds["mu"], dtype=dtype)  
+        mu = torch.tensor(seeds["mu"], dtype=dtype)
         assert mu.shape == (num_comps, num_mix)
     else:
-        mu = np.zeros((num_comps, num_mix))
+        mu = torch.zeros((num_comps, num_mix), dtype=dtype)
 
-    rho = np.full((num_comps, num_mix), rho0, dtype=dtype)  # Shape parameters
+    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype)  # Shape parameters
     
     # Initialize alpha (mixing coefficients) to zeros - will be computed in first iteration
-    alpha = np.zeros((num_comps, num_mix), dtype=dtype)
+    alpha = torch.zeros((num_comps, num_mix), dtype=dtype)
 
-    gm = np.full(num_models, 1.0 / num_models, dtype=dtype)  # Uniform initialization
+    gm = torch.full(fill_value=1.0 / num_models, size=(num_models,), dtype=dtype)  # Equal weights initially
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
@@ -560,42 +562,42 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     shape_2 = (num_comps, num_mix)
 
     # Match amica.py initialization patterns
-    dgm_numer = np.zeros(num_models, dtype=dtype)
+    dgm_numer = torch.zeros(num_models, dtype=dtype)
 
     # Update accumulators - standardized: (num_comps, num_mix) shape
-    dmu_numer = np.zeros(shape_2, dtype=dtype)
-    dmu_denom = np.zeros(shape_2, dtype=dtype)
+    dmu_numer = torch.zeros(shape_2, dtype=dtype)
+    dmu_denom = torch.zeros(shape_2, dtype=dtype)
 
-    dbeta_numer = np.zeros(shape_2, dtype=dtype)
-    dbeta_denom = np.zeros(shape_2, dtype=dtype)
+    dbeta_numer = torch.zeros(shape_2, dtype=dtype)
+    dbeta_denom = torch.zeros(shape_2, dtype=dtype)
 
-    dalpha_numer = np.zeros(shape_2, dtype=dtype)
-    dalpha_denom = np.zeros(shape_2, dtype=dtype)
+    dalpha_numer = torch.zeros(shape_2, dtype=dtype)
+    dalpha_denom = torch.zeros(shape_2, dtype=dtype)
 
-    drho_numer = np.zeros(shape_2, dtype=dtype)
-    drho_denom = np.zeros(shape_2, dtype=dtype)
+    drho_numer = torch.zeros(shape_2, dtype=dtype)
+    drho_denom = torch.zeros(shape_2, dtype=dtype)
 
-    dc_numer = np.zeros((num_comps, num_models), dtype=dtype)
-    dc_denom = np.zeros((num_comps, num_models), dtype=dtype)
+    dc_numer = torch.zeros((num_comps, num_models), dtype=dtype)
+    dc_denom = torch.zeros((num_comps, num_models), dtype=dtype)
 
-    dAK = np.zeros((num_comps, num_comps), dtype=dtype)  # Derivative of A
+    dAK = torch.zeros((num_comps, num_comps), dtype=dtype)  # Derivative of A
 
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
         shape_3 = (num_comps, num_mix, num_models)
 
-        dbaralpha_numer = np.zeros(shape_3, dtype=dtype)
-        dbaralpha_denom = np.zeros(shape_3, dtype=dtype)
+        dbaralpha_numer = torch.zeros(shape_3, dtype=dtype)
+        dbaralpha_denom = torch.zeros(shape_3, dtype=dtype)
 
-        dkappa_numer = np.zeros(shape_3, dtype=dtype)
-        dkappa_denom = np.zeros(shape_3, dtype=dtype)
+        dkappa_numer = torch.zeros(shape_3, dtype=dtype)
+        dkappa_denom = torch.zeros(shape_3, dtype=dtype)
 
-        dlambda_numer = np.zeros(shape_3, dtype=dtype)
-        dlambda_denom = np.zeros(shape_3, dtype=dtype)
+        dlambda_numer = torch.zeros(shape_3, dtype=dtype)
+        dlambda_denom = torch.zeros(shape_3, dtype=dtype)
 
         # These are 2D in the Fortran code, which actually uses nw x num_models
-        dsigma2_numer = np.zeros((num_comps, num_models), dtype=dtype)
-        dsigma2_denom = np.zeros((num_comps, num_models), dtype=dtype)
+        dsigma2_numer = torch.zeros((num_comps, num_models), dtype=dtype)
+        dsigma2_denom = torch.zeros((num_comps, num_models), dtype=dtype)
 
         newton = AmicaNewtonAccumulators(
             dbaralpha_numer=dbaralpha_numer,
@@ -637,19 +639,19 @@ def reset_accumulators(u: AmicaAccumulators) -> None:
     """
     # Core accumulators
 
-    u.dmu_numer.fill(0.0)
-    u.dmu_denom.fill(0.0)
+    u.dmu_numer.fill_(0.0)
+    u.dmu_denom.fill_(0.0)
 
-    u.dbeta_numer.fill(0.0)
-    u.dbeta_denom.fill(0.0)
+    u.dbeta_numer.fill_(0.0)
+    u.dbeta_denom.fill_(0.0)
 
-    u.dalpha_numer.fill(0.0)
-    u.dalpha_denom.fill(0.0)
+    u.dalpha_numer.fill_(0.0)
+    u.dalpha_denom.fill_(0.0)
 
-    u.drho_numer.fill(0.0)
-    u.drho_denom.fill(0.0)
+    u.drho_numer.fill_(0.0)
+    u.drho_denom.fill_(0.0)
 
-    u.dgm_numer.fill(0.0)
+    u.dgm_numer.fill_(0.0)
 
     # Scalar diagnostics
     u.loglik_sum = 0.0
@@ -657,14 +659,14 @@ def reset_accumulators(u: AmicaAccumulators) -> None:
     # Optional Newton accumulators
     if u.newton is not None:
         n = u.newton
-        n.dbaralpha_numer.fill(0.0)
-        n.dbaralpha_denom.fill(0.0)
-        n.dkappa_numer.fill(0.0)
-        n.dkappa_denom.fill(0.0)
-        n.dlambda_numer.fill(0.0)
-        n.dlambda_denom.fill(0.0)
-        n.dsigma2_numer.fill(0.0)
-        n.dsigma2_denom.fill(0.0)
+        n.dbaralpha_numer.fill_(0.0)
+        n.dbaralpha_denom.fill_(0.0)
+        n.dkappa_numer.fill_(0.0)
+        n.dkappa_denom.fill_(0.0)
+        n.dlambda_numer.fill_(0.0)
+        n.dlambda_denom.fill_(0.0)
+        n.dsigma2_numer.fill_(0.0)
+        n.dsigma2_denom.fill_(0.0)
 
 
 __all__ = [

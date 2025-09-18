@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Generator, Iterator, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 
 ArrayLike2D = Union[np.ndarray, "np.typing.NDArray[np.floating]"]
@@ -25,8 +26,8 @@ class ChunkIterator:
     """
 
     def __init__(self, X: ArrayLike2D, axis: int, chunk_size: Optional[int] = None):
-        if not isinstance(X, np.ndarray):
-            raise TypeError("ChunkIterator expects a numpy ndarray")
+        if not isinstance(X, torch.Tensor):
+            raise TypeError("ChunkIterator expects a torch.Tensor")
         if X.ndim < 1:
             raise ValueError("ChunkIterator expects an array with at least 1 dimension")
         self.X = X
