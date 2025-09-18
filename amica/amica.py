@@ -48,6 +48,7 @@ from funmod import psifun
 
 from state import (
     AmicaConfig,
+    AmicaState,
     IterationMetrics,
     get_initial_state,
     initialize_accumulators,
@@ -57,12 +58,15 @@ from _typing import (
     SamplesVector,
     ComponentsVector,
     DataArray2D,
+    DataTensor2D,
     WeightsArray,
     SourceArray2D,
     SourceArray3D,
     ParamsArray,
     ParamsModelArray,
+    ParamsModelTensor,
     LikelihoodArray,
+    ScalarTensor,
 )
 
 import line_profiler
@@ -398,8 +402,7 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
-    X = torch.as_tensor(X, dtype=config.dtype)
-
+    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype)
     # The API will use n_components but under the hood we'll match the Fortran naming
     # TODO: Maybe rename n_components to num_comps in the config dataclass?
     num_comps = config.n_components
@@ -464,7 +467,7 @@ def _core_amica(
     with torch.no_grad():
         state, LL = optimize(
             X=X,
-            sldet=sldet,
+            sldet=sldet.item(),
             wc=wc,
             config=config,
             state=state,
@@ -475,11 +478,11 @@ def _core_amica(
 @line_profiler.profile
 def optimize(
         *,
-        X,
-        sldet,
-        wc,
-        config,
-        state,
+        X: DataTensor2D,
+        sldet: float,
+        wc: ParamsModelTensor,
+        config: AmicaConfig,
+        state: AmicaState,
 ):
     """Main optimization loop for AMICA."""
     leave = False
@@ -1486,8 +1489,6 @@ def _compute_source_densities(
         # This is usually a small loop, and ensures we get a view of the arrays
         if lap_mask.any():
             for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
-                assert 0 <= i < nw
-                assert 0 <= j < num_mix
                 out_logits[:, i, j] = laplacian_logprob(
                     sources=out_sources[:, i, j],
                     log_alpha=log_mixture_weights[i, j],
@@ -1496,8 +1497,6 @@ def _compute_source_densities(
                 )
         if gau_mask.any():
             for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
-                assert 0 <= i < nw
-                assert 0 <= j < num_mix
                 out_logits[:, i, j] = gaussian_logprob(
                     sources=out_sources[:, i, j],
                     log_alpha=log_mixture_weights[i, j],
