@@ -513,7 +513,7 @@ def optimize(
     
     # We allocate these separately.
     Dtemp = torch.zeros(num_models, dtype=torch.float64)
-    Dsign = torch.zeros(num_models, dtype=torch.int8)
+    Dsign = torch.zeros(num_models, dtype=torch.float64)
     modloglik =  torch.zeros((X.shape[1], num_models), dtype=torch.float64)  # Model log likelihood
     loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # Log likelihood history
