@@ -1325,7 +1325,7 @@ def compute_preactivations(
         
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
-        # np.einsum("ft,cf->tc", dataseg, W)
+        # Same as np.einsum("ft,cf->tc", dataseg, W)
         torch.matmul(dataseg.T, W.T, out=b)
     # end else
     # Subtract the weight correction factor
@@ -1921,9 +1921,9 @@ def accumulate_scores(
     # !--- get g
     # if update_A:
 
-    # einsum is memory-friendly, ~6x faster than naive vectorization on test file
-    torch.multiply(u, fp, out=ufp)    
-    g = torch.einsum('tnj,nj->tn', ufp, sbeta_h) # NOTE: No longer in-place
+    torch.multiply(u, fp, out=ufp)
+    # Same as torch.einsum('tnj,nj->tn', ufp, sbeta_h) but faster and we update g inplace
+    g = torch.sum(ufp * sbeta_h, axis=-1, out=g)  # sum over mixtures
     return ufp, g
 
 def accumulate_c_stats(
@@ -2187,7 +2187,8 @@ def accumulate_beta_stats(
     if torch.all(rho <= 2.0):
         # (s=samples, i=n_components, j=num_mixtures)
         # Same as torch.sum(ufp * y, axis=0) but avoid the temporary allocation
-        out_denom += torch.einsum("sij,sij->ij", ufp, y)  # shape: (nw, num_mix)
+        # Same as torch.einsum("sij,sij->ij", ufp, y)
+        out_denom += torch.sum(ufp * y, axis=0)  # shape: (nw, num_mix)
     else:
         raise NotImplementedError()
 
@@ -2337,8 +2338,8 @@ def accumulate_sigma2_stats(
     # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
     #---------------------------------------------------------------
     # weighted column-wise sum of squares: (s=n_samples, i=n_components)
-    # Same as v_h @ (b**2) but avoids the intermediate b**2 allocation
-    out_numer += torch.einsum('s,si,si->i', v_h, b, b)
+    # Same as torch.einsum('s,si,si->i', v_h, b, b)
+    out_numer += v_h @ (b**2)
     out_denom += vsum
     return out_numer, out_denom
 
@@ -2404,8 +2405,8 @@ def accumulate_kappa_stats(
     # dkappa_denom_tmp(j,i,h) = dkappa_denom_tmp(j,i,h) + usum
     #---------------------------------------------------------------
     # (s=n_samples, i=n_components, j=n_mixtures)
-    # Same as (ufp * fp).sum(axis=0) but avoids the intermediate allocation of ufp * fp
-    out_numer += torch.einsum('sij,sij->ij', ufp, fp) * (sbeta**2)
+    # Same as torch.einsum('sij,sij->ij', ufp, fp) * (sbeta**2)
+    out_numer += (ufp * fp).sum(axis=0) * (sbeta**2)
     out_denom += usum
     return out_numer, out_denom
 
@@ -2478,7 +2479,8 @@ def accumulate_lambda_stats(
     tmp = fp * y # one allocation
     tmp -= 1.0
     tmp **= 2
-    out_numer += torch.einsum('sij,sij->ij', u, tmp)
+    # Same as torch.einsum('sij,sij->ij', u, tmp)
+    out_numer += (u * tmp).sum(axis=0)
     out_denom += usum
     return out_numer, out_denom
 
