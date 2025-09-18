@@ -598,10 +598,10 @@ def optimize(
         b = work.get_buffer("b")
         z = work.get_buffer("z")
         ufp = work.get_buffer("ufp")
-        dWtmp = work.get_buffer("dWtmp")
+        dA = work.get_buffer("dA")
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
-        assert dWtmp.shape == (num_comps, num_comps, num_models)
+        assert dA.shape == (num_comps, num_comps, num_models)
 
         # !--------- loop over the segments ----------
         if do_reject:
@@ -842,8 +842,7 @@ def optimize(
                 #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
                 # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
                 #---------------------------------------------------------------
-                # Wtmp2 has a 3rd dimension for threads in Fortran
-                dWtmp[:, :, h - 1] += torch.matmul(g.T, b)
+                dA[:, :, h - 1] += torch.matmul(g.T, b)
             # end do (h)
         # end do (blk)'
 
@@ -855,7 +854,7 @@ def optimize(
             config=config,
             accumulators=accumulators,
             state=state,
-            dWtmp=dWtmp,
+            dA=dA,
             total_LL=loglik.sum(),
             iter=iter
         )
@@ -2490,7 +2489,7 @@ def accum_updates_and_likelihood(
         config,
         accumulators,
         state,
-        dWtmp,
+        dA,
         total_LL,  # this is LLtmp in Fortran
         iter
         ):
@@ -2535,8 +2534,7 @@ def accum_updates_and_likelihood(
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
     
-    dA = dWtmp.clone() # That MPI_REDUCE operation takes dWtmp and accumulates it into dA
-    assert dA.shape == dWtmp.shape == (32, 32, 1) == (nw, nw, num_models)
+    assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
     Wtmp_working = torch.zeros((num_comps, num_comps))
 
     if do_newton and iter >= newt_start:

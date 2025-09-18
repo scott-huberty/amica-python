@@ -268,7 +268,7 @@ class AmicaWorkspace:
                 "fp": (n_samples, n_components, n_mixtures),
                 "ufp": (n_samples, n_components, n_mixtures),
                 # Workspace arrays that need zero initialization
-                "dWtmp": (n_components, n_components, n_models),
+                "dA": (n_components, n_components, n_models),
             }
             self.allocate_all(buffer_specs, init="zeros")
             self.buffer_specs = buffer_specs
