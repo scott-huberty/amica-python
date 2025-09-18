@@ -71,8 +71,6 @@ from _typing import (
 
 import line_profiler
 
-torch.set_default_dtype(torch.float64)
-
 sbetatmp = sbetatmp.T
 
 
@@ -195,6 +193,7 @@ def amica(
     )
     
     # Step 2: Create initial state (this will eventually replace manual initialization)
+    torch.set_default_dtype(config.dtype)
     state = get_initial_state(config)
     
     # random_state = check_random_state(random_state)
@@ -466,13 +465,14 @@ def _core_amica(
     
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     print(f"1 : entering the main loop ...")
-    state, LL = optimize(
-        X=X,
-        sldet=sldet,
-        wc=wc,
-        config=config,
-        state=state,
-    )
+    with torch.no_grad():
+        state, LL = optimize(
+            X=X,
+            sldet=sldet,
+            wc=wc,
+            config=config,
+            state=state,
+        )
     return state, LL
 
 
@@ -625,7 +625,7 @@ def optimize(
         #=============================== Subsection =====================================
         # === Begin chunk loop ===
         # ===============================================================================
-        chunks = ChunkIterator(X, axis=1, chunk_size=N1)           
+        chunks = ChunkIterator(X, axis=1, chunk_size=N1)
         for chunk_idx, (data_slice, chunk_slice) in enumerate(chunks):
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
@@ -1704,7 +1704,7 @@ def compute_model_responsibilities(
     if num_models == 1:
         v.fill_(1.0)
     else:
-        v = torch.softmax(v)
+        v = torch.softmax(v, dim=-1) # across models
     return v
 
 
@@ -2627,11 +2627,10 @@ def accum_updates_and_likelihood(
         else:
             dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
         
-        # Torch fill_value_ only accepts scalar for diagonal fill
-        fill_values = (dA[:, :, h_index].diagonal() + 1.0).numpy()
-        dA_np = dA.numpy()
-        np.fill_diagonal(dA_np[:, :, h_index], fill_values)
-        dA = torch.from_numpy(dA_np)
+        # basically the same as np.fill_diagonal where fill value is diag + 1.0
+        diag = dA[:, :, h_index].diagonal()
+        idx = torch.arange(nw)
+        dA[idx, idx, h_index] = diag + 1.0        
         # if (print_debug) then
 
         global posdef
