@@ -1472,8 +1472,8 @@ def _compute_source_densities(
         gau_mask = (torch.isclose(rho_h, torch.tensor(2.0, dtype=torch.float64), atol=1e-12))
 
         # Default: generalized Gaussian log-prob + log mixture weight 
-        # This is all or the vast majority of values, so just compute it over all
-        # and then overwrite where needed
+        # This is all or the vast majority of values, so just compute gen gau over all
+        # and then overwrite lap/gau where needed using a small loop
         out_logits = generalized_gaussian_logprob(
             sources=out_sources,
             log_alpha=log_mixture_weights,
@@ -1482,24 +1482,28 @@ def _compute_source_densities(
             out_logits=out_logits,
         )
         assert out_logits.shape == (N1, nw, num_mix)
-    
         # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
+        # This is usually a small loop, and ensures we get a view of the arrays
         if lap_mask.any():
-            # NOTE: boolean indexing creates a copy so in-place overwrite not guaranteed
-            out_logits[:, lap_mask] = laplacian_logprob(
-                sources=out_sources[:, lap_mask],
-                log_alpha=log_mixture_weights[lap_mask],
-                log_sbeta=log_scales[lap_mask],
-                out_logits=out_logits[:, lap_mask]
-            )
+            for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
+                assert 0 <= i < nw
+                assert 0 <= j < num_mix
+                out_logits[:, i, j] = laplacian_logprob(
+                    sources=out_sources[:, i, j],
+                    log_alpha=log_mixture_weights[i, j],
+                    log_sbeta=log_scales[i, j],
+                    out_logits=out_logits[:, i, j]
+                )
         if gau_mask.any():
-            # NOTE: boolean indexing creates a copy so in-place overwrite not guaranteed
-            out_logits[:, gau_mask] = gaussian_logprob(
-                sources=out_sources[:, gau_mask],
-                log_alpha=log_mixture_weights[gau_mask],
-                log_sbeta=log_scales[gau_mask],
-                out_logits=out_logits[:, gau_mask]
-            )
+            for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
+                assert 0 <= i < nw
+                assert 0 <= j < num_mix
+                out_logits[:, i, j] = gaussian_logprob(
+                    sources=out_sources[:, i, j],
+                    log_alpha=log_mixture_weights[i, j],
+                    log_sbeta=log_scales[i, j],
+                    out_logits=out_logits[:, i, j]
+                )
         # end if lap_mask/gau_mask.any()
     elif pdftype == 1:
         raise NotImplementedError()
