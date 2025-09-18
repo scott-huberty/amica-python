@@ -843,8 +843,7 @@ def optimize(
                 # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
                 #---------------------------------------------------------------
                 # Wtmp2 has a 3rd dimension for threads in Fortran
-                Wtmp2 = torch.matmul(g.T, b[:, :]) #  # shape (num_comps, num_comps)
-                dWtmp[:, :, h - 1] += Wtmp2
+                dWtmp[:, :, h - 1] += torch.matmul(g.T, b)
             # end do (h)
         # end do (blk)'
 
