@@ -117,7 +117,7 @@ class AmicaState:
 
 @dataclass
 class AmicaWorkspace:
-    """Workspace for reusable temporary hot buffers.
+    """Workspace for reusable temporary hot buffers that scale with n_samples.
 
     All arrays in this container can be overwritten between chunks/iterations. They
     do not need to persist. The motivation is to avoid repeated allocations and
@@ -267,8 +267,6 @@ class AmicaWorkspace:
                 "z": (n_samples, n_components, n_mixtures),
                 "fp": (n_samples, n_components, n_mixtures),
                 "ufp": (n_samples, n_components, n_mixtures),
-                # Workspace arrays that need zero initialization
-                "dA": (n_components, n_components, n_models),
             }
             self.allocate_all(buffer_specs, init="zeros")
             self.buffer_specs = buffer_specs
@@ -372,7 +370,8 @@ class AmicaAccumulators:
 
     dc_numer: NDArray
     dc_denom: NDArray
-    
+
+    dA: NDArray
     dAK: NDArray
     loglik_sum: float = 0.0
 
@@ -402,6 +401,7 @@ class AmicaAccumulators:
         self.dc_numer.fill_(0.0)
         self.dc_denom.fill_(0.0)
 
+        self.dA.fill_(0.0)
         self.dAK.fill_(0.0)
         self.loglik_sum = 0.0
 
@@ -585,6 +585,7 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     dc_numer = torch.zeros((num_comps, num_models), dtype=dtype)
     dc_denom = torch.zeros((num_comps, num_models), dtype=dtype)
 
+    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype)  # Derivative of A per model
     dAK = torch.zeros((num_comps, num_comps), dtype=dtype)  # Derivative of A
 
     if do_newton:
@@ -629,6 +630,7 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
         drho_denom=drho_denom,
         dc_numer=dc_numer,
         dc_denom=dc_denom,
+        dA=dA,
         dAK=dAK,
         loglik_sum=0.0,
         newton=newton,

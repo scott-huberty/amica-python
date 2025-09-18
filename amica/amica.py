@@ -581,6 +581,7 @@ def optimize(
         drho_denom = accumulators.drho_denom
         dc_numer = accumulators.dc_numer
         dc_denom = accumulators.dc_denom
+        dA = accumulators.dA
 
         if do_newton:
             dbaralpha_numer = accumulators.newton.dbaralpha_numer
@@ -598,7 +599,6 @@ def optimize(
         b = work.get_buffer("b")
         z = work.get_buffer("z")
         ufp = work.get_buffer("ufp")
-        dA = work.get_buffer("dA")
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
         assert dA.shape == (num_comps, num_comps, num_models)
@@ -854,7 +854,6 @@ def optimize(
             config=config,
             accumulators=accumulators,
             state=state,
-            dA=dA,
             total_LL=loglik.sum(),
             iter=iter
         )
@@ -2486,10 +2485,10 @@ def accumulate_lambda_stats(
 
 
 def accum_updates_and_likelihood(
+        *,
         config,
         accumulators,
         state,
-        dA,
         total_LL,  # this is LLtmp in Fortran
         iter
         ):
@@ -2520,6 +2519,7 @@ def accum_updates_and_likelihood(
     mu = state.mu
     
     dgm_numer = accumulators.dgm_numer
+    dA = accumulators.dA
     dAK = accumulators.dAK
 
     if do_newton:
