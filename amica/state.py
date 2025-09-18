@@ -107,7 +107,12 @@ class AmicaState:
             "rho": self.rho,
             "alpha": self.alpha,
             "gm": self.gm,
+            "c": self.c,
         }
+    
+    def to_numpy(self) -> Dict[str, np.ndarray]:
+        """Return a lightweight serialization of array fields as numpy arrays."""
+        return {k: v.cpu().numpy() for k, v in self.to_dict().items()}
 
 
 @dataclass

@@ -217,20 +217,20 @@ def amica(
         inplace=True,
         )
 
-    state, LL = _core_amica(
+    state_dict, LL = _core_amica(
         X=dataseg,
         config=config,
         state=state,
         sldet=sldet,
         )
-    gm = state.gm
-    mu = state.mu
-    rho = state.rho
-    sbeta = state.sbeta
-    W = state.W
-    A = state.A
-    c = state.c
-    alpha = state.alpha
+    gm = state_dict["gm"]
+    mu = state_dict["mu"]
+    rho = state_dict["rho"]
+    sbeta = state_dict["sbeta"]
+    W = state_dict["W"]
+    A = state_dict["A"]
+    c = state_dict["c"]
+    alpha = state_dict["alpha"]
     return whitening_matrix, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
 
@@ -472,7 +472,11 @@ def _core_amica(
             config=config,
             state=state,
         )
-    return state, LL
+    # Convert Tensors to numpy arrays for output
+    state_dict = state.to_numpy()
+    LL = LL.numpy()
+    return state_dict, LL
+    
 
 
 @line_profiler.profile
