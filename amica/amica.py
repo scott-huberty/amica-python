@@ -8,10 +8,6 @@ import mne
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
-
-from scipy import linalg
-from scipy.special import gammaln, psi, softmax
-
 import torch
 
 from chunking import ChunkIterator, choose_chunk_size
@@ -402,7 +398,7 @@ def _core_amica(
         Tolerance for convergence. Iterations stop when the change in log-likelihood
         is less than tol.
     """
-    X = torch.as_tensor(X, dtype=torch.float64)
+    X = torch.as_tensor(X, dtype=config.dtype)
 
     # The API will use n_components but under the hood we'll match the Fortran naming
     # TODO: Maybe rename n_components to num_comps in the config dataclass?
@@ -442,7 +438,7 @@ def _core_amica(
         idx = torch.arange(num_comps)
         cols = h_index * num_comps + idx
         state.A[idx, cols] = 1.0
-        Anrmk = torch.linalg.norm(state.A[:, cols], axis=0)
+        Anrmk = torch.linalg.norm(state.A[:, cols], dim=0)
         state.A[:, cols] /= Anrmk   
     # end load_A
     
@@ -721,7 +717,7 @@ def optimize(
                     single_model=(num_models == 1),
                 )
                 assert u.shape == (N1, nw, num_mix)
-                usum = u.sum(axis=0)  # shape: (nw, num_mix)
+                usum = u.sum(dim=0)  # shape: (nw, num_mix)
                 assert usum.shape == (nw, num_mix)  # nw, num_mix
                 
                 assert rho.shape == (config.n_components, num_mix)
@@ -1558,8 +1554,8 @@ def compute_model_loglikelihood_per_sample(
     #---------------------------------------------------------------
     # NOTE that the scratch array that was pass in will also be used for the g update.
     # TODO: consider keeping g and z separate once chunking is implemented
-    component_loglik = torch.logsumexp(z0, axis=-1, out=scratch) # across mixtures
-    out_modloglik += component_loglik.sum(axis=-1) # across components
+    component_loglik = torch.logsumexp(z0, dim=-1, out=scratch) # across mixtures
+    out_modloglik += component_loglik.sum(dim=-1) # across components
     return out_modloglik
 
 
@@ -1586,7 +1582,7 @@ def compute_mixture_responsibilities(
     -------
     responsibilities : array, shape (N1, nw, num_mix)
         Per-sample, per-component, per-mixture responsibilities.
-        Each slice [:, i, :] sums to 1 over axis=-1 (mixtures).
+        Each slice [:, i, :] sums to 1 over dim=-1 (mixtures).
     """
     assert log_densities.ndim == 3, f"log_densities must be (N1, nw, num_mix), got {log_densities.shape}"
     num_mix = log_densities.shape[-1]
@@ -1611,7 +1607,7 @@ def compute_total_loglikelihood_per_sample(
     """
     Compute the total log-likelihood for each sample marginalized across models.
     
-    Implements a stable log-sum-exp across the model axis for each sample.
+    Implements a stable log-sum-exp across the model dim for each sample.
 
     Parameters
     ----------
@@ -1661,7 +1657,7 @@ def compute_total_loglikelihood_per_sample(
     # LLinc = sum( P(bstrt:bstp) )
     # LLtmp = LLtmp + LLinc
     #-------------------------------------------------------------------------------
-    loglik = torch.logsumexp(modloglik, axis=1, out=out_loglik) # across models
+    loglik = torch.logsumexp(modloglik, dim=1, out=out_loglik) # across models
     return loglik
 
 
@@ -1923,7 +1919,7 @@ def accumulate_scores(
 
     torch.multiply(u, fp, out=ufp)
     # Same as torch.einsum('tnj,nj->tn', ufp, sbeta_h) but faster and we update g inplace
-    g = torch.sum(ufp * sbeta_h, axis=-1, out=g)  # sum over mixtures
+    g = torch.sum(ufp * sbeta_h, dim=-1, out=g)  # sum over mixtures
     return ufp, g
 
 def accumulate_c_stats(
@@ -1980,7 +1976,7 @@ def accumulate_c_stats(
     assert X.shape[1] == v.shape[0], (
         f"X n_samples {X.shape[1]} != model responsibilities length {v.shape[0]}"
     )
-    assert vsum.dim() == 0, f"vsum must be a scalar, got {vsum}"
+    assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
     assert out_numer.shape == (X.shape[0],), (
         f"out_numer shape {out_numer.shape} != (n_components,) "
     )
@@ -2049,7 +2045,7 @@ def accumulate_alpha_stats(
     assert out_numer.shape == usum.shape, (
         f"out_numer shape {out_numer.shape} != usum shape {usum.shape}"
     )
-    assert vsum.dim() == 0, f"vsum must be a scalar, got {vsum}"
+    assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
     # -------------------------------FORTRAN--------------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
     # dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
@@ -2115,7 +2111,7 @@ def accumulate_mu_stats(
     # tmpsum = sum( ufp(bstrt:bstp) )
     # dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + tmpsum
     # -----------------------------------------------------------------------
-    tmpsum_mu = ufp.sum(axis=0)  # shape: (nw, num_mix)
+    tmpsum_mu = ufp.sum(dim=0)  # shape: (nw, num_mix)
     out_numer += tmpsum_mu
     # -------------------------------FORTRAN--------------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -2126,7 +2122,7 @@ def accumulate_mu_stats(
     # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
     # -----------------------------------------------------------------------
     if torch.all(rho <= 2.0):
-        mu_denom_sum = torch.sum(ufp / y, axis=0)
+        mu_denom_sum = torch.sum(ufp / y, dim=0)
         tmpsum_mu_denom = (sbeta * mu_denom_sum)
         out_denom += tmpsum_mu_denom
     else:
@@ -2186,9 +2182,8 @@ def accumulate_beta_stats(
     # ----------------------------------------------------------------------
     if torch.all(rho <= 2.0):
         # (s=samples, i=n_components, j=num_mixtures)
-        # Same as torch.sum(ufp * y, axis=0) but avoid the temporary allocation
         # Same as torch.einsum("sij,sij->ij", ufp, y)
-        out_denom += torch.sum(ufp * y, axis=0)  # shape: (nw, num_mix)
+        out_denom += torch.sum(ufp * y, dim=0)  # shape: (nw, num_mix)
     else:
         raise NotImplementedError()
 
@@ -2272,7 +2267,7 @@ def accumulate_rho_stats(
     torch.multiply(u, tmpy, out=tmpy)
     torch.multiply(tmpy, logab, out=tmpy)
     # Sum over samples -> (nw, num_mix) and accumulate
-    out_numer += tmpy.sum(axis=0)
+    out_numer += tmpy.sum(dim=0)
     out_denom += usum
     if torch.any(rho > 2.0):
         raise NotImplementedError()
@@ -2329,7 +2324,7 @@ def accumulate_sigma2_stats(
     b = source_estimates
     assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
     assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
-    assert vsum.dim() == 0, f"vsum must be a scalar, got {vsum}"
+    assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
     assert b.shape[0] == v_h.shape[0], f"samples dimension mismatch {b.shape[0]} != {v_h.shape[0]}"
     #--------------------------FORTRAN CODE-------------------------
     # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
@@ -2406,7 +2401,7 @@ def accumulate_kappa_stats(
     #---------------------------------------------------------------
     # (s=n_samples, i=n_components, j=n_mixtures)
     # Same as torch.einsum('sij,sij->ij', ufp, fp) * (sbeta**2)
-    out_numer += (ufp * fp).sum(axis=0) * (sbeta**2)
+    out_numer += (ufp * fp).sum(dim=0) * (sbeta**2)
     out_denom += usum
     return out_numer, out_denom
 
@@ -2475,12 +2470,12 @@ def accumulate_lambda_stats(
     # dlambda_denom_tmp(j,i,h) = dlambda_denom_tmp(j,i,h) + usum
     # ------------------------------------------------------------------
     # (s=n_samples, i=n_components, j=n_mixtures)
-    # Same as (u * (fp * y - 1.0)**2).sum(axis=0) but avoids 3 intermediate allocations
+    # Same as (u * (fp * y - 1.0)**2).sum(dim=0) but avoids 3 intermediate allocations
     tmp = fp * y # one allocation
     tmp -= 1.0
     tmp **= 2
     # Same as torch.einsum('sij,sij->ij', u, tmp)
-    out_numer += (u * tmp).sum(axis=0)
+    out_numer += (u * tmp).sum(dim=0)
     out_denom += usum
     return out_numer, out_denom
 
@@ -2589,7 +2584,7 @@ def accum_updates_and_likelihood(
             dkap = dkappa_numer_h / dkappa_denom_h
             # --- Update kappa ---
             # Calculate all update terms and sum along the mixture axis
-            kappa_update = torch.sum(baralpha_h * dkap, axis=1)
+            kappa_update = torch.sum(baralpha_h * dkap, dim=1)
             kappa[:, h_idx] += kappa_update
 
             # --- Update lambda_ ---
@@ -2602,7 +2597,7 @@ def accum_updates_and_likelihood(
 
             # Calculate the full lambda update term
             lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
-            lambda_update = torch.sum(baralpha_h * lambda_inner_term, axis=1)
+            lambda_update = torch.sum(baralpha_h * lambda_inner_term, dim=1)
             lambda_[:, h_idx] += lambda_update
             # end do (j)
             # end do (i)
@@ -2709,7 +2704,7 @@ def accum_updates_and_likelihood(
     #---------------------------------------------------------------
     dAK[:,:] /= zeta  # Broadcasting division
     # nd is (num_iters, num_comps) in Fortran, but we only store current iteration
-    nd = torch.sum(dAK * dAK, axis=0)  # Python-only variable name
+    nd = torch.sum(dAK * dAK, dim=0)  # Python-only variable name
     assert nd.shape == (num_comps,)
 
     # comp_used should be 32 length vector of True
@@ -2860,7 +2855,7 @@ def update_params(
         # column and scale the corresponding columns in mu and sbeta, but only if the
         # norm is positive.
         # NOTE: this shadows a global variable Anrmk
-        Anrmk = torch.linalg.norm(A, axis=0)
+        Anrmk = torch.linalg.norm(A, dim=0)
         positive_mask = Anrmk > 0
         if positive_mask.all():
             A[:, positive_mask] /= Anrmk[positive_mask]
