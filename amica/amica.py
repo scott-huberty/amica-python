@@ -10,7 +10,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
 import torch
 
-from chunking import ChunkIterator, choose_chunk_size
+from chunking import BatchLoader, choose_batch_size
 from constants import (
     fix_init,
     mineig,
@@ -168,7 +168,7 @@ def amica(
         by `np.random`.
     """
     if chunk_size is None:
-        chunk_size = choose_chunk_size(
+        chunk_size = choose_batch_size(
             N=X.shape[1],
             n_comps=n_components if n_components is not None else X.shape[0],
             n_mix=n_mixtures,
@@ -517,7 +517,6 @@ def optimize(
     # We allocate these separately.
     Dtemp = torch.zeros(num_models, dtype=torch.float64)
     Dsign = torch.zeros(num_models, dtype=torch.float64)
-    modloglik =  torch.zeros((X.shape[1], num_models), dtype=torch.float64)  # Model log likelihood
     loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # Log likelihood history
 
@@ -534,7 +533,6 @@ def optimize(
         
         # !----- get determinants
         work.zero_all()
-        modloglik.fill_(0.0)
         loglik.fill_(0.0)
         metrics = IterationMetrics(
             iter=iter,
@@ -598,6 +596,7 @@ def optimize(
         # ===============================================================================
         b = work.get_buffer("b")
         z = work.get_buffer("z")
+        modloglik = work.get_buffer("modloglik")
         v = work.get_buffer("v")
         ufp = work.get_buffer("ufp")
         # Validate critical buffer shapes
@@ -629,12 +628,12 @@ def optimize(
         #=============================== Subsection =====================================
         # === Begin chunk loop ===
         # ===============================================================================
-        chunks = ChunkIterator(X, axis=1, chunk_size=N1)
-        for chunk_idx, (data_slice, chunk_slice) in enumerate(chunks):
+        batch_loader = BatchLoader(X, axis=-1, batch_size=N1)
+        for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
-                N1, nw, num_mix = data_slice.shape[-1], config.n_components, config.n_mixtures
+                N1, nw, num_mix = data_batch.shape[-1], config.n_components, config.n_mixtures
                 fp = work.get_buffer("fp")
                 y = work.get_buffer("y")
                 
@@ -645,7 +644,7 @@ def optimize(
                 # 1. --- Compute source pre-activations
                 # !--- get b
                 b = compute_preactivations(
-                    X=data_slice,
+                    X=data_batch,
                     unmixing_matrix=state.W[:, :, h_index],
                     bias=wc[:, h_index],
                     do_reject=config.do_reject,
@@ -669,7 +668,7 @@ def optimize(
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
                 compute_model_loglikelihood_per_sample(
                     log_densities=z0,
-                    out_modloglik=modloglik[chunk_slice, h_index],
+                    out_modloglik=modloglik[:, h_index],
                 )
                 
                 # 4. -- Responsibilities within each component ---
@@ -679,9 +678,9 @@ def optimize(
             # end do (h)
 
             # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
-            loglik[chunk_slice] = compute_total_loglikelihood_per_sample(
-                modloglik=modloglik[chunk_slice, :],
-                out_loglik=loglik[chunk_slice]
+            loglik[batch_indices] = compute_total_loglikelihood_per_sample(
+                modloglik=modloglik,
+                out_loglik=loglik[batch_indices]
             )
 
             if do_reject:
@@ -689,14 +688,9 @@ def optimize(
             else:    
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
-                    modloglik=modloglik[chunk_slice, :],
-                    out=v[chunk_slice, :],
+                    modloglik=modloglik,
+                    out=v,
                     )
-                # NOTE: modloglik was mutated in-place to responsibilities (v)
-                # consider keeping v and modloglik separate
-            # v = modloglik[chunk, :]
-            # modloglik = None  # guard against use of stale name
-
             # ================================ M-STEP ===================================
             # === Maximization-step: Parameter accumulators ===
             # - Update parameters based on current responsibilities
@@ -704,7 +698,7 @@ def optimize(
             # ===========================================================================
             
             # !--- get g, u, ufp
-            g = work.get_buffer("g")  # reuse for g workspace
+            g = work.get_buffer("g")
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
@@ -751,7 +745,7 @@ def optimize(
                 dgm_numer[h_index] += vsum
                 # c (bias)  
                 accumulate_c_stats(
-                    X=data_slice,
+                    X=data_batch,
                     model_responsibilities=v_h,
                     vsum=vsum,
                     out_numer=dc_numer[:, h_index],
@@ -794,7 +788,7 @@ def optimize(
                 )
                 # --- Newton-Raphson accumulators ---
                 if do_newton and iter >= newt_start:
-                    if iter == 50 and chunk_slice.start == 0:
+                    if iter == 50 and batch_indices.start == 0:
                         assert torch.all(dkappa_numer == 0.0)
                         assert torch.all(dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary

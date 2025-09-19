@@ -261,13 +261,14 @@ class AmicaWorkspace:
             """Allocate hot buffers that are used by AMICA."""
             buffer_specs = {
                 # Source and intermediate computation buffers
-                "b": (n_samples, n_components),                    
-                "g": (n_samples, n_components), # we use this for g and a modloglik intermediate
-                "v": (n_samples, n_models), # model responsibilities
-                "y": (n_samples, n_components, n_mixtures), # source estimates           
-                "z": (n_samples, n_components, n_mixtures),  # used for z0 and z
+                "b": (n_samples, n_components),                 
+                "g": (n_samples, n_components),                 
+                "v": (n_samples, n_models),                     # model responsibilities
+                "y": (n_samples, n_components, n_mixtures),     # source estimates           
+                "z": (n_samples, n_components, n_mixtures),     # used for z0 and z
                 "fp": (n_samples, n_components, n_mixtures),
                 "ufp": (n_samples, n_components, n_mixtures),
+                "modloglik": (n_samples, n_models),             # model log likelihood
             }
             self.allocate_all(buffer_specs, init="zeros")
             self.buffer_specs = buffer_specs

@@ -11,26 +11,28 @@ import psutil
 ArrayLike2D = Union[np.ndarray, "np.typing.NDArray[np.floating]"]
 
 
-class ChunkIterator:
-    """Iterate over an array in fixed-size chunks along a chosen axis.
+class BatchLoader:
+    """Iterate over an array in fixed-size batches of data along a chosen axis.
 
-    This is intentionally simple and dependency-free. It yields slices of the
-    input array without copying (views), suitable for streaming large inputs
-    through algorithms that operate on blocks.
+    We hand rolled this instead of using DataLoader because 1) we want to yield
+    slices of input array (i.e. a view), and 2) return the indices as
+    a slice object. DataLoader would internally convert the slice into a tensor
+    of indices.
 
     Example (AMICA shape):
         X: (n_channels, n_samples)
-        it = ChunkIterator(X, axis=1, chunk_size=4096)
+        it = BatchLoader(X, axis=1, batch_size=4096)
         for X_blk, sl in it:
             # X_blk is X[:, sl] where sl is slice(start, end)
             ...
     """
 
-    def __init__(self, X: ArrayLike2D, axis: int, chunk_size: Optional[int] = None):
+    def __init__(self, X: ArrayLike2D, axis: int, batch_size: Optional[int] = None):
+        cls_name = self.__class__.__name__
         if not isinstance(X, torch.Tensor):
-            raise TypeError("ChunkIterator expects a torch.Tensor")
+            raise TypeError(f"{cls_name} expects a torch.Tensor")
         if X.ndim < 1:
-            raise ValueError("ChunkIterator expects an array with at least 1 dimension")
+            raise ValueError(f"{cls_name} expects an array with at least 1 dimension")
         self.X = X
         self.axis = axis
 
@@ -48,20 +50,31 @@ class ChunkIterator:
             raise ValueError(f"stop {stop} out of range [0, {n}]")
         if start > stop:
             raise ValueError(f"start {start} must be <= stop {stop}")
+        if batch_size < 0:
+            raise ValueError(f"batch_size {batch_size} must be positive")
         self.start = start
         self.stop = stop
 
-        if chunk_size is None or chunk_size <= 0:
+        if batch_size is None:
             # Treat as single chunk spanning [start:stop]
-            self.chunk_size = stop
+            self.batch_size = stop
         else:
-            self.chunk_size = int(chunk_size)
+            self.batch_size = int(batch_size)
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        start = self.start + idx * self.batch_size
+        stop = min(start + self.batch_size, self.stop)
+
+
+        idx = [slice(None)] * self.X.ndim
+        idx[self.axis] = slice(start, stop)
+        return self.X[tuple(idx)]
 
     def __iter__(self) -> Iterator[Tuple[np.ndarray, slice]]:
         axis = self.axis
         start = self.start
         stop = self.stop
-        step = self.chunk_size
+        step = self.batch_size
 
         # Handle empty span quickly
         if start == stop:
@@ -71,21 +84,21 @@ class ChunkIterator:
         assert (stop - start) // step == len(self)  # sanity check
         for s in range(start, stop, step):
             e = min(s + step, stop)
-            blk_slice = slice(s, e)
-            idx[axis] = blk_slice
-            yield self.X[tuple(idx)], blk_slice
+            batch_slice = slice(s, e)
+            idx[axis] = batch_slice
+            yield self.X[tuple(idx)], batch_slice
     
     def __len__(self) -> int:
-        return self.X.shape[self.axis] // self.chunk_size
+        return (self.X.shape[self.axis] + self.batch_size - 1) // self.batch_size
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(Data shape: {self.X.shape}, "
-            f"Chunked axis: {self.axis}, chunk_size: {self.chunk_size}, "
-            f"n_chunks: {len(self)})"
+            f"Batched axis: {self.axis}, batch_size: {self.batch_size}, "
+            f"n_batches: {len(self)})"
         )
 
-def choose_chunk_size(
+def choose_batch_size(
         *,
         N: int,
         n_comps: int,
@@ -96,7 +109,7 @@ def choose_chunk_size(
         memory_cap: float = 1.5 * 1024**3,  # 1.5 GB absolute ceiling
         ) -> int:
     """
-    Choose chunk size for processing data in chunks.
+    Choose batch size for processing data in chunks.
 
     Parameters
     ----------
@@ -115,7 +128,7 @@ def choose_chunk_size(
 
     Notes
     -----
-    The chunk size is primarily determined by the estimated size of the pre-allocated hot
+    The batch size is primarily determined by the estimated size of the pre-allocated hot
     buffers in AmicaWorkspace, which scale with the size of n_samples:
     - One array of shape (N,):
         - loglik
@@ -150,25 +163,25 @@ def choose_chunk_size(
     except Exception:
         mem_cap = memory_cap  # fallback to user-specified cap
 
-    max_chunk_size = mem_cap // bytes_per_sample
+    max_batch_size = mem_cap // bytes_per_sample
 
     # Ensure at least 1 sample. This should only trigger if n_comps and n_mix are huge.
-    if max_chunk_size < 1:
+    if max_batch_size < 1:
         raise MemoryError(
             f"Cannot fit even 1 sample within memory cap of "
-            f"{mem_cap / 1024**3:.2f} GB. "
+            f"{mem_cap / 1024**3:.2f} GiB. "
             f"Per-sample memory cost is {bytes_per_sample / 1024**3:.2f} GB."
         )
-    chunk_size = int(min(N, max_chunk_size))
+    batch_size = int(min(N, max_batch_size))
 
     # Heuristic floor, we don't want absurdly small chunks or chunks that are too
     # small relative to the model complexity (n_comps)
     # This heuristic works well for typical ICA regimes, where n_comps is < 256
-    min_chunk_size = max(8192, n_comps * 32)  # at least 32 samples per component
-    min_chunk_size = min(min_chunk_size, N)  # Cannot exceed N
-    if chunk_size < min_chunk_size:
+    min_batch_size = max(8192, n_comps * 32)  # at least 32 samples per component
+    min_batch_size = min(min_batch_size, N)  # Cannot exceed N
+    if batch_size < min_batch_size:
         print(
-            f"Warning: To stay within the memory cap, chunk size is {chunk_size}, "
-            f"which is below the recommended minimum of {min_chunk_size}."
+            f"Warning: To stay within the memory cap, batch size is {batch_size} "
+            f"samples, which is below the recommended minimum of {min_batch_size}."
         )
-    return chunk_size
+    return batch_size
