@@ -510,7 +510,7 @@ def optimize(
     accumulators = initialize_accumulators(config)
     
     # We allocate these separately.
-    Dtemp = torch.zeros(num_models, dtype=torch.float64)
+    Dsum = torch.zeros(num_models, dtype=torch.float64)
     Dsign = torch.zeros(num_models, dtype=torch.float64)
     loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # Log likelihood history
@@ -544,28 +544,11 @@ def optimize(
                 unmixing_matrix=state.W[:, :, h_index],
                 minlog=minlog,
             )
-            Dtemp[h_index] = logabsdet
+            Dsum[h_index] = logabsdet
             Dsign[h_index] = sign                 
-        Dsum = Dtemp.clone() # shape (num_models,)
 
-        # ============================== Subsection =====================================
-        # accumulators, metrics = get_accumulators_and_likelihood()
-        # ===============================================================================
         nw = num_comps
-
-        W = state.W
-        sbeta = state.sbeta
-        rho = state.rho
-        gm = state.gm
-        mu = state.mu
-        alpha = state.alpha
-
         accumulators.reset()
-
-        # ============================== Subsection =====================================
-        # Retrieve arrays for likelihood computations and parameter accumulators
-        # ===============================================================================
-
         # !--------- loop over the segments ----------
         if do_reject:
             raise NotImplementedError()
@@ -581,9 +564,9 @@ def optimize(
 
         # -- 0. Baseline terms for per-sample model log-likelihood --
         initial = get_initial_model_log_likelihood(
-                unmixing_logdet=Dtemp[h_index],
+                unmixing_logdet=Dsum[h_index],
                 whitening_logdet=sldet,
-                model_weight=gm[h_index],
+                model_weight=state.gm[h_index],
         )
         
         #=============================== Subsection =====================================
@@ -612,10 +595,10 @@ def optimize(
                 y, z = _compute_source_densities(
                     pdftype=config.pdftype,
                     b=b,
-                    sbeta=sbeta,
-                    mu=mu,
-                    alpha=alpha,
-                    rho=rho,
+                    sbeta=state.sbeta,
+                    mu=state.mu,
+                    alpha=state.alpha,
+                    rho=state.rho,
                     comp_slice=comp_slice,
                     )
                 z0 = z  # log densities (alias for clarity with Fortran code)
@@ -677,12 +660,12 @@ def optimize(
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
                 assert usum.shape == (nw, num_mix)  # nw, num_mix
                 
-                assert rho.shape == (config.n_components, num_mix)
+                assert state.rho.shape == (config.n_components, num_mix)
 
                 fp = compute_source_scores(
                     pdftype=pdftype,
                     y=y,
-                    rho=rho,
+                    rho=state.rho,
                     comp_slice=comp_slice,
                 )
                 assert fp.shape == (N1_actual, nw, num_mix)
@@ -691,7 +674,7 @@ def optimize(
                 ufp, g = accumulate_scores(
                     scores=fp,
                     responsibilities=u,
-                    scale_params=sbeta,
+                    scale_params=state.sbeta,
                     comp_slice=comp_slice,
                 )
                 assert ufp.shape == (N1_actual, nw, num_mix)   
@@ -718,15 +701,15 @@ def optimize(
                 accumulate_mu_stats(
                     ufp=ufp,
                     y=y,
-                    sbeta=sbeta[comp_slice, :],
-                    rho=rho[comp_slice, :],
+                    sbeta=state.sbeta[comp_slice, :],
+                    rho=state.rho[comp_slice, :],
                     out_numer=accumulators.dmu_numer[comp_slice, :],
                     out_denom=accumulators.dmu_denom[comp_slice, :],
                 )
                 # Beta (scale/precision)
                 accumulate_beta_stats(
                     usum=usum,
-                    rho=rho[comp_slice, :],
+                    rho=state.rho[comp_slice, :],
                     ufp=ufp,
                     y=y,
                     out_numer=accumulators.dbeta_numer[comp_slice, :],
@@ -735,7 +718,7 @@ def optimize(
                 # Rho (shape parameter of generalized Gaussian)
                 accumulate_rho_stats(
                     y=y,
-                    rho=rho[comp_slice, :],
+                    rho=state.rho[comp_slice, :],
                     u=u,
                      usum=usum,
                     epsdble=epsdble,
@@ -760,7 +743,7 @@ def optimize(
                     accumulate_kappa_stats(
                         ufp=ufp,
                         fp=fp,
-                        sbeta=sbeta[comp_slice, :],
+                        sbeta=state.sbeta[comp_slice, :],
                         usum=usum,
                         out_numer=accumulators.newton.dkappa_numer[:, :, h_index],
                         out_denom=accumulators.newton.dkappa_denom[:, :, h_index],
@@ -923,12 +906,6 @@ def optimize(
                 metrics=metrics,
                 wc=wc,
             )
-
-            # if ((writestep .ge. 0) .and. mod(iter,writestep) == 0) then
-
-            # !----- write history if it's a specified step
-            # if (do_history .and. mod(iter,histstep) == 0) then
-
             # !----- reject data
             if (
                 config.do_reject
@@ -938,8 +915,7 @@ def optimize(
                     or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
                 )
             ):
-                raise NotImplementedError()
-            
+                raise NotImplementedError()            
             iter += 1
         # end if/else
     # end while
