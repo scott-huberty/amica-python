@@ -262,9 +262,10 @@ class AmicaWorkspace:
             buffer_specs = {
                 # Source and intermediate computation buffers
                 "b": (n_samples, n_components),                    
-                "scratch_2D": (n_samples, n_components), # we use this for g and a modloglik intermediate
-                "y": (n_samples, n_components, n_mixtures),           
-                "z": (n_samples, n_components, n_mixtures),
+                "g": (n_samples, n_components), # we use this for g and a modloglik intermediate
+                "v": (n_samples, n_models), # model responsibilities
+                "y": (n_samples, n_components, n_mixtures), # source estimates           
+                "z": (n_samples, n_components, n_mixtures),  # used for z0 and z
                 "fp": (n_samples, n_components, n_mixtures),
                 "ufp": (n_samples, n_components, n_mixtures),
             }

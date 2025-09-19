@@ -598,6 +598,7 @@ def optimize(
         # ===============================================================================
         b = work.get_buffer("b")
         z = work.get_buffer("z")
+        v = work.get_buffer("v")
         ufp = work.get_buffer("ufp")
         # Validate critical buffer shapes
         assert ufp.shape == (N1, num_comps, num_mix)
@@ -666,14 +667,10 @@ def optimize(
                 z0 = z  # log densities (alias for clarity with Fortran code)
 
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
-                scratch = work.get_buffer("scratch_2D")  # reuse for scratch workspace
                 compute_model_loglikelihood_per_sample(
                     log_densities=z0,
                     out_modloglik=modloglik[chunk_slice, h_index],
-                    scratch=scratch,
                 )
-                scratch.fill_(0.0) # clear scratch for reuse
-                scratch = None # guard against misuse until reassignment
                 
                 # 4. -- Responsibilities within each component ---
                 # !--- get normalized z
@@ -693,7 +690,7 @@ def optimize(
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
                     modloglik=modloglik[chunk_slice, :],
-                    inplace=False
+                    out=v[chunk_slice, :],
                     )
                 # NOTE: modloglik was mutated in-place to responsibilities (v)
                 # consider keeping v and modloglik separate
@@ -707,7 +704,7 @@ def optimize(
             # ===========================================================================
             
             # !--- get g, u, ufp
-            g = work.get_buffer("scratch_2D")  # reuse for g workspace
+            g = work.get_buffer("g")  # reuse for g workspace
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
@@ -1521,7 +1518,6 @@ def compute_model_loglikelihood_per_sample(
         *,
         log_densities: SourceArray3D,
         out_modloglik: Optional[SamplesVector] = None,
-        scratch: Optional[SourceArray2D] = None,
 ):
     """Compute the per-sample log-likelihood for a single model h.
 
@@ -1535,19 +1531,13 @@ def compute_model_loglikelihood_per_sample(
     out_modloglik : array, shape (N1,)
         Output array for per-sample log-likelihood for this model. If None,
         a new array is allocated. This array is mutated in-place.
-    scratch : array, shape (N1, nw)
-        Scratch array for intermediate computations. If None, a new array is
-        allocated. This array is mutated in-place and then discarded.
     """
     assert log_densities.ndim == 3, f"log_densities must be 3D, got {log_densities.ndim}D"
     N1 = log_densities.shape[0]
     nw = log_densities.shape[1]
     if out_modloglik is None:
         out_modloglik = torch.zeros((N1,), dtype=torch.float64)
-    if scratch is None:
-        scratch = torch.zeros((N1, nw), dtype=torch.float64)
     assert out_modloglik.shape == (N1,)
-    assert scratch.shape == (N1, nw)
     # Alias for clarity with Fortran code
     z0 = log_densities
 
@@ -1557,7 +1547,7 @@ def compute_model_loglikelihood_per_sample(
     #---------------------------------------------------------------
     # NOTE that the scratch array that was pass in will also be used for the g update.
     # TODO: consider keeping g and z separate once chunking is implemented
-    component_loglik = torch.logsumexp(z0, dim=-1, out=scratch) # across mixtures
+    component_loglik = torch.logsumexp(z0, dim=-1) # across mixtures
     out_modloglik += component_loglik.sum(dim=-1) # across components
     return out_modloglik
 
@@ -1666,7 +1656,7 @@ def compute_total_loglikelihood_per_sample(
 
 def compute_model_responsibilities(
         *, modloglik: LikelihoodArray,
-        inplace: bool = True
+        out: Optional[LikelihoodArray] = None,
         ) -> LikelihoodArray:
     """
     Compute model responsibilities via softmax over models.
@@ -1694,7 +1684,13 @@ def compute_model_responsibilities(
     )
     num_models = modloglik.shape[1]
     assert num_models >= 1, f"modloglik must have at least one model. Got {num_models}"
-    v = modloglik if inplace else modloglik.clone()
+    if out is not None:
+        assert out.shape == modloglik.shape, (
+            f"out shape {out.shape} != modloglik shape {modloglik.shape}"
+        )
+    else:
+        out = torch.empty_like(modloglik)
+    v = out
     #--------------------------FORTRAN CODE-------------------------
     # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
     #---------------------------------------------------------------
