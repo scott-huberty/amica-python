@@ -6,6 +6,7 @@ from typing import Generator, Iterator, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
+import psutil
 
 ArrayLike2D = Union[np.ndarray, "np.typing.NDArray[np.floating]"]
 
@@ -90,7 +91,8 @@ def choose_chunk_size(
         n_comps: int,
         n_mix: int,
         dtype: np.dtype = np.float64,
-        memory_cap: float = 1.5 * 1024**3,  # 1.5 GB
+        memory_fraction: float = 0.25,      # use up to 25% of available memory
+        memory_cap: float = 1.5 * 1024**3,  # 1.5 GB absolute ceiling
         ) -> int:
     """
     Choose chunk size for processing data in chunks.
@@ -118,33 +120,35 @@ def choose_chunk_size(
     - Four arrays of shape (N, n_comps, n_mix): y, z, fp, ufp
     """
     dtype_size = np.dtype(dtype).itemsize
-
     # per-sample cost across pre-allocated buffers in AmicaWorkspace
-    bytes_per_sample = (
-        2 * n_comps +
-        4 * n_comps * n_mix
-    ) * dtype_size
+    bytes_per_sample = (2 * n_comps + 4 * n_comps * n_mix) * dtype_size
     # Add small overhead headroom for temporary ops and Python/NumPy overhead
     bytes_per_sample = int(bytes_per_sample * 1.1)
+
+    # Pick memory budget
+    try:
+        hard_cap = 4 * 1024**3  # 4 GiB to avoid runaway memory use
+        avail_mem = psutil.virtual_memory().available
+        mem_cap = min(avail_mem * memory_fraction, hard_cap)
+    except Exception:
+        mem_cap = memory_cap  # fallback to user-specified cap
+
+    max_chunk_size = mem_cap // bytes_per_sample
+
+    # Ensure at least 1 sample. This should only trigger if n_comps and n_mix are huge.
+    if max_chunk_size < 1:
+        raise MemoryError(
+            f"Cannot fit even 1 sample within memory cap of "
+            f"{mem_cap / 1024**3:.2f} GB. "
+            f"Per-sample memory cost is {bytes_per_sample / 1024**3:.2f} GB."
+        )
+    chunk_size = int(min(N, max_chunk_size))
 
     # Heuristic floor, we don't want absurdly small chunks or chunks that are too
     # small relative to the model complexity (n_comps)
     # This heuristic works well for typical ICA regimes, where n_comps is < 256
     min_chunk_size = max(8192, n_comps * 32)  # at least 32 samples per component
     min_chunk_size = min(min_chunk_size, N)  # Cannot exceed N
-
-    # maximum allowed samples under memory cap
-    max_chunk_size = memory_cap // bytes_per_sample
-
-    # Ensure at least 1 sample. This should only trigger if n_comps and n_mix are huge.
-    if max_chunk_size < 1:
-        raise MemoryError(
-            f"Cannot fit even 1 sample within memory cap of "
-            f"{memory_cap / 1024**3:.2f} GB. "
-            f"Per-sample memory cost is {bytes_per_sample / 1024**3:.2f} GB."
-        )
-    chunk_size = int(min(N, max_chunk_size))
-
     if chunk_size < min_chunk_size:
         print(
             f"Warning: To stay within the memory cap, chunk size is {chunk_size}, "
