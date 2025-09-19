@@ -490,10 +490,17 @@ def optimize(
         state: AmicaState,
 ):
     """Main optimization loop for AMICA."""
+    # Just set all convergence creterion to the user specific tol
+    min_dll = config.tol
+    min_nd = config.tol
+    
+    # These variables can be updated in the loop
     leave = False
     iter = 1
-    numrej = 0
-    do_newton = config.do_newton    
+    do_newton = config.do_newton
+    numincs = 0  # number of consecutive iterations where LL increased by less than tol
+    lrate = config.lrate
+    rholrate = config.rholrate
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
@@ -501,20 +508,12 @@ def optimize(
     Dsum = torch.zeros(config.n_models, dtype=torch.float64)
     Dsign = torch.zeros(config.n_models, dtype=torch.float64)
     loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
-    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # Log likelihood history
+    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # likelihood history
 
-    min_dll = config.tol
-    numincs = 0  # number of consecutive iterations where likelihood increased by less than tol/min_dll
-    lrate = config.lrate
-    rholrate = config.rholrate
     c_start = time.time()
     c1 = time.time()
     while iter <= config.max_iter:
-        # ============================== Subsection ====================================
-        # === Update the unmixing matrices and compute the determinants ===
-        # ===============================================================================
-        
-        # !----- get determinants
+        accumulators.reset()
         loglik.fill_(0.0)
         metrics = IterationMetrics(
             iter=iter,
@@ -523,7 +522,7 @@ def optimize(
         )
         iter = metrics.iter
 
-
+        # !----- get determinants
         for h, _ in enumerate(range(config.n_models), start=1):
             h_index = h - 1
             # The Fortran code computed log|det(W)| indirectly via QR factorization
@@ -535,13 +534,8 @@ def optimize(
             Dsum[h_index] = logabsdet
             Dsign[h_index] = sign                 
 
-        nw = config.n_components
-        accumulators.reset()
-        # !--------- loop over the segments ----------
         if config.do_reject:
             raise NotImplementedError()
-        else:
-            pass
         # !--------- loop over the blocks ----------
         '''
         # In Fortran, the OMP parallel region would start before the lines below.
@@ -566,9 +560,9 @@ def optimize(
                 comp_slice = get_component_slice(h, config.n_components)
                 h_index = h - 1
                 
-                # ===========================================================================
+                # =======================================================================
                 #                       Expectation Step (E-step)
-                # ===========================================================================
+                # =======================================================================
 
                 # 1. --- Compute source pre-activations
                 # !--- get b
@@ -651,7 +645,6 @@ def optimize(
                     rho=state.rho,
                     comp_slice=comp_slice,
                 )
-                # --- Vectorized calculation of ufp and g update ---
 
                 ufp, g = accumulate_scores(
                     scores=fp,
@@ -865,7 +858,7 @@ def optimize(
         # end if (iter > 1)
         if config.do_newton and (iter == config.newt_start):
             print("Starting Newton ... setting numdecs to 0")
-
+            numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
 
@@ -873,27 +866,20 @@ def optimize(
             return state, LL
         if startover:
             raise NotImplementedError()
-        else:
-            # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
-            # the updated lrate & rholrate for the next iteration
-            lrate, rholrate, state, wc = update_params(
-                config=config,
-                state=state,
-                accumulators=accumulators,
-                metrics=metrics,
-                wc=wc,
-            )
-            # !----- reject data
-            if (
-                config.do_reject
-                and (maxrej > 0)
-                and (
-                    iter == rejstart
-                    or (max(1, iter-rejstart) % rejint == 0 and numrej < maxrej)
-                )
-            ):
-                raise NotImplementedError()            
-            iter += 1
+        # else:
+        # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
+        # the updated lrate & rholrate for the next iteration
+        lrate, rholrate, state, wc = update_params(
+            config=config,
+            state=state,
+            accumulators=accumulators,
+            metrics=metrics,
+            wc=wc,
+        )
+        # !----- reject data
+        if config.do_reject:
+            raise NotImplementedError()
+        iter += 1
         # end if/else
     # end while
     c_end = time.time()
