@@ -446,7 +446,7 @@ def _core_amica(
         state.A[:, cols] /= Anrmk   
     # end load_A
     
-    iterating = True if "iter" in locals() else False
+    iterating = True if "iteration" in locals() else False
     W, wc = get_unmixing_matrices(
         iterating=iterating,
         c=state.c,
@@ -496,7 +496,7 @@ def optimize(
     
     # These variables can be updated in the loop
     leave = False
-    iter = 1
+    iteration = 1
     do_newton = config.do_newton
     numincs = 0  # number of consecutive iterations where LL increased by less than tol
     lrate = config.lrate
@@ -512,15 +512,15 @@ def optimize(
 
     c_start = time.time()
     c1 = time.time()
-    while iter <= config.max_iter:
+    while iteration <= config.max_iter:
         accumulators.reset()
         loglik.fill_(0.0)
         metrics = IterationMetrics(
-            iter=iter,
+            iter=iteration,
             lrate=lrate,
             rholrate=rholrate,
         )
-        iter = metrics.iter
+        iteration = metrics.iter
 
         # !----- get determinants
         for h, _ in enumerate(range(config.n_models), start=1):
@@ -700,8 +700,8 @@ def optimize(
                     out_denom=accumulators.drho_denom[comp_slice, :],
                 )
                 # --- Newton-Raphson accumulators ---
-                if do_newton and iter >= config.newt_start:
-                    if iter == 50 and batch_indices.start == 0:
+                if do_newton and iteration >= config.newt_start:
+                    if iteration == 50 and batch_indices.start == 0:
                         assert torch.all(accumulators.newton.dkappa_numer == 0.0)
                         assert torch.all(accumulators.newton.dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
@@ -734,8 +734,8 @@ def optimize(
                     # (dbar)Alpha accumulators
                     accumulators.newton.dbaralpha_numer[:, :, h_index] += usum
                     accumulators.newton.dbaralpha_denom[:,:, h_index] += vsum
-                # end if (do_newton and iter >= newt_start)
-                elif not do_newton and iter >= config.newt_start:
+                # end if (do_newton and iteration >= newt_start)
+                elif not do_newton and iteration >= config.newt_start:
                     raise NotImplementedError()
 
                 # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
@@ -758,7 +758,7 @@ def optimize(
             accumulators=accumulators,
             state=state,
             total_LL=loglik.sum(),
-            iter=iter
+            iteration=iteration
         )
         metrics.loglik = likelihood
         metrics.ndtmpsum = ndtmpsum
@@ -766,7 +766,7 @@ def optimize(
 
         # ==============================================================================
         ndtmpsum = metrics.ndtmpsum
-        LL[iter - 1] = metrics.loglik
+        LL[iteration - 1] = metrics.loglik
         # init
         startover = False
         numdecs = 0
@@ -777,9 +777,9 @@ def optimize(
         t0 = c2 - c1
         #  if (mod(iter,outstep) == 0) then
 
-        if (iter % outstep) == 0:
+        if (iteration % outstep) == 0:
             print(
-                f"Iteration {iter}, lrate = {lrate:.3f}, LL = {LL[iter - 1]:.3f}, "
+                f"Iteration {iteration}, lrate = {lrate:.3f}, LL = {LL[iteration - 1]:.3f}, "
                 f"nd = {ndtmpsum:.3f}, D = {Dsum.max():.3f} {Dsum.min():.3f} "
                 f"took {t0:.2f} seconds"
                 )
@@ -788,21 +788,21 @@ def optimize(
         # !----- check whether likelihood is increasing
         # if (seg_rank == 0) then
         # ! if we get a NaN early, try to reinitialize and startover a few times 
-        if (iter <= restartiter and torch.isnan(LL[iter - 1])):
+        if (iteration <= restartiter and torch.isnan(LL[iteration - 1])):
             if numrestarts > maxrestarts:
                 leave = True
                 raise RuntimeError()
             else:
                 raise NotImplementedError()
         # end if
-        if iter == 2:
-            assert not torch.isnan(LL[iter - 1])
-            assert not (LL[iter - 1] < LL[iter - 2])
-        if iter > 1:
-            if torch.isnan(LL[iter - 1]) and iter > restartiter:
+        if iteration == 2:
+            assert not torch.isnan(LL[iteration - 1])
+            assert not (LL[iteration - 1] < LL[iteration - 2])
+        if iteration > 1:
+            if torch.isnan(LL[iteration - 1]) and iteration > restartiter:
                 leave = True
                 raise RuntimeError(f"Got NaN! Exiting")
-            if (LL[iter - 1] < LL[iter - 2]):
+            if (LL[iteration - 1] < LL[iteration - 2]):
                 assert 1 == 0
                 print("Likelihood decreasing!")
                 if (lrate < minlrate) or (ndtmpsum <= min_nd):
@@ -815,12 +815,12 @@ def optimize(
                     if numdecs >= maxdecs:
                         raise NotImplementedError()
                         lrate0 *= lrate0 * lratefact
-                        if iter == 2:
+                        if iteration == 2:
                             assert 1 == 0
-                        if iter > config.newt_start:
+                        if iteration > config.newt_start:
                             raise NotImplementedError()
                             rholrate0 *= rholratefact
-                        if config.do_newton and iter > config.newt_start:
+                        if config.do_newton and iteration > config.newt_start:
                             print("Reducing maximum Newton lrate")
                             newtrate *= lratefact
                             assert 1 == 0 # stop to check that value
@@ -829,7 +829,7 @@ def optimize(
                 # end if (lrate vs minlrate)
             # end if LL
             if use_min_dll:
-                if (LL[iter - 1] - LL[iter - 2]) < min_dll:
+                if (LL[iteration - 1] - LL[iteration - 2]) < min_dll:
                     numincs += 1
                     if numincs > maxincs:
                         leave = True
@@ -839,7 +839,7 @@ def optimize(
                             )
                 else:
                     numincs = 0
-                if iter == 2:
+                if iteration == 2:
                     assert numincs == 0
             else:
                 raise NotImplementedError() # pragma no cover
@@ -850,12 +850,12 @@ def optimize(
                         f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
                     )
                     assert 1 == 0
-                if iter == 2:
+                if iteration == 2:
                     assert leave is False
             else:
                 raise NotImplementedError() # pragma no cover
         # end if (iter > 1)
-        if config.do_newton and (iter == config.newt_start):
+        if config.do_newton and (iteration == config.newt_start):
             print("Starting Newton ... setting numdecs to 0")
             numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
@@ -878,7 +878,7 @@ def optimize(
         # !----- reject data
         if config.do_reject:
             raise NotImplementedError()
-        iter += 1
+        iteration += 1
         # end if/else
     # end while
     c_end = time.time()
@@ -2328,7 +2328,7 @@ def accum_updates_and_likelihood(
         accumulators,
         state,
         total_LL,  # this is LLtmp in Fortran
-        iter
+        iteration
         ):
     # !--- add to the cumulative dtmps
     # ...
@@ -2340,7 +2340,7 @@ def accum_updates_and_likelihood(
     nw = config.n_components
     Wtmp_working = torch.zeros((config.n_components, config.n_components))
     # if (seg_rank == 0) then
-    if config.do_newton and iter >= config.newt_start:
+    if config.do_newton and iteration >= config.newt_start:
         #--------------------------FORTRAN CODE-------------------------
         # baralpha = dbaralpha_numer / dbaralpha_denom
         # sigma2 = dsigma2_numer / dsigma2_denom
@@ -2390,7 +2390,7 @@ def accum_updates_and_likelihood(
         # end do (h)
         # if (print_debug) then
     # end if (do_newton .and. iter >= newt_start)
-    elif not config.do_newton and iter >= config.newt_start:
+    elif not config.do_newton and iteration >= config.newt_start:
         raise NotImplementedError()  # pragma no cover 
 
     for h, _ in enumerate(range(config.n_models), start=1):
@@ -2413,7 +2413,7 @@ def accum_updates_and_likelihood(
         accumulators.dA[idx, idx, h_index] = diag + 1.0
         # if (print_debug) then
 
-        if config.do_newton and iter >= config.newt_start:
+        if config.do_newton and iteration >= config.newt_start:
             # in Fortran, this is a nested loop..
             #--------------------------FORTRAN CODE-------------------------
             # do i = 1,nw ... do k = 1,nw
@@ -2441,7 +2441,7 @@ def accum_updates_and_likelihood(
             if torch.any(~positive_mask):
                 raise RuntimeError(
                     f"Non-positive definite Hessian encountered in Newton update. "
-                    f"Iteration {iter} model {h}. Please try setting do_newton to False."
+                    f"Iteration {iteration} model {h}. Please try setting do_newton to False."
                     )
             condition_mask = positive_mask & off_diag_mask
             if torch.any(condition_mask):
@@ -2453,7 +2453,7 @@ def accum_updates_and_likelihood(
             # end do (k)
             # end do (i)
         # end if (do_newton .and. iter >= newt_start)
-        if ((not config.do_newton) or (iter < config.newt_start)):
+        if ((not config.do_newton) or (iteration < config.newt_start)):
             #  Wtmp = dA(:,:,h)
             assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
             Wtmp_working = (accumulators.dA[:, :, h - 1].squeeze()).clone()
@@ -2551,7 +2551,7 @@ def update_params(
     drho_denom = accumulators.drho_denom
     dAK = accumulators.dAK
 
-    iter = metrics.iter
+    iteration = metrics.iter
     lrate = metrics.lrate
     rholrate = metrics.rholrate
 
@@ -2577,8 +2577,8 @@ def update_params(
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
-    if (iter < share_start or (iter % share_iter > 5)):
-        if do_newton and (iter >= config.newt_start):
+    if (iteration < share_start or (iteration % share_iter > 5)):
+        if do_newton and (iteration >= config.newt_start):
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
@@ -2642,7 +2642,7 @@ def update_params(
             raise NotImplementedError()            
     # end if (doscaling)
 
-    if (share_comps and (iter >= share_start) and (iter-share_iter % share_iter == 0)):
+    if (share_comps and (iteration >= share_start) and (iteration-share_iter % share_iter == 0)):
         raise NotImplementedError()
     else:
         global free_pass
