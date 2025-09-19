@@ -753,7 +753,7 @@ def optimize(
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
         
-        likelihood, ndtmpsum, no_newt = accum_updates_and_likelihood(
+        likelihood, ndtmpsum = accum_updates_and_likelihood(
             config=config,
             accumulators=accumulators,
             state=state,
@@ -762,7 +762,6 @@ def optimize(
         )
         metrics.loglik = likelihood
         metrics.ndtmpsum = ndtmpsum
-        metrics.no_newt = no_newt
         # return accumulators, metrics
 
         # ==============================================================================
@@ -2394,7 +2393,6 @@ def accum_updates_and_likelihood(
     elif not config.do_newton and iter >= config.newt_start:
         raise NotImplementedError()  # pragma no cover 
 
-    no_newt = False
     for h, _ in enumerate(range(config.n_models), start=1):
         comp_slice = get_component_slice(h, config.n_components)
         h_index = h - 1
@@ -2415,8 +2413,6 @@ def accum_updates_and_likelihood(
         accumulators.dA[idx, idx, h_index] = diag + 1.0
         # if (print_debug) then
 
-        global posdef
-        posdef = True
         if config.do_newton and iter >= config.newt_start:
             # in Fortran, this is a nested loop..
             #--------------------------FORTRAN CODE-------------------------
@@ -2457,7 +2453,7 @@ def accum_updates_and_likelihood(
             # end do (k)
             # end do (i)
         # end if (do_newton .and. iter >= newt_start)
-        if ((not config.do_newton) or (not posdef) or (iter < config.newt_start)):
+        if ((not config.do_newton) or (iter < config.newt_start)):
             #  Wtmp = dA(:,:,h)
             assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
             Wtmp_working = (accumulators.dA[:, :, h - 1].squeeze()).clone()
@@ -2513,7 +2509,7 @@ def accum_updates_and_likelihood(
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         likelihood = total_LL / (all_blks * nw)
     # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
-    return (likelihood, ndtmpsum, no_newt)
+    return (likelihood, ndtmpsum)
 
 
 def update_params(
@@ -2581,20 +2577,15 @@ def update_params(
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
-    # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if (iter < share_start or (iter % share_iter > 5)):
-        if do_newton and (not metrics.no_newt) and (iter >= config.newt_start):
+        if do_newton and (iter >= config.newt_start):
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
             lrate = min(newtrate, lrate + min(1.0 / newt_ramp, lrate))
             rholrate = rholrate0
             A[:, :] -= lrate * dAK
-        else:
-            if not posdef:
-                print("Hessian not positive definite, using natural gradient")
-                assert 1 == 0
-            
+        else:            
             lrate = min(
                 lrate0, lrate + min(1 / newt_ramp, lrate)
                 )

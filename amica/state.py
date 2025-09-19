@@ -451,7 +451,6 @@ class IterationMetrics:
     
     Fields:
     - ndtmpsum: Total norm of the weight gradient, summed across all components; computed as sqrt(mean of per-component squared update norms).
-    - no_newt: If True, Newton updates were disabled for this iteration due to numerical issues. Only relevant if AmicaConfig.do_newton is True.
     """
 
     iter: int                           # 1-based iteration index
@@ -463,7 +462,6 @@ class IterationMetrics:
     step_time_s: Optional[float] = None
     numincs: Optional[int] = None
     numdecs: Optional[int] = None
-    no_newt: bool = False               # Disable Newton due to numerical issues
 
 
 @dataclass(slots=True)
