@@ -2333,10 +2333,10 @@ def accum_updates_and_likelihood(
         #---------------------------------------------------------------
         # shape (num_mix, num_comps, num_models)
         baralpha = accumulators.newton.dbaralpha_numer / accumulators.newton.dbaralpha_denom
-        # shape (num_comps, num_models)
         sigma2 = accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
         kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
         lambda_ = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
+        
         for h, _ in enumerate(range(config.n_models), start=1):
             comp_slice = get_component_slice(h, config.n_components)
             h_idx = h - 1
@@ -2347,14 +2347,12 @@ def accum_updates_and_likelihood(
             dkappa_denom_h = accumulators.newton.dkappa_denom[:, :, h_idx]
             dlambda_numer_h = accumulators.newton.dlambda_numer[:, :, h_idx]
             dlambda_denom_h = accumulators.newton.dlambda_denom[:, :, h_idx]
-            # Get the component indices for this model 'h'
 
             # Calculate dkap for all mixtures 
             # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
             # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
             dkap = dkappa_numer_h / dkappa_denom_h
             # --- Update kappa ---
-            # Calculate all update terms and sum along the mixture axis
             kappa_update = torch.sum(baralpha_h * dkap, dim=1)
             kappa[:, h_idx] += kappa_update
 
@@ -2363,7 +2361,6 @@ def accum_updates_and_likelihood(
             # lambda(i,h) = lambda(i,h) + ...
             #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + ...
             #---------------------------------------------------------------
-            # mu_selected will have shape (num_mix, nw)
             mu_selected = state.mu[comp_slice, :]
             # Calculate the full lambda update term
             lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
@@ -2374,8 +2371,6 @@ def accum_updates_and_likelihood(
         # end do (h)
         # if (print_debug) then
     # end if (do_newton .and. iter >= newt_start)
-    elif not config.do_newton and iteration >= config.newt_start:
-        raise NotImplementedError()  # pragma no cover 
 
     for h, _ in enumerate(range(config.n_models), start=1):
         comp_slice = get_component_slice(h, config.n_components)
@@ -2398,7 +2393,6 @@ def accum_updates_and_likelihood(
         # if (print_debug) then
 
         if config.do_newton and iteration >= config.newt_start:
-            # in Fortran, this is a nested loop..
             #--------------------------FORTRAN CODE-------------------------
             # do i = 1,nw ... do k = 1,nw
             # if (i == k) then
@@ -2453,10 +2447,7 @@ def accum_updates_and_likelihood(
     zeta = torch.zeros(config.n_components, dtype=config.dtype)
     for h, _ in enumerate(range(config.n_models), start=1):
         comp_slice = get_component_slice(h, config.n_components)
-        h_index = h - 1
-        # NOTE: I had an indexing bug in the looped version of this code.
-        # But it didn't seem to affect the results.
-        
+        h_index = h - 1        
         #--------------------------FORTRAN CODE-------------------------
         # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
         # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
@@ -2475,8 +2466,8 @@ def accum_updates_and_likelihood(
     nd = torch.sum(accumulators.dAK * accumulators.dAK, dim=0)  # Python-only variable name
     assert nd.shape == (config.n_components,)
 
-    # comp_used should be 32 length vector of True
-    # In Fortran Comp used was always be an all True bollean representation of comp_slice
+    # comp_used should be a vector of True
+    # In Fortran Comp used was always an all True boolean representation of comp_slice
     # Unless identify_shared_comps was run. I have no plans to implement that.
     comp_used = torch.ones(config.n_components, dtype=bool)
     assert isinstance(comp_used, torch.Tensor)
@@ -2513,15 +2504,6 @@ def update_params(
     lrate0 = config.lrate
     rholrate0 = config.rholrate
 
-    W = state.W
-    A = state.A
-    c = state.c
-    alpha = state.alpha
-    mu = state.mu
-    sbeta = state.sbeta
-    rho = state.rho
-    gm = state.gm
-
     dgm_numer = accumulators.dgm_numer
     dalpha_numer = accumulators.dalpha_numer
     dalpha_denom = accumulators.dalpha_denom
@@ -2547,16 +2529,16 @@ def update_params(
         raise NotImplementedError()
         # gm = dgm_numer / dble(numgoodsum)
     else:
-        gm[:] = dgm_numer / all_blks 
+        state.gm[:] = dgm_numer / all_blks 
     # end if (update_gm)
 
     # if update_alpha:
     # assert alpha.shape == (num_comps, num_mix)
-    alpha[:, :] = dalpha_numer / dalpha_denom
+    state.alpha[:, :] = dalpha_numer / dalpha_denom
 
     # if update_c:
     # assert c.shape == (nw, num_models)
-    c[:, :] = dc_numer / dc_denom
+    state.c[:, :] = dc_numer / dc_denom
     
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
@@ -2568,45 +2550,42 @@ def update_params(
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
             lrate = min(newtrate, lrate + min(1.0 / newt_ramp, lrate))
             rholrate = rholrate0
-            A[:, :] -= lrate * dAK
+            state.A -= lrate * dAK
         else:            
             lrate = min(
                 lrate0, lrate + min(1 / newt_ramp, lrate)
                 )
-            
             rholrate = rholrate0
-            
-
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
-            A[:, :] -= lrate * dAK
-            
+            state.A -= lrate * dAK
+
         # end if do_newton
     # end if (update_A)
 
     # if update_mu:
-    mu[:, :] += dmu_numer / dmu_denom
+    state.mu += dmu_numer / dmu_denom
      
     # if update_beta:
     
-    sbeta[:, :] *= torch.sqrt(dbeta_numer / dbeta_denom)
-    sbetatmp[:, :] = torch.minimum(torch.tensor(invsigmax), sbeta)
+    state.sbeta *= torch.sqrt(dbeta_numer / dbeta_denom)
+    sbetatmp[:, :] = torch.minimum(torch.tensor(invsigmax), state.sbeta)
 
-    sbeta[:, :] = torch.maximum(torch.tensor(invsigmin), sbetatmp)  # Fill?
+    state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
 
     # end if (update_beta)
 
-    rho[:, :] += (
+    state.rho += (
             rholrate
             * (
                 1.0
-                - (rho / torch.special.psi(1.0 + 1.0 / rho))
+                - (state.rho / torch.special.psi(1.0 + 1.0 / state.rho))
             * drho_numer
             / drho_denom
         )
     )
-    rhotmp = torch.minimum(torch.tensor(maxrho), rho) # shape (num_comps, num_mix)
+    rhotmp = torch.minimum(torch.tensor(maxrho), state.rho) # shape (num_comps, num_mix)
     assert rhotmp.shape == (config.n_components, config.n_mixtures)
-    rho[:, :] = torch.maximum(torch.tensor(minrho), rhotmp)
+    state.rho = torch.maximum(torch.tensor(minrho), rhotmp)
 
     # !--- rescale
     # !print *, 'rescaling A ...'; call flush(6)
@@ -2616,33 +2595,28 @@ def update_params(
         # column and scale the corresponding columns in mu and sbeta, but only if the
         # norm is positive.
         # NOTE: this shadows a global variable Anrmk
-        Anrmk = torch.linalg.norm(A, dim=0)
+        Anrmk = torch.linalg.norm(state.A, dim=0)
         positive_mask = Anrmk > 0
         if positive_mask.all():
-            A[:, positive_mask] /= Anrmk[positive_mask]
-            mu[positive_mask, :] *= Anrmk[positive_mask, None]
-            sbeta[positive_mask, :] /= Anrmk[positive_mask, None]
+            state.A[:, positive_mask] /= Anrmk[positive_mask]
+            state.mu[positive_mask, :] *= Anrmk[positive_mask, None]
+            state.sbeta[positive_mask, :] /= Anrmk[positive_mask, None]
         else:
             raise NotImplementedError()            
     # end if (doscaling)
 
     if (share_comps and (iteration >= share_start) and (iteration-share_iter % share_iter == 0)):
         raise NotImplementedError()
-    else:
-        global free_pass
-        free_pass = False
     
-    W[:, :, :], wc[:, :] = get_unmixing_matrices(
+    state.W, wc = get_unmixing_matrices(
         iterating=True,
-        c=c,
-        A=A,
+        c=state.c,
+        A=state.A,
         comp_slice=get_component_slice(1, nw), # FIXME
-        W=W,
-        num_models=num_models,
+        W=state.W,
+        num_models=config.n_models,
     )
 
-
-    
     # if (print_debug) then
     
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
