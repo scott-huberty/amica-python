@@ -125,7 +125,7 @@ def amica(
         newt_start=50,
         newtrate=1,
         newt_ramp=10,
-        chunk_size=None,
+        batch_size=None,
         do_reject=False,
         random_state=None,
 ):
@@ -140,12 +140,12 @@ def amica(
         Number of components to extract. If None, all components are used.
     n_mixtures: int, optional
         Number of mixtures to use in the AMICA algorithm.
-    chunk_size : int, optional
+    batch_size : int, optional
         Chunk size for processing data in chunks along the samples axis. If ``None``,
         chunking is chosen automatically to keep peak memory under ~1.5 GB, and
         warns if the chunk size is below ~8k samples (If the input data is small enough
         to process in one shot, no chunking is used). If you want to enforce no chunking,
-        you can override this memory cap by setting chunk_size explicitly, e.g. to
+        you can override this memory cap by setting batch_size explicitly, e.g. to
         `X.shape[1]` to process all samples at once.", but note that this may lead to
         high memory usage for large datasets.
     whiten : boolean, optional
@@ -168,8 +168,8 @@ def amica(
         If None, the random number generator is the RandomState instance used
         by `np.random`.
     """
-    if chunk_size is None:
-        chunk_size = choose_batch_size(
+    if batch_size is None:
+        batch_size = choose_batch_size(
             N=X.shape[1],
             n_comps=n_components if n_components is not None else X.shape[0],
             n_mix=n_mixtures,
@@ -181,7 +181,7 @@ def amica(
         n_models=n_models,
         n_mixtures=n_mixtures,
         max_iter=max_iter,
-        chunk_size=chunk_size,
+        batch_size=batch_size,
         pdftype=pdftype,
         tol=tol,
         lrate=lrate,
@@ -461,7 +461,7 @@ def _core_amica(
 
 
     # !-------------------- Determine optimal block size -------------------
-    print(f"1: block size = {config.chunk_size}")
+    print(f"1: block size = {config.batch_size}")
     
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     print(f"1 : entering the main loop ...")
@@ -493,7 +493,7 @@ def optimize(
     leave = False
     iter = 1
     numrej = 0
-    N1 = config.chunk_size
+    N1 = config.batch_size
     n_models = config.n_models
     n_mixtures = config.n_mixtures
     num_comps = config.n_components
@@ -508,7 +508,6 @@ def optimize(
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
-    
     # We allocate these separately.
     Dsum = torch.zeros(num_models, dtype=torch.float64)
     Dsign = torch.zeros(num_models, dtype=torch.float64)
@@ -1197,7 +1196,7 @@ def compute_preactivations(
     
     Parameters
     ----------
-    X : array, shape (n_features, chunk_size)
+    X : array, shape (n_features, batch_size)
         Data matrix. Can be the entire input data or a chunk. Not modified.
     unmixing_matrix : array, shape (n_components, n_features)
         Unmixing matrix weights (W) for a single model h, that maps data to sources.

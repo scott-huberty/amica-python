@@ -50,7 +50,7 @@ class AmicaConfig:
     n_components: int  # ncomp - number of output components  
     n_models: int  # number of AMICA models
     n_mixtures: int  # nmix - number of mixture components per source
-    chunk_size: int
+    batch_size: int
 
     # Execution
     max_iter: int = 200
