@@ -520,7 +520,6 @@ def optimize(
             lrate=lrate,
             rholrate=rholrate,
         )
-        iteration = metrics.iter
 
         # !----- get determinants
         for h, _ in enumerate(range(config.n_models), start=1):
@@ -735,8 +734,6 @@ def optimize(
                     accumulators.newton.dbaralpha_numer[:, :, h_index] += usum
                     accumulators.newton.dbaralpha_denom[:,:, h_index] += vsum
                 # end if (do_newton and iteration >= newt_start)
-                elif not do_newton and iteration >= config.newt_start:
-                    raise NotImplementedError()
 
                 # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
                 # if update_A:
@@ -753,6 +750,9 @@ def optimize(
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
         
+        # End of these lifetimes
+        del b, fp, g, u, ufp, usum, vsum, v, v_h, y, z
+
         likelihood, ndtmpsum = accum_updates_and_likelihood(
             config=config,
             accumulators=accumulators,
@@ -768,7 +768,6 @@ def optimize(
         ndtmpsum = metrics.ndtmpsum
         LL[iteration - 1] = metrics.loglik
         # init
-        startover = False
         numdecs = 0
              
         # !----- display log likelihood of data
@@ -788,20 +787,13 @@ def optimize(
         # !----- check whether likelihood is increasing
         # if (seg_rank == 0) then
         # ! if we get a NaN early, try to reinitialize and startover a few times 
-        if (iteration <= restartiter and torch.isnan(LL[iteration - 1])):
-            if numrestarts > maxrestarts:
-                leave = True
-                raise RuntimeError()
-            else:
-                raise NotImplementedError()
+        if torch.isnan(LL[iteration - 1]):
+            raise RuntimeError(f"Log Likelihood is NaN at iteration {iteration}")
         # end if
         if iteration == 2:
             assert not torch.isnan(LL[iteration - 1])
             assert not (LL[iteration - 1] < LL[iteration - 2])
         if iteration > 1:
-            if torch.isnan(LL[iteration - 1]) and iteration > restartiter:
-                leave = True
-                raise RuntimeError(f"Got NaN! Exiting")
             if (LL[iteration - 1] < LL[iteration - 2]):
                 assert 1 == 0
                 print("Likelihood decreasing!")
@@ -847,24 +839,16 @@ def optimize(
                 if ndtmpsum < min_nd:
                     leave = True
                     print(
-                        f"Exiting because norm of weight gradient less than {min_nd:.6f} ... "
+                        f"Exiting because norm of weight gradient less than {min_nd:.6f}"
                     )
-                    assert 1 == 0
-                if iteration == 2:
-                    assert leave is False
-            else:
-                raise NotImplementedError() # pragma no cover
         # end if (iter > 1)
         if config.do_newton and (iteration == config.newt_start):
             print("Starting Newton ... setting numdecs to 0")
             numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
-
         if leave:
             return state, LL
-        if startover:
-            raise NotImplementedError()
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
         # the updated lrate & rholrate for the next iteration
