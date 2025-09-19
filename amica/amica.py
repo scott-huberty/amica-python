@@ -44,7 +44,6 @@ from constants import (
 )
 
 from seed import MUTMP, SBETATMP as sbetatmp, WTMP
-from funmod import psifun
 
 from state import (
     AmicaConfig,
@@ -52,7 +51,6 @@ from state import (
     IterationMetrics,
     get_initial_state,
     initialize_accumulators,
-    AmicaWorkspace,
 )
 from _typing import (
     SamplesVector,
@@ -72,6 +70,9 @@ from _typing import (
 import line_profiler
 
 sbetatmp = sbetatmp.T
+
+import warnings
+warnings.filterwarnings("error")
 
 
 def get_component_slice(h: int, n_components: int) -> slice:
@@ -504,13 +505,7 @@ def optimize(
     num_models = n_models
     num_mix = n_mixtures
     
-    # Pre-allocate all workspace buffers
-    work = AmicaWorkspace(
-        n_samples=N1, n_components=num_comps, n_mixtures=num_mix, n_models=n_models
-    )
-    # Log workspace memory usage for debugging
-    total_memory_mb = work.total_memory_usage() / (1024 * 1024)
-    print(f"Workspace allocated: {len(work.buffer_specs)} buffers, {total_memory_mb:.1f} MB total")
+
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
     
@@ -532,7 +527,6 @@ def optimize(
         # ===============================================================================
         
         # !----- get determinants
-        work.zero_all()
         loglik.fill_(0.0)
         metrics = IterationMetrics(
             iter=iter,
@@ -594,14 +588,6 @@ def optimize(
         # ============================== Subsection =====================================
         # Retrieve arrays for likelihood computations and parameter accumulators
         # ===============================================================================
-        b = work.get_buffer("b")
-        z = work.get_buffer("z")
-        modloglik = work.get_buffer("modloglik")
-        v = work.get_buffer("v")
-        ufp = work.get_buffer("ufp")
-        # Validate critical buffer shapes
-        assert ufp.shape == (N1, num_comps, num_mix)
-        assert dA.shape == (num_comps, num_comps, num_models)
 
         # !--------- loop over the segments ----------
         if do_reject:
@@ -616,14 +602,12 @@ def optimize(
         # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
         '''
 
-        # -- 0. Baseline terms for per-sample model log-likelihood --            
+        # -- 0. Baseline terms for per-sample model log-likelihood --
         initial = get_initial_model_log_likelihood(
                 unmixing_logdet=Dtemp[h_index],
                 whitening_logdet=sldet,
                 model_weight=gm[h_index],
         )
-        # Broadcast to all samples
-        modloglik[:, h_index].fill_(initial)
         
         #=============================== Subsection =====================================
         # === Begin chunk loop ===
@@ -633,9 +617,6 @@ def optimize(
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
-                N1, nw, num_mix = data_batch.shape[-1], config.n_components, config.n_mixtures
-                fp = work.get_buffer("fp")
-                y = work.get_buffer("y")
                 
                 # ===========================================================================
                 #                       Expectation Step (E-step)
@@ -648,7 +629,6 @@ def optimize(
                     unmixing_matrix=state.W[:, :, h_index],
                     bias=wc[:, h_index],
                     do_reject=config.do_reject,
-                    out_activations=b,
                 )
                 
                 # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
@@ -660,12 +640,15 @@ def optimize(
                     alpha=alpha,
                     rho=rho,
                     comp_slice=comp_slice,
-                    out_sources=y,
-                    out_logits=z,
                     )
                 z0 = z  # log densities (alias for clarity with Fortran code)
 
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
+                modloglik = torch.full(
+                    size=(data_batch.shape[1], num_models),
+                    fill_value=initial,
+                    dtype=config.dtype,
+                    )
                 compute_model_loglikelihood_per_sample(
                     log_densities=z0,
                     out_modloglik=modloglik[:, h_index],
@@ -689,7 +672,6 @@ def optimize(
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
                     modloglik=modloglik,
-                    out=v,
                     )
             # ================================ M-STEP ===================================
             # === Maximization-step: Parameter accumulators ===
@@ -698,7 +680,6 @@ def optimize(
             # ===========================================================================
             
             # !--- get g, u, ufp
-            g = work.get_buffer("g")
             for h, _ in enumerate(range(num_models), start=1):
                 comp_slice = get_component_slice(h, num_comps)
                 h_index = h - 1
@@ -714,7 +695,8 @@ def optimize(
                     model_responsibilities=v_h,
                     single_model=(num_models == 1),
                 )
-                assert u.shape == (N1, nw, num_mix)
+                N1_actual = data_batch.shape[1]
+                assert u.shape == (N1_actual, nw, num_mix)
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
                 assert usum.shape == (nw, num_mix)  # nw, num_mix
                 
@@ -725,9 +707,8 @@ def optimize(
                     y=y,
                     rho=rho,
                     comp_slice=comp_slice,
-                    out_scores=fp,
                 )
-                assert fp.shape == (N1, nw, num_mix)
+                assert fp.shape == (N1_actual, nw, num_mix)
                 # --- Vectorized calculation of ufp and g update ---
 
                 ufp, g = accumulate_scores(
@@ -735,10 +716,8 @@ def optimize(
                     responsibilities=u,
                     scale_params=sbeta,
                     comp_slice=comp_slice,
-                    out_ufp=ufp,
-                    out_g=g,
                 )
-                assert ufp.shape == (N1, nw, num_mix)   
+                assert ufp.shape == (N1_actual, nw, num_mix)   
 
                 # --- Stochastic Gradient Descent accumulators ---
                 # gm (model weights)
@@ -1273,9 +1252,6 @@ def compute_preactivations(
         Weight correction (wc) vector for model h e.g. wc[:, h_index]
     do_reject : bool
         Whether to perform rejection. Currently not implemented.
-    out_activations : array, shape (T, N)
-        Output buffer for pre-activations (b). If None, a new array is allocated.
-        This array is modified in-place.
     
     Returns
     -------
@@ -1290,15 +1266,9 @@ def compute_preactivations(
     dataseg = X
     W = unmixing_matrix
     wc = bias
-    if out_activations is None:
-        n_components = W.shape[0]
-        n_samples = X.shape[1]
-        out_activations = np.empty((n_samples, n_components), dtype=np.float64)
-    b = out_activations
     assert wc.ndim == 1, f"wc must be 1D, got {wc.ndim}D"
     assert W.ndim == 2, f"W must be 2D, got {W.ndim}D"
     assert dataseg.ndim == 2, f"dataseg must be 2D, got {dataseg.ndim}D"
-    assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
 
     if do_reject:
         #--------------------------FORTRAN CODE-------------------------
@@ -1316,7 +1286,7 @@ def compute_preactivations(
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
         # Same as np.einsum("ft,cf->tc", dataseg, W)
-        torch.matmul(dataseg.T, W.T, out=b)
+        b = torch.matmul(dataseg.T, W.T)
     # end else
     # Subtract the weight correction factor
     b -= wc
@@ -1332,8 +1302,6 @@ def _compute_source_densities(
         alpha: ParamsArray,
         rho: ParamsArray,
         comp_slice: slice, # TODO: pass in the pre-indexed arrays instead
-        out_sources: Optional[SourceArray3D] = None,
-        out_logits: Optional[SourceArray3D] = None,
         ) -> Tuple[SourceArray3D, SourceArray3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
@@ -1394,17 +1362,12 @@ def _compute_source_densities(
     assert mu.shape == alpha.shape, f"mu shape {mu.shape} != alpha shape {alpha.shape}"
     assert rho.shape == alpha.shape, f"rho shape {rho.shape} != alpha shape {alpha.shape}"
     assert b.shape == (N1, nw), f"b shape {b.shape} != (N1={N1}, nw={nw})"
-
-    if out_sources is None:
-        out_sources = torch.empty((N1, nw, num_mix))
-    if out_logits is None:
-        out_logits = torch.empty((N1, nw, num_mix))
     
     # We have 3 possible log-probability functions
-    def generalized_gaussian_logprob(sources, log_alpha, log_sbeta, rho, out_logits):
+    def generalized_gaussian_logprob(sources, log_alpha, log_sbeta, rho):
         """log p(y) = log(alpha) + log(sbeta) - |y|^rho - log( Gamma(1+1/rho) ) + log(2)"""
         # log(|y|)
-        torch.abs(sources, out=out_logits)
+        out_logits = torch.abs(sources)
         torch.log(out_logits, out=out_logits)
         # |y|^rho
         torch.exp(rho * out_logits, out=out_logits)
@@ -1447,7 +1410,7 @@ def _compute_source_densities(
         mu_h = mu[comp_slice, :]            # Shape: (nw, num_mix)
         
         # 1. Center and scale the source estimates (In-place)
-        torch.subtract(b[:, :, None], mu_h[None, :, :], out=out_sources)
+        out_sources = torch.subtract(b[:, :, None], mu_h[None, :, :])
         torch.multiply(sbeta_h, out_sources, out=out_sources)
         
         #------------------Mixture Log-Likelihood for each component----------------
@@ -1473,7 +1436,6 @@ def _compute_source_densities(
             log_alpha=log_mixture_weights,
             log_sbeta=log_scales,
             rho=rho_h,
-            out_logits=out_logits,
         )
         assert out_logits.shape == (N1, nw, num_mix)
         # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
@@ -1650,7 +1612,6 @@ def compute_total_loglikelihood_per_sample(
 
 def compute_model_responsibilities(
         *, modloglik: LikelihoodArray,
-        out: Optional[LikelihoodArray] = None,
         ) -> LikelihoodArray:
     """
     Compute model responsibilities via softmax over models.
@@ -1659,9 +1620,6 @@ def compute_model_responsibilities(
     ----------
     modloglik : array, shape (n_samples, n_models)
         Per-sample, per-model log-likelihoods.
-    inplace : bool, optional
-        If True, perform the operation in-place, mutating `modloglik`.
-        If False, return a new array with the responsibilities.
     
     Returns
     -------
@@ -1678,13 +1636,7 @@ def compute_model_responsibilities(
     )
     num_models = modloglik.shape[1]
     assert num_models >= 1, f"modloglik must have at least one model. Got {num_models}"
-    if out is not None:
-        assert out.shape == modloglik.shape, (
-            f"out shape {out.shape} != modloglik shape {modloglik.shape}"
-        )
-    else:
-        out = torch.empty_like(modloglik)
-    v = out
+    v = torch.empty_like(modloglik)
     #--------------------------FORTRAN CODE-------------------------
     # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
     #---------------------------------------------------------------
@@ -1693,7 +1645,7 @@ def compute_model_responsibilities(
     if num_models == 1:
         v.fill_(1.0)
     else:
-        v = torch.softmax(v, dim=-1) # across models
+        v = torch.softmax(modloglik, dim=-1) # across models
     return v
 
 
@@ -1761,7 +1713,6 @@ def compute_source_scores(
         y: SourceArray3D,
         rho: ParamsArray,
         comp_slice: slice,
-        out_scores: Optional[SourceArray3D] = None,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
@@ -1776,9 +1727,6 @@ def compute_source_scores(
         Shape parameters of shape (n_components, n_mixtures). Not modified.
     comp_slice : slice
         Slice object containing component indices for the current model.
-    out_scores : SourceArray3D, optional
-        Buffer to write the computed score function into. Shape (n_samples, n_components,
-        n_mixtures). If None, a new array is allocated. This array is modified in-place.
     Returns
     -------
     out_scores : np.ndarray
@@ -1792,8 +1740,6 @@ def compute_source_scores(
     assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
     assert comp_slice.stop - comp_slice.start == nw, f"len(comp_slice)={comp_slice.stop - comp_slice.start} != nw={nw}"
 
-    if out_scores is None:
-        out_scores = torch.empty((N1, nw, num_mix))
     # !--- get fp, zfp
     if pdftype == 0:
         #-------------------------------FORTRAN CODE-------------------------------------
@@ -1816,7 +1762,7 @@ def compute_source_scores(
 
         # Default: generalized Gaussian score function        
         # Step 1. Compute |y|^(rho_h - 1) in-place
-        torch.abs(y, out=out_scores)                  # out_scores = |y|
+        out_scores = torch.abs(y)                  # out_scores = |y|
         torch.log(out_scores, out=out_scores)         # log(|y|)
         torch.multiply(rho_h - 1.0, out_scores, out=out_scores)
         torch.exp(out_scores, out=out_scores)         # |y|^(rho_h - 1)
@@ -1826,11 +1772,11 @@ def compute_source_scores(
         
         # Overwrite with Laplacian/Gaussian score function where needed
         if lap_mask.any():
-            # In-place overwrite
-            torch.sign(y[:, lap_mask], out=out_scores[:, lap_mask])
+            # FIXME: Use a small loop to avoid fancy boolean indexing allocation
+            out_scores[:, lap_mask] = torch.sign(y[:, lap_mask], out=out_scores[:, lap_mask])
         if gau_mask.any():
-            # In-place overwrite
-            torch.multiply(y[:, gau_mask], 2.0, out=out_scores[:, gau_mask])
+            # FIXME: Use a small loop to avoid fancy boolean indexing allocation
+            out_scores[:, gau_mask] = torch.multiply(y[:, gau_mask], 2.0, out=out_scores[:, gau_mask])
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
@@ -1853,8 +1799,6 @@ def accumulate_scores(
         responsibilities,
         scale_params,
         comp_slice: slice,
-        out_ufp,
-        out_g,
 ):
     """
     Accumulate per-sample, per-component mixture scores and ufp sufficient statistics from responsibilities and score functions.
@@ -1870,12 +1814,6 @@ def accumulate_scores(
     scale_params : np.ndarray
         Scale parameters (sbeta) of shape (n_components, n_mixtures).
         Not modified.
-    out_ufp : np.ndarray
-        The output accumulators (ufp) of shape (n_components, n_features).
-        Modified in place.
-    out_g : np.ndarray
-        The output gradients (g) of shape (n_components, n_features).
-        Modified in place.
     
     Returns
     -------
@@ -1891,15 +1829,11 @@ def accumulate_scores(
     assert responsibilities.shape == scores.shape, f"responsibilities shape {responsibilities.shape} != scores shape {scores.shape}"
     assert scale_params.shape[0] >= nw, f"scale_params.shape[0]={scale_params.shape[0]} must be >= nw={nw}"
     assert scale_params.shape[1] == num_mix, f"scale_params.shape[1]={scale_params.shape[1]} != num_mix={num_mix}"
-    assert out_ufp.shape == scores.shape, f"out_ufp shape {out_ufp.shape} != scores shape {scores.shape}"
-    assert out_g.shape == (N1, nw), f"out_g shape {out_g.shape} != (N1={N1}, nw={nw})"
-    
+     
     u = responsibilities
     fp = scores
     sbeta = scale_params
     sbeta_h = sbeta[comp_slice, :] # components for this model
-    ufp = out_ufp
-    g = out_g
     #--------------------------FORTRAN CODE-------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
     # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
@@ -1910,9 +1844,9 @@ def accumulate_scores(
     # !--- get g
     # if update_A:
 
-    torch.multiply(u, fp, out=ufp)
+    ufp = torch.multiply(u, fp)
     # Same as torch.einsum('tnj,nj->tn', ufp, sbeta_h) but faster and we update g inplace
-    g = torch.sum(ufp * sbeta_h, dim=-1, out=g)  # sum over mixtures
+    g = torch.sum(ufp * sbeta_h, dim=-1)
     return ufp, g
 
 def accumulate_c_stats(

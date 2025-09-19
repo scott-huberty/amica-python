@@ -81,7 +81,7 @@ class BatchLoader:
             return iter(())
 
         idx = [slice(None)] * self.X.ndim
-        assert (stop - start) // step == len(self)  # sanity check
+        assert -((stop - start) // -step) == len(self)  # sanity check
         for s in range(start, stop, step):
             e = min(s + step, stop)
             batch_slice = slice(s, e)
@@ -134,11 +134,12 @@ def choose_batch_size(
         - loglik
     - Two arrays of shape (N, n_models):
         - modloglik
-        - v (responsibilities)
+        - v (model responsibilities)
     - Two arrays of shape (N, n_comps)
         - b
         - g
-    - Four arrays of shape (N, n_comps, n_mix): y, z, fp, ufp
+    - Five arrays of shape (N, n_comps, n_mix): u, y, z, fp, ufp
+        - u (mixture responsibilities)
         - y
         - z
         - fp
@@ -150,7 +151,7 @@ def choose_batch_size(
         1                       # loglik
         + 2 * n_models          # modloglik, v
         + 2 * n_comps           # b, g
-        + 4 * n_comps * n_mix   # y, z, fp, ufp
+        + 5 * n_comps * n_mix   # fp, u, ufp, y, z,
         ) * dtype_size
     # Plus small headroom for intermediates
     bytes_per_sample = int(bytes_per_sample * 1.2)
