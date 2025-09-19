@@ -493,7 +493,6 @@ def optimize(
     leave = False
     iter = 1
     numrej = 0
-    N1 = config.batch_size
     do_newton = config.do_newton    
 
     # Initialize accumulators container
@@ -561,7 +560,7 @@ def optimize(
         #=============================== Subsection =====================================
         # === Begin chunk loop ===
         # ===============================================================================
-        batch_loader = BatchLoader(X, axis=-1, batch_size=N1)
+        batch_loader = BatchLoader(X, axis=-1, batch_size=config.batch_size)
         for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
             for h, _ in enumerate(range(config.n_models), start=1):
                 comp_slice = get_component_slice(h, config.n_components)
