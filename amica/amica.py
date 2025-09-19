@@ -10,7 +10,7 @@ from numpy.testing import assert_almost_equal, assert_equal, assert_allclose
 
 import torch
 
-from chunking import BatchLoader, choose_batch_size
+from _batching import BatchLoader, choose_batch_size
 from constants import (
     fix_init,
     mineig,
@@ -562,29 +562,6 @@ def optimize(
 
         accumulators.reset()
 
-        dgm_numer = accumulators.dgm_numer
-        dmu_numer = accumulators.dmu_numer
-        dmu_denom = accumulators.dmu_denom
-        dalpha_numer = accumulators.dalpha_numer
-        dalpha_denom = accumulators.dalpha_denom
-        dbeta_numer = accumulators.dbeta_numer
-        dbeta_denom = accumulators.dbeta_denom
-        drho_numer = accumulators.drho_numer
-        drho_denom = accumulators.drho_denom
-        dc_numer = accumulators.dc_numer
-        dc_denom = accumulators.dc_denom
-        dA = accumulators.dA
-
-        if do_newton:
-            dbaralpha_numer = accumulators.newton.dbaralpha_numer
-            dbaralpha_denom = accumulators.newton.dbaralpha_denom
-            dkappa_numer = accumulators.newton.dkappa_numer
-            dkappa_denom = accumulators.newton.dkappa_denom
-            dlambda_numer = accumulators.newton.dlambda_numer
-            dlambda_denom = accumulators.newton.dlambda_denom
-            dsigma2_numer = accumulators.newton.dsigma2_numer
-            dsigma2_denom = accumulators.newton.dsigma2_denom
-
         # ============================== Subsection =====================================
         # Retrieve arrays for likelihood computations and parameter accumulators
         # ===============================================================================
@@ -721,21 +698,21 @@ def optimize(
 
                 # --- Stochastic Gradient Descent accumulators ---
                 # gm (model weights)
-                dgm_numer[h_index] += vsum
+                accumulators.dgm_numer[h_index] += vsum
                 # c (bias)  
                 accumulate_c_stats(
                     X=data_batch,
                     model_responsibilities=v_h,
                     vsum=vsum,
-                    out_numer=dc_numer[:, h_index],
-                    out_denom=dc_denom[:, h_index],
+                    out_numer=accumulators.dc_numer[:, h_index],
+                    out_denom=accumulators.dc_denom[:, h_index],
                 )
                 # Alpha (mixture weights)
                 accumulate_alpha_stats(
                     usum=usum,
                     vsum=vsum,
-                    out_numer=dalpha_numer[comp_slice, :],
-                    out_denom=dalpha_denom[comp_slice, :],
+                    out_numer=accumulators.dalpha_numer[comp_slice, :],
+                    out_denom=accumulators.dalpha_denom[comp_slice, :],
                 )
                 # Mu (location)
                 accumulate_mu_stats(
@@ -743,8 +720,8 @@ def optimize(
                     y=y,
                     sbeta=sbeta[comp_slice, :],
                     rho=rho[comp_slice, :],
-                    out_numer=dmu_numer[comp_slice, :],
-                    out_denom=dmu_denom[comp_slice, :],
+                    out_numer=accumulators.dmu_numer[comp_slice, :],
+                    out_denom=accumulators.dmu_denom[comp_slice, :],
                 )
                 # Beta (scale/precision)
                 accumulate_beta_stats(
@@ -752,8 +729,8 @@ def optimize(
                     rho=rho[comp_slice, :],
                     ufp=ufp,
                     y=y,
-                    out_numer=dbeta_numer[comp_slice, :],
-                    out_denom=dbeta_denom[comp_slice, :],
+                    out_numer=accumulators.dbeta_numer[comp_slice, :],
+                    out_denom=accumulators.dbeta_denom[comp_slice, :],
                 )
                 # Rho (shape parameter of generalized Gaussian)
                 accumulate_rho_stats(
@@ -762,22 +739,22 @@ def optimize(
                     u=u,
                      usum=usum,
                     epsdble=epsdble,
-                    out_numer=drho_numer[comp_slice, :],
-                    out_denom=drho_denom[comp_slice, :],
+                    out_numer=accumulators.drho_numer[comp_slice, :],
+                    out_denom=accumulators.drho_denom[comp_slice, :],
                 )
                 # --- Newton-Raphson accumulators ---
                 if do_newton and iter >= newt_start:
                     if iter == 50 and batch_indices.start == 0:
-                        assert torch.all(dkappa_numer == 0.0)
-                        assert torch.all(dkappa_denom == 0.0)
+                        assert torch.all(accumulators.newton.dkappa_numer == 0.0)
+                        assert torch.all(accumulators.newton.dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
                     # Sigma^2 accumulators (noise variance)
                     accumulate_sigma2_stats(
                         model_responsibilities=v_h,
                         source_estimates=b,
                         vsum=vsum,
-                        out_numer=dsigma2_numer[:, h_index],
-                        out_denom=dsigma2_denom[:, h_index],
+                        out_numer=accumulators.newton.dsigma2_numer[:, h_index],
+                        out_denom=accumulators.newton.dsigma2_denom[:, h_index],
                     )
                     # Kappa accumulators (curvature terms for A)
                     accumulate_kappa_stats(
@@ -785,21 +762,21 @@ def optimize(
                         fp=fp,
                         sbeta=sbeta[comp_slice, :],
                         usum=usum,
-                        out_numer=dkappa_numer[:, :, h_index],
-                        out_denom=dkappa_denom[:, :, h_index],
-                    )                
+                        out_numer=accumulators.newton.dkappa_numer[:, :, h_index],
+                        out_denom=accumulators.newton.dkappa_denom[:, :, h_index],
+                    )
                     # Lambda accumulators (nonlinearity shape parameter)
                     accumulate_lambda_stats(
                         fp=fp,
                         y=y,
                         u=u,
                         usum=usum,
-                        out_numer=dlambda_numer[:, :, h_index],
-                        out_denom=dlambda_denom[:, :, h_index],
+                        out_numer=accumulators.newton.dlambda_numer[:, :, h_index],
+                        out_denom=accumulators.newton.dlambda_denom[:, :, h_index],
                     )
                     # (dbar)Alpha accumulators
-                    dbaralpha_numer[:, :, h_index] += usum
-                    dbaralpha_denom[:,:, h_index] += vsum
+                    accumulators.newton.dbaralpha_numer[:, :, h_index] += usum
+                    accumulators.newton.dbaralpha_denom[:,:, h_index] += vsum
                 # end if (do_newton and iter >= newt_start)
                 elif not do_newton and iter >= newt_start:
                     raise NotImplementedError()
@@ -812,7 +789,7 @@ def optimize(
                 #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
                 # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
                 #---------------------------------------------------------------
-                dA[:, :, h - 1] += torch.matmul(g.T, b)
+                accumulators.dA[:, :, h - 1] += torch.matmul(g.T, b)
             # end do (h)
         # end do (blk)'
 
