@@ -2334,64 +2334,14 @@ def accum_updates_and_likelihood(
     # !--- add to the cumulative dtmps
     # ...
     #--------------------------FORTRAN CODE-------------------------
-    # call MPI_REDUCE(dgm_numer_tmp,dgm_numer,num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dalpha_numer_tmp,dalpha_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dalpha_denom_tmp,dalpha_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dmu_numer_tmp,dmu_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dmu_denom_tmp,dmu_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dbeta_numer_tmp,dbeta_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dbeta_denom_tmp,dbeta_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(drho_numer_tmp,drho_numer,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(drho_denom_tmp,drho_denom,num_mix*num_comps,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dc_numer_tmp,dc_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    # call MPI_REDUCE(dc_denom_tmp,dc_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    #---------------------------------------------------------------
-    num_comps = config.n_components
-    nw = num_comps
-    num_models = config.n_models
-    do_reject = config.do_reject
-    do_newton = config.do_newton
-
-    A = state.A
-    gm = state.gm
-    mu = state.mu
-    
-    dgm_numer = accumulators.dgm_numer
-    dA = accumulators.dA
-    dAK = accumulators.dAK
-
-    if do_newton:
-        dbaralpha_numer = accumulators.newton.dbaralpha_numer
-        dbaralpha_denom = accumulators.newton.dbaralpha_denom
-        dsigma2_numer = accumulators.newton.dsigma2_numer
-        dsigma2_denom = accumulators.newton.dsigma2_denom
-        dkappa_numer = accumulators.newton.dkappa_numer
-        dkappa_denom = accumulators.newton.dkappa_denom
-        dlambda_numer = accumulators.newton.dlambda_numer
-        dlambda_denom = accumulators.newton.dlambda_denom
+    # call MPI_REDUCE(dgm_numer_tmp,dgm_numer,num_models,MPI_DOUBLE_PRECISION,MPI_S...
+    # ...
     # if update_A:
-    # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-    
-    assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
-    Wtmp_working = torch.zeros((num_comps, num_comps))
-
-    if do_newton and iter >= config.newt_start:
-        #--------------------------FORTRAN CODE-------------------------
-        # call MPI_REDUCE(dbaralpha_numer_tmp,dbaralpha_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dbaralpha_denom_tmp,dbaralpha_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dkappa_numer_tmp,dkappa_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dkappa_denom_tmp,dkappa_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dlambda_numer_tmp,dlambda_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dlambda_denom_tmp,dlambda_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dsigma2_numer_tmp,dsigma2_numer,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        # call MPI_REDUCE(dsigma2_denom_tmp,dsigma2_denom,nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
-        #---------------------------------------------------------------
-        assert dbaralpha_denom[0, 0, 0] == 30504
-
-
+    # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_co...
+    nw = config.n_components
+    Wtmp_working = torch.zeros((config.n_components, config.n_components))
     # if (seg_rank == 0) then
-    # if update_A:
-    if do_newton and iter >= config.newt_start:
+    if config.do_newton and iter >= config.newt_start:
         #--------------------------FORTRAN CODE-------------------------
         # baralpha = dbaralpha_numer / dbaralpha_denom
         # sigma2 = dsigma2_numer / dsigma2_denom
@@ -2399,25 +2349,21 @@ def accum_updates_and_likelihood(
         # lambda = dble(0.0)
         #---------------------------------------------------------------
         # shape (num_mix, num_comps, num_models)
-        baralpha = dbaralpha_numer / dbaralpha_denom
+        baralpha = accumulators.newton.dbaralpha_numer / accumulators.newton.dbaralpha_denom
         # shape (num_comps, num_models)
-        sigma2 = dsigma2_numer / dsigma2_denom
-        kappa = torch.zeros((num_comps, num_models), dtype=torch.float64)
-        lambda_ = torch.zeros((num_comps, num_models), dtype=torch.float64)
-        for h, _ in enumerate(range(num_models), start=1):
-            comp_slice = get_component_slice(h, num_comps)
-            h_idx = h - 1  # For easier indexing
-            # NOTE: VECTORIZED
-            # In Fortran, this is a nested for loop...
-            # for do (h = 1, num_models)
-            # for do j = 1, num_mix
+        sigma2 = accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
+        kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
+        lambda_ = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
+        for h, _ in enumerate(range(config.n_models), start=1):
+            comp_slice = get_component_slice(h, config.n_components)
+            h_idx = h - 1
 
             # These 6 variables don't exist in Fortran.
             baralpha_h = baralpha[:, :, h_idx]
-            dkappa_numer_h = dkappa_numer[:, :, h_idx]
-            dkappa_denom_h = dkappa_denom[:, :, h_idx]
-            dlambda_numer_h = dlambda_numer[:, :, h_idx]
-            dlambda_denom_h = dlambda_denom[:, :, h_idx]
+            dkappa_numer_h = accumulators.newton.dkappa_numer[:, :, h_idx]
+            dkappa_denom_h = accumulators.newton.dkappa_denom[:, :, h_idx]
+            dlambda_numer_h = accumulators.newton.dlambda_numer[:, :, h_idx]
+            dlambda_denom_h = accumulators.newton.dlambda_denom[:, :, h_idx]
             # Get the component indices for this model 'h'
 
             # Calculate dkap for all mixtures 
@@ -2432,11 +2378,10 @@ def accum_updates_and_likelihood(
             # --- Update lambda_ ---
             #--------------------------FORTRAN CODE-------------------------
             # lambda(i,h) = lambda(i,h) + ...
-            #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + dkap * mu(j,comp_list(i,h))**2 )
+            #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + ...
             #---------------------------------------------------------------
             # mu_selected will have shape (num_mix, nw)
-            mu_selected = mu[comp_slice, :]
-
+            mu_selected = state.mu[comp_slice, :]
             # Calculate the full lambda update term
             lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
             lambda_update = torch.sum(baralpha_h * lambda_inner_term, dim=1)
@@ -2446,12 +2391,12 @@ def accum_updates_and_likelihood(
         # end do (h)
         # if (print_debug) then
     # end if (do_newton .and. iter >= newt_start)
-    elif not do_newton and iter >= config.newt_start:
+    elif not config.do_newton and iter >= config.newt_start:
         raise NotImplementedError()  # pragma no cover 
 
     no_newt = False
-    for h, _ in enumerate(range(num_models), start=1):
-        comp_slice = get_component_slice(h, num_comps)
+    for h, _ in enumerate(range(config.n_models), start=1):
+        comp_slice = get_component_slice(h, config.n_components)
         h_index = h - 1
         #--------------------------FORTRAN CODE-------------------------
         # if (print_debug) then
@@ -2459,20 +2404,20 @@ def accum_updates_and_likelihood(
         # call DSCAL(nw*nw,dble(-1.0)/dgm_numer(h),dA(:,:,h),1)
         # dA(i,i,h) = dA(i,i,h) + dble(1.0)
         #---------------------------------------------------------------
-        if do_reject:
+        if config.do_reject:
             raise NotImplementedError()
         else:
-            dA[:, :, h - 1] *= -1.0 / dgm_numer[h - 1]
+            accumulators.dA[:, :, h - 1] *= -1.0 / accumulators.dgm_numer[h - 1]
         
         # basically the same as np.fill_diagonal where fill value is diag + 1.0
-        diag = dA[:, :, h_index].diagonal()
+        diag = accumulators.dA[:, :, h_index].diagonal()
         idx = torch.arange(nw)
-        dA[idx, idx, h_index] = diag + 1.0        
+        accumulators.dA[idx, idx, h_index] = diag + 1.0
         # if (print_debug) then
 
         global posdef
         posdef = True
-        if do_newton and iter >= config.newt_start:
+        if config.do_newton and iter >= config.newt_start:
             # in Fortran, this is a nested loop..
             #--------------------------FORTRAN CODE-------------------------
             # do i = 1,nw ... do k = 1,nw
@@ -2485,10 +2430,10 @@ def accum_updates_and_likelihood(
             # We have to do a numpy -> torch -> numpy round trip here because
             # torch.fill_diagonal only accepts scalar fill values.
             # on-diagonal elements
-            fill_values = dA[:, :, h - 1].diagonal().numpy() / lambda_[:, h - 1].numpy()
+            fill_values = accumulators.dA[:, :, h - 1].diagonal().numpy() / lambda_[:, h - 1].numpy()
             np.fill_diagonal(Wtmp_working.numpy(), fill_values)
             # off-diagonal elements
-            i_indices, k_indices = np.meshgrid(np.arange(nw), np.arange(num_comps), indexing='ij')
+            i_indices, k_indices = np.meshgrid(np.arange(config.n_components), np.arange(config.n_components), indexing='ij')
             off_diag_mask = i_indices != k_indices
             sk1 = sigma2[i_indices, h-1].numpy() * kappa[k_indices, h-1].numpy()
             sk2 = sigma2[k_indices, h-1].numpy() * kappa[i_indices, h-1].numpy()
@@ -2501,32 +2446,31 @@ def accum_updates_and_likelihood(
             condition_mask = positive_mask & off_diag_mask
             if np.any(condition_mask):
                 # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
-                numerator = sk1 * dA.numpy()[i_indices, k_indices, h-1] - dA.numpy()[k_indices, i_indices, h-1]
+                numerator = sk1 * accumulators.dA.numpy()[i_indices, k_indices, h-1] - accumulators.dA.numpy()[k_indices, i_indices, h-1]
                 denominator = sk1 * sk2 - 1.0
                 Wtmp_working.numpy()[condition_mask] = (numerator / denominator)[condition_mask]
             # end if (i == k)
             # end do (k)
             # end do (i)
         # end if (do_newton .and. iter >= newt_start)
-        elif not do_newton and iter >= config.newt_start:
+        elif not config.do_newton and iter >= config.newt_start:
             raise NotImplementedError()  # pragma no cover
-        if ((not do_newton) or (not posdef) or (iter < config.newt_start)):
+        if ((not config.do_newton) or (not posdef) or (iter < config.newt_start)):
             #  Wtmp = dA(:,:,h)
-            assert Wtmp_working.shape == dA[:, :, h - 1].squeeze().shape == (nw, nw)
-            Wtmp_working = (dA[:, :, h - 1].squeeze()).clone()
+            assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
+            Wtmp_working = (accumulators.dA[:, :, h - 1].squeeze()).clone()
             assert Wtmp_working.shape == (32, 32) == (nw, nw)
-        
         #--------------------------FORTRAN CODE-------------------------
         # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
         # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
         #---------------------------------------------------------------
-        dA[:, :, h - 1] = 0.0
-        dA[:, :, h - 1] += torch.matmul(A[:, comp_slice], Wtmp_working)
+        accumulators.dA[:, :, h - 1] = 0.0
+        accumulators.dA[:, :, h - 1] += torch.matmul(state.A[:, comp_slice], Wtmp_working)
     # end do (h)
 
-    zeta = torch.zeros(num_comps, dtype=torch.float64)
-    for h, _ in enumerate(range(num_models), start=1):
-        comp_slice = get_component_slice(h, num_comps)
+    zeta = torch.zeros(config.n_components, dtype=config.dtype)
+    for h, _ in enumerate(range(config.n_models), start=1):
+        comp_slice = get_component_slice(h, config.n_components)
         h_index = h - 1
         # NOTE: I had an indexing bug in the looped version of this code.
         # But it didn't seem to affect the results.
@@ -2535,34 +2479,33 @@ def accum_updates_and_likelihood(
         # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
         # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
         #---------------------------------------------------------------
-        source_columns = gm[h - 1] * dA[:, :, h - 1]
-        dAK[comp_slice, :] += source_columns
-        zeta[comp_slice] += gm[h - 1]
+        source_columns = state.gm[h - 1] * accumulators.dA[:, :, h - 1]
+        accumulators.dAK[comp_slice, :] += source_columns
+        zeta[comp_slice] += state.gm[h - 1]
     
     #--------------------------FORTRAN CODE-------------------------
     # dAk(:,k) = dAk(:,k) / zeta(k)
     # nd(iter,:) = sum(dAk*dAk,1)
     # ndtmpsum = sqrt(sum(nd(iter,:),mask=comp_used) / (nw*count(comp_used)))
     #---------------------------------------------------------------
-    dAK[:,:] /= zeta  # Broadcasting division
+    accumulators.dAK[:,:] /= zeta  # Broadcasting division
     # nd is (num_iters, num_comps) in Fortran, but we only store current iteration
-    nd = torch.sum(dAK * dAK, dim=0)  # Python-only variable name
-    assert nd.shape == (num_comps,)
+    nd = torch.sum(accumulators.dAK * accumulators.dAK, dim=0)  # Python-only variable name
+    assert nd.shape == (config.n_components,)
 
     # comp_used should be 32 length vector of True
     # In Fortran Comp used was always be an all True bollean representation of comp_slice
     # Unless identify_shared_comps was run. I have no plans to implement that.
-    comp_used = torch.ones(num_comps, dtype=bool)
+    comp_used = torch.ones(config.n_components, dtype=bool)
     assert isinstance(comp_used, torch.Tensor)
-    assert comp_used.shape == (num_comps,)
+    assert comp_used.shape == (config.n_components,)
     assert comp_used.dtype == torch.bool
     ndtmpsum = torch.sqrt(torch.sum(nd) / (nw * torch.count_nonzero(comp_used)))
     # end if (update_A)
     
     # if (seg_rank == 0) then
-    if do_reject:
+    if config.do_reject:
         raise NotImplementedError()
-        # LL(iter) = LLtmp2 / dble(numgoodsum*nw)
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
