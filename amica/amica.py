@@ -202,7 +202,7 @@ def amica(
     # Init
     if n_models > 1:
         raise NotImplementedError("n_models > 1 not yet supported")
-    if do_reject:
+    if config.do_reject:
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X.copy()
 
@@ -494,12 +494,7 @@ def optimize(
     iter = 1
     numrej = 0
     N1 = config.batch_size
-    pdftype = config.pdftype
-    do_reject = do_reject = config.do_reject
-    do_newton = config.do_newton
-    newt_start = config.newt_start
-    assert newt_start == 50
-    
+    do_newton = config.do_newton    
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
@@ -544,7 +539,7 @@ def optimize(
         nw = config.n_components
         accumulators.reset()
         # !--------- loop over the segments ----------
-        if do_reject:
+        if config.do_reject:
             raise NotImplementedError()
         else:
             pass
@@ -620,7 +615,7 @@ def optimize(
                 out_loglik=loglik[batch_indices]
             )
 
-            if do_reject:
+            if config.do_reject:
                 raise NotImplementedError()
             else:    
                 # 6. --- Responsibilities for each model ---
@@ -652,7 +647,7 @@ def optimize(
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
 
                 fp = compute_source_scores(
-                    pdftype=pdftype,
+                    pdftype=config.pdftype,
                     y=y,
                     rho=state.rho,
                     comp_slice=comp_slice,
@@ -713,7 +708,7 @@ def optimize(
                     out_denom=accumulators.drho_denom[comp_slice, :],
                 )
                 # --- Newton-Raphson accumulators ---
-                if do_newton and iter >= newt_start:
+                if do_newton and iter >= config.newt_start:
                     if iter == 50 and batch_indices.start == 0:
                         assert torch.all(accumulators.newton.dkappa_numer == 0.0)
                         assert torch.all(accumulators.newton.dkappa_denom == 0.0)
@@ -748,7 +743,7 @@ def optimize(
                     accumulators.newton.dbaralpha_numer[:, :, h_index] += usum
                     accumulators.newton.dbaralpha_denom[:,:, h_index] += vsum
                 # end if (do_newton and iter >= newt_start)
-                elif not do_newton and iter >= newt_start:
+                elif not do_newton and iter >= config.newt_start:
                     raise NotImplementedError()
 
                 # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
@@ -2371,7 +2366,6 @@ def accum_updates_and_likelihood(
     num_models = config.n_models
     do_reject = config.do_reject
     do_newton = config.do_newton
-    newt_start = config.newt_start
 
     A = state.A
     gm = state.gm
@@ -2396,7 +2390,7 @@ def accum_updates_and_likelihood(
     assert dA.shape == (32, 32, 1) == (nw, nw, num_models)
     Wtmp_working = torch.zeros((num_comps, num_comps))
 
-    if do_newton and iter >= newt_start:
+    if do_newton and iter >= config.newt_start:
         #--------------------------FORTRAN CODE-------------------------
         # call MPI_REDUCE(dbaralpha_numer_tmp,dbaralpha_numer,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
         # call MPI_REDUCE(dbaralpha_denom_tmp,dbaralpha_denom,num_mix*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_comm,ierr)
@@ -2412,7 +2406,7 @@ def accum_updates_and_likelihood(
 
     # if (seg_rank == 0) then
     # if update_A:
-    if do_newton and iter >= newt_start:
+    if do_newton and iter >= config.newt_start:
         #--------------------------FORTRAN CODE-------------------------
         # baralpha = dbaralpha_numer / dbaralpha_denom
         # sigma2 = dsigma2_numer / dsigma2_denom
@@ -2467,7 +2461,7 @@ def accum_updates_and_likelihood(
         # end do (h)
         # if (print_debug) then
     # end if (do_newton .and. iter >= newt_start)
-    elif not do_newton and iter >= newt_start:
+    elif not do_newton and iter >= config.newt_start:
         raise NotImplementedError()  # pragma no cover 
 
     no_newt = False
@@ -2493,7 +2487,7 @@ def accum_updates_and_likelihood(
 
         global posdef
         posdef = True
-        if do_newton and iter >= newt_start:
+        if do_newton and iter >= config.newt_start:
             # in Fortran, this is a nested loop..
             #--------------------------FORTRAN CODE-------------------------
             # do i = 1,nw ... do k = 1,nw
@@ -2529,9 +2523,9 @@ def accum_updates_and_likelihood(
             # end do (k)
             # end do (i)
         # end if (do_newton .and. iter >= newt_start)
-        elif not do_newton and iter >= newt_start:
+        elif not do_newton and iter >= config.newt_start:
             raise NotImplementedError()  # pragma no cover
-        if ((not do_newton) or (not posdef) or (iter < newt_start)):
+        if ((not do_newton) or (not posdef) or (iter < config.newt_start)):
             #  Wtmp = dA(:,:,h)
             assert Wtmp_working.shape == dA[:, :, h - 1].squeeze().shape == (nw, nw)
             Wtmp_working = (dA[:, :, h - 1].squeeze()).clone()
@@ -2603,7 +2597,6 @@ def update_params(
     n_models = config.n_models
     nw = config.n_components
     do_newton = config.do_newton
-    newt_start = config.newt_start
     newtrate = config.newtrate
     newt_ramp = config.newt_ramp
     do_reject = config.do_reject
@@ -2660,7 +2653,7 @@ def update_params(
     # !print *, 'updating A ...'; call flush(6)
     # global lrate, rholrate, lrate0, rholrate0, newtrate, newt_ramp
     if (iter < share_start or (iter % share_iter > 5)):
-        if do_newton and (not metrics.no_newt) and (iter >= newt_start):
+        if do_newton and (not metrics.no_newt) and (iter >= config.newt_start):
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
