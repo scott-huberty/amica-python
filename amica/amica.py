@@ -494,23 +494,18 @@ def optimize(
     iter = 1
     numrej = 0
     N1 = config.batch_size
-    n_models = config.n_models
-    n_mixtures = config.n_mixtures
-    num_comps = config.n_components
     pdftype = config.pdftype
     do_reject = do_reject = config.do_reject
     do_newton = config.do_newton
     newt_start = config.newt_start
     assert newt_start == 50
-    num_models = n_models
-    num_mix = n_mixtures
     
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
     # We allocate these separately.
-    Dsum = torch.zeros(num_models, dtype=torch.float64)
-    Dsign = torch.zeros(num_models, dtype=torch.float64)
+    Dsum = torch.zeros(config.n_models, dtype=torch.float64)
+    Dsign = torch.zeros(config.n_models, dtype=torch.float64)
     loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # Log likelihood history
 
@@ -535,7 +530,7 @@ def optimize(
         iter = metrics.iter
 
 
-        for h, _ in enumerate(range(num_models), start=1):
+        for h, _ in enumerate(range(config.n_models), start=1):
             h_index = h - 1
             # The Fortran code computed log|det(W)| indirectly via QR factorization
             # We use slogdet on the original unmixing matrix to get sign and log|det|
@@ -546,7 +541,7 @@ def optimize(
             Dsum[h_index] = logabsdet
             Dsign[h_index] = sign                 
 
-        nw = num_comps
+        nw = config.n_components
         accumulators.reset()
         # !--------- loop over the segments ----------
         if do_reject:
@@ -573,8 +568,8 @@ def optimize(
         # ===============================================================================
         batch_loader = BatchLoader(X, axis=-1, batch_size=N1)
         for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
-            for h, _ in enumerate(range(num_models), start=1):
-                comp_slice = get_component_slice(h, num_comps)
+            for h, _ in enumerate(range(config.n_models), start=1):
+                comp_slice = get_component_slice(h, config.n_components)
                 h_index = h - 1
                 
                 # ===========================================================================
@@ -604,7 +599,7 @@ def optimize(
 
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
                 modloglik = torch.full(
-                    size=(data_batch.shape[1], num_models),
+                    size=(data_batch.shape[1], config.n_models),
                     fill_value=initial,
                     dtype=config.dtype,
                     )
@@ -639,8 +634,8 @@ def optimize(
             # ===========================================================================
             
             # !--- get g, u, ufp
-            for h, _ in enumerate(range(num_models), start=1):
-                comp_slice = get_component_slice(h, num_comps)
+            for h, _ in enumerate(range(config.n_models), start=1):
+                comp_slice = get_component_slice(h, config.n_components)
                 h_index = h - 1
                 #--------------------------FORTRAN CODE-------------------------
                 # vsum = sum( v(bstrt:bstp,h) )
@@ -652,14 +647,9 @@ def optimize(
                 u = compute_weighted_responsibilities(
                     mixture_responsibilities=z,
                     model_responsibilities=v_h,
-                    single_model=(num_models == 1),
+                    single_model=(config.n_models == 1),
                 )
-                N1_actual = data_batch.shape[1]
-                assert u.shape == (N1_actual, nw, num_mix)
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
-                assert usum.shape == (nw, num_mix)  # nw, num_mix
-                
-                assert state.rho.shape == (config.n_components, num_mix)
 
                 fp = compute_source_scores(
                     pdftype=pdftype,
@@ -667,7 +657,6 @@ def optimize(
                     rho=state.rho,
                     comp_slice=comp_slice,
                 )
-                assert fp.shape == (N1_actual, nw, num_mix)
                 # --- Vectorized calculation of ufp and g update ---
 
                 ufp, g = accumulate_scores(
@@ -676,7 +665,6 @@ def optimize(
                     scale_params=state.sbeta,
                     comp_slice=comp_slice,
                 )
-                assert ufp.shape == (N1_actual, nw, num_mix)   
 
                 # --- Stochastic Gradient Descent accumulators ---
                 # gm (model weights)
@@ -777,7 +765,6 @@ def optimize(
 
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
-        # !print *, myrank+1,': finished segment ', seg; call flush(6)
         
         likelihood, ndtmpsum, no_newt = accum_updates_and_likelihood(
             config=config,
@@ -797,9 +784,6 @@ def optimize(
         # init
         startover = False
         numdecs = 0
-        # XXX: checking get_accumulators_and_likelihood set things globally
-        # This should also give an idea of the vars that are assigned within that function.
-        # Iteration 1 checks that are values were set globally and are correct form baseline
              
         # !----- display log likelihood of data
         # if (seg_rank == 0) then
