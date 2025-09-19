@@ -90,6 +90,7 @@ def choose_chunk_size(
         N: int,
         n_comps: int,
         n_mix: int,
+        n_models: int = 1,
         dtype: np.dtype = np.float64,
         memory_fraction: float = 0.25,      # use up to 25% of available memory
         memory_cap: float = 1.5 * 1024**3,  # 1.5 GB absolute ceiling
@@ -115,19 +116,35 @@ def choose_chunk_size(
     Notes
     -----
     The chunk size is primarily determined by the estimated size of the pre-allocated hot
-    buffers in AmicaWorkspace, which scale with the size of n_samples, n_comps, and n_mix:
-    - Two arrays of shape (N, n_comps): b, scratch_2ds
+    buffers in AmicaWorkspace, which scale with the size of n_samples:
+    - One array of shape (N,):
+        - loglik
+    - Two arrays of shape (N, n_models):
+        - modloglik
+        - v (responsibilities)
+    - Two arrays of shape (N, n_comps)
+        - b
+        - g
     - Four arrays of shape (N, n_comps, n_mix): y, z, fp, ufp
+        - y
+        - z
+        - fp
+        - ufp
     """
     dtype_size = np.dtype(dtype).itemsize
     # per-sample cost across pre-allocated buffers in AmicaWorkspace
-    bytes_per_sample = (2 * n_comps + 4 * n_comps * n_mix) * dtype_size
-    # Add small overhead headroom for temporary ops and Python/NumPy overhead
-    bytes_per_sample = int(bytes_per_sample * 1.1)
+    bytes_per_sample = (
+        1                       # loglik
+        + 2 * n_models          # modloglik, v
+        + 2 * n_comps           # b, g
+        + 4 * n_comps * n_mix   # y, z, fp, ufp
+        ) * dtype_size
+    # Plus small headroom for intermediates
+    bytes_per_sample = int(bytes_per_sample * 1.2)
 
     # Pick memory budget
     try:
-        hard_cap = 4 * 1024**3  # 4 GiB to avoid runaway memory use
+        hard_cap = 4 * 1024**3  # 4 GiB (avoid runaway memory use)
         avail_mem = psutil.virtual_memory().available
         mem_cap = min(avail_mem * memory_fraction, hard_cap)
     except Exception:
