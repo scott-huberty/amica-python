@@ -2495,79 +2495,57 @@ def update_params(
         metrics,
         wc,
 ):
-    n_models = config.n_models
     nw = config.n_components
-    do_newton = config.do_newton
-    newtrate = config.newtrate
-    newt_ramp = config.newt_ramp
-    do_reject = config.do_reject
+
     lrate0 = config.lrate
     rholrate0 = config.rholrate
-
-    dgm_numer = accumulators.dgm_numer
-    dalpha_numer = accumulators.dalpha_numer
-    dalpha_denom = accumulators.dalpha_denom
-    dc_numer = accumulators.dc_numer
-    dc_denom = accumulators.dc_denom
-    dmu_numer = accumulators.dmu_numer
-    dmu_denom = accumulators.dmu_denom
-    dbeta_numer = accumulators.dbeta_numer
-    dbeta_denom = accumulators.dbeta_denom
-    drho_numer = accumulators.drho_numer
-    drho_denom = accumulators.drho_denom
-    dAK = accumulators.dAK
-
-    iteration = metrics.iter
     lrate = metrics.lrate
     rholrate = metrics.rholrate
 
 
-    num_models = n_models
     # if (seg_rank == 0) then
     # if update_gm:
-    if do_reject:
+    if config.do_reject:
         raise NotImplementedError()
         # gm = dgm_numer / dble(numgoodsum)
     else:
-        state.gm[:] = dgm_numer / all_blks 
+        state.gm[:] = accumulators.dgm_numer / all_blks 
     # end if (update_gm)
 
     # if update_alpha:
     # assert alpha.shape == (num_comps, num_mix)
-    state.alpha[:, :] = dalpha_numer / dalpha_denom
+    state.alpha[:, :] = accumulators.dalpha_numer / accumulators.dalpha_denom
 
     # if update_c:
     # assert c.shape == (nw, num_models)
-    state.c[:, :] = dc_numer / dc_denom
-    
+    state.c[:, :] = accumulators.dc_numer / accumulators.dc_denom
+
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
-    if (iteration < share_start or (iteration % share_iter > 5)):
-        if do_newton and (iteration >= config.newt_start):
+    if (metrics.iter < share_start or (metrics.iter % share_iter > 5)):
+        if config.do_newton and (metrics.iter >= config.newt_start):
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
-            lrate = min(newtrate, lrate + min(1.0 / newt_ramp, lrate))
+            lrate = min(config.newtrate, lrate + min(1.0 / config.newt_ramp, lrate))
             rholrate = rholrate0
-            state.A -= lrate * dAK
+            state.A -= lrate * accumulators.dAK
         else:            
-            lrate = min(
-                lrate0, lrate + min(1 / newt_ramp, lrate)
-                )
+            lrate = min(lrate0, lrate + min(1 / config.newt_ramp, lrate))
             rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
-            state.A -= lrate * dAK
+            state.A -= lrate * accumulators.dAK
 
         # end if do_newton
     # end if (update_A)
 
     # if update_mu:
-    state.mu += dmu_numer / dmu_denom
-     
+    state.mu += accumulators.dmu_numer / accumulators.dmu_denom
+
     # if update_beta:
-    
-    state.sbeta *= torch.sqrt(dbeta_numer / dbeta_denom)
+
+    state.sbeta *= torch.sqrt(accumulators.dbeta_numer / accumulators.dbeta_denom)
     sbetatmp[:, :] = torch.minimum(torch.tensor(invsigmax), state.sbeta)
 
     state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
@@ -2579,8 +2557,8 @@ def update_params(
             * (
                 1.0
                 - (state.rho / torch.special.psi(1.0 + 1.0 / state.rho))
-            * drho_numer
-            / drho_denom
+            * accumulators.drho_numer
+            / accumulators.drho_denom
         )
     )
     rhotmp = torch.minimum(torch.tensor(maxrho), state.rho) # shape (num_comps, num_mix)
@@ -2605,7 +2583,7 @@ def update_params(
             raise NotImplementedError()            
     # end if (doscaling)
 
-    if (share_comps and (iteration >= share_start) and (iteration-share_iter % share_iter == 0)):
+    if share_comps:
         raise NotImplementedError()
     
     state.W, wc = get_unmixing_matrices(
@@ -2618,7 +2596,6 @@ def update_params(
     )
 
     # if (print_debug) then
-    
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
     # ...
     return lrate, rholrate, state, wc
