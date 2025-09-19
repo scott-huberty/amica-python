@@ -2427,34 +2427,36 @@ def accum_updates_and_likelihood(
             # sk1 = sigma2(i,h) * kappa(k,h)
             # sk2 = sigma2(k,h) * kappa(i,h)
             #---------------------------------------------------------------
-            # We have to do a numpy -> torch -> numpy round trip here because
-            # torch.fill_diagonal only accepts scalar fill values.
             # on-diagonal elements
-            fill_values = accumulators.dA[:, :, h - 1].diagonal().numpy() / lambda_[:, h - 1].numpy()
-            np.fill_diagonal(Wtmp_working.numpy(), fill_values)
+            diag = accumulators.dA[:, :, h - 1].diagonal()
+            fill_values = diag / lambda_[:, h - 1]
+            idx = torch.arange(Wtmp_working.shape[0])
+            Wtmp_working[idx, idx] = fill_values
+
             # off-diagonal elements
-            i_indices, k_indices = np.meshgrid(np.arange(config.n_components), np.arange(config.n_components), indexing='ij')
+            i_indices, k_indices = torch.meshgrid(
+                torch.arange(config.n_components),
+                torch.arange(config.n_components), indexing='ij'
+                )
             off_diag_mask = i_indices != k_indices
-            sk1 = sigma2[i_indices, h-1].numpy() * kappa[k_indices, h-1].numpy()
-            sk2 = sigma2[k_indices, h-1].numpy() * kappa[i_indices, h-1].numpy()
+            sk1 = sigma2[i_indices, h-1] * kappa[k_indices, h-1]
+            sk2 = sigma2[k_indices, h-1] * kappa[i_indices, h-1]
             positive_mask = (sk1 * sk2 > 0.0)
-            if np.any(~positive_mask):
-                posdef = False
-                no_newt = True
-                # This is a placeholder to see if this condition is hit
-                assert 1 == 0
+            if torch.any(~positive_mask):
+                raise RuntimeError(
+                    f"Non-positive definite Hessian encountered in Newton update. "
+                    f"Iteration {iter} model {h}. Please try setting do_newton to False."
+                    )
             condition_mask = positive_mask & off_diag_mask
-            if np.any(condition_mask):
+            if torch.any(condition_mask):
                 # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
-                numerator = sk1 * accumulators.dA.numpy()[i_indices, k_indices, h-1] - accumulators.dA.numpy()[k_indices, i_indices, h-1]
+                numerator = sk1 * accumulators.dA[i_indices, k_indices, h-1] - accumulators.dA[k_indices, i_indices, h-1]
                 denominator = sk1 * sk2 - 1.0
-                Wtmp_working.numpy()[condition_mask] = (numerator / denominator)[condition_mask]
+                Wtmp_working[condition_mask] = (numerator / denominator)[condition_mask]
             # end if (i == k)
             # end do (k)
             # end do (i)
         # end if (do_newton .and. iter >= newt_start)
-        elif not config.do_newton and iter >= config.newt_start:
-            raise NotImplementedError()  # pragma no cover
         if ((not config.do_newton) or (not posdef) or (iter < config.newt_start)):
             #  Wtmp = dA(:,:,h)
             assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
