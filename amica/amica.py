@@ -1670,12 +1670,13 @@ def compute_source_scores(
         out_scores *= rho_h * torch.where(y >= 0, 1.0, -1.0)
         
         # Overwrite with Laplacian/Gaussian score function where needed
+        # This is usually a small loop, and ensures we get a view of the arrays
         if lap_mask.any():
-            # FIXME: Use a small loop to avoid fancy boolean indexing allocation
-            out_scores[:, lap_mask] = torch.sign(y[:, lap_mask], out=out_scores[:, lap_mask])
+            for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
+                out_scores[:, i, j] = torch.sign(y[:, i, j])
         if gau_mask.any():
-            # FIXME: Use a small loop to avoid fancy boolean indexing allocation
-            out_scores[:, gau_mask] = torch.multiply(y[:, gau_mask], 2.0, out=out_scores[:, gau_mask])
+            for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
+                out_scores[:, i, j] = torch.multiply(y[:, i, j], 2.0)
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
@@ -2351,10 +2352,9 @@ def accum_updates_and_likelihood(
             # Calculate dkap for all mixtures 
             # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
             # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
-            dkap = dkappa_numer_h / dkappa_denom_h
             # --- Update kappa ---
-            kappa_update = torch.sum(baralpha_h * dkap, dim=1)
-            kappa[:, h_idx] += kappa_update
+            dkap = dkappa_numer_h / dkappa_denom_h
+            kappa[:, h_idx] += torch.sum(baralpha_h * dkap, dim=1)
 
             # --- Update lambda_ ---
             #--------------------------FORTRAN CODE-------------------------
@@ -2483,7 +2483,6 @@ def accum_updates_and_likelihood(
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
         likelihood = total_LL / (all_blks * nw)
-    # TODO: figure out what needs to be returned here (i.e. it is defined in thic func but rest of the program needs it)
     return (likelihood, ndtmpsum)
 
 
@@ -2496,7 +2495,6 @@ def update_params(
         wc,
 ):
     nw = config.n_components
-
     lrate0 = config.lrate
     rholrate0 = config.rholrate
     lrate = metrics.lrate
@@ -2544,13 +2542,10 @@ def update_params(
     state.mu += accumulators.dmu_numer / accumulators.dmu_denom
 
     # if update_beta:
-
     state.sbeta *= torch.sqrt(accumulators.dbeta_numer / accumulators.dbeta_denom)
     sbetatmp[:, :] = torch.minimum(torch.tensor(invsigmax), state.sbeta)
 
     state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
-
-    # end if (update_beta)
 
     state.rho += (
             rholrate
@@ -2572,7 +2567,6 @@ def update_params(
         # calculate the L2 norm for each column of A and then use it to normalize that
         # column and scale the corresponding columns in mu and sbeta, but only if the
         # norm is positive.
-        # NOTE: this shadows a global variable Anrmk
         Anrmk = torch.linalg.norm(state.A, dim=0)
         positive_mask = Anrmk > 0
         if positive_mask.all():
@@ -2594,7 +2588,6 @@ def update_params(
         W=state.W,
         num_models=config.n_models,
     )
-
     # if (print_debug) then
     # call MPI_BCAST(gm,num_models,MPI_DOUBLE_PRECISION,0,seg_comm,ierr)
     # ...
