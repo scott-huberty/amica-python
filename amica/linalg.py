@@ -173,7 +173,7 @@ def pre_whiten(
     
     Parameters
     ----------
-    X : array, shape (n_features, n_samples)
+    X : array, shape (n_samples, n_features)
         Input data matrix to be whitened. If inplace is True, X will be mutated and
         returned as the whitened data. Otherwise a copy will be made and returned.
     n_components : int or None
@@ -193,7 +193,7 @@ def pre_whiten(
     
     Returns
     -------
-    X : array, shape (n_features, n_samples)
+    X : array, shape (n_samples, n_features)
         The whitened data matrix. This is a copy of the input data if inplace is False,
         otherwise it is the mutated input data itself.
     whitening_matrix : array, shape (n_features, n_features)
@@ -209,17 +209,18 @@ def pre_whiten(
         if do_mean is True, otherwise None.
     """
     dataseg = X if inplace else X.copy()
+    assert dataseg.ndim == 2, f"X must be 2D, got {dataseg.ndim}D"
     # !---------------------------- get the mean --------------------------------
-    nx, n_samples = dataseg.shape
+    n_samples, nx = dataseg.shape
     if n_components is None:
         n_components = nx
     
     # ---- Mean-centering ----
     if do_mean:
         print("getting the mean ...")
-        mean = dataseg.mean(axis=1)
+        mean = dataseg.mean(axis=0)
         # !--- subtract the mean
-        dataseg -= mean[:, None]  # Subtract mean from each channel
+        dataseg -= mean[None, :]  # Subtract mean from each channel
 
     # ---- Covariance ----
     print(" Getting the covariance matrix ...")
@@ -231,7 +232,7 @@ def pre_whiten(
     # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp)...
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
     #------------------------------------------------------------------------
-    Cov = dataseg @ dataseg.T / n_samples
+    Cov = dataseg.T @ dataseg / n_samples
 
     # ---- Eigen-decomposition
     print(f"doing eig nx = {nx}")
@@ -275,7 +276,7 @@ def pre_whiten(
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
-    dataseg = whitening_matrix @ dataseg # Apply the sphering matrix
+    dataseg = dataseg @ whitening_matrix # Apply the sphering matrix
 
     # Lets check dataseg
 
@@ -300,4 +301,5 @@ def pre_whiten(
     
     if not do_mean:
         mean = None
+    assert dataseg.shape == (n_samples, nx), f"dataseg shape {dataseg.shape} != (n_samples, n_features) = ({n_samples}, {nx})"
     return dataseg, whitening_matrix, sldet, Winv, mean

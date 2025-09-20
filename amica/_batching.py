@@ -20,10 +20,10 @@ class BatchLoader:
     of indices.
 
     Example (AMICA shape):
-        X: (n_channels, n_samples)
-        it = BatchLoader(X, axis=1, batch_size=4096)
+        X: (n_samples, n_features)
+        it = BatchLoader(X, axis=0, batch_size=4096)
         for X_blk, sl in it:
-            # X_blk is X[:, sl] where sl is slice(start, end)
+            # X_blk is X[sl, :] where sl is slice(start, end)
             ...
     """
 

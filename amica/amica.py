@@ -160,7 +160,7 @@ def amica(
         warns if the chunk size is below ~8k samples (If the input data is small enough
         to process in one shot, no chunking is used). If you want to enforce no chunking,
         you can override this memory cap by setting batch_size explicitly, e.g. to
-        `X.shape[1]` to process all samples at once.", but note that this may lead to
+        `X.shape[0]` to process all samples at once.", but note that this may lead to
         high memory usage for large datasets.
     whiten : boolean, optional
         If True perform an initial whitening of the data.
@@ -195,14 +195,14 @@ def amica(
     """
     if batch_size is None:
         batch_size = choose_batch_size(
-            N=X.shape[1],
-            n_comps=n_components if n_components is not None else X.shape[0],
+            N=X.shape[0],
+            n_comps=n_components if n_components is not None else X.shape[1],
             n_mix=n_mixtures,
         )
     # Step 1: Create config and state objects (new dataclass approach)
     config = AmicaConfig(
-        n_features=X.shape[0],  # Number of channels (corrected from X.shape[1])
-        n_components=n_components if n_components is not None else X.shape[0],
+        n_features=X.shape[1],  # Number of channels (corrected from X.shape[1])
+        n_components=n_components if n_components is not None else X.shape[1],
         n_models=n_models,
         n_mixtures=n_mixtures,
         max_iter=max_iter,
@@ -402,7 +402,7 @@ def optimize(
     # We allocate these separately.
     Dsum = torch.zeros(config.n_models, dtype=torch.float64)
     Dsign = torch.zeros(config.n_models, dtype=torch.float64)
-    loglik = torch.zeros((X.shape[1],), dtype=torch.float64)  # per sample log likelihood
+    loglik = torch.zeros((X.shape[0],), dtype=torch.float64)  # per sample log likelihood
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # likelihood history
 
     c_start = time.time()
@@ -448,7 +448,7 @@ def optimize(
         #=============================== Subsection =====================================
         # === Begin chunk loop ===
         # ===============================================================================
-        batch_loader = BatchLoader(X, axis=-1, batch_size=config.batch_size)
+        batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
         for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
             for h, _ in enumerate(range(config.n_models), start=1):
                 comp_slice = get_component_slice(h, config.n_components)
@@ -481,7 +481,7 @@ def optimize(
 
                 # 3. --- Aggregate mixture logits into per-sample model log likelihoods
                 modloglik = torch.full(
-                    size=(data_batch.shape[1], config.n_models),
+                    size=(data_batch.shape[0], config.n_models),
                     fill_value=initial,
                     dtype=config.dtype,
                     )
@@ -943,7 +943,7 @@ def accum_updates_and_likelihood(
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        likelihood = total_LL / (X.shape[1] * nw)
+        likelihood = total_LL / (X.shape[0] * nw)
     return (likelihood, ndtmpsum)
 
 
@@ -969,7 +969,7 @@ def update_params(
         raise NotImplementedError()
         # gm = dgm_numer / dble(numgoodsum)
     else:
-        state.gm[:] = accumulators.dgm_numer / X.shape[1] 
+        state.gm[:] = accumulators.dgm_numer / X.shape[0] 
     # end if (update_gm)
 
     # if update_alpha:
@@ -1064,8 +1064,8 @@ if __name__ == "__main__":
     # !-------------------- GET THE DATA ------------------------
     fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
     raw = mne.io.read_raw_eeglab(fpath)
-    
-    dataseg: np.ndarray = raw.get_data() # shape (n_channels, n_times) = (32, 30504)
+
+    dataseg: np.ndarray = raw.get_data().T # shape (n_times, n_channels) = (30504, 32)
     dataseg *= 1e6  # Convert to microvolts
     # Check our value against the Fortran output
 
@@ -1180,7 +1180,7 @@ def get_amica_sources(X, W, S, mean):
       
       Parameters:
       -----------
-      X : ndarray, shape (n_channels, n_times)
+      X : ndarray, shape (n_samples, n_features)
           Input data matrix
       W : ndarray, shape (n_components, n_channels) 
           Unmixing matrix from AMICA (for single model, use W[:,:,0])
@@ -1195,13 +1195,13 @@ def get_amica_sources(X, W, S, mean):
           Independent component time series
       """
       # 1. Remove mean
-      X_centered = X - mean[:, np.newaxis]
+      X_centered = X - mean[None, :]
 
       # 2. Apply sphering
-      X_sphered = S @ X_centered
+      X_sphered = X_centered @ S
 
       # 3. Apply ICA unmixing (this is the key step)
-      sources = W[:, :, 0] @ X_sphered  # For single model, use W[:,:,0]
+      sources = X_sphered @ W[:, :, 0]  # For single model, use W[:,:,0]
 
       return sources
 
@@ -1213,23 +1213,23 @@ sources_fortran = get_amica_sources(
 )
 # Now lets check the correlation between the two sources
 # Taking a subset to avoid memory issues
-corrs = np.zeros(sources_python.shape[0])
-for i in range(sources_python.shape[0]):
+corrs = np.zeros(sources_python.shape[1])
+for i in range(sources_python.shape[1]):
     corr = np.corrcoef(
-        sources_python[i, ::10],
-        sources_fortran[i, ::10]
+        sources_python[::10, i],
+        sources_fortran[::10, i]
     )[0, 1]
     corrs[i] = corr
 assert np.all(np.abs(corr) > 0.99)  # Should be very high correlation
 
 info = mne.create_info(
-    ch_names=[f"IC{i}" for i in range(sources_python.shape[0])],
+    ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
     sfreq=raw.info['sfreq'],
     ch_types='eeg'
 )
 
-raw_src_python = mne.io.RawArray(sources_python, info)
-raw_src_fortran = mne.io.RawArray(sources_fortran, info)
+raw_src_python = mne.io.RawArray(sources_python.T, info)
+raw_src_fortran = mne.io.RawArray(sources_fortran.T, info)
 
 mne.viz.set_browser_backend("matplotlib")
 fig = raw_src_python.plot(scalings=dict(eeg=.3))

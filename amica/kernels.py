@@ -28,7 +28,7 @@ def compute_preactivations(
     
     Parameters
     ----------
-    X : array, shape (n_features, batch_size)
+    X : array, shape (n_samples, n_features)
         Data matrix. Can be the entire input data or a chunk. Not modified.
     unmixing_matrix : array, shape (n_components, n_features)
         Unmixing matrix weights (W) for a single model h, that maps data to sources.
@@ -53,6 +53,7 @@ def compute_preactivations(
     assert wc.ndim == 1, f"wc must be 1D, got {wc.ndim}D"
     assert W.ndim == 2, f"W must be 2D, got {W.ndim}D"
     assert dataseg.ndim == 2, f"dataseg must be 2D, got {dataseg.ndim}D"
+    assert dataseg.shape[1] == W.shape[1], (f"X n_features {dataseg.shape[1]} != W n_features {W.shape[1]}")
 
     if do_reject:
         #--------------------------FORTRAN CODE-------------------------
@@ -70,7 +71,7 @@ def compute_preactivations(
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
         # Same as np.einsum("ft,cf->tc", dataseg, W)
-        b = torch.matmul(dataseg.T, W.T)
+        b = torch.matmul(dataseg, W.T)
     # end else
     # Subtract the weight correction factor
     b -= wc
@@ -685,16 +686,16 @@ def accumulate_c_stats(
     v = model_responsibilities
     assert X.ndim == 2, f"X must be 2D, got {X.ndim}D"
     assert v.ndim == 1, f"model responsibilities must be 1D, got {v.ndim}D"
-    assert X.shape[1] == v.shape[0], (
-        f"X n_samples {X.shape[1]} != model responsibilities length {v.shape[0]}"
+    assert X.shape[0] == v.shape[0], (
+        f"X n_samples {X.shape[0]} != model responsibilities length {v.shape[0]}"
     )
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
-    assert out_numer.shape == (X.shape[0],), (
+    assert out_numer.shape == (X.shape[1],), (
         f"out_numer shape {out_numer.shape} != (n_components,) "
     )
-    assert out_denom.shape == (X.shape[0],), (
+    assert out_denom.shape == (X.shape[1],), (
         f"out_denom shape {out_denom.shape} != (n_components,) "
-        f"= ({X.shape[0]},)"
+        f"= ({X.shape[1]},)"
     )
     if do_reject:
         raise NotImplementedError()
@@ -703,7 +704,7 @@ def accumulate_c_stats(
         #--------------------------FORTRAN CODE-------------------------
         # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
         #---------------------------------------------------------------
-        tmpsum_c_vec = dataseg @ v  # Shape: (n_components,)
+        tmpsum_c_vec = dataseg.T @ v  # Shape: (n_components,)
     out_numer += tmpsum_c_vec
     out_denom += vsum
     return out_numer, out_denom
