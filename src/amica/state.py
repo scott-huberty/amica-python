@@ -37,7 +37,7 @@ import numpy as np
 from numpy.typing import NDArray
 import torch
 
-from constants import rho0
+from amica.constants import rho0
 
 # Removed _alloc helper - using simple np.zeros/np.empty directly like amica.py
 

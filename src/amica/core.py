@@ -10,8 +10,8 @@ from numpy.testing import assert_almost_equal, assert_allclose
 
 import torch
 
-from _batching import BatchLoader, choose_batch_size
-from constants import (
+from amica._batching import BatchLoader, choose_batch_size
+from amica.constants import (
     mineig,
     minlog,
     epsdble,
@@ -33,14 +33,14 @@ from constants import (
     rholratefact,
 )
 
-from state import (
+from amica.state import (
     AmicaConfig,
     AmicaState,
     IterationMetrics,
     get_initial_state,
     initialize_accumulators,
 )
-from _typing import (
+from amica._types import (
     SamplesVector,
     ComponentsVector,
     DataArray2D,
@@ -55,7 +55,7 @@ from _typing import (
     ScalarTensor,
 )
 
-from kernels import (
+from amica.kernels import (
     compute_preactivations,
     _compute_source_densities,
     compute_model_loglikelihood_per_sample,
@@ -75,7 +75,7 @@ from kernels import (
     accumulate_lambda_stats,
 )
 
-from linalg import (
+from amica.linalg import (
     get_unmixing_matrices,
     compute_sign_log_determinant,
     get_initial_model_log_likelihood,
@@ -1057,6 +1057,10 @@ def update_params(
 
 
 if __name__ == "__main__":
+    main()
+
+
+def main():
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
@@ -1174,67 +1178,67 @@ if __name__ == "__main__":
         plt.close(fig)
 
 
-def get_amica_sources(X, W, S, mean):
-      """
-      Apply AMICA transformation to get ICA sources.
-      
-      Parameters:
-      -----------
-      X : ndarray, shape (n_samples, n_features)
-          Input data matrix
-      W : ndarray, shape (n_components, n_channels) 
-          Unmixing matrix from AMICA (for single model, use W[:,:,0])
-      S : ndarray, shape (n_channels, n_channels)
-          Sphering/whitening matrix  
-      mean : ndarray, shape (n_channels,)
-          Channel means
-          
-      Returns:
-      --------
-      sources : ndarray, shape (n_components, n_times)
-          Independent component time series
-      """
-      # 1. Remove mean
-      X_centered = X - mean[None, :]
+    def get_amica_sources(X, W, S, mean):
+        """
+        Apply AMICA transformation to get ICA sources.
+        
+        Parameters:
+        -----------
+        X : ndarray, shape (n_samples, n_features)
+            Input data matrix
+        W : ndarray, shape (n_components, n_channels) 
+            Unmixing matrix from AMICA (for single model, use W[:,:,0])
+        S : ndarray, shape (n_channels, n_channels)
+            Sphering/whitening matrix  
+        mean : ndarray, shape (n_channels,)
+            Channel means
+            
+        Returns:
+        --------
+        sources : ndarray, shape (n_components, n_times)
+            Independent component time series
+        """
+        # 1. Remove mean
+        X_centered = X - mean[None, :]
 
-      # 2. Apply sphering
-      X_sphered = X_centered @ S
+        # 2. Apply sphering
+        X_sphered = X_centered @ S
 
-      # 3. Apply ICA unmixing (this is the key step)
-      sources = X_sphered @ W[:, :, 0]  # For single model, use W[:,:,0]
+        # 3. Apply ICA unmixing (this is the key step)
+        sources = X_sphered @ W[:, :, 0]  # For single model, use W[:,:,0]
 
-      return sources
+        return sources
 
-sources_python = get_amica_sources(
-    dataseg, W, S, mean
-)
-sources_fortran = get_amica_sources(
-    dataseg, W_f, S_f, mean_f
-)
-# Now lets check the correlation between the two sources
-# Taking a subset to avoid memory issues
-corrs = np.zeros(sources_python.shape[1])
-for i in range(sources_python.shape[1]):
-    corr = np.corrcoef(
-        sources_python[::10, i],
-        sources_fortran[::10, i]
-    )[0, 1]
-    corrs[i] = corr
-assert np.all(np.abs(corr) > 0.99)  # Should be very high correlation
+    sources_python = get_amica_sources(
+        dataseg, W, S, mean
+    )
+    sources_fortran = get_amica_sources(
+        dataseg, W_f, S_f, mean_f
+    )
+    # Now lets check the correlation between the two sources
+    # Taking a subset to avoid memory issues
+    corrs = np.zeros(sources_python.shape[1])
+    for i in range(sources_python.shape[1]):
+        corr = np.corrcoef(
+            sources_python[::10, i],
+            sources_fortran[::10, i]
+        )[0, 1]
+        corrs[i] = corr
+    assert np.all(np.abs(corr) > 0.99)  # Should be very high correlation
 
-info = mne.create_info(
-    ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
-    sfreq=raw.info['sfreq'],
-    ch_types='eeg'
-)
+    info = mne.create_info(
+        ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
+        sfreq=raw.info['sfreq'],
+        ch_types='eeg'
+    )
 
-raw_src_python = mne.io.RawArray(sources_python.T, info)
-raw_src_fortran = mne.io.RawArray(sources_fortran.T, info)
+    raw_src_python = mne.io.RawArray(sources_python.T, info)
+    raw_src_fortran = mne.io.RawArray(sources_fortran.T, info)
 
-mne.viz.set_browser_backend("matplotlib")
-fig = raw_src_python.plot(scalings=dict(eeg=.3))
-fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_python.png")
-plt.close(fig)
-fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
-fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
-plt.close(fig)
+    mne.viz.set_browser_backend("matplotlib")
+    fig = raw_src_python.plot(scalings=dict(eeg=.3))
+    fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_python.png")
+    plt.close(fig)
+    fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
+    fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
+    plt.close(fig)

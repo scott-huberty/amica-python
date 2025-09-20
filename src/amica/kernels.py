@@ -2,7 +2,7 @@ import torch
 
 from typing import Optional, Tuple, Literal
 
-from _typing import (
+from amica._types import (
     DataArray2D,
     WeightsArray,
     ComponentsVector,
@@ -14,7 +14,7 @@ from _typing import (
     LikelihoodArray,
 )
 
-from constants import LOG_2, LOG_SQRT_PI
+from amica.constants import LOG_2, LOG_SQRT_PI
 
 def compute_preactivations(
         *,

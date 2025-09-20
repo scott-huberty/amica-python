@@ -3,7 +3,7 @@
 import torch
 import numpy as np
 from typing import Literal, Optional, Tuple
-from _typing import ComponentsVector, DataArray2D, WeightsArray
+from amica._types import ComponentsVector, DataArray2D, WeightsArray
 
 
 def get_unmixing_matrices(
