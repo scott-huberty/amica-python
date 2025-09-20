@@ -43,8 +43,6 @@ from constants import (
     LOG_SQRT_PI,
 )
 
-from seed import MUTMP, SBETATMP as sbetatmp, WTMP
-
 from state import (
     AmicaConfig,
     AmicaState,
@@ -68,8 +66,6 @@ from _typing import (
 )
 
 import line_profiler
-
-sbetatmp = sbetatmp.T
 
 import warnings
 warnings.filterwarnings("error")
@@ -126,6 +122,9 @@ def amica(
         newtrate=1,
         newt_ramp=10,
         batch_size=None,
+        initial_weights=None,
+        initial_scales=None,
+        initial_locations=None,
         do_reject=False,
         random_state=None,
 ):
@@ -167,6 +166,17 @@ def amica(
         If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used
         by `np.random`.
+    initial_weights : array-like, shape (n_components, n_components), optional
+        Initial weights for the mixture components. If None, weights are initialized randomly.
+        This is meant to be used for testing and debugging purposes only.
+    initial_scales : array-like, shape (n_components, n_mixtures), optional
+        Initial scales (sbeta) for the mixture components. If None, scales are
+        initialized randomly. This is meant to be used for testing and debugging purposes
+        only.
+    initial_locations : array-like, shape (n_components, n_mixtures), optional
+        Initial locations (mu) for the mixture components. If None, locations are
+        initialized randomly. This is meant to be used for testing and debugging purposes
+        only.
     """
     if batch_size is None:
         batch_size = choose_batch_size(
@@ -223,6 +233,9 @@ def amica(
         config=config,
         state=state,
         sldet=sldet,
+        initial_weights=initial_weights,
+        initial_scales=initial_scales,
+        initial_locations=initial_locations,
         )
     gm = state_dict["gm"]
     mu = state_dict["mu"]
@@ -386,6 +399,9 @@ def _core_amica(
         config,
         state,
         sldet,
+        initial_weights=None,
+        initial_scales=None,
+        initial_locations=None,
 ):
     """Runs the AMICA algorithm.
     
@@ -394,14 +410,17 @@ def _core_amica(
     X : array, shape (N, T)
         Matrix containing the features that have to be unmixed. N is the
         number of features, T is the number of samples. X has to be centered
-    num_comps : int or None
-        Number of components to use. If None, it is set to the number of
-        features (N) times the number of models.
-    max_iter : int
-        Maximal number of iterations for the algorithm
-    tol : float
-        Tolerance for convergence. Iterations stop when the change in log-likelihood
-        is less than tol.
+    initial_weights : array-like, shape (n_components, n_components), optional
+        Initial weights for the mixture components. If None, weights are initialized
+        randomly. This is meant to be used for testing and debugging purposes only.
+    initial_scales : array-like, shape (n_components, n_mixtures), optional
+        Initial scales (sbeta) for the mixture components. If None, scales are
+        initialized randomly. This is meant to be used for testing and debugging purposes
+        only.
+    initial_locations : array-like, shape (n_components, n_mixtures), optional
+        Initial locations (mu) for the mixture components. If None, locations are
+        initialized randomly. This is meant to be used for testing and debugging purposes
+        only.
     """
     X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype)
     # The API will use n_components but under the hood we'll match the Fortran naming
@@ -423,14 +442,19 @@ def _core_amica(
     # load_mu:
     mu_values = torch.arange(num_mix) - (num_mix - 1) / 2
     state.mu[:, :] = mu_values[None, :]
-    if not fix_init:
-        mutmp = MUTMP.T
-        state.mu[:, :num_mix] = state.mu[:, :num_mix] + 0.05 * (1.0 - 2.0 * mutmp)
-    # load_beta:
-    if fix_init:
-        raise NotImplementedError()
+    if initial_locations is None:
+        raise NotImplementedError("Random initialization of mu not yet implemented")
     else:
-        state.sbeta[:, :num_mix] = 1.0 + 0.1 * (0.5 - sbetatmp)
+        assert initial_locations.shape == (num_comps, num_mix)
+        initial_locations = torch.as_tensor(initial_locations, dtype=torch.float64)
+    state.mu = state.mu + 0.05 * (1.0 - 2.0 * initial_locations)
+    # load_beta:
+    if initial_scales is None:
+        raise NotImplementedError("Random initialization of sbeta not yet implemented")
+    else:
+        assert initial_scales.shape == (num_comps, num_mix)
+        initial_scales = torch.as_tensor(initial_scales, dtype=torch.float64)
+    state.sbeta = 1.0 + 0.1 * (0.5 - initial_scales)
     # load_c:
     state.c.fill_(0.0)
     
@@ -438,7 +462,12 @@ def _core_amica(
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
         comp_slice = get_component_slice(h=h, n_components=num_comps)
-        state.A[:, comp_slice] = 0.01 * (0.5 - WTMP)        
+        if initial_weights is None:
+            raise NotImplementedError("Random initialization of weights not yet implemented")
+        else:
+            assert initial_weights.shape == (num_comps, num_comps)
+            initial_weights = torch.as_tensor(initial_weights, dtype=torch.float64)
+        state.A[:, comp_slice] = 0.01 * (0.5 - initial_weights)
         idx = torch.arange(num_comps)
         cols = h_index * num_comps + idx
         state.A[idx, cols] = 1.0
@@ -2543,7 +2572,7 @@ def update_params(
 
     # if update_beta:
     state.sbeta *= torch.sqrt(accumulators.dbeta_numer / accumulators.dbeta_denom)
-    sbetatmp[:, :] = torch.minimum(torch.tensor(invsigmax), state.sbeta)
+    sbetatmp = torch.minimum(torch.tensor(invsigmax), state.sbeta)
 
     state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
 
@@ -2630,7 +2659,23 @@ if __name__ == "__main__":
     #    end do
     # end if
 
-
+    initial_weights = np.fromfile(
+        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/Wtmp.bin",
+        dtype=np.float64
+        )
+    initial_weights = initial_weights.reshape((32, 32), order="F")
+    initial_scales = np.fromfile(
+        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/sbetatmp.bin",
+        dtype=np.float64
+        )
+    initial_scales = initial_scales.reshape((3, 32), order="F")
+    initial_scales = initial_scales.T  # Match Our dimension standard
+    initial_locations = np.fromfile(
+        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/mutmp.bin",
+        dtype=np.float64
+        )
+    initial_locations = initial_locations.reshape((3, 32), order="F")
+    initial_locations = initial_locations.T  # Match Our dimension standard
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica(
         X=dataseg,
         max_iter=200,
@@ -2638,6 +2683,9 @@ if __name__ == "__main__":
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
+        initial_weights=initial_weights,
+        initial_scales=initial_scales,
+        initial_locations=initial_locations,
         )
     # call write_output
     # The final comparison with Fortran saved outputs.
