@@ -783,6 +783,7 @@ def optimize(
         del b, fp, g, u, ufp, usum, vsum, v, v_h, y, z
 
         likelihood, ndtmpsum = accum_updates_and_likelihood(
+            X=X,
             config=config,
             accumulators=accumulators,
             state=state,
@@ -882,6 +883,7 @@ def optimize(
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
         # the updated lrate & rholrate for the next iteration
         lrate, rholrate, state, wc = update_params(
+            X=X,
             config=config,
             state=state,
             accumulators=accumulators,
@@ -940,113 +942,6 @@ def get_unmixing_matrices(
         wc[:, h - 1] = W[:, :, h - 1] @ c[:, h - 1]
 
     return W, wc
-
-def get_seg_list(raw):
-    """This is a temporary function that somehwat mirrors the Fortran get_seg_list"""
-    blocks_in_sample = raw.n_times  # field_dim
-    num_samples = 1  # num_files
-    all_blks = blocks_in_sample * num_samples
-    # We'll stop here for now. and port more of the Fortran function as we need it.
-    return blocks_in_sample, num_samples, all_blks
-
-
-def get_accumulators_and_likelihood(
-    X,
-    *,
-    config,
-    state,
-    accumulators,
-    metrics,
-    work,
-    sldet,
-    Dsum,
-    wc,
-):
-    """Get accumulators and likelihood for AMICA.
-    
-    Purpose:
-        - E-step: compute per-model/per-component log-likelihoods and responsibilities.
-        - M-step: accumulate sufficient statistics (update numerators/denominators)
-        for parameters like `A`, `mu`, `sbeta`, and `rho`.
-    Notes
-    - This function mirrors the original Fortran implementation. Fortran reference
-        comment blocks are kept verbatim alongside the equivalent Python.
-    """
-    pass
-
-
-def compute_model_e_step(
-        *,
-        X,
-        config,
-        alpha,
-        sbeta,
-        gm,
-        mu,
-        rho,
-        W,
-        buffers,
-        model_index,
-        comp_slice,
-        Dsum,
-        sldet,
-        wc,
-):
-    """Per-Model expectation (E) step.
-    
-    For a single model index, compute the posterior responsiblities
-    (z), latent-variable stats (y), per-sample model evidence (Ptmp),
-    source estimates (b).
-
-    Parameters
-    ----------
-    X : np.ndarray
-        The input data array of shape (n_samples, n_features). This array is not
-        modified.
-    config : AmicaConfig
-        Configuration object containing model parameters. The following attributes are used:
-        - n_components: Number of components (sources).
-        - n_mixtures: Number of mixtures.
-        - pdftype: Probability density function type.
-        - do_reject: Boolean indicating whether to perform rejection.
-    buffers : AmicaWorkspace
-        Workspace buffers for intermediate computations. The following buffers are modified in-place:
-        - b: Per-sample, per-component source estimates, of shape (n_samples, n_features, n_components).
-        - y: Scaled sources of shape (n_samples, n_features, n_mixtures, n_components).
-        - z: Per-mixture log-densities, of shape (n_samples, n_features, n_mixtures, n_components).
-        - Ptmp: Buffer for log-likelihood computations of shape (n_samples, n_components).
-    alpha : np.ndarray
-        Mixture weights of shape (n_mixtures, n_features). This array is not modified.
-    sbeta : np.ndarray
-        Scale parameters of shape (n_mixtures, n_features). This array is not modified.
-    gm : np.ndarray
-        Mixing proportions of shape (n_features,). This array is not modified.
-    mu : np.ndarray
-        Location parameters of shape (n_mixtures, n_features). This array is not modified.
-    rho : np.ndarray
-        Shape parameters of shape (n_mixtures, n_features). This array is not modified.
-    W : np.ndarray
-        Unmixing matrix of shape (n_features, n_features, n_components). 
-    model_index : int
-        Index of the current model being processed. This is used to index arrays
-        with a dimension for models.
-    comp_slice : slice
-        Slice object containing component indices for the current model.
-    Dsum : np.ndarray
-        Precomputed sum of squared data projections for each component values for
-        the current model of shape (n_components,). This array is not modified.
-    sldet : float
-        Precomputed Log-determinant of the unmixing matrix (W) for the current model. Not modified.
-    wc : np.ndarray
-        Precomputed weight correction factors for the current model
-        shape (n_features,). This array is not modified.
-    
-    Returns
-    -------
-    This function modifies the `b`, `y`, `z`, and `Ptmp` buffers in-place,
-    and returns the modified arrays.
-    """
-    pass
 
 
 def compute_sign_log_determinant(
@@ -2338,6 +2233,7 @@ def accumulate_lambda_stats(
 
 def accum_updates_and_likelihood(
         *,
+        X,
         config,
         accumulators,
         state,
@@ -2511,12 +2407,13 @@ def accum_updates_and_likelihood(
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
-        likelihood = total_LL / (all_blks * nw)
+        likelihood = total_LL / (X.shape[1] * nw)
     return (likelihood, ndtmpsum)
 
 
 def update_params(
         *,
+        X,
         config,
         state,
         accumulators,
@@ -2536,7 +2433,7 @@ def update_params(
         raise NotImplementedError()
         # gm = dgm_numer / dble(numgoodsum)
     else:
-        state.gm[:] = accumulators.dgm_numer / all_blks 
+        state.gm[:] = accumulators.dgm_numer / X.shape[1] 
     # end if (update_gm)
 
     # if update_alpha:
@@ -2628,36 +2525,14 @@ if __name__ == "__main__":
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
-    # newtrate = 1.0  # default is 0.5 but config file sets it to 1.0
-    # do_reject = False
-    # lrate = 0.05 # default of program is 0.1 but config file set it to 0.05
-
-    # lrate0 = 0.05 # this is set to the user-passed lrate value in the Fortran code
-    # rholrate = 0.05
-    # rholrate0 = 0.05
-
-
-    # load_sphere = False
-    # do_sphere = True
 
     # !-------------------- GET THE DATA ------------------------
     fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
     raw = mne.io.read_raw_eeglab(fpath)
-    blocks_in_sample, num_samples, all_blks = get_seg_list(raw)
     
     dataseg: np.ndarray = raw.get_data() # shape (n_channels, n_times) = (32, 30504)
     dataseg *= 1e6  # Convert to microvolts
     # Check our value against the Fortran output
-
-    #if (do_reject) then
-    #    allocate(dataseg(1)%gooddata(dataseg(1)%lastdim),stat=ierr); call tststat(ierr)
-    #    allocate(dataseg(1)%goodinds(dataseg(1)%lastdim),stat=ierr); call tststat(ierr)
-    #    dataseg(1)%gooddata = .true.
-    #    dataseg(1)%numgood = dataseg(1)%lastdim
-    #    do j = 1,dataseg(1)%numgood
-    #       dataseg(1)%goodinds(j) = j
-    #    end do
-    # end if
 
     initial_weights = np.fromfile(
         "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/Wtmp.bin",
