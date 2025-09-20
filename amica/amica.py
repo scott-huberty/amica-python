@@ -2691,52 +2691,55 @@ if __name__ == "__main__":
     # The final comparison with Fortran saved outputs.
     # If we set tol to .0001 then we can assert that Amica solves at iteration 106
     # Just like Fortran does.
-    LL_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/LL")
+
+    amica_outdir = "/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug"
+
+    LL_f = np.fromfile(f"{amica_outdir}/LL")
     assert_almost_equal(LL, LL_f, decimal=4)
     assert_allclose(LL, LL_f, atol=1e-4)
 
-    A_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/A")
+    A_f = np.fromfile(f"{amica_outdir}/A")
     A_f = A_f.reshape((32, 32), order="F")
     assert_almost_equal(A, A_f, decimal=2)
 
-    alpha_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/alpha")
+    alpha_f = np.fromfile(f"{amica_outdir}/alpha")
     alpha_f = alpha_f.reshape((3, 32), order="F")
     # Remember that alpha (and sbeta, mu etc) are (num_comps, num_mix) in Python
     assert_almost_equal(alpha, alpha_f.T, decimal=2)
 
-    c_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/c")
+    c_f = np.fromfile(f"{amica_outdir}/c")
     c_f = c_f.reshape((32, 1), order="F")
     assert_almost_equal(c, c_f)
 
 
-    comp_list_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/comp_list", dtype=np.int32)
+    comp_list_f = np.fromfile(f"{amica_outdir}/comp_list", dtype=np.int32)
     # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
     comp_list_f = np.reshape(comp_list_f, (32, 2), order="F")
 
 
-    gm_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/gm")
+    gm_f = np.fromfile(f"{amica_outdir}/gm")
     assert gm == gm_f == np.array([1.])
 
-    mean_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mean")
+    mean_f = np.fromfile(f"{amica_outdir}/mean")
     assert_almost_equal(mean, mean_f)
 
-    mu_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/mu", dtype=np.float64)
+    mu_f = np.fromfile(f"{amica_outdir}/mu", dtype=np.float64)
     mu_f = mu_f.reshape((3, 32), order="F")
     assert_almost_equal(mu, mu_f.T, decimal=0)
 
-    rho_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/rho", dtype=np.float64)
+    rho_f = np.fromfile(f"{amica_outdir}/rho", dtype=np.float64)
     rho_f = rho_f.reshape((3, 32), order="F")
     assert_almost_equal(rho, rho_f.T, decimal=2)
 
-    S_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/S", dtype=np.float64)
+    S_f = np.fromfile(f"{amica_outdir}/S", dtype=np.float64)
     S_f = S_f.reshape((32, 32,), order="F")
     assert_almost_equal(S, S_f)
 
-    sbeta_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/sbeta", dtype=np.float64)
+    sbeta_f = np.fromfile(f"{amica_outdir}/sbeta", dtype=np.float64)
     sbeta_f = sbeta_f.reshape((3, 32), order="F")
     assert_almost_equal(sbeta, sbeta_f.T, decimal=1)
 
-    W_f = np.fromfile("/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug/W", dtype=np.float64)
+    W_f = np.fromfile(f"{amica_outdir}/W", dtype=np.float64)
     W_f = W_f.reshape((32, 32, 1), order="F")
     assert_almost_equal(W, W_f, decimal=2)
 
