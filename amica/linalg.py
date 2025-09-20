@@ -276,9 +276,8 @@ def pre_whiten(
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
-    dataseg = dataseg @ whitening_matrix # Apply the sphering matrix
+    dataseg = np.matmul(dataseg, whitening_matrix, out=dataseg)  # In-place if possible
 
-    # Lets check dataseg
 
 
     nw = numeigs # Number of weights, as per Fortran code
