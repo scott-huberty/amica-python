@@ -416,6 +416,7 @@ def optimize(
             lrate=lrate,
             rholrate=rholrate,
         )
+        doing_newton = do_newton and (iteration >= config.newt_start)
 
         # !----- get determinants
         for h, _ in enumerate(range(config.n_models), start=1):
@@ -543,10 +544,15 @@ def optimize(
                     comp_slice=comp_slice,
                 )
 
+                # For SGD, fp only exists to get ufp. Lets overwrite it to save memory.
                 ufp = precompute_weighted_scores(
-                    scores=fp,
                     weighted_responsibilities=u,
+                    scores=fp,
+                    out_ufp=fp if not doing_newton else None,
                 )
+                if not doing_newton:
+                    fp = None; del fp  # End of life. ufp owns that memory now
+                
                 g = compute_scaled_scores(
                     weighted_scores=ufp,
                     scales=state.sbeta[comp_slice, :], 
@@ -603,7 +609,7 @@ def optimize(
                     if iteration == 50 and batch_indices.start == 0:
                         assert torch.all(accumulators.newton.dkappa_numer == 0.0)
                         assert torch.all(accumulators.newton.dkappa_denom == 0.0)
-                    # NOTE: Fortran computes dsigma_* for in all iters, but thats unnecessary
+                    # NOTE: Fortran computes dsigma_* for all iters, but its unnecessary
                     # Sigma^2 accumulators (noise variance)
                     accumulate_sigma2_stats(
                         model_responsibilities=v_h,
@@ -651,7 +657,9 @@ def optimize(
         # !$OMP END PARALLEL
         
         # End of these lifetimes
-        del b, fp, g, u, ufp, usum, vsum, v, v_h, y
+        del b, g, u, ufp, usum, vsum, v, v_h, y
+        if doing_newton:
+            del fp  # already deleted if not doing_newton
 
         likelihood, ndtmpsum = accum_updates_and_likelihood(
             X=X,
