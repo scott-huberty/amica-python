@@ -208,6 +208,10 @@ def compute_source_densities(
         # Precompute logs (reused in all 3 logprob functions)
         log_mixture_weights = torch.log(alpha_h)  # shape: (nw, num_mix)
         log_scales = torch.log(sbeta_h)           # shape: (nw, num_mix)
+        if torch.any(~torch.isfinite(log_mixture_weights)):
+            raise RuntimeError("Non-finite log mixture weights encountered.")
+        if torch.any(~torch.isfinite(log_scales)):
+            raise RuntimeError("Non-finite log scales encountered.")
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
         lap_mask = (torch.isclose(rho_h, torch.tensor(1.0, dtype=torch.float64), atol=1e-12))

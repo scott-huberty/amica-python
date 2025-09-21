@@ -526,11 +526,13 @@ def optimize(
                 v_h = v[:, h_index] #  select responsibilities for this model
                 vsum = v_h.sum()
 
+                # NOTE: u is a view of z, so changes to u will affect z (and vice versa)
                 u = compute_weighted_responsibilities(
                     mixture_responsibilities=z,
                     model_responsibilities=v_h,
                     single_model=(config.n_models == 1),
                 )
+                z = None; del z # guard against use of stale name. u owns that memory now
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
 
                 fp = compute_source_scores(
@@ -646,7 +648,7 @@ def optimize(
         # !$OMP END PARALLEL
         
         # End of these lifetimes
-        del b, fp, g, u, ufp, usum, vsum, v, v_h, y, z
+        del b, fp, g, u, ufp, usum, vsum, v, v_h, y
 
         likelihood, ndtmpsum = accum_updates_and_likelihood(
             X=X,
@@ -975,10 +977,14 @@ def update_params(
     # if update_alpha:
     # assert alpha.shape == (num_comps, num_mix)
     state.alpha[:, :] = accumulators.dalpha_numer / accumulators.dalpha_denom
+    if torch.any(~torch.isfinite(state.alpha)):
+        raise RuntimeError("Non-finite alpha encountered during update.")
 
     # if update_c:
     # assert c.shape == (nw, num_models)
     state.c[:, :] = accumulators.dc_numer / accumulators.dc_denom
+    if torch.any(~torch.isfinite(state.c)):
+        raise RuntimeError("Non-finite c encountered during update.")
 
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
@@ -1002,12 +1008,16 @@ def update_params(
 
     # if update_mu:
     state.mu += accumulators.dmu_numer / accumulators.dmu_denom
+    if torch.any(~torch.isfinite(state.mu)):
+        raise RuntimeError("Non-finite mu encountered during update.")
 
     # if update_beta:
     state.sbeta *= torch.sqrt(accumulators.dbeta_numer / accumulators.dbeta_denom)
     sbetatmp = torch.minimum(torch.tensor(invsigmax), state.sbeta)
-
     state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
+    if torch.any(~torch.isfinite(state.sbeta)):
+        raise RuntimeError("Non-finite sbeta encountered during update.")
+
 
     state.rho += (
             rholrate
