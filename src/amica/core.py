@@ -495,7 +495,7 @@ def optimize(
                 # 4. -- Responsibilities within each component ---
                 # !--- get normalized z
                 z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-                z0 = None  # guard against use of stale name
+                z0 = None; del z0  # guard against use of stale name. z owns that memory
             # end do (h)
 
             # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
@@ -510,7 +510,10 @@ def optimize(
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
                     modloglik=modloglik,
+                    out=modloglik,  # reuse modloglik memory
                     )
+                modloglik = None; del modloglik  # Guard. v owns that memory now
+            
             # ================================ M-STEP ===================================
             # === Maximization-step: Parameter accumulators ===
             # - Update parameters based on current responsibilities

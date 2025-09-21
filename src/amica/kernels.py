@@ -401,7 +401,7 @@ def compute_total_loglikelihood_per_sample(
 
 
 def compute_model_responsibilities(
-        *, modloglik: LikelihoodArray,
+        *, modloglik: LikelihoodArray, out: Optional[LikelihoodArray] = None
         ) -> LikelihoodArray:
     """
     Compute model responsibilities via softmax over models.
@@ -424,18 +424,23 @@ def compute_model_responsibilities(
     assert modloglik.ndim == 2, (
         f"Expected 2D array (n_samples, n_models) for modloglik, got {modloglik.shape}"
     )
-    num_models = modloglik.shape[1]
-    assert num_models >= 1, f"modloglik must have at least one model. Got {num_models}"
-    v = torch.empty_like(modloglik)
+    if out is not None:
+        assert out.size() == modloglik.size(), (
+            f"out shape {out.shape} != modloglik shape {modloglik.shape}"
+        )
+        v = out
+    else:
+        v = torch.empty_like(modloglik)
     #--------------------------FORTRAN CODE-------------------------
     # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
     #---------------------------------------------------------------
 
+    num_models = modloglik.shape[1]
     # fast-path: if only one model, skip softmax and set responsibilities to 1
     if num_models == 1:
         v.fill_(1.0)
     else:
-        v = torch.softmax(modloglik, dim=-1) # across models
+        v = torch.softmax(modloglik, dim=-1, out=out) # across models
     return v
 
 
