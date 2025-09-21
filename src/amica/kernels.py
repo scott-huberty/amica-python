@@ -78,7 +78,7 @@ def compute_preactivations(
     return b
 
 
-def _compute_source_densities(
+def compute_source_densities(
         *,
         pdftype: int,
         b: SourceArray2D,
@@ -136,7 +136,7 @@ def _compute_source_densities(
     mixture component.
     """
     N1 = b.shape[0]
-    nw = comp_slice.stop - comp_slice.start
+    nw = b.shape[1]
     num_mix = alpha.shape[1]
     
     # Shape assertions for new dimension standard
@@ -270,8 +270,9 @@ def compute_model_loglikelihood_per_sample(
     log_densities : array, shape (N1, nw, num_mix)
         Per-sample, per-component, per-mixture log-densities.
     out_modloglik : array, shape (N1,)
-        Output array for per-sample log-likelihood for this model. If None,
-        a new array is allocated. This array is mutated in-place.
+        Output array for per-sample log-likelihood for this model, mutated in-place.
+        If None, a new array is allocated, but note that AMICA expects this array
+        to be pre-filled with an initial value. See get_initial_model_log_likelihood.
     """
     assert log_densities.ndim == 3, f"log_densities must be 3D, got {log_densities.ndim}D"
     N1 = log_densities.shape[0]
@@ -324,7 +325,7 @@ def compute_mixture_responsibilities(
         # Use z as workspace: log-densities mutates into responsibilities
         z = log_densities
     else:
-        z = log_densities.copy()
+        z = log_densities.clone()
     # fast-path: if only 1 mixture, skip softmax and set responsibilities to 1
     if num_mix == 1:
         z.fill_(1.0)
@@ -523,7 +524,6 @@ def compute_source_scores(
     assert y.shape == (N1, nw, num_mix), f"y shape {y.shape} != (N1, nw, num_mix)"
     assert rho.shape[0] >= nw, f"rho.shape[0]={rho.shape[0]} must be >= nw={nw}"
     assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
-    assert comp_slice.stop - comp_slice.start == nw, f"len(comp_slice)={comp_slice.stop - comp_slice.start} != nw={nw}"
 
     # !--- get fp, zfp
     if pdftype == 0:

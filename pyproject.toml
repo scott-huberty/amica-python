@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amica-python"
+version = "0.1.0"
+description = "Adaptive Mixture ICA in Python"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "scikit-learn>=1.7.0",
+    "torch>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest",]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["amica*"]
+exclude = ["amica.tests*"]

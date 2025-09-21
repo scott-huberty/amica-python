@@ -57,7 +57,7 @@ from amica._types import (
 
 from amica.kernels import (
     compute_preactivations,
-    _compute_source_densities,
+    compute_source_densities,
     compute_model_loglikelihood_per_sample,
     compute_mixture_responsibilities,
     compute_total_loglikelihood_per_sample,
@@ -468,7 +468,7 @@ def optimize(
                 )
                 
                 # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
-                y, z = _compute_source_densities(
+                y, z = compute_source_densities(
                     pdftype=config.pdftype,
                     b=b,
                     sbeta=state.sbeta,
