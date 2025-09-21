@@ -583,61 +583,94 @@ def compute_source_scores(
     return out_scores
 
 
-def accumulate_scores(
+def precompute_weighted_scores(
         *,
-        scores,
-        responsibilities,
-        scale_params,
-        comp_slice: slice,
-):
+        scores: SourceArray3D,
+        weighted_responsibilities: SourceArray3D,
+        out_ufp: Optional[SourceArray3D] = None,
+) -> SourceArray3D:
     """
-    Accumulate per-sample, per-component mixture scores and ufp sufficient statistics from responsibilities and score functions.
+    Compute the weighted score function and g update for the current model.
+
+    This is just the element-wise multiplication of the score function (fp) with the
+    weighted responsibilities (u). AMICA pre-computes this because it is used about 5
+    times in the M-step (i.e. it avoids recomputing the same thing multiple times).
+
+    Parameters
+    ----------
+    scores : torch.Tensor
+        The score function (fp) of shape (n_samples, n_components, n_mixtures).
+        Not modified.
+    weighted_responsibilities : torch.Tensor
+        The responsibilities (u) of shape (n_samples, n_components, n_mixtures).
+        Not modified.
+    out_ufp: torch.Tensor or None
+        Optional output buffer to write the weighted scores into. If None, a new
+        array is allocated. If provided, must be of shape (n_samples, n_components,
+        n_mixtures), and this array will be modified in-place and returned. E.g. AMICA
+        uses the `fp` array as workspace for this when newton updates are not done
+        (e.g. do_newton=False, or do_newton=True but iter < newt_start), because ufp
+        and fp lifetimes only overlap when newton updates are done.
+
+    Returns
+    -------
+    out_ufp : torch.Tensor
+        The score function weighted by model-weighted mixture-responsibilities.
+        shape (n_samples, n_components, n_mixtures), modified in place.
+    """
+    u = weighted_responsibilities
+    fp = scores
+    assert u.shape == fp.shape, (
+        f"responsibilities shape {u.shape} != scores shape {fp.shape}"
+    )
+    if out_ufp is not None:
+        assert out_ufp.shape == fp.shape, (
+            f"out_ufp shape {out_ufp.shape} != scores shape {fp.shape}"
+        )
+    #--------------------------FORTRAN CODE-------------------------
+    # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
+    #---------------------------------------------------------------
+    ufp = torch.multiply(u, fp, out=out_ufp)
+    return ufp
+
+
+def compute_scaled_scores(
+        *, weighted_scores: SourceArray3D, scales: ParamsArray
+        ) -> SourceArray2D:
+    """
+    Weigh ufp by the per-component mixture scale parameters (sbeta).
     
     Parameters
     ----------
-    scores : np.ndarray
-        The score function (fp) of shape (n_samples, n_components, n_mixtures).
-        Not modified.
-    responsibilities : np.ndarray
-        The responsibilities (u) of shape (n_samples, n_components, n_mixtures).
-        Not modified.
-    scale_params : np.ndarray
-        Scale parameters (sbeta) of shape (n_components, n_mixtures).
-        Not modified.
+    weighted_scores : torch.Tensor
+        The mixture‑responsibility–weighted scores (ufp)
+        shape (n_samples, n_components, n_mixtures). Not modified.
+    scales : torch.Tensor
+        Scale parameters (sbeta) of shape (n_components, n_mixtures). Not modified.
     
     Returns
     -------
-    out_ufp : np.ndarray
-        The score function weighted by model-weighted mixture-responsibilities.
-        shape (n_samples, n_components, n_mixtures), modified in place.
-    out_g : np.ndarray
-        out_ufp further weighted by the per-component mixture scale parameters, summed
-        over mixtures shape (n_samples, n_components), modified in place.
+    torch.Tensor
+        The scaled scores (g) of shape (n_samples, n_components), i.e. ufp further
+        weighted by the per-component summed-mixture scale parameters.
+    
+    Notes
+    -----
+    Fortran reference:
+        call DSCAL(nw*tblksize,dble(0.0),g(bstrt:bstp,:),1)
+        g(bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
     """
-    # Shape assertions for new dimension standard
-    N1, nw, num_mix = scores.shape
-    assert responsibilities.shape == scores.shape, f"responsibilities shape {responsibilities.shape} != scores shape {scores.shape}"
-    assert scale_params.shape[0] >= nw, f"scale_params.shape[0]={scale_params.shape[0]} must be >= nw={nw}"
-    assert scale_params.shape[1] == num_mix, f"scale_params.shape[1]={scale_params.shape[1]} != num_mix={num_mix}"
-     
-    u = responsibilities
-    fp = scores
-    sbeta = scale_params
-    sbeta_h = sbeta[comp_slice, :] # components for this model
-    #--------------------------FORTRAN CODE-------------------------
-    # for (i = 1, nw) ... for (j = 1, num_mix)
-    # ufp(bstrt:bstp) = u(bstrt:bstp) * fp(bstrt:bstp)
-    # ufp[bstrt-1:bstp] = u[bstrt-1:bstp] * fp[bstrt-1:bstp]
-    # (bstrt:bstp,i) = g(bstrt:bstp,i) + sbeta(j,comp_list(i,h)) * ufp(bstrt:bstp)
-    #---------------------------------------------------------------
-    # === Subsection: Accumulate Statistics for Parameter accumulators ===
-    # !--- get g
-    # if update_A:
+    sbeta = scales
+    ufp = weighted_scores
+    assert ufp.ndim == 3, f"ufp must be 3D, got {ufp.ndim}D"
+    assert sbeta.ndim == 2, f"sbeta must be 2D, got {sbeta.ndim}D"
+    assert ufp[0,:,:].squeeze().shape == sbeta.shape, (
+        f"ufp shape {ufp.shape} and sbeta shape {sbeta.shape} are incompatible"
+    )
+    g = torch.sum(ufp * sbeta, dim=-1)
+    return g
 
-    ufp = torch.multiply(u, fp)
-    # Same as torch.einsum('tnj,nj->tn', ufp, sbeta_h) but faster and we update g inplace
-    g = torch.sum(ufp * sbeta_h, dim=-1)
-    return ufp, g
+
 
 def accumulate_c_stats(
         *,

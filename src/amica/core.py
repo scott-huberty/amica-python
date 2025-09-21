@@ -64,7 +64,8 @@ from amica.kernels import (
     compute_model_responsibilities,
     compute_weighted_responsibilities,
     compute_source_scores,
-    accumulate_scores,
+    precompute_weighted_scores,
+    compute_scaled_scores,
     accumulate_c_stats,
     accumulate_alpha_stats,
     accumulate_mu_stats,
@@ -542,11 +543,13 @@ def optimize(
                     comp_slice=comp_slice,
                 )
 
-                ufp, g = accumulate_scores(
+                ufp = precompute_weighted_scores(
                     scores=fp,
-                    responsibilities=u,
-                    scale_params=state.sbeta,
-                    comp_slice=comp_slice,
+                    weighted_responsibilities=u,
+                )
+                g = compute_scaled_scores(
+                    weighted_scores=ufp,
+                    scales=state.sbeta[comp_slice, :], 
                 )
 
                 # --- Stochastic Gradient Descent accumulators ---
@@ -590,7 +593,7 @@ def optimize(
                     y=y,
                     rho=state.rho[comp_slice, :],
                     u=u,
-                     usum=usum,
+                    usum=usum,
                     epsdble=epsdble,
                     out_numer=accumulators.drho_numer[comp_slice, :],
                     out_denom=accumulators.drho_denom[comp_slice, :],

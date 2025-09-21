@@ -14,7 +14,8 @@ from amica.kernels import (
     compute_mixture_responsibilities,
     compute_weighted_responsibilities,
     compute_source_scores,
-    accumulate_scores,
+    precompute_weighted_scores,
+    compute_scaled_scores,
 )
 
 
@@ -158,16 +159,23 @@ def test_compute_source_scores(y, rho):
     assert_allclose(fp[:2, 0, 0], [1.3303084860977532, 1.3471862364681724])
 
 
-@pytest.mark.parametrize("fp, u, sbeta", [(fp, u, sbeta)])
-def test_accumulate_scores(fp, u, sbeta):
-    """Test the accumulate_scores function."""
-    ufp, g = accumulate_scores(
-        scores=fp, # TODO: change param name to scores
-        responsibilities=u, # TODO: change param name to weighted_responsibilities
-        scale_params=sbeta,  # TODO: change param name to scales
-        comp_slice=slice(None)  # TODO: remove this param, pass in sliced tensors instead
+@pytest.mark.parametrize("u, fp", [(u, fp)])
+def test_precompute_weighted_scores(u, fp):
+    """Test the precompute_weighted_scores function."""
+    ufp = precompute_weighted_scores(
+        scores=fp,
+        weighted_responsibilities=u,
         )
     assert ufp.size() == (93, 32, 3)
-    assert g.size() == (93, 32)
     assert_allclose(ufp[:2, 0, 0], [0.3954568795498768, 0.3878709346775057])
+
+
+@pytest.mark.parametrize("u, fp, sbeta", [(u, fp, sbeta)])
+def test_compute_scaled_scores(u, fp, sbeta):
+    """Test the compute_scaled_scores function."""
+    g = compute_scaled_scores(
+        weighted_scores=u * fp,
+        scales=sbeta, 
+        )
+    assert g.size() == (93, 32)
     assert_allclose(g[:2, 0], [-0.24500792120056003, -0.243892663692031])
