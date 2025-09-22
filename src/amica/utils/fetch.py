@@ -4,7 +4,6 @@ for AMICA Python comparisons.
 """
 
 from pathlib import Path
-import pooch
 
 
 # Cache directory for all test data
@@ -45,6 +44,8 @@ def fetch_test_data() -> Path:
         Keys: "set", "fdt"
         Values: pathlib.Path objects to the cached files
     """
+    import pooch
+
     for _, (fname, known_hash) in EEGLAB_FILES.items():
         url = f"{EEGLAB_BASE}{fname}"
         fpath = pooch.retrieve(
@@ -77,6 +78,8 @@ def fetch_fortran_outputs() -> Path:
     list of pathlib.Path
         Paths to the extracted files inside the tarball.
     """
+    import pooch
+
     unpack = pooch.Untar(extract_dir="amicaout_test")
     outputs_dir = pooch.retrieve(
         url=FORTRAN_URL,
