@@ -83,6 +83,7 @@ from amica.linalg import (
     pre_whiten,
 )
 
+from amica.utils import fetch_datasets
 import warnings
 warnings.filterwarnings("error")
 
@@ -120,7 +121,7 @@ def get_component_slice(h: int, n_components: int) -> slice:
 # - if we never chunk process the M-step, then numer/denom accumulators are once per iteration
 #   so we can assign directly instead of accumulating e.g. dalpha_denom.fill(vsum)
 
-def amica(
+def fit_amica(
         X,
         *,
         whiten=True,
@@ -1090,7 +1091,8 @@ def main():
     rng = np.random.default_rng(seed_array)
 
     # !-------------------- GET THE DATA ------------------------
-    fpath = Path("/Users/scotterik/devel/projects/amica-python/amica/eeglab_data.set")
+    data_path = fetch_datasets()
+    fpath = data_path / "eeglab_data.set"
     raw = mne.io.read_raw_eeglab(fpath)
 
     dataseg: np.ndarray = raw.get_data().T # shape (n_times, n_channels) = (30504, 32)
@@ -1114,7 +1116,7 @@ def main():
         )
     initial_locations = initial_locations.reshape((3, 32), order="F")
     initial_locations = initial_locations.T  # Match Our dimension standard
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica(
+    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
         X=dataseg,
         max_iter=200,
         tol=1e-7,
@@ -1130,8 +1132,8 @@ def main():
     # If we set tol to .0001 then we can assert that Amica solves at iteration 106
     # Just like Fortran does.
 
-    amica_outdir = "/Users/scotterik/devel/projects/amica-python/amica/amicaout_debug"
-
+    amica_outdir = data_path / "amicaout_test"
+    
     LL_f = np.fromfile(f"{amica_outdir}/LL")
     assert_almost_equal(LL, LL_f, decimal=4)
     assert_allclose(LL, LL_f, atol=1e-4)
