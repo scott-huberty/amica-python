@@ -42,6 +42,74 @@ def load_initial_parameters(fortran_outdir, *, n_components, n_mixtures):
     return initial_weights, initial_scales, initial_locations
 
 
+def load_fortran_results(fortran_outdir, *, n_components, n_mixtures):
+    """Load results from a completed Fortran AMICA run for comparison."""
+    fortran_outdir = Path(fortran_outdir)
+    assert fortran_outdir.exists()
+    assert fortran_outdir.is_dir()
+
+    # Channel means
+    mean_f = np.fromfile(f"{fortran_outdir}/mean")
+
+    # Sphering matrix
+    S_f = np.fromfile(f"{fortran_outdir}/S", dtype=np.float64)
+    S_f = S_f.reshape((n_components, n_components), order="F")
+
+    # Unmixing matrix
+    W_f = np.fromfile(f"{fortran_outdir}/W", dtype=np.float64)
+    W_f = W_f.reshape((n_components, n_components, 1), order="F")
+
+    # Mixing matrix
+    A_f = np.fromfile(f"{fortran_outdir}/A")
+    A_f = A_f.reshape((n_components, n_components), order="F")
+
+    # Bias term
+    c_f = np.fromfile(f"{fortran_outdir}/c")
+    c_f = c_f.reshape((n_components, 1), order="F")
+
+    # Log-likelihood
+    LL_f = np.fromfile(f"{fortran_outdir}/LL")
+
+    # Mixture model parameters
+    # Fortran order is n_mixtures x n_components. Ours is n_components x n_mixtures
+    alpha_f = np.fromfile(f"{fortran_outdir}/alpha")
+    alpha_f = alpha_f.reshape((n_mixtures, n_components), order="F").T
+    # Remember that alpha (and sbeta, mu etc) are (num_comps, num_mix) in Python
+
+    # Scale parameters
+    sbeta_f = np.fromfile(f"{fortran_outdir}/sbeta", dtype=np.float64)
+    sbeta_f = sbeta_f.reshape((n_mixtures, n_components), order="F").T
+
+    # Location parameters
+    mu_f = np.fromfile(f"{fortran_outdir}/mu", dtype=np.float64)
+    mu_f = mu_f.reshape((n_mixtures, n_components), order="F").T
+
+    rho_f = np.fromfile(f"{fortran_outdir}/rho", dtype=np.float64)
+    rho_f = rho_f.reshape((n_mixtures, n_components), order="F").T
+
+
+    comp_list_f = np.fromfile(f"{fortran_outdir}/comp_list", dtype=np.int32)
+    # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
+    comp_list_f = np.reshape(comp_list_f, (n_components, 2), order="F")
+
+    gm_f = np.fromfile(f"{fortran_outdir}/gm")
+    return {
+        "W": W_f,
+        "S": S_f,
+        "sbeta": sbeta_f,
+        "rho": rho_f,
+        "mu": mu_f,
+        "mean": mean_f,
+        "gm": gm_f,
+        "comp_list": comp_list_f,
+        "c": c_f,
+        "alpha": alpha_f,
+        "A": A_f,
+        "LL": LL_f
+    }
+
+
+
 initial_weights, initial_scales, initial_locations = load_initial_parameters(
     data_path() / "amicaout_test", n_components=32, n_mixtures=3
     )
@@ -71,54 +139,45 @@ def test_amica_full_algorithm():
         )
     
     amica_outdir = data_path() / "amicaout_test"
-    
-    LL_f = np.fromfile(f"{amica_outdir}/LL")
+    fortran_results = load_fortran_results(amica_outdir, n_components=32, n_mixtures=3)
+    LL_f = fortran_results["LL"]
     assert_almost_equal(LL, LL_f, decimal=4)
     assert_allclose(LL, LL_f, atol=1e-4)
 
-    A_f = np.fromfile(f"{amica_outdir}/A")
-    A_f = A_f.reshape((32, 32), order="F")
+    A_f = fortran_results["A"]
     assert_almost_equal(A, A_f, decimal=2)
 
-    alpha_f = np.fromfile(f"{amica_outdir}/alpha")
-    alpha_f = alpha_f.reshape((3, 32), order="F")
-    # Remember that alpha (and sbeta, mu etc) are (num_comps, num_mix) in Python
-    assert_almost_equal(alpha, alpha_f.T, decimal=2)
+    alpha_f = fortran_results["alpha"]
+    assert_almost_equal(alpha, alpha_f, decimal=2)
 
-    c_f = np.fromfile(f"{amica_outdir}/c")
-    c_f = c_f.reshape((32, 1), order="F")
+    c_f = fortran_results["c"]
     assert_almost_equal(c, c_f)
 
 
-    comp_list_f = np.fromfile(f"{amica_outdir}/comp_list", dtype=np.int32)
+    comp_list_f = fortran_results["comp_list"]
     # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
     comp_list_f = np.reshape(comp_list_f, (32, 2), order="F")
 
 
-    gm_f = np.fromfile(f"{amica_outdir}/gm")
+    gm_f = fortran_results["gm"]
     assert gm == gm_f == np.array([1.])
 
-    mean_f = np.fromfile(f"{amica_outdir}/mean")
+    mean_f = fortran_results["mean"]
     assert_almost_equal(mean, mean_f)
 
-    mu_f = np.fromfile(f"{amica_outdir}/mu", dtype=np.float64)
-    mu_f = mu_f.reshape((3, 32), order="F")
-    assert_almost_equal(mu, mu_f.T, decimal=0)
+    mu_f = fortran_results["mu"]
+    assert_almost_equal(mu, mu_f, decimal=0)
 
-    rho_f = np.fromfile(f"{amica_outdir}/rho", dtype=np.float64)
-    rho_f = rho_f.reshape((3, 32), order="F")
-    assert_almost_equal(rho, rho_f.T, decimal=2)
+    rho_f = fortran_results["rho"]
+    assert_almost_equal(rho, rho_f, decimal=2)
 
-    S_f = np.fromfile(f"{amica_outdir}/S", dtype=np.float64)
-    S_f = S_f.reshape((32, 32,), order="F")
+    S_f = fortran_results["S"]
     assert_almost_equal(S, S_f)
 
-    sbeta_f = np.fromfile(f"{amica_outdir}/sbeta", dtype=np.float64)
-    sbeta_f = sbeta_f.reshape((3, 32), order="F")
-    assert_almost_equal(sbeta, sbeta_f.T, decimal=1)
+    sbeta_f = fortran_results["sbeta"]
+    assert_almost_equal(sbeta, sbeta_f, decimal=1)
 
-    W_f = np.fromfile(f"{amica_outdir}/W", dtype=np.float64)
-    W_f = W_f.reshape((32, 32, 1), order="F")
+    W_f = fortran_results["W"]
     assert_almost_equal(W, W_f, decimal=2)
 
 
