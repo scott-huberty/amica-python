@@ -1,4 +1,4 @@
 from .core import fit_amica
-from . import utils
+from . import datasets, utils
 
-__all__ = ['fit_amica', 'utils']
+__all__ = ['fit_amica', 'datasets', 'utils']
