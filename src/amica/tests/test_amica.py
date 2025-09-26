@@ -4,6 +4,7 @@ Test for the AMICA algorithm implementation.
 This test runs the main AMICA algorithm and validates that it produces
 expected outputs, serving as a regression test during refactoring.
 """
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -16,6 +17,35 @@ from amica.datasets import data_path
 
 pytestmark = pytest.mark.timeout(60)
 
+
+def load_initial_parameters(fortran_outdir, *, n_components, n_mixtures):
+    fortran_outdir = Path(fortran_outdir)
+    assert fortran_outdir.exists()
+
+    initial_weights = np.fromfile(
+        fortran_outdir / "Wtmp.bin",
+        dtype=np.float64
+        )
+    initial_weights = initial_weights.reshape((n_components, n_components), order="F")
+    initial_scales = np.fromfile(
+        fortran_outdir / "sbetatmp.bin",
+        dtype=np.float64
+        )
+    initial_scales = initial_scales.reshape((n_mixtures, n_components), order="F")
+    initial_scales = initial_scales.T  # Match Our dimension standard
+    initial_locations = np.fromfile(
+        fortran_outdir / "mutmp.bin",
+        dtype=np.float64
+        )
+    initial_locations = initial_locations.reshape((n_mixtures, n_components), order="F")
+    initial_locations = initial_locations.T  # Match Our dimension standard
+    return initial_weights, initial_scales, initial_locations
+
+
+initial_weights, initial_scales, initial_locations = load_initial_parameters(
+    data_path() / "amicaout_test", n_components=32, n_mixtures=3
+    )
+
 def test_amica_full_algorithm():
     """
     Test the complete AMICA algorithm by executing the full main script.
@@ -24,24 +54,6 @@ def test_amica_full_algorithm():
     with expected outputs.
     """
     import mne
-
-    initial_weights = np.fromfile(
-        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/Wtmp.bin",
-        dtype=np.float64
-        )
-    initial_weights = initial_weights.reshape((32, 32), order="F")
-    initial_scales = np.fromfile(
-        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/sbetatmp.bin",
-        dtype=np.float64
-        )
-    initial_scales = initial_scales.reshape((3, 32), order="F")
-    initial_scales = initial_scales.T  # Match Our dimension standard
-    initial_locations = np.fromfile(
-        "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/mutmp.bin",
-        dtype=np.float64
-        )
-    initial_locations = initial_locations.reshape((3, 32), order="F")
-    initial_locations = initial_locations.T  # Match Our dimension standard
 
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_data.set")
     dataseg = raw.get_data().T
