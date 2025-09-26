@@ -1,3 +1,5 @@
+from warnings import warn
+
 import torch
 
 from typing import Optional, Tuple, Literal
@@ -878,6 +880,23 @@ def accumulate_mu_stats(
     # -----------------------------------------------------------------------
     if torch.all(rho <= 2.0):
         mu_denom_sum = torch.sum(ufp / y, dim=0)
+        if torch.any(~torch.isfinite(mu_denom_sum)):
+            # With the toy data we've seen exactly zero values. bc b and mu cancel out.
+            # TODO: We might want to do this by default in compute_sources instead.
+            # In order to improve numerical stability across runs.
+            warn(
+                "Non-finite values detected in mu (locations) update; \n"
+                "clamping estimated sources (y) to min=1e-10 to avoid divide-by-zero.",
+                RuntimeWarning,
+                )
+            # Clamp y to avoid divide-by-zero and re-compute mu_denom_sum
+            signs = torch.sign(y)
+            # Float32 needs an epsilon that it can actually represent
+            eps = 1e-10 if y.dtype == torch.float64 else 1e-6
+            y = torch.clamp(torch.abs(y), min=eps, out=y)
+            y *= signs
+            mu_denom_sum = torch.sum(ufp / y, dim=0)
+
         tmpsum_mu_denom = (sbeta * mu_denom_sum)
         out_denom += tmpsum_mu_denom
     else:
