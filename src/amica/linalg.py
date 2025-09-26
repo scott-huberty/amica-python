@@ -146,6 +146,9 @@ def get_initial_model_log_likelihood(
     log|det(S)| = Dsum[h] + sldet.
     - S is positive-definite with full-rank whitening, so sldet has no sign
     issue
+    - In the Fortran code, the variable Ptmp(bstrt:bstp,h) holds the initial
+    model log-likelihood for model h across the data block (bstrt:bstp). This gets
+    copied into modloglik. 
     """
     whitening_logdet = torch.as_tensor(whitening_logdet, dtype=torch.float64)
     unmixing_logdet = torch.as_tensor(unmixing_logdet, dtype=torch.float64)
@@ -225,7 +228,7 @@ def pre_whiten(
     # ---- Covariance ----
     print(" Getting the covariance matrix ...")
     # Compute the covariance matrix
-    # The Fortran code only accumulators the lower triangular part of the covariance matrix
+    # The Fortran code only computes the upper triangular part of the covariance matrix
 
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*nx,dble(0.0),Stmp,1)
@@ -269,15 +272,24 @@ def pre_whiten(
             raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)
-        raise NotImplementedError()
-
+        # -------------------- FORTRAN CODE ---------------------------------------
+        # call DCOPY(nx*nx,S,1,Stmp,1)
+        # call DSCAL(nx*nx,dble(0.0),S,1)
+        #------------------------------------------------------------------------
+        whitening_matrix = np.zeros_like(Cov) # This is S in Fortran code
+        # Zero out the lower triangle to have parity with Fortran
+        sldet = 0.0
+        for i in range(nx):
+            if np.triu(Cov)[i, i] > 0:
+                whitening_matrix[i, i] = 1.0 / np.sqrt(Cov[i, i])
+                sldet += 0.5 * np.log(whitening_matrix[i, i])
+            numeigs = nx
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
     dataseg = np.matmul(dataseg, whitening_matrix, out=dataseg)  # In-place if possible
-
 
 
     nw = numeigs # Number of weights, as per Fortran code
