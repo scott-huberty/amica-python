@@ -458,6 +458,9 @@ class IterationMetrics:
     ndtmpsum: Optional[float] = None    # normalized update norm for the iteration
     lrate: Optional[float] = None       # learning rate used for the iteration
     rholrate: Optional[float] = None    # rho learning rate used for the iteration
+    lrate0: Optional[float] = None      # initial learning rate (from config)
+    rholrate0: Optional[float] = None   # initial rho learning rate (from config)
+    newtrate: Optional[float] = None    # Newton learning rate used for the iteration
     ll_inc: float = 0.0                 # improvement vs previous iteration
     step_time_s: Optional[float] = None
     numincs: Optional[int] = None

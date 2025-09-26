@@ -314,15 +314,18 @@ def _core_amica(
     # load_mu:
     mu_values = torch.arange(num_mix) - (num_mix - 1) / 2
     state.mu[:, :] = mu_values[None, :]
+    torch.manual_seed(12345)
     if initial_locations is None:
-        raise NotImplementedError("Random initialization of mu not yet implemented")
+        initial_locations = torch.rand(num_comps, num_mix)
+        # raise NotImplementedError("Random initialization of mu not yet implemented")
     else:
         assert initial_locations.shape == (num_comps, num_mix)
         initial_locations = torch.as_tensor(initial_locations, dtype=torch.float64)
     state.mu = state.mu + 0.05 * (1.0 - 2.0 * initial_locations)
     # load_beta:
     if initial_scales is None:
-        raise NotImplementedError("Random initialization of sbeta not yet implemented")
+        initial_scales = torch.rand(num_comps, num_mix)
+        #raise NotImplementedError("Random initialization of sbeta not yet implemented")
     else:
         assert initial_scales.shape == (num_comps, num_mix)
         initial_scales = torch.as_tensor(initial_scales, dtype=torch.float64)
@@ -335,10 +338,12 @@ def _core_amica(
         h_index = h - 1
         comp_slice = get_component_slice(h=h, n_components=num_comps)
         if initial_weights is None:
-            raise NotImplementedError("Random initialization of weights not yet implemented")
+            initial_weights = torch.rand(num_comps, num_comps)
+            #raise NotImplementedError("Random initialization of weights not yet implemented")
         else:
             assert initial_weights.shape == (num_comps, num_comps)
             initial_weights = torch.as_tensor(initial_weights, dtype=torch.float64)
+        # import pdb; pdb.set_trace()
         state.A[:, comp_slice] = 0.01 * (0.5 - initial_weights)
         idx = torch.arange(num_comps)
         cols = h_index * num_comps + idx
@@ -393,11 +398,17 @@ def optimize(
     
     # These variables can be updated in the loop
     leave = False
-    iteration = 1
     do_newton = config.do_newton
+    numdecs = 0  # number of consecutive iterations where LL decreased from previous
     numincs = 0  # number of consecutive iterations where LL increased by less than tol
-    lrate = config.lrate
-    rholrate = config.rholrate
+    metrics = IterationMetrics(
+        iter=1,
+        lrate=config.lrate,
+        rholrate=config.rholrate,
+        lrate0=config.lrate,  # updates slower than lrate..
+        rholrate0=config.rholrate,  # Updates slower than rholrate..
+        newtrate=config.newtrate,
+    )
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
@@ -409,16 +420,10 @@ def optimize(
 
     c_start = time.time()
     c1 = time.time()
-    while iteration <= config.max_iter:
+    while metrics.iter <= config.max_iter:
         accumulators.reset()
         loglik.fill_(0.0)
-        metrics = IterationMetrics(
-            iter=iteration,
-            lrate=lrate,
-            rholrate=rholrate,
-        )
-        doing_newton = do_newton and (iteration >= config.newt_start)
-
+        doing_newton = do_newton and (metrics.iter >= config.newt_start)
         # !----- get determinants
         for h, _ in enumerate(range(config.n_models), start=1):
             h_index = h - 1
@@ -469,7 +474,6 @@ def optimize(
                     bias=wc[:, h_index],
                     do_reject=config.do_reject,
                 )
-                
                 # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
                 y, z = compute_source_densities(
                     pdftype=config.pdftype,
@@ -581,6 +585,7 @@ def optimize(
                     out_denom=accumulators.dalpha_denom[comp_slice, :],
                 )
                 # Mu (location)
+                # if metrics.iter == 203:
                 accumulate_mu_stats(
                     ufp=ufp,
                     y=y,
@@ -609,8 +614,8 @@ def optimize(
                     out_denom=accumulators.drho_denom[comp_slice, :],
                 )
                 # --- Newton-Raphson accumulators ---
-                if do_newton and iteration >= config.newt_start:
-                    if iteration == 50 and batch_indices.start == 0:
+                if do_newton and metrics.iter >= config.newt_start:
+                    if metrics.iter == 50 and batch_indices.start == 0:
                         assert torch.all(accumulators.newton.dkappa_numer == 0.0)
                         assert torch.all(accumulators.newton.dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for all iters, but its unnecessary
@@ -671,7 +676,7 @@ def optimize(
             accumulators=accumulators,
             state=state,
             total_LL=loglik.sum(),
-            iteration=iteration
+            iteration=metrics.iter
         )
         metrics.loglik = likelihood
         metrics.ndtmpsum = ndtmpsum
@@ -679,62 +684,53 @@ def optimize(
 
         # ==============================================================================
         ndtmpsum = metrics.ndtmpsum
-        LL[iteration - 1] = metrics.loglik
-        # init
-        numdecs = 0
-             
+        LL[metrics.iter - 1] = metrics.loglik
+
         # !----- display log likelihood of data
         # if (seg_rank == 0) then
         c2 = time.time()
         t0 = c2 - c1
         #  if (mod(iter,outstep) == 0) then
 
-        if (iteration % outstep) == 0:
+        if (metrics.iter % outstep) == 0:
             print(
-                f"Iteration {iteration}, lrate = {lrate:.3f}, LL = {LL[iteration - 1]:.3f}, "
-                f"nd = {ndtmpsum:.3f}, D = {Dsum.max():.3f} {Dsum.min():.3f} "
+                f"Iteration {metrics.iter}, lrate = {metrics.lrate:.5f}, LL = {LL[metrics.iter - 1]:.7f}, "
+                f"nd = {ndtmpsum:.7f}, D = {Dsum.max():.5f} {Dsum.min():.5f} "
                 f"took {t0:.2f} seconds"
                 )
             c1 = time.time()
 
         # !----- check whether likelihood is increasing
         # if (seg_rank == 0) then
-        # ! if we get a NaN early, try to reinitialize and startover a few times 
-        if torch.isnan(LL[iteration - 1]):
-            raise RuntimeError(f"Log Likelihood is NaN at iteration {iteration}")
+        # ! if we get a NaN early, try to reinitialize and startover a few times
+        if torch.isnan(LL[metrics.iter - 1]):
+            raise RuntimeError(f"Log Likelihood is NaN at iteration {metrics.iter}")
         # end if
-        if iteration == 2:
-            assert not torch.isnan(LL[iteration - 1])
-            assert not (LL[iteration - 1] < LL[iteration - 2])
-        if iteration > 1:
-            if (LL[iteration - 1] < LL[iteration - 2]):
-                assert 1 == 0
+        if metrics.iter > 1:
+            if (LL[metrics.iter - 1] < LL[metrics.iter - 2]):
+                # assert 1 == 0
                 print("Likelihood decreasing!")
-                if (lrate < minlrate) or (ndtmpsum <= min_nd):
+                if (metrics.lrate < minlrate) or (ndtmpsum <= min_nd):
                     leave = True
                     print("minimum change threshold met, exiting loop")
                 else:
-                    lrate *= lratefact
-                    rholrate *= rholratefact
+                    # import pdb; pdb.set_trace()
+                    metrics.lrate *= lratefact
+                    metrics.rholrate *= rholratefact
                     numdecs += 1
                     if numdecs >= maxdecs:
-                        raise NotImplementedError()
-                        lrate0 *= lrate0 * lratefact
-                        if iteration == 2:
-                            assert 1 == 0
-                        if iteration > config.newt_start:
-                            raise NotImplementedError()
-                            rholrate0 *= rholratefact
-                        if config.do_newton and iteration > config.newt_start:
+                        metrics.lrate0 *= lratefact
+                        if metrics.iter > config.newt_start:
+                            metrics.rholrate0 *= rholratefact
+                        if config.do_newton and metrics.iter > config.newt_start:
                             print("Reducing maximum Newton lrate")
-                            newtrate *= lratefact
-                            assert 1 == 0 # stop to check that value
+                            metrics.newtrate *= lratefact
                         numdecs = 0
                     # end if (numdecs >= maxdecs)
                 # end if (lrate vs minlrate)
             # end if LL
             if use_min_dll:
-                if (LL[iteration - 1] - LL[iteration - 2]) < min_dll:
+                if (LL[metrics.iter - 1] - LL[metrics.iter - 2]) < min_dll:
                     numincs += 1
                     if numincs > maxincs:
                         leave = True
@@ -744,18 +740,16 @@ def optimize(
                             )
                 else:
                     numincs = 0
-                if iteration == 2:
-                    assert numincs == 0
             else:
                 raise NotImplementedError() # pragma no cover
             if use_grad_norm:
                 if ndtmpsum < min_nd:
                     leave = True
                     print(
-                        f"Exiting because norm of weight gradient less than {min_nd:.6f}"
+                        f"Exiting because norm of weight gradient less than {min_nd:.12f}"
                     )
         # end if (iter > 1)
-        if config.do_newton and (iteration == config.newt_start):
+        if config.do_newton and (metrics.iter == config.newt_start):
             print("Starting Newton ... setting numdecs to 0")
             numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
@@ -765,18 +759,26 @@ def optimize(
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
         # the updated lrate & rholrate for the next iteration
-        lrate, rholrate, state, wc = update_params(
+        # ; pdb.set_trace()
+        metrics.lrate, metrics.rholrate, state, wc = update_params(
             X=X,
+            iteration=metrics.iter,
             config=config,
             state=state,
             accumulators=accumulators,
-            metrics=metrics,
+            lrate=metrics.lrate,
+            rholrate=metrics.rholrate,
+            lrate0=metrics.lrate0,
+            rholrate0=metrics.rholrate0,
             wc=wc,
+            newtrate=metrics.newtrate,
         )
+        # import pdb; pdb.set_trace()
         # !----- reject data
         if config.do_reject:
             raise NotImplementedError()
-        iteration += 1
+        # import pdb; pdb.set_trace()
+        metrics.iter += 1
         # end if/else
     # end while
     c_end = time.time()
@@ -913,7 +915,7 @@ def accum_updates_and_likelihood(
             #  Wtmp = dA(:,:,h)
             assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
             Wtmp_working = (accumulators.dA[:, :, h - 1].squeeze()).clone()
-            assert Wtmp_working.shape == (32, 32) == (nw, nw)
+            assert Wtmp_working.shape == (nw, nw)
         #--------------------------FORTRAN CODE-------------------------
         # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
         # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
@@ -967,18 +969,18 @@ def accum_updates_and_likelihood(
 def update_params(
         *,
         X,
+        iteration,
         config,
         state,
         accumulators,
-        metrics,
+        lrate,
+        rholrate,
+        lrate0,
+        rholrate0,
+        newtrate,
         wc,
 ):
     nw = config.n_components
-    lrate0 = config.lrate
-    rholrate0 = config.rholrate
-    lrate = metrics.lrate
-    rholrate = metrics.rholrate
-
 
     # if (seg_rank == 0) then
     # if update_gm:
@@ -1004,20 +1006,21 @@ def update_params(
     # === Section: Apply Parameter accumulators & Rescale ===
     # Apply accumulated statistics to update parameters, then rescale and refresh W/wc.
     # !print *, 'updating A ...'; call flush(6)
-    if (metrics.iter < share_start or (metrics.iter % share_iter > 5)):
-        if config.do_newton and (metrics.iter >= config.newt_start):
+    if (iteration < share_start or (iteration % share_iter > 5)):
+        if config.do_newton and (iteration >= config.newt_start):
             # lrate = min( newtrate, lrate + min(dble(1.0)/dble(newt_ramp),lrate) )
             # rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
-            lrate = min(config.newtrate, lrate + min(1.0 / config.newt_ramp, lrate))
+            lrate = min(newtrate, lrate + min(1.0 / config.newt_ramp, lrate))
             rholrate = rholrate0
+            # import pdb; pdb.set_trace()
             state.A -= lrate * accumulators.dAK
         else:            
             lrate = min(lrate0, lrate + min(1 / config.newt_ramp, lrate))
             rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
+            # import pdb; pdb.set_trace()
             state.A -= lrate * accumulators.dAK
-
         # end if do_newton
     # end if (update_A)
 
