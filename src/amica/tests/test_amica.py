@@ -14,6 +14,7 @@ import pytest
 
 from amica import fit_amica
 from amica.datasets import data_path
+from amica.utils import generate_toy_data
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -265,3 +266,83 @@ def test_amica_full_algorithm():
     fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
     fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
     plt.close(fig)
+
+
+
+@pytest.mark.parametrize("n_samples, noise_factor", [(10_000, 0.05), (5_000, None)])
+def test_simulated_data(n_samples, noise_factor):
+    """Test AMICA on simulated data and compare to Fortran results.
+    
+
+    On this simulated data the convergence between languages varies much more
+    and is less stable across runs (at least in the Python version). AFAICT this is
+    because of numerical differences that blow up over time, possibly due to denominator
+    terms that can get very small. The Fortran version seems more stable in this regard.
+    We might need to add some regularization to the updates to make things more stable.
+    """
+    # Generate toy data
+    if n_samples == 5_000:
+        pytest.mark.xfail(reason="Not yet working")
+    toy_idx = 1 if n_samples == 10_000 else 2
+    x = generate_toy_data(n_samples=n_samples, noise_factor=noise_factor)
+    fortran_dir = Path("/Users/scotterik/devel/projects/amica-python/amica/tests")
+    amicaout_dir = fortran_dir / f"toy_{toy_idx}" / f"amicaout_toy_{toy_idx}"
+    weights, scales, locations = load_initial_parameters(
+        amicaout_dir, n_components=2, n_mixtures=3
+        )
+    fortran_results = load_fortran_results(
+        amicaout_dir, n_components=2, n_mixtures=3
+        )
+
+
+    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
+    x, centering=False, whiten=False, max_iter=500,
+    initial_weights=weights, initial_scales=scales, initial_locations=locations,
+    )
+
+    assert np.all(fortran_results["mean"] == 0)
+
+    S_f = fortran_results["S"]
+    assert_allclose(S, S_f, atol=.01)
+
+    A_f = fortran_results["A"]
+    assert_allclose(A, A_f, rtol=.09)
+
+    W_f = fortran_results["W"]
+    assert_allclose(W, W_f, atol=.009)
+
+    alpha_f = fortran_results["alpha"]
+    assert_allclose(alpha, alpha_f, rtol=2.0)
+
+    sbeta_f = fortran_results["sbeta"]
+    assert_allclose(sbeta, sbeta_f, rtol=3.0)
+
+    mu_f = fortran_results["mu"]
+    assert_allclose(mu, mu_f, atol=.15)
+
+    rho_f = fortran_results["rho"]
+    assert_allclose(rho, rho_f, atol=1e-7, rtol=.4)
+
+
+    LL_f = fortran_results["LL"]
+    iterations_fortran = np.count_nonzero(LL_f)
+    iterations_python = np.count_nonzero(LL)
+    if n_samples == 10_000:
+        assert iterations_python < 500
+        assert_allclose(LL[:2], LL_f[:2], rtol=.006, atol=1e-7)
+        assert_allclose(LL[:10], LL_f[:10], rtol=20, atol=1e-7)
+        assert_allclose(LL[:30], LL_f[:30], atol=3)
+        assert_allclose(LL[:200], LL_f[:200], atol=3)
+    
+    elif n_samples == 5_000:
+        # Both programs solved the problem around ~205 iterations
+        assert np.abs(iterations_fortran - iterations_python) < 3
+        # The first 2 iterations we are very close
+        assert_allclose(LL[:2], LL_f[:2])
+        # Then we start to diverge a bit...
+        assert_allclose(LL[:10], LL_f[:10], 1e-4)
+        # By iteration 30 our paths are quite different
+        assert_allclose(LL[:30], LL_f[:30], rtol=.1)
+        # The end our final log likelihoods have diverged a lot
+        assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
+        # AFAICT, this is because of compounding numerical differences in the updates
