@@ -39,6 +39,5 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run tests
-        working-directory: amica-python
         run: |
           pytest -W error src/amica/tests/test_amica.py
