@@ -36,7 +36,9 @@ jobs:
       - name: Install dev extras
         working-directory: amica-python
         run: |
-          pip install -e ".[dev]"
+          echo "Installing amica-python dev extras"
+          echo "Current directory: $(pwd)"
+          pip install -e .[dev]
 
       - name: Run tests
         working-directory: amica-python
