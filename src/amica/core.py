@@ -3,8 +3,6 @@ from pathlib import Path
 import time
 from typing import Literal, Optional, Tuple
 
-import matplotlib.pyplot as plt
-import mne
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 
@@ -1085,6 +1083,8 @@ if __name__ == "__main__":
 
 
 def main():
+    import matplotlib.pyplot as plt
+    import mne
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
     rng = np.random.default_rng(seed_array)
