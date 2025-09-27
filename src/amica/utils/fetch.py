@@ -29,7 +29,6 @@ def fetch_datasets() -> Path:
     pathlib.Path
         Path to the directory containing all cached test datasets.
     """
-    fetch_test_data()
     fetch_fortran_outputs()
     return CACHE_DIR
 
@@ -46,27 +45,29 @@ def fetch_test_data() -> Path:
     """
     import pooch
 
+    sample_dir = CACHE_DIR / "eeglab_sample_data"
+    sample_dir.mkdir(parents=True, exist_ok=True)
     for _, (fname, known_hash) in EEGLAB_FILES.items():
         url = f"{EEGLAB_BASE}{fname}"
         fpath = pooch.retrieve(
             url=url,
             known_hash=known_hash,
-            path=CACHE_DIR,
+            path=sample_dir,
             fname=fname,
             progressbar=True,
         )
-    return Path(fpath).parent  # return the directory containing the files
+    return sample_dir
 
 
 # -------------------------------
 # Fortran golden outputs
 # -------------------------------
-version = "v0.1.0"
+version = "v0.2.0"
 FORTRAN_URL = (
     "https://github.com/scott-huberty/amica/"
-    f"releases/download/{version}/amicaout_test.tar.gz"
+    f"releases/download/{version}/test_output.tar.gz"
 )
-FORTRAN_HASH = "md5:9b0b4beb1a669dd4dbcd12d3b398376e"
+FORTRAN_HASH = "sha256:52188cf10a08dce0368cb5bd5d728ce0d10f1349c9497443e8a2c18edb96f849"
 
 
 def fetch_fortran_outputs() -> Path:
@@ -80,7 +81,7 @@ def fetch_fortran_outputs() -> Path:
     """
     import pooch
 
-    unpack = pooch.Untar(extract_dir="amicaout_test")
+    unpack = pooch.Untar(extract_dir=".")
     outputs_dir = pooch.retrieve(
         url=FORTRAN_URL,
         known_hash=FORTRAN_HASH,

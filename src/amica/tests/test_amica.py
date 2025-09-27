@@ -112,7 +112,7 @@ def load_fortran_results(fortran_outdir, *, n_components, n_mixtures):
 
 
 initial_weights, initial_scales, initial_locations = load_initial_parameters(
-    data_path() / "amicaout_test", n_components=32, n_mixtures=3
+    data_path() / "eeglab_sample_data" / "amicaout_test", n_components=32, n_mixtures=3
     )
 
 def test_amica_full_algorithm():
@@ -124,7 +124,7 @@ def test_amica_full_algorithm():
     """
     import mne
 
-    raw = mne.io.read_raw_eeglab(data_path() / "eeglab_data.set")
+    raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
     dataseg = raw.get_data().T
     dataseg *= 1e6  # Convert from Volts to microVolts
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
@@ -139,7 +139,7 @@ def test_amica_full_algorithm():
         initial_locations=initial_locations,
         )
     
-    amica_outdir = data_path() / "amicaout_test"
+    amica_outdir = data_path() / "eeglab_sample_data" / "amicaout_test"
     fortran_results = load_fortran_results(amica_outdir, n_components=32, n_mixtures=3)
     LL_f = fortran_results["LL"]
     assert_almost_equal(LL, LL_f, decimal=4)
@@ -283,7 +283,7 @@ def test_simulated_data(n_samples, noise_factor):
     # Generate toy data
     toy_idx = 1 if n_samples == 10_000 else 2
     x = generate_toy_data(n_samples=n_samples, noise_factor=noise_factor)
-    fortran_dir = Path("/Users/scotterik/devel/projects/amica-python/amica/tests")
+    fortran_dir = data_path()
     amicaout_dir = fortran_dir / f"toy_{toy_idx}" / f"amicaout_toy_{toy_idx}"
     weights, scales, locations = load_initial_parameters(
         amicaout_dir, n_components=2, n_mixtures=3
