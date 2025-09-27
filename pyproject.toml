@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [ "pooch", "pytest", "pytest-timeout"]
+dev = [ "pooch", "pytest", "pytest-timeout", "matplotlib" ]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
