@@ -29,6 +29,7 @@ jobs:
 
       - name: Install package and check import
         run: |
+          echo "Installing amica-python package and checking import"
           pip install -e .
           python -c "import amica"
 
