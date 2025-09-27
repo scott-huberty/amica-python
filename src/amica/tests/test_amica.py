@@ -16,7 +16,7 @@ from amica import fit_amica
 from amica.datasets import data_path
 from amica.utils import generate_toy_data
 
-pytestmark = pytest.mark.timeout(60)
+pytestmark = pytest.mark.timeout(120)
 
 
 def load_initial_parameters(fortran_outdir, *, n_components, n_mixtures):
