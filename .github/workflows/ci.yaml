@@ -40,4 +40,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest error src/amica/tests/test_amica.py
+          pytest src/amica/tests/test_amica.py
