@@ -343,7 +343,7 @@ def _core_amica(
         else:
             assert initial_weights.shape == (num_comps, num_comps)
             initial_weights = torch.as_tensor(initial_weights, dtype=torch.float64)
-        # import pdb; pdb.set_trace()
+
         state.A[:, comp_slice] = 0.01 * (0.5 - initial_weights)
         idx = torch.arange(num_comps)
         cols = h_index * num_comps + idx
@@ -714,7 +714,6 @@ def optimize(
                     leave = True
                     print("minimum change threshold met, exiting loop")
                 else:
-                    # import pdb; pdb.set_trace()
                     metrics.lrate *= lratefact
                     metrics.rholrate *= rholratefact
                     numdecs += 1
@@ -759,7 +758,6 @@ def optimize(
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
         # the updated lrate & rholrate for the next iteration
-        # ; pdb.set_trace()
         metrics.lrate, metrics.rholrate, state, wc = update_params(
             X=X,
             iteration=metrics.iter,
@@ -773,11 +771,11 @@ def optimize(
             wc=wc,
             newtrate=metrics.newtrate,
         )
-        # import pdb; pdb.set_trace()
+
         # !----- reject data
         if config.do_reject:
             raise NotImplementedError()
-        # import pdb; pdb.set_trace()
+
         metrics.iter += 1
         # end if/else
     # end while
@@ -1013,13 +1011,11 @@ def update_params(
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
             lrate = min(newtrate, lrate + min(1.0 / config.newt_ramp, lrate))
             rholrate = rholrate0
-            # import pdb; pdb.set_trace()
             state.A -= lrate * accumulators.dAK
         else:            
             lrate = min(lrate0, lrate + min(1 / config.newt_ramp, lrate))
             rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
-            # import pdb; pdb.set_trace()
             state.A -= lrate * accumulators.dAK
         # end if do_newton
     # end if (update_A)
