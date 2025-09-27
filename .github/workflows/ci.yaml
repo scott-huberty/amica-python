@@ -1,10 +1,10 @@
 name: CI
 
 on:
-push:
+  push:
     branches:
       - main
-pull_request:
+  pull_request:
     branches:
       - main
 
@@ -12,7 +12,7 @@ jobs:
 tests:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         python-version: [ '3.10', '3.11', '3.12' ]
     steps:
@@ -31,8 +31,8 @@ tests:
         run: |
           pip install -e .
           python -c "import amica"
-      
-      - name: Install package (with dev extras)
+
+      - name: Install dev extras
         working-directory: amica-python
         run: |
           pip install -e ".[dev]"
@@ -40,4 +40,4 @@ tests:
       - name: Run tests
         working-directory: amica-python
         run: |
-          pytest -q src/amica/tests/test_amica.py
+          pytest -W error src/amica/tests/test_amica.py
