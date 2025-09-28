@@ -203,9 +203,11 @@ def test_amica_full_algorithm(match_fortran_init):
             )
             this_ax.set_title(f"Component {i}")
         weights_str = "Using Fortran seed" if match_fortran_init else "Using random seed"
-        seed_match = "fortran_init" if match_fortran_init else "random_init"
-        fig.suptitle(f"AMICA Component Topomaps ({output}) - {weights_str}", fontsize=16)
-        fig.savefig(out_dir / f"amica_topos_{output}_{seed_match}.png")
+        seed_match = ("_fortran_init" if match_fortran_init else "_random_init")
+        if output == "fortran":
+            weights_str, seed_match = "", ""
+        fig.suptitle(f"AMICA Component Topomaps ({output}) {weights_str}", fontsize=16)
+        fig.savefig(out_dir / f"amica_topos_{output}{seed_match}.png")
         plt.close(fig)
 
 
