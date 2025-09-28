@@ -28,10 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Tell me where the UV_CACHE_DIR is
-        run: |
-          echo "UV cache dir is $UV_CACHE_DIR"
-          echo "UV cache dir is ${{ env.UV_CACHE_DIR }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -43,9 +39,6 @@ jobs:
           version: "0.8.22"
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-
-      - name: Create cache directory if not exists
-        run: mkdir -p /tmp/.uv-cache
 
       - name: Restore uv cache
         uses: actions/cache@v4
