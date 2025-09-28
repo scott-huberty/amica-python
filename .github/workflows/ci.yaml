@@ -12,8 +12,6 @@ env:
 
 jobs:
   test:
-    env:
-      UV_CACHE_DIR: /tmp/.uv-cache
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
