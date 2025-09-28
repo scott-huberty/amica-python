@@ -248,6 +248,7 @@ def fit_amica(
         config=config,
         state=state,
         sldet=sldet,
+        random_state=random_state,
         initial_weights=initial_weights,
         initial_scales=initial_scales,
         initial_locations=initial_locations,
@@ -269,6 +270,7 @@ def _core_amica(
         config,
         state,
         sldet,
+        random_state=None,
         initial_weights=None,
         initial_scales=None,
         initial_locations=None,
@@ -292,7 +294,10 @@ def _core_amica(
         initialized randomly. This is meant to be used for testing and debugging purposes
         only.
     """
-    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype)
+    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype) # No-copy (if on CPU)
+    rng = torch.Generator()
+    if random_state is not None:
+        rng.manual_seed(random_state)
     # The API will use n_components but under the hood we'll match the Fortran naming
     # TODO: Maybe rename n_components to num_comps in the config dataclass?
     num_comps = config.n_components
@@ -312,18 +317,15 @@ def _core_amica(
     # load_mu:
     mu_values = torch.arange(num_mix) - (num_mix - 1) / 2
     state.mu[:, :] = mu_values[None, :]
-    torch.manual_seed(12345)
     if initial_locations is None:
-        initial_locations = torch.rand(num_comps, num_mix)
-        # raise NotImplementedError("Random initialization of mu not yet implemented")
+        initial_locations = torch.rand(num_comps, num_mix, generator=rng)
     else:
         assert initial_locations.shape == (num_comps, num_mix)
         initial_locations = torch.as_tensor(initial_locations, dtype=torch.float64)
     state.mu = state.mu + 0.05 * (1.0 - 2.0 * initial_locations)
     # load_beta:
     if initial_scales is None:
-        initial_scales = torch.rand(num_comps, num_mix)
-        #raise NotImplementedError("Random initialization of sbeta not yet implemented")
+        initial_scales = torch.rand(num_comps, num_mix, generator=rng)
     else:
         assert initial_scales.shape == (num_comps, num_mix)
         initial_scales = torch.as_tensor(initial_scales, dtype=torch.float64)
@@ -336,8 +338,7 @@ def _core_amica(
         h_index = h - 1
         comp_slice = get_component_slice(h=h, n_components=num_comps)
         if initial_weights is None:
-            initial_weights = torch.rand(num_comps, num_comps)
-            #raise NotImplementedError("Random initialization of weights not yet implemented")
+            initial_weights = torch.rand(num_comps, num_comps, generator=rng)
         else:
             assert initial_weights.shape == (num_comps, num_comps)
             initial_weights = torch.as_tensor(initial_weights, dtype=torch.float64)
@@ -1087,11 +1088,10 @@ def main():
     import mne
     seed_array = 12345 # + myrank. For reproducibility
     np.random.seed(seed_array)
-    rng = np.random.default_rng(seed_array)
 
     # !-------------------- GET THE DATA ------------------------
     data_path = fetch_datasets()
-    fpath = data_path / "eeglab_data.set"
+    fpath = data_path / "eeglab_sample_data" / "eeglab_data.set"
     raw = mne.io.read_raw_eeglab(fpath)
 
     dataseg: np.ndarray = raw.get_data().T # shape (n_times, n_channels) = (30504, 32)
@@ -1113,6 +1113,7 @@ def main():
         "/Users/scotterik/devel/projects/amica-python/amica/amicaout_test/mutmp.bin",
         dtype=np.float64
         )
+    assert 1 == 0
     initial_locations = initial_locations.reshape((3, 32), order="F")
     initial_locations = initial_locations.T  # Match Our dimension standard
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
@@ -1131,7 +1132,7 @@ def main():
     # If we set tol to .0001 then we can assert that Amica solves at iteration 106
     # Just like Fortran does.
 
-    amica_outdir = data_path / "amicaout_test"
+    amica_outdir = data_path / "eeglab_sample_data" / "amicaout_test"
     
     LL_f = np.fromfile(f"{amica_outdir}/LL")
     assert_almost_equal(LL, LL_f, decimal=4)

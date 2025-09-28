@@ -115,7 +115,9 @@ initial_weights, initial_scales, initial_locations = load_initial_parameters(
     data_path() / "eeglab_sample_data" / "amicaout_test", n_components=32, n_mixtures=3
     )
 
-def test_amica_full_algorithm():
+
+@pytest.mark.parametrize("match_fortran_init", [True, False])
+def test_amica_full_algorithm(match_fortran_init):
     """
     Test the complete AMICA algorithm by executing the full main script.
     
@@ -134,52 +136,54 @@ def test_amica_full_algorithm():
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
-        initial_weights=initial_weights,
-        initial_scales=initial_scales,
-        initial_locations=initial_locations,
+        initial_weights=initial_weights if match_fortran_init else None,
+        initial_scales=initial_scales if match_fortran_init else None,
+        initial_locations=initial_locations if match_fortran_init else None,
+        random_state=12345,  # Only used if initial_* are None
         )
-    
+
     amica_outdir = data_path() / "eeglab_sample_data" / "amicaout_test"
     fortran_results = load_fortran_results(amica_outdir, n_components=32, n_mixtures=3)
-    LL_f = fortran_results["LL"]
-    assert_almost_equal(LL, LL_f, decimal=4)
-    assert_allclose(LL, LL_f, atol=1e-4)
-
-    A_f = fortran_results["A"]
-    assert_almost_equal(A, A_f, decimal=2)
-
-    alpha_f = fortran_results["alpha"]
-    assert_almost_equal(alpha, alpha_f, decimal=2)
-
-    c_f = fortran_results["c"]
-    assert_almost_equal(c, c_f)
-
+    LL_f = fortran_results["LL"]        # Log-likelihood
+    mean_f = fortran_results["mean"]    # Channel means
+    S_f = fortran_results["S"]          # Sphering matrix
+    A_f = fortran_results["A"]          # Mixing matrix
+    W_f = fortran_results["W"]          # Unmixing matrix
+    gm_f = fortran_results["gm"]        # Model weights
+    c_f = fortran_results["c"]          # Bias term
+    alpha_f = fortran_results["alpha"]  # Mixture model parameters
+    sbeta_f = fortran_results["sbeta"]  # Scale parameters
+    mu_f = fortran_results["mu"]        # Location parameters
+    rho_f = fortran_results["rho"]      # Shape parameters
 
     comp_list_f = fortran_results["comp_list"]
     # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
     comp_list_f = np.reshape(comp_list_f, (32, 2), order="F")
-
-
-    gm_f = fortran_results["gm"]
+    
+    # These should be equal regardless of initialization
+    assert_almost_equal(mean, mean_f)
+    assert_almost_equal(S, S_f)
+    assert_almost_equal(c, c_f)
     assert gm == gm_f == np.array([1.])
 
-    mean_f = fortran_results["mean"]
-    assert_almost_equal(mean, mean_f)
-
-    mu_f = fortran_results["mu"]
-    assert_almost_equal(mu, mu_f, decimal=0)
-
-    rho_f = fortran_results["rho"]
-    assert_almost_equal(rho, rho_f, decimal=2)
-
-    S_f = fortran_results["S"]
-    assert_almost_equal(S, S_f)
-
-    sbeta_f = fortran_results["sbeta"]
-    assert_almost_equal(sbeta, sbeta_f, decimal=1)
-
-    W_f = fortran_results["W"]
-    assert_almost_equal(W, W_f, decimal=2)
+    # The rest depend on initialization    
+    if match_fortran_init:
+        assert_almost_equal(LL, LL_f, decimal=4)
+        assert_allclose(LL, LL_f, atol=1e-4)
+        assert_almost_equal(A, A_f, decimal=2)
+        assert_almost_equal(W, W_f, decimal=2)
+        assert_almost_equal(alpha, alpha_f, decimal=2)
+        assert_almost_equal(sbeta, sbeta_f, decimal=1)
+        assert_almost_equal(mu, mu_f, decimal=0)
+        assert_almost_equal(rho, rho_f, decimal=2)
+    else:
+        assert_allclose(LL, LL_f, rtol=1e-2)
+        assert_allclose(A, A_f, atol=0.9)
+        assert_allclose(W, W_f, atol=0.9)
+        assert_allclose(alpha, alpha_f, atol=.4)
+        assert_allclose(sbeta, sbeta_f, atol=0.9)
+        assert_allclose(mu, mu_f, atol=1.6)
+        assert_allclose(rho, rho_f, atol=1)
 
     out_dir = data_path() / "figs"
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -198,8 +202,12 @@ def test_amica_full_algorithm():
                 show=False,
             )
             this_ax.set_title(f"Component {i}")
-        fig.suptitle(f"AMICA Component Topomaps ({output})", fontsize=16)
-        fig.savefig(out_dir / f"amica_topos_{output}.png")
+        weights_str = "Using Fortran seed" if match_fortran_init else "Using random seed"
+        seed_match = ("_fortran_init" if match_fortran_init else "_random_init")
+        if output == "fortran":
+            weights_str, seed_match = "", ""
+        fig.suptitle(f"AMICA Component Topomaps ({output}) {weights_str}", fontsize=16)
+        fig.savefig(out_dir / f"amica_topos_{output}{seed_match}.png")
         plt.close(fig)
 
 
@@ -249,7 +257,9 @@ def test_amica_full_algorithm():
             sources_fortran[::10, i]
         )[0, 1]
         corrs[i] = corr
-    assert np.all(np.abs(corr) > 0.99)  # Should be very high correlation
+    
+    threshold = 0.99 if match_fortran_init else 0.6
+    assert np.all(np.abs(corrs) > threshold)
 
     info = mne.create_info(
         ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
@@ -262,7 +272,7 @@ def test_amica_full_algorithm():
 
     mne.viz.set_browser_backend("matplotlib")
     fig = raw_src_python.plot(scalings=dict(eeg=1))
-    fig.savefig(out_dir / "amica_sources_python.png")
+    fig.savefig(out_dir / f"amica_sources_python_{seed_match}.png")
     plt.close(fig)
     fig = raw_src_fortran.plot(scalings=dict(eeg=1))
     fig.savefig(out_dir / "amica_sources_fortran.png")
