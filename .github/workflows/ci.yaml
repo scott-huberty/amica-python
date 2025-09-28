@@ -7,14 +7,18 @@ on:
   pull_request:
     branches:
       - main
+env:
+  UV_CACHE_DIR: /tmp/.uv-cache
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: [ '3.10', '3.11']
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -30,6 +34,14 @@ jobs:
           version: "0.8.22"
           python-version: ${{ matrix.python-version }}
           enable-cache: true
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.uv-cache
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: | # fallback key
+            uv-${{ runner.os }}-
 
       - name: Install package and check import
         run: |
@@ -47,3 +59,6 @@ jobs:
         run: |
           source .venv/bin/activate
           pytest src/amica/tests/test_amica.py
+      
+      - name: Minimize uv cache
+        run: uv cache prune --ci
