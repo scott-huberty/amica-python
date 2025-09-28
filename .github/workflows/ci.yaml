@@ -20,10 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: [ '3.10', '3.11']
-        include:
-          - os: ubuntu-latest
-            uv_cache_path: /tmp/.uv-cache
-            UV_CACHE_DIR: /tmp/.uv-cache
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
