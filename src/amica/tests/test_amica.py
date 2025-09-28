@@ -181,7 +181,8 @@ def test_amica_full_algorithm():
     W_f = fortran_results["W"]
     assert_almost_equal(W, W_f, decimal=2)
 
-
+    out_dir = data_path() / "figs"
+    out_dir.mkdir(exist_ok=True, parents=True)
     for output in ["python", "fortran"]:
         fig, ax = plt.subplots(
             nrows=8,
@@ -198,7 +199,7 @@ def test_amica_full_algorithm():
             )
             this_ax.set_title(f"Component {i}")
         fig.suptitle(f"AMICA Component Topomaps ({output})", fontsize=16)
-        fig.savefig(f"/Users/scotterik/devel/projects/amica-python/figs/amica_topos_{output}.png")
+        fig.savefig(out_dir / f"amica_topos_{output}.png")
         plt.close(fig)
 
 
@@ -260,11 +261,11 @@ def test_amica_full_algorithm():
     raw_src_fortran = mne.io.RawArray(sources_fortran.T, info)
 
     mne.viz.set_browser_backend("matplotlib")
-    fig = raw_src_python.plot(scalings=dict(eeg=.3))
-    fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_python.png")
+    fig = raw_src_python.plot(scalings=dict(eeg=1))
+    fig.savefig(out_dir / "amica_sources_python.png")
     plt.close(fig)
-    fig = raw_src_fortran.plot(scalings=dict(eeg=.3))
-    fig.savefig("/Users/scotterik/devel/projects/amica-python/figs/amica_sources_fortran.png")
+    fig = raw_src_fortran.plot(scalings=dict(eeg=1))
+    fig.savefig(out_dir / "amica_sources_fortran.png")
     plt.close(fig)
 
 
