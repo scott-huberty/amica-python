@@ -70,7 +70,6 @@ jobs:
             git checkout gh-pages
 
             # Clear old files
-            git clean -fdX
             git rm -rf . > /dev/null 2>&1 || true
 
             # Copy built HTML docs into root
