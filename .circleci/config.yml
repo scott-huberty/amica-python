@@ -25,8 +25,11 @@ jobs:
           command: |
             cd docs
             make html
+      - persist_to_workspace:
+          root: docs/build
+          paths: html
       - store_artifacts:
-          path: docs/_build/html
+          path: docs/build/html
           destination: docs_html
   
   docs-deploy:
