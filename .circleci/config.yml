@@ -11,15 +11,12 @@ jobs:
     working_directory: ~/project/amica-python
     steps:
       - checkout
-      - run:
-          name: Upgrade pip and tooling
-          command: |
-            python -m pip install --upgrade pip
-            python -m pip --version
+      - python/install-packages:
+          pkg-manager: uv
       - run:
           name: Install package with dev+doc extras
           command: |
-            pip install -e ".[dev,doc]"
+            uv pip install -e ".[dev,doc]"
       - run:
           name: Build Sphinx docs
           command: |
@@ -62,7 +59,7 @@ jobs:
             - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
       - run:
           name: Deploy docs to gh-pages branch
-          command: gh-pages --nojekyll --message "[skip ci] Automatic commit from CircleCI" --dist "./docs/build/html"
+          command: gh-pages --nojekyll --message "[skip ci] Automatic commit from CircleCI" --dist "/root/project/docs/build/html"
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
