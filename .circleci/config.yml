@@ -34,7 +34,7 @@ jobs:
   
   docs-deploy:
     docker:
-      - image: node:8.10.0
+      - image: cimg/base:stable  # lightweight, has git + ssh
     working_directory: ~/project
     steps:
       - checkout
@@ -42,28 +42,46 @@ jobs:
           at: docs/build
       - run:
           name: Disable jekyll builds
+          # So Github Pages doen't choke on underscores.
           command: touch docs/build/html/.nojekyll
       - run:
           name: Install and configure dependencies
           command: |
-            npm install -g --silent gh-pages@2.0.1
             git config user.email "seh33@uw.edu"
             git config user.name "ci-build"
-            echo "Node version: $(node -v)"
-            echo "NPM version: $(npm -v)"
             echo "Git version: $(git --version)"
-            echo "gh-pages version: $(gh-pages --version)"
             echo "Current directory: $(pwd)"
             echo "Contents of Current directory:"
             ls -lR .
-            echo "gh-pages help:"
-            gh-pages --help
       - add_ssh_keys:
           fingerprints:
             - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
       - run:
           name: Deploy docs to gh-pages branch
-          command: gh-pages --message "[skip ci] Automatic commit from CircleCI" --dist "docs/build/html"
+          command: |
+            set -e
+
+            git config user.email "seh33@uw.edu"
+            git config user.name "ci-build"
+          
+
+            # Get gh-pages branch (it must exist)
+            git fetch origin gh-pages
+            git checkout gh-pages
+
+            # Clear old files
+            git clean -fdX
+            git rm -rf . > /dev/null 2>&1 || true
+
+            # Copy built HTML docs into root
+            cp -r docs/build/html/* .
+
+            # Add .nojekyll so GitHub Pages doesn’t choke on underscores
+            touch .nojekyll
+
+            git add -A
+            git commit --allow-empty -am "Update documentation: Automatic commit from CircleCI [skip ci]"
+            git push origin gh-pages
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
