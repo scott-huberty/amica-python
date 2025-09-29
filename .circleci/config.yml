@@ -52,10 +52,9 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
-            - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
       - run:
           name: Force remote to use SSH
-          # This forces CircleCI to use the write SSH key instead of the read-only one
+          # This forces CircleCI to use the write SSH key instead of the default deploy key
           command: |
             git remote set-url origin git@github.com:scott-huberty/amica-python.git
       - run:
