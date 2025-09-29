@@ -34,7 +34,7 @@ jobs:
   
   docs-deploy:
     docker:
-      - image: node:20.5.1
+      - image: node:8.10.0
     working_directory: ~/project
     steps:
       - checkout
@@ -43,7 +43,7 @@ jobs:
       - run:
           name: Install and configure dependencies
           command: |
-            npm install -g --silent gh-pages@6.2.0
+            npm install -g --silent gh-pages@2.0.1
             git config user.email "seh33@uw.edu"
             git config user.name "ci-build"
             echo "Node version: $(node -v)"
