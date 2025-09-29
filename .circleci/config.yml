@@ -40,13 +40,11 @@ jobs:
       - attach_workspace:
           at: docs/build
       - run:
-          name: Disable jekyll builds
-          command: touch docs/build/html/.nojekyll
-      - run:
           name: Install and configure dependencies
           command: |
             echo "Node version: $(node -v)"
             echo "NPM version: $(npm -v)"
+            echo "Current directory: $(pwd)"
             npm install -g --silent gh-pages
             git config user.email "seh33@uw.edu"
             git config user.name "ci-build"
@@ -55,7 +53,7 @@ jobs:
             - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
       - run:
           name: Deploy docs to gh-pages branch
-          command: gh-pages --dotfiles --message "[skip ci] Automatic commit from CircleCI" --dist "docs/build/html"
+          command: gh-pages --nojekyll --message "[skip ci] Automatic commit from CircleCI" --dist "html"
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
