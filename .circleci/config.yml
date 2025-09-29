@@ -11,8 +11,6 @@ jobs:
     working_directory: ~/project/amica-python
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: uv
       - run:
           name: Install package with dev+doc extras
           command: |
