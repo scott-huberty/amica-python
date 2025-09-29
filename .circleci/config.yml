@@ -37,10 +37,11 @@ jobs:
   docs-deploy:
     docker:
       - image: node:20.5.1
+    working_directory: ~/project
     steps:
       - checkout
       - attach_workspace:
-          at: .
+          at: docs/build
       - run:
           name: Install and configure dependencies
           command: |
