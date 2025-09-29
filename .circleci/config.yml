@@ -27,7 +27,9 @@ jobs:
             make html
       - persist_to_workspace:
           root: docs/build
-          paths: html
+          # Must be relative to root
+          paths:
+            - html
       - store_artifacts:
           path: docs/build/html
           destination: docs_html
@@ -38,16 +40,22 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: docs/build
+          at: .
       - run:
           name: Install and configure dependencies
           command: |
             echo "Node version: $(node -v)"
             echo "NPM version: $(npm -v)"
             echo "Current directory: $(pwd)"
+            echo "Contents of Current directory:"
+            ls -lR .
             npm install -g --silent gh-pages
             git config user.email "seh33@uw.edu"
             git config user.name "ci-build"
+            echo "Git version: $(git --version)"
+            echo "gh-pages version: $(gh-pages --version)"
+            echo "gh-pages help:"
+            gh-pages --help
       - add_ssh_keys:
           fingerprints:
             - "SHA256:ELRqw7gZgNGI2r8OMpiRI0pqyjSr1LGMZKVr998bNbQ"
