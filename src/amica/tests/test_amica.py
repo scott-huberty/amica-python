@@ -7,6 +7,7 @@ expected outputs, serving as a regression test during refactoring.
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+import mne
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 
@@ -32,7 +33,6 @@ def test_amica_full_algorithm(match_fortran_init):
     This test runs the entire algorithm and checks that it completes successfully
     with expected outputs.
     """
-    import mne
 
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
     dataseg = raw.get_data().T
@@ -266,3 +266,26 @@ def test_simulated_data(n_samples, noise_factor):
         # The end our final log likelihoods have diverged a lot
         assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
         # AFAICT, this is because of compounding numerical differences in the updates
+
+
+def test_sample_audvis():
+    fpath = Path.home() / "devel" / "repos" / "mne-python" / "mne" / "io" / "tests" / "data" / "test_raw.fif"
+    raw = mne.io.read_raw_fif(fpath, preload=True).pick("eeg")
+    data = raw.get_data().T * 1e6  # Convert from Volts to microVolts
+    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
+        data,
+        max_iter=100,
+        n_components=15,
+        )
+    
+
+
+def test_n_components():
+    raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
+    dataseg = raw.get_data().T
+    dataseg *= 1e6  # Convert from Volts to microVolts
+    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
+        dataseg,
+        max_iter=100,
+        n_components=16,
+        )

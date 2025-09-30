@@ -255,7 +255,10 @@ def pre_whiten(
     print(f"num eigvals kept: {numeigs}")
 
     # Log determinant of the whitening matrix
-    sldet = -0.5 * np.sum(np.log(eigvals))
+    if numeigs == nx:
+        sldet = -0.5 * np.sum(np.log(eigvals))
+    else:
+        sldet = -0.5 * np.sum(np.log(eigvals[::-1][:numeigs]))
 
     # ---- Sphere or variance normalize ----
     if do_sphere:
@@ -266,10 +269,24 @@ def pre_whiten(
                 raise NotImplementedError()
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
+                # Zero-copy assignment
                 whitening_matrix = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
         else:
-            # if (do_approx_sphere) then
-            raise NotImplementedError()
+            if do_approx_sphere:
+                raise NotImplementedError()
+            else:
+                # FIXME: Can We vectorize this.
+                # FIXME: We might have only implemented do_approx_sphere in the case of
+                # FIXME: numeigs == nx, but not here we dont at all. Please double check.
+                # call DCOPY(nx*nx,Stmp2,1,S,1)
+                order = np.argsort(eigvals)[::-1]  # descending order
+                Stmp2 = eigvecs[:, order].T  # Descending order eigenvectors
+                Stmp2_orig = Stmp2.copy() # For debugging with Fortran output
+                for i in range(numeigs):
+                    for j in range(n_components):
+                        Stmp2[i, j] = Stmp2[i, j] / np.sqrt(eigvals[::-1][i])
+                whitening_matrix = Stmp2.T # This is S in Fortran code
+            # raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)
         # -------------------- FORTRAN CODE ---------------------------------------
@@ -294,7 +311,6 @@ def pre_whiten(
 
     nw = numeigs # Number of weights, as per Fortran code
     print(f"numeigs = {numeigs}, nw = {nw}")
-
     # ! get the pseudoinverse of the sphering matrix
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
     Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix 
