@@ -40,5 +40,5 @@ def test_io(tmp_path):
     data = raw.get_data().T
     fpath = tmp_path / "data.bin"
     write_data(data, fpath)
-    data_in = load_data(fpath, shape=data.shape)
+    data_in = load_data(fpath, shape=data.T.shape).T
     assert_allclose(data.astype("<f4"), data_in)

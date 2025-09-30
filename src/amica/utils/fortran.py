@@ -139,6 +139,18 @@ def load_data(filename, *, dtype=np.float32, shape=None):
     -------
     data : np.ndarray
         The Fortran-contiguous array that was loaded.
+    
+    Notes
+    -----
+    Fortran stores arrays in column-major order, and the Fortran program
+    expectes data in shape (n_features, n_samples). So when loading data
+    for use in Python, you should reshape to (n_features, n_samples) and
+    then transpose to (n_samples, n_features) to match the common Python
+    convention.
+
+    Examples
+    --------
+    >>> data = load_data('data.bin', shape=(64, 1000)).T
     """
     data = np.fromfile(filename, dtype=dtype)
     if shape is not None:
