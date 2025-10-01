@@ -168,7 +168,7 @@ def pre_whiten(
         mineig: float = 1e-6,
         do_mean: bool = True,
         do_sphere: bool = True,
-        do_approx_sphere: bool = False,
+        do_approx_sphere: bool = True,
         inplace: bool = True,
 ) -> Tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
     """
@@ -190,7 +190,7 @@ def pre_whiten(
         If True, perform sphering (whitening). If False, only variance normalization
         is performed (not implemented)
     do_approx_sphere : bool
-        If True, use approximate sphering (not implemented).
+        If True, use approximate sphering.
     inplace : bool
         If True, modify X in place. If False, make a copy of X and modify that.
     
@@ -260,32 +260,43 @@ def pre_whiten(
     else:
         sldet = -0.5 * np.sum(np.log(eigvals[::-1][:numeigs]))
 
+    # FIXME: Can We vectorize this.
+    # FIXME: We might have only implemented do_approx_sphere in the case of
+    # FIXME: numeigs == nx, but not here we dont at all. Please double check.
+    # call DCOPY(nx*nx,Stmp2,1,S,1)
+    order = np.argsort(eigvals)[::-1]  # descending order
+    Stmp2 = eigvecs[:, order].T  # Descending order eigenvectors
+    Stmp = Stmp2.copy() # For debugging with Fortran output
+    for i in range(numeigs):
+        for j in range(n_components):
+            Stmp2[i, j] = Stmp2[i, j] / np.sqrt(eigvals[::-1][i])
+
     # ---- Sphere or variance normalize ----
     if do_sphere:
         print("Sphering the data...")
         if numeigs == nx:
             # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
-                raise NotImplementedError()
-            else:
-                # call DCOPY(nx*nx,Stmp2,1,S,1)
                 # Zero-copy assignment
                 whitening_matrix = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
+            else:
+                # call DCOPY(nx*nx,Stmp2,1,S,1)
+                whitening_matrix = Stmp2.T.copy()
         else:
             if do_approx_sphere:
-                raise NotImplementedError()
+                S = Stmp.T.copy() # Should probably do Stmp = Stmp2.T.copy() above
+                # SVD on leading block (numeigs x numeigs)
+                block = S[:numeigs, :numeigs]
+                U, s, VT = np.linalg.svd(block, full_matrices=True)
+                Stmp[:numeigs, :numeigs] = U.T
+                S[:numeigs, :numeigs] = VT.T
+                eigs = s.copy()
+                Stmp3 = Stmp[:numeigs, :numeigs].T @ S[:numeigs, :numeigs].T 
+                S.fill(0.0) # call DSCAL(nx*nx,dble(0.0),S,1)
+                S[:numeigs, :] = Stmp3 @ Stmp2[:numeigs, :]
+                whitening_matrix = S
             else:
-                # FIXME: Can We vectorize this.
-                # FIXME: We might have only implemented do_approx_sphere in the case of
-                # FIXME: numeigs == nx, but not here we dont at all. Please double check.
-                # call DCOPY(nx*nx,Stmp2,1,S,1)
-                order = np.argsort(eigvals)[::-1]  # descending order
-                Stmp2 = eigvecs[:, order].T  # Descending order eigenvectors
-                Stmp2_orig = Stmp2.copy() # For debugging with Fortran output
-                for i in range(numeigs):
-                    for j in range(n_components):
-                        Stmp2[i, j] = Stmp2[i, j] / np.sqrt(eigvals[::-1][i])
-                whitening_matrix = Stmp2.T # This is S in Fortran code
+                whitening_matrix = Stmp2.T.copy()
             # raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)

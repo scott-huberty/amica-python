@@ -28,18 +28,20 @@ def load_initial_weights(fortran_outdir, *, n_components, n_mixtures):
     return initial_weights, initial_scales, initial_locations
 
 
-def load_fortran_results(fortran_outdir, *, n_components, n_mixtures):
+def load_fortran_results(fortran_outdir, *, n_components, n_mixtures, n_features=None):
     """Load results from a completed Fortran AMICA run for comparison."""
     fortran_outdir = Path(fortran_outdir)
     assert fortran_outdir.exists()
     assert fortran_outdir.is_dir()
+    if n_features is None:
+        n_features = n_components
 
     # Channel means
     mean_f = np.fromfile(f"{fortran_outdir}/mean")
 
     # Sphering matrix
     S_f = np.fromfile(f"{fortran_outdir}/S", dtype=np.float64)
-    S_f = S_f.reshape((n_components, n_components), order="F")
+    S_f = S_f.reshape((n_features, n_features), order="F")
 
     # Unmixing matrix
     W_f = np.fromfile(f"{fortran_outdir}/W", dtype=np.float64)

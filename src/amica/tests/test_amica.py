@@ -14,6 +14,7 @@ from numpy.testing import assert_almost_equal, assert_allclose
 import pytest
 
 from amica import fit_amica
+from amica.linalg import pre_whiten
 from amica.datasets import data_path
 from amica.utils import generate_toy_data, load_initial_weights, load_fortran_results
 
@@ -266,26 +267,36 @@ def test_simulated_data(n_samples, noise_factor):
         # The end our final log likelihoods have diverged a lot
         assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
         # AFAICT, this is because of compounding numerical differences in the updates
-
-
-def test_sample_audvis():
-    fpath = Path.home() / "devel" / "repos" / "mne-python" / "mne" / "io" / "tests" / "data" / "test_raw.fif"
-    raw = mne.io.read_raw_fif(fpath, preload=True).pick("eeg")
-    data = raw.get_data().T * 1e6  # Convert from Volts to microVolts
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
-        data,
-        max_iter=100,
-        n_components=15,
-        )
     
 
-
-def test_n_components():
+@pytest.mark.parametrize("n_components", [None, 16])
+def test_pre_whiten(n_components):
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
     dataseg = raw.get_data().T
     dataseg *= 1e6  # Convert from Volts to microVolts
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
-        dataseg,
-        max_iter=100,
-        n_components=16,
+    _, S, _, _, _ = pre_whiten(
+        X=dataseg.copy(),
+        n_components=n_components,
+        do_approx_sphere=True,
+    )
+    # Load Fortran results
+    amica_outdir = data_path() / "eeglab_sample_data"
+    if n_components is None:
+        results = load_fortran_results(
+            amica_outdir / "amicaout_test",
+            n_components=32,
+            n_mixtures=3,
         )
+        S_fortran = results["S"]
+        np.testing.assert_allclose(S, S_fortran)
+    elif n_components == 16:
+        results = load_fortran_results(
+            amica_outdir / "amicaout_reduced_rank_approx_sphere",
+            n_features=32,
+            n_components=16, 
+            n_mixtures=3
+        )
+        S_fortran = results["S"]
+        # The Bottom triangle is zeroed out in the Fortran version with some numerical
+        # noise
+        np.testing.assert_allclose(S[:16, :16], S_fortran[:16, :16])
