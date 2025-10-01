@@ -39,7 +39,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: docs/build
+          at: ~/docs/build
       - run:
           name: Install and configure dependencies
           command: |
@@ -71,10 +71,10 @@ jobs:
             git checkout gh-pages
 
             # Clear old files
-            git rm -rf . > /dev/null 2>&1 || true
+            git rm -rf .
 
             # Copy built HTML docs into root
-            cp -r docs/build/html/* .
+            cp -r ~/docs/build/html/* .
 
             # Add .nojekyll so GitHub Pages doesn’t choke on underscores
             touch .nojekyll
