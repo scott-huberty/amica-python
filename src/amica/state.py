@@ -11,15 +11,12 @@ Key containers
 - AmicaState: persistent parameters updated across iterations.
     - W: (n_components, n_components, n_models), A: (n_components, n_components), mu/sbeta/rho: (n_models, n_components), gm: (n_models,).
     - Includes to_dict() for easy serialization.
-- AmicaWorkspace: reusable temporary buffer registry (allocated on demand).
-    - get(name, shape, dtype=None, init='empty'|'zeros'|'ones') allocates lazily and reuses.
 - AmicaAccumulators: per-iteration aggregated numerators/denominators and grads.
     - (dalpha/dbeta/dmu/drho numerators/denominators, dgm_numer, loglik_sum).
 - AmicaMetrics: optional diagnostics for logging/inspection.
 
 Factory helpers
 - get_initial_state(cfg, seeds): create an AmicaState from sizes and seeds.
-- get_workspace(cfg, block_size): create a workspace with on-demand buffers.
 
 Note: This file is intentionally self-contained and does not depend on the
 rest of the code until wired. It is safe to import without side effects.
@@ -113,229 +110,6 @@ class AmicaState:
     def to_numpy(self) -> Dict[str, np.ndarray]:
         """Return a lightweight serialization of array fields as numpy arrays."""
         return {k: v.cpu().numpy() for k, v in self.to_dict().items()}
-
-
-@dataclass
-class AmicaWorkspace:
-    """Workspace for reusable temporary hot buffers that scale with n_samples.
-
-    All arrays in this container can be overwritten between chunks/iterations. They
-    do not need to persist. The motivation is to avoid repeated allocations and
-    deallocations of temporary arrays within tight loops, especially since most of these
-    arrays have overlapping lifetimes within a single iteration/chunk.
-    """
-    n_samples: int
-    n_components: int
-    n_mixtures: int
-    n_models: int
-    dtype: torch.dtype = torch.float64
-    _buffers: Dict[str, NDArray] = field(default_factory=dict)
-
-    def __post_init__(self):
-        # Validate sizes
-        if self.n_samples <= 0:
-            raise ValueError(f"n_samples must be positive, got {self.n_samples}")
-        if self.n_components <= 0:
-            raise ValueError(f"n_components must be positive, got {self.n_components}")
-        if self.n_mixtures <= 0:
-            raise ValueError(f"n_mixtures must be positive, got {self.n_mixtures}")
-        if self.n_models <= 0:
-            raise ValueError(f"n_models must be positive, got {self.n_models}")
-        # Pre-allocate commonly used buffers
-        self.allocate_buffers(
-            n_samples=self.n_samples,
-            n_components=self.n_components,
-            n_mixtures=self.n_mixtures,
-            n_models=self.n_models,
-        )
-
-    def allocate_buffer(
-        self,
-        name: str,
-        shape: Tuple[int, ...],
-        *,
-        dtype: Optional[torch.dtype] = None,
-        init: str = "zeros",
-        force_realloc: bool = False,
-    ) -> NDArray:
-        """Allocate or reallocate a specific buffer with validation.
-
-        Parameters
-        ----------
-        name : str
-            Unique buffer identifier (e.g., 'b', 'y', 'z0').
-        shape : Tuple[int, ...]
-            Required buffer shape. Must be positive integers.
-        dtype : torch.dtype, optional
-            Buffer data type. If None, uses workspace default.
-        init : str, default='zeros'
-            Initialization mode: 'zeros', 'ones', or 'empty'.
-        force_realloc : bool, default=False
-            If True, forces reallocation even if buffer exists with correct shape/dtype.
-
-        Returns
-        -------
-        NDArray
-            The allocated buffer.
-
-        Raises
-        ------
-        ValueError
-            If shape contains non-positive values or init mode is invalid.
-        RuntimeError
-            If attempting to change shape/dtype of existing buffer without force_realloc.
-        """
-        # Input validation
-        if not all(isinstance(s, int) and s > 0 for s in shape):
-            raise ValueError(f"Buffer '{name}': shape must contain positive integers, got {shape}")
-        
-        if init not in {"zeros", "ones", "empty"}:
-            raise ValueError(f"Buffer '{name}': invalid init mode '{init}', must be 'zeros', 'ones', or 'empty'")
-
-        dtype = self.dtype if dtype is None else dtype
-        existing_buffer = self._buffers.get(name)
-        
-        # Check for shape/dtype conflicts with existing buffer
-        if existing_buffer is not None:
-            shape_matches = existing_buffer.shape == shape
-            dtype_matches = existing_buffer.dtype == dtype
-            
-            if shape_matches and dtype_matches and not force_realloc:
-                # Buffer exists and matches - return it (optionally reinitialize)
-                if init == "zeros":
-                    existing_buffer.fill_(0.0)
-                elif init == "ones":
-                    existing_buffer.fill_(1.0)
-                # 'empty' means don't reinitialize
-                return existing_buffer
-            
-            elif not force_realloc:
-                # Shape/dtype mismatch without force_realloc
-                raise RuntimeError(
-                    f"Buffer '{name}' shape/dtype mismatch: "
-                    f"existing=({existing_buffer.shape}, {existing_buffer.dtype}), "
-                    f"requested=({shape}, {dtype}). Use force_realloc=True to override."
-                )
-
-        # Allocate new buffer
-        if init == "zeros":
-            buffer = torch.zeros(shape, dtype=dtype)
-        elif init == "ones":
-            buffer = torch.ones(shape, dtype=dtype)
-        else:  # init == "empty"
-            buffer = torch.empty(shape, dtype=dtype)
-
-        # Store buffer
-        self._buffers[name] = buffer
-        return buffer
-
-    def get_buffer(self, name: str) -> NDArray:
-        """Get an already-allocated buffer.
-
-        Parameters
-        ----------
-        name : str
-            Buffer name.
-
-        Returns
-        -------
-        NDArray
-            The requested buffer.
-
-        Raises
-        ------
-        KeyError
-            If buffer has not been allocated.
-        """
-        try:
-            return self._buffers[name]
-        except KeyError:
-            raise KeyError(
-                f"Buffer '{name}' not allocated. "
-                f"Available buffers: {list(self._buffers.keys())}"
-            )
-
-    def allocate_buffers(
-            self, n_samples: int, n_components: int, n_mixtures: int, n_models: int
-            ) -> dict[str, NDArray]:
-            """Allocate hot buffers that are used by AMICA."""
-            buffer_specs = {
-                # Source and intermediate computation buffers
-                "b": (n_samples, n_components),                 
-                "g": (n_samples, n_components),                 
-                "v": (n_samples, n_models),                     # model responsibilities
-                "y": (n_samples, n_components, n_mixtures),     # source estimates           
-                "z": (n_samples, n_components, n_mixtures),     # used for z0 and z
-                "fp": (n_samples, n_components, n_mixtures),
-                "ufp": (n_samples, n_components, n_mixtures),
-                "modloglik": (n_samples, n_models),             # model log likelihood
-            }
-            self.allocate_all(buffer_specs, init="zeros")
-            self.buffer_specs = buffer_specs
-            return buffer_specs
-
-
-    
-    def allocate_all(self, buffer_specs: Dict[str, Tuple[int, ...]], *, init: str = "zeros") -> None:
-        """Pre-allocate multiple buffers at once.
-
-        Parameters
-        ----------
-        buffer_specs : Dict[str, Tuple[int, ...]]
-            Mapping of buffer names to their required shapes.
-        init : str, default='zeros'
-            Initialization mode for all buffers.
-
-        Example
-        -------
-        >>> workspace.allocate_all({
-        ...     "b": (512, 32, 1),
-        ...     "y": (512, 32, 3, 1),
-        ...     "z": (512, 32, 3, 1),
-        ... })
-        """
-        for name, shape in buffer_specs.items():
-            self.allocate_buffer(name, shape, init=init)
-
-    def has_buffer(self, name: str) -> bool:
-        """Check if a buffer exists."""
-        return name in self._buffers
-
-    def buffer_info(self, name: str) -> Dict[str, any]:
-        """Get information about a buffer."""
-        if not self.has_buffer(name):
-            raise KeyError(f"Buffer '{name}' not allocated.")
-        
-        buffer = self._buffers[name]
-        return {
-            "shape": buffer.shape,
-            "dtype": buffer.dtype,
-            "size": buffer.size,
-            "nbytes": buffer.nbytes,
-        }
-
-    def clear(self, names: Optional[Iterable[str]] = None) -> None:
-        """Drop one or more buffers."""
-        if names is None:
-            self._buffers.clear()
-        else:
-            for name in names:
-                self._buffers.pop(name, None)
-    
-    def zero_all(self) -> None:
-        """Zero all existing buffers in-place."""
-        for arr in self._buffers.values():
-            arr.fill_(0.0)
-
-    def total_memory_usage(self) -> int:
-        """Get total memory usage in bytes."""
-        return sum(buf.nbytes for buf in self._buffers.values())
-
-    # Legacy compatibility method
-    def get(self, name: str, shape: Tuple[int, ...], *, dtype: Optional[torch.dtype] = None, init: str = "zeros") -> NDArray:
-        """Legacy compatibility method. Use allocate_buffer() for new code."""
-        return self.allocate_buffer(name, shape, dtype=dtype, init=init)
-
 
 @dataclass(slots=True, repr=False)
 class AmicaAccumulators:
@@ -549,16 +323,6 @@ def get_initial_state(
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
-def get_workspace(cfg: AmicaConfig, *, block_size: Optional[int] = None) -> AmicaWorkspace:
-    """Create a workspace with the configured dtype and block size.
-
-    The workspace provides `get(name, shape, dtype=None, init='empty')` to
-    request buffers lazily and reuse them across iterations.
-    """
-    bsize = cfg.block_size if block_size is None else block_size
-    return AmicaWorkspace(block_size=bsize, dtype=cfg.dtype)
-
-
 # TODO: consider making this a class method of AmicaAccumulators
 def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     """Allocate zeroed update accumulators with shapes from the config."""
@@ -682,11 +446,9 @@ def reset_accumulators(u: AmicaAccumulators) -> None:
 __all__ = [
     "AmicaConfig",
     "AmicaState",
-    "AmicaWorkspace",
     "AmicaAccumulators",
     "AmicaMetrics",
     "get_initial_state",
-    "get_workspace",
     "initialize_accumulators",
     "reset_accumulators",
 ]
