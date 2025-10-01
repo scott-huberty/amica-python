@@ -128,8 +128,8 @@ def choose_batch_size(
 
     Notes
     -----
-    The batch size is primarily determined by the estimated size of the pre-allocated hot
-    buffers in AmicaWorkspace, which scale with the size of n_samples:
+    The batch size is primarily determined by the estimated size of hot buffers (e.g.
+    y, z, fp, ufp), which scale with the size of n_samples:
     - One array of shape (N,):
         - loglik
     - Two arrays of shape (N, n_models):
@@ -146,7 +146,7 @@ def choose_batch_size(
         - ufp
     """
     dtype_size = np.dtype(dtype).itemsize
-    # per-sample cost across pre-allocated buffers in AmicaWorkspace
+    # per-sample cost across pre-allocated buffers
     bytes_per_sample = (
         1                       # loglik
         + 2 * n_models          # modloglik, v
