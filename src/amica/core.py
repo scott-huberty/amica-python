@@ -239,7 +239,7 @@ def fit_amica(
         mineig=mineig,
         do_mean=do_mean,
         do_sphere=do_sphere,
-        do_approx_sphere=False,
+        do_approx_sphere=True,
         inplace=True,
         )
 
