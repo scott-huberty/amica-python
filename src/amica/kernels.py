@@ -24,6 +24,7 @@ def compute_preactivations(
         unmixing_matrix: WeightsArray,  # (n_components, n_features)
         bias: ComponentsVector,  # (n_components,)
         do_reject=False, 
+        n_weights=None,
         out_activations: Optional[SourceArray2D] = None,  # (n_samples, n_components)
 ) -> SourceArray2D:
     """Compute source pre-activations b[t, :] = X_t^T @ W^T - wc for model h.
@@ -38,6 +39,11 @@ def compute_preactivations(
         Weight correction (wc) vector for model h e.g. wc[:, h_index]
     do_reject : bool
         Whether to perform rejection. Currently not implemented.
+    n_weights : int, optional
+        Number of weights (i.e. components) to use. If None, use all weights,
+        i.e. all n_features columns of the input array X. If specified, X
+        will be sliced to use only the first n_weights columns. This is `nw` in the
+        Fortran program.
     
     Returns
     -------
@@ -50,12 +56,17 @@ def compute_preactivations(
     #---------------------------------------------------------------
     # Alias terms for clarity with Fortran code
     dataseg = X
+    if n_weights is None:
+        n_weights = dataseg.shape[1]
+    nw = n_weights # For parity with Fortran code
     W = unmixing_matrix
     wc = bias
     assert wc.ndim == 1, f"wc must be 1D, got {wc.ndim}D"
     assert W.ndim == 2, f"W must be 2D, got {W.ndim}D"
     assert dataseg.ndim == 2, f"dataseg must be 2D, got {dataseg.ndim}D"
-    assert dataseg.shape[1] == W.shape[1], (f"X n_features {dataseg.shape[1]} != W n_features {W.shape[1]}")
+    assert dataseg[:, :nw].shape[1] == W.shape[1], (
+        f"X n_features {dataseg[:, :nw].shape[1]} != W n_weights {W.shape[1]}"
+        )
 
     if do_reject:
         #--------------------------FORTRAN CODE-------------------------
@@ -73,7 +84,8 @@ def compute_preactivations(
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
         # Same as np.einsum("ft,cf->tc", dataseg, W)
-        b = torch.matmul(dataseg, W.T)
+        # import pdb; pdb.set_trace()
+        b = torch.matmul(dataseg[:, :nw], W.T)
     # end else
     # Subtract the weight correction factor
     b -= wc
@@ -685,6 +697,7 @@ def accumulate_c_stats(
         model_responsibilities: SamplesVector,
         vsum: float,
         do_reject: bool = False,
+        n_weights: Optional[int] = None,
         out_numer: ComponentsVector,
         out_denom: ComponentsVector,
         ) -> Tuple[ParamsModelArray, ParamsModelArray]:
@@ -702,6 +715,10 @@ def accumulate_c_stats(
         (i.e. the sum across samples).
     do_reject : bool, default False
         Currently only False (no outlier rejection) is supported.
+    n_weights : int or None, default None
+        The number of components being used. If None, n_weights is set to X.shape[1],
+        to use all features/components. The input array X will be sliced to only use
+        the first n_weights components. This is `nw` in the Fortran code.
     out_numer : np.ndarray
         Shape (n_components,). Accumulator for the numerator of the c
         gradient For one model. This array is mutated in-place and returned.
@@ -727,19 +744,22 @@ def accumulate_c_stats(
     """
     # Alias for clarity with Fortran code
     dataseg = X
+    if n_weights is None:
+        n_weights = X.shape[1]
+    nw = n_weights  # Fortran code parity
     v = model_responsibilities
-    assert X.ndim == 2, f"X must be 2D, got {X.ndim}D"
+    assert dataseg.ndim == 2, f"X must be 2D, got {dataseg.ndim}D"
     assert v.ndim == 1, f"model responsibilities must be 1D, got {v.ndim}D"
-    assert X.shape[0] == v.shape[0], (
-        f"X n_samples {X.shape[0]} != model responsibilities length {v.shape[0]}"
+    assert dataseg.shape[0] == v.shape[0], (
+        f"X n_samples {dataseg.shape[0]} != model responsibilities length {v.shape[0]}"
     )
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
-    assert out_numer.shape == (X.shape[1],), (
-        f"out_numer shape {out_numer.shape} != (n_components,) "
+    assert out_numer.shape == (dataseg[:, :nw].shape[1],), (
+        f"out_numer shape {out_numer.shape} != (n_components,): {nw} "
     )
-    assert out_denom.shape == (X.shape[1],), (
-        f"out_denom shape {out_denom.shape} != (n_components,) "
-        f"= ({X.shape[1]},)"
+    assert out_denom.shape == (dataseg[:, :nw].shape[1],), (
+        f"out_denom shape {out_denom.shape} != (n_components,): {nw} "
+        f"= ({dataseg.shape[1]},)"
     )
     if do_reject:
         raise NotImplementedError()
@@ -748,7 +768,7 @@ def accumulate_c_stats(
         #--------------------------FORTRAN CODE-------------------------
         # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
         #---------------------------------------------------------------
-        tmpsum_c_vec = dataseg.T @ v  # Shape: (n_components,)
+        tmpsum_c_vec = dataseg[:, :nw].T @ v  # Shape: (n_components,)
     out_numer += tmpsum_c_vec
     out_denom += vsum
     return out_numer, out_denom

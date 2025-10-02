@@ -39,7 +39,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: ~/docs/build
+          at: ~/docs/build  # Temporary location to hold built docs
       - run:
           name: Install and configure dependencies
           command: |
@@ -60,6 +60,7 @@ jobs:
       - run:
           name: Deploy docs to gh-pages branch
           command: |
+            # Fail fast if any commands fail
             set -e
 
             git config user.email "seh33@uw.edu"
@@ -76,7 +77,7 @@ jobs:
             # Copy built HTML docs into root
             cp -r ~/docs/build/html/* .
 
-            # Add .nojekyll so GitHub Pages doesn’t choke on underscores
+            # Add .nojekyll so GitHub Pages doesn't choke on underscores
             touch .nojekyll
 
             git add -A

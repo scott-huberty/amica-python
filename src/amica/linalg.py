@@ -169,6 +169,7 @@ def pre_whiten(
         do_mean: bool = True,
         do_sphere: bool = True,
         do_approx_sphere: bool = True,
+        sphering_matrix: Optional[WeightsArray] = None,
         inplace: bool = True,
 ) -> Tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
     """
@@ -201,7 +202,7 @@ def pre_whiten(
         otherwise it is the mutated input data itself.
     whitening_matrix : array, shape (n_features, n_features)
         The whitening/sphering matrix applied to the data. If do_sphere is False, then
-        this is the variance normalization matrix (not implemented).
+        this is the variance normalization matrix.
     sldet : float
         The log-determinant of the whitening matrix.
     whitening_inverse : array, shape (n_features, n_features)
@@ -245,12 +246,9 @@ def pre_whiten(
     max_eigs = eigvals[::-1][:3]
     print(f"minimum eigenvalues: {min_eigs}")
     print(f"maximum eigenvalues: {max_eigs}")
-
-    min_eigs_fortran = [4.8799005132501803, 6.9201197127079803, 7.6562147928880702]
-    max_eigs_fortran = [9711.1430838537090, 3039.6850435125002, 1244.4129447052057]
-
     
-    # keep only valid eigs  
+    # keep only valid eigs (pcakeep)
+    # Do we need to pass numeigs to optimize if sum(eigvals > mineig) < n_components?
     numeigs = min(n_components, sum(eigvals > mineig)) # np.linalg.matrix_rank?
     print(f"num eigvals kept: {numeigs}")
 
@@ -260,10 +258,7 @@ def pre_whiten(
     else:
         sldet = -0.5 * np.sum(np.log(eigvals[::-1][:numeigs]))
 
-    # FIXME: Can We vectorize this.
-    # FIXME: We might have only implemented do_approx_sphere in the case of
-    # FIXME: numeigs == nx, but not here we dont at all. Please double check.
-    # call DCOPY(nx*nx,Stmp2,1,S,1)
+    # FIXME: Can We vectorize this and make it more readable..
     order = np.argsort(eigvals)[::-1]  # descending order
     Stmp2 = eigvecs[:, order].T  # Descending order eigenvectors
     Stmp = Stmp2.copy() # For debugging with Fortran output
@@ -278,25 +273,47 @@ def pre_whiten(
             # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
                 # Zero-copy assignment
-                whitening_matrix = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
+                S = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
-                whitening_matrix = Stmp2.T.copy()
+                S = Stmp2.T.copy()
         else:
             if do_approx_sphere:
-                S = Stmp.T.copy() # Should probably do Stmp = Stmp2.T.copy() above
-                # SVD on leading block (numeigs x numeigs)
-                block = S[:numeigs, :numeigs]
-                U, s, VT = np.linalg.svd(block, full_matrices=True)
-                Stmp[:numeigs, :numeigs] = U.T
-                S[:numeigs, :numeigs] = VT.T
-                eigs = s.copy()
-                Stmp3 = Stmp[:numeigs, :numeigs].T @ S[:numeigs, :numeigs].T 
-                S.fill(0.0) # call DSCAL(nx*nx,dble(0.0),S,1)
+                # -------------------- FORTRAN CODE -------------------------------------
+                # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
+                # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data
+                # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)
+                # ------------------------------------------------------------------------
+
+                # This is a direct translation of the Fortran code
+                # Which was hard to follow...
+
+                # 1) reorder eigenvectors (descending eigenvalues)
+                # FIXME: Move this above to avoid redundant computation
+                order = np.argsort(eigvals)[::-1]
+                eigvals_desc = eigvals[order]
+                Stmp = eigvecs[:, order].T.copy() # UNCSCALED eigenvectors
+                Stmp2 = Stmp.copy()
+                
+                # 2) build Stmp2 = SCALED eigenvectors
+                Stmp2[:numeigs, :] /= np.sqrt(eigvals_desc[:numeigs, None])
+                
+                # 3) Unscaled eigenvectors goes into SVD
+                S = Stmp.copy()
+
+                # 4) SVD on leading block
+                U, s, VT = np.linalg.svd(S[:numeigs, :numeigs], full_matrices=True)
+                Stmp[:numeigs, :numeigs] = VT.T
+                S[:numeigs, :numeigs] = U.T
+                
+                # 5) Stmp3 = Stmp^T @ S^T (numeigs×numeigs block)
+                Stmp3 = Stmp[:numeigs, :numeigs] @ S[:numeigs, :numeigs]
+                
+                # 6) zero S and form final S = Stmp3 @ Stmp2
+                S.fill(0.0)
                 S[:numeigs, :] = Stmp3 @ Stmp2[:numeigs, :]
-                whitening_matrix = S
             else:
-                whitening_matrix = Stmp2.T.copy()
+                S = Stmp2.T.copy()
             # raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)
@@ -304,20 +321,20 @@ def pre_whiten(
         # call DCOPY(nx*nx,S,1,Stmp,1)
         # call DSCAL(nx*nx,dble(0.0),S,1)
         #------------------------------------------------------------------------
-        whitening_matrix = np.zeros_like(Cov) # This is S in Fortran code
+        S = np.zeros_like(Cov) # This is S in Fortran code
         # Zero out the lower triangle to have parity with Fortran
         sldet = 0.0
         for i in range(nx):
             if np.triu(Cov)[i, i] > 0:
-                whitening_matrix[i, i] = 1.0 / np.sqrt(Cov[i, i])
-                sldet += 0.5 * np.log(whitening_matrix[i, i])
+                S[i, i] = 1.0 / np.sqrt(Cov[i, i])
+                sldet += 0.5 * np.log(S[i, i])
             numeigs = nx
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
     # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
-    dataseg = np.matmul(dataseg, whitening_matrix, out=dataseg)  # In-place if possible
+    dataseg = np.matmul(dataseg, S.T, out=dataseg)  # In-place if possible
 
 
     nw = numeigs # Number of weights, as per Fortran code
@@ -340,4 +357,4 @@ def pre_whiten(
     if not do_mean:
         mean = None
     assert dataseg.shape == (n_samples, nx), f"dataseg shape {dataseg.shape} != (n_samples, n_features) = ({n_samples}, {nx})"
-    return dataseg, whitening_matrix, sldet, Winv, mean
+    return dataseg, S, sldet, Winv, mean
