@@ -37,7 +37,7 @@ def test_amica_full_algorithm(load_weights, n_components):
     This test runs the entire algorithm and checks that it completes successfully
     with expected outputs.
     """
-    out_type = "amicaout_test" if n_components is None else "amicaout_reduced_rank_approx_sphere"
+    out_type = "amicaout_test" if n_components is None else "amicaout_dimension_reduction_approx_sphere"
     amica_outdir = data_path() / "eeglab_sample_data" / out_type
 
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
@@ -297,32 +297,87 @@ def test_simulated_data(n_samples, noise_factor):
         # AFAICT, this is because of compounding numerical differences in the updates
     
 
-@pytest.mark.parametrize("n_components", [None, 16])
-def test_pre_whiten(n_components):
+@pytest.mark.parametrize(
+        "n_components, do_approx_sphere",
+        [(None, True), (16, True), (32, False), (16, False)]
+        )
+def test_pre_whiten(n_components, do_approx_sphere):
+    """Test our Whitening/Sphering implementation against Fortran results."""
+    # Load Fortran Directory
+    amica_outdir = data_path() / "eeglab_sample_data"
+
+    # Get the Data
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
     dataseg = raw.get_data().T
     dataseg *= 1e6  # Convert from Volts to microVolts
-    _, S, _, _, _ = pre_whiten(
+
+    # Sphere the data
+    X_sphered, S, _, _, _ = pre_whiten(
         X=dataseg.copy(),
         n_components=n_components,
-        do_approx_sphere=True,
+        do_approx_sphere=do_approx_sphere,
     )
-    # Load Fortran results
-    amica_outdir = data_path() / "eeglab_sample_data"
+
+    # Compare to Fortran results
     if n_components is None:
+        if do_approx_sphere:
+            sub_dir = "amicaout_test"
+        else:
+            sub_dir = "amicaout_test_direct_sphere"
         results = load_fortran_results(
-            amica_outdir / "amicaout_test",
+            amica_outdir / sub_dir,
             n_components=32,
             n_mixtures=3,
         )
         S_fortran = results["S"]
         np.testing.assert_allclose(S, S_fortran)
     elif n_components == 16:
+        # We have two sets of Fortran results to compare against
+        if do_approx_sphere:
+            sub_dir = "amicaout_dimension_reduction_approx_sphere"
+        else:
+            sub_dir = "amicaout_dimension_reduction_direct_sphere"
+        # Load Fortran results
         results = load_fortran_results(
-            amica_outdir / "amicaout_reduced_rank_approx_sphere",
+            amica_outdir / sub_dir,
             n_features=32,
             n_components=16, 
             n_mixtures=3
         )
         S_fortran = results["S"]
-        np.testing.assert_allclose(S, S_fortran)
+        # Test
+        assert_allclose(np.abs(S), np.abs(S_fortran))
+
+    # Let's actually test the sphered data against some Fortran values we retrieved.
+    # FYI The sign of the sphered data between Fortran and Python can be flipped
+    # TODO: In the future we could save the actual Fortran sphered data to file
+    if n_components == 16 and not do_approx_sphere:
+        assert_allclose(X_sphered[0,0], 1.1875105848378642)
+        assert_allclose(X_sphered[1,0], 0.32247850347596485)
+        assert_allclose(X_sphered[19,0], 2.304779908218825)
+        assert_allclose(X_sphered[19,1], 1.1973479655746415)
+        assert_allclose(X_sphered[19,16], -7.2252664585424204)
+    elif n_components == 32 and not do_approx_sphere:
+        assert_allclose(abs(X_sphered[0,0]), abs(-1.187510584837864))
+        assert_allclose(abs(X_sphered[1,0]), abs(-0.32247850347596457))
+        assert_allclose(abs(X_sphered[19,0]), abs(-2.3047799082188241))
+        assert_allclose(abs(X_sphered[19,1]), 1.1973479655746426)
+        assert_allclose(abs(X_sphered[19,16]), abs(-1.2746894704832441))
+    elif n_components == 16 and do_approx_sphere:
+        assert_allclose(abs(X_sphered[0,0]), abs(-0.31609955770237225))
+        assert_allclose(abs(X_sphered[1,0]), abs(-0.40310811749340258))
+        assert_allclose(abs(X_sphered[19,0]), abs(0.056225277237319106))
+        assert_allclose(abs(X_sphered[19,1]), abs(0.30019806406010074))
+        assert_allclose(X_sphered[19,16], 0.0)
+    elif n_components is None and do_approx_sphere:
+        assert_allclose(abs(X_sphered[0,0]), abs(-0.18746213684159407))
+        assert_allclose(abs(X_sphered[1,0]), abs(-0.15889933957961194))
+        assert_allclose(abs(X_sphered[19,0]), abs(0.10283497726419745))
+        assert_allclose(abs(X_sphered[19,1]), abs(0.41534937407296713))
+        assert_allclose(abs(X_sphered[19,16]), abs(-1.9626236825765133))
+    else:
+        raise RuntimeError(
+            f"Untested combination of n_components={n_components} "
+            f"and do_approx_sphere={do_approx_sphere}"
+        )
+
