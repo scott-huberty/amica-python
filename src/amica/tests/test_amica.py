@@ -352,11 +352,11 @@ def test_pre_whiten(n_components, do_approx_sphere):
     # FYI The sign of the sphered data between Fortran and Python can be flipped
     # TODO: In the future we could save the actual Fortran sphered data to file
     if n_components == 16 and not do_approx_sphere:
-        assert_allclose(X_sphered[0,0], 1.1875105848378642)
-        assert_allclose(X_sphered[1,0], 0.32247850347596485)
-        assert_allclose(X_sphered[19,0], 2.304779908218825)
-        assert_allclose(X_sphered[19,1], 1.1973479655746415)
-        assert_allclose(X_sphered[19,16], -7.2252664585424204)
+        assert_allclose(abs(X_sphered[0,0]), 1.1875105848378642)
+        assert_allclose(abs(X_sphered[1,0]), 0.32247850347596485)
+        assert_allclose(abs(X_sphered[19,0]), 2.304779908218825)
+        assert_allclose(abs(X_sphered[19,1]), 1.1973479655746415)
+        assert_allclose(abs(X_sphered[19,16]), abs(-7.2252664585424204))
     elif n_components == 32 and not do_approx_sphere:
         assert_allclose(abs(X_sphered[0,0]), abs(-1.187510584837864))
         assert_allclose(abs(X_sphered[1,0]), abs(-0.32247850347596457))
