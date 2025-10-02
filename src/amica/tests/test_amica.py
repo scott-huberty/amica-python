@@ -21,38 +21,59 @@ from amica.utils import generate_toy_data, load_initial_weights, load_fortran_re
 pytestmark = pytest.mark.timeout(120)
 
 
-initial_weights, initial_scales, initial_locations = load_initial_weights(
-    data_path() / "eeglab_sample_data" / "amicaout_test", n_components=32, n_mixtures=3
-    )
 
-
-@pytest.mark.parametrize("match_fortran_init", [True, False])
-def test_amica_full_algorithm(match_fortran_init):
+@pytest.mark.parametrize(
+        "load_weights, n_components",
+        [
+            (True, None),
+            (True, 16),
+            (False, None),
+            ]
+        )
+def test_amica_full_algorithm(load_weights, n_components):
     """
     Test the complete AMICA algorithm by executing the full main script.
     
     This test runs the entire algorithm and checks that it completes successfully
     with expected outputs.
     """
+    out_type = "amicaout_test" if n_components is None else "amicaout_reduced_rank_approx_sphere"
+    amica_outdir = data_path() / "eeglab_sample_data" / out_type
 
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
     dataseg = raw.get_data().T
     dataseg *= 1e6  # Convert from Volts to microVolts
+
+    # Get Fortran results
+    want_components = 32 if n_components is None else n_components
+    fortran_results = load_fortran_results(
+        amica_outdir,
+        n_components=want_components,
+        n_mixtures=3,
+        n_features=32,
+        )
+    # Load weights
+    initial_weights, initial_scales, initial_locations = load_initial_weights(
+        amica_outdir,
+        n_components=want_components,
+        n_mixtures=3
+    )
+    
+    # Run AMICA
     S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
         X=dataseg,
+        n_components=n_components,
         max_iter=200,
         tol=1e-7,
         lrate=0.05,
         rholrate=0.05,
         newtrate=1.0,
-        initial_weights=initial_weights if match_fortran_init else None,
-        initial_scales=initial_scales if match_fortran_init else None,
-        initial_locations=initial_locations if match_fortran_init else None,
+        initial_weights=initial_weights if load_weights else None,
+        initial_scales=initial_scales if load_weights else None,
+        initial_locations=initial_locations if load_weights else None,
         random_state=12345,  # Only used if initial_* are None
         )
 
-    amica_outdir = data_path() / "eeglab_sample_data" / "amicaout_test"
-    fortran_results = load_fortran_results(amica_outdir, n_components=32, n_mixtures=3)
     LL_f = fortran_results["LL"]        # Log-likelihood
     mean_f = fortran_results["mean"]    # Channel means
     S_f = fortran_results["S"]          # Sphering matrix
@@ -67,7 +88,7 @@ def test_amica_full_algorithm(match_fortran_init):
 
     comp_list_f = fortran_results["comp_list"]
     # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
-    comp_list_f = np.reshape(comp_list_f, (32, 2), order="F")
+    comp_list_f = np.reshape(comp_list_f, (want_components, 2), order="F")
     
     # These should be equal regardless of initialization
     assert_almost_equal(mean, mean_f)
@@ -76,7 +97,7 @@ def test_amica_full_algorithm(match_fortran_init):
     assert gm == gm_f == np.array([1.])
 
     # The rest depend on initialization    
-    if match_fortran_init:
+    if load_weights:
         assert_almost_equal(LL, LL_f, decimal=4)
         assert_allclose(LL, LL_f, atol=1e-4)
         assert_almost_equal(A, A_f, decimal=2)
@@ -93,6 +114,9 @@ def test_amica_full_algorithm(match_fortran_init):
         assert_allclose(sbeta, sbeta_f, atol=0.9)
         assert_allclose(mu, mu_f, atol=1.6)
         assert_allclose(rho, rho_f, atol=1)
+
+    if n_components == 16:
+        return
 
     out_dir = data_path() / "figs"
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -111,8 +135,8 @@ def test_amica_full_algorithm(match_fortran_init):
                 show=False,
             )
             this_ax.set_title(f"Component {i}")
-        weights_str = "Using Fortran seed" if match_fortran_init else "Using random seed"
-        seed_match = ("_fortran_init" if match_fortran_init else "_random_init")
+        weights_str = "Using Fortran seed" if load_weights else "Using random seed"
+        seed_match = ("_fortran_init" if load_weights else "_random_init")
         if output == "fortran":
             weights_str, seed_match = "", ""
         fig.suptitle(f"AMICA Component Topomaps ({output}) {weights_str}", fontsize=16)
@@ -167,8 +191,12 @@ def test_amica_full_algorithm(match_fortran_init):
         )[0, 1]
         corrs[i] = corr
     
-    threshold = 0.99 if match_fortran_init else 0.6
+    threshold = 0.99 if load_weights else 0.6
     assert np.all(np.abs(corrs) > threshold)
+
+    
+    if not load_weights:
+        return
 
     info = mne.create_info(
         ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
@@ -297,6 +325,4 @@ def test_pre_whiten(n_components):
             n_mixtures=3
         )
         S_fortran = results["S"]
-        # The Bottom triangle is zeroed out in the Fortran version with some numerical
-        # noise
-        np.testing.assert_allclose(S[:16, :16], S_fortran[:16, :16])
+        np.testing.assert_allclose(S, S_fortran)

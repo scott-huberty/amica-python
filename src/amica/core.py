@@ -472,6 +472,7 @@ def optimize(
                     unmixing_matrix=state.W[:, :, h_index],
                     bias=wc[:, h_index],
                     do_reject=config.do_reject,
+                    n_weights=config.n_components,
                 )
                 # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
                 y, z = compute_source_densities(
@@ -573,6 +574,7 @@ def optimize(
                     X=data_batch,
                     model_responsibilities=v_h,
                     vsum=vsum,
+                    n_weights=config.n_components,
                     out_numer=accumulators.dc_numer[:, h_index],
                     out_denom=accumulators.dc_denom[:, h_index],
                 )
