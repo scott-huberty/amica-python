@@ -84,7 +84,6 @@ def compute_preactivations(
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
         # Same as np.einsum("ft,cf->tc", dataseg, W)
-        # import pdb; pdb.set_trace()
         b = torch.matmul(dataseg[:, :nw], W.T)
     # end else
     # Subtract the weight correction factor

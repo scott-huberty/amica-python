@@ -257,14 +257,15 @@ def pre_whiten(
         sldet = -0.5 * np.sum(np.log(eigvals))
     else:
         sldet = -0.5 * np.sum(np.log(eigvals[::-1][:numeigs]))
-
-    # FIXME: Can We vectorize this and make it more readable..
-    order = np.argsort(eigvals)[::-1]  # descending order
-    Stmp2 = eigvecs[:, order].T  # Descending order eigenvectors
-    Stmp = Stmp2.copy() # For debugging with Fortran output
-    for i in range(numeigs):
-        for j in range(n_components):
-            Stmp2[i, j] = Stmp2[i, j] / np.sqrt(eigvals[::-1][i])
+    
+    # 1) reorder eigenvectors (descending eigenvalues)
+    order = np.argsort(eigvals)[::-1]
+    eigvals_desc = eigvals[order]
+    # UNCSCALED eigenvectors
+    Stmp = eigvecs[:, order].T.copy()
+    Stmp2 = Stmp.copy()
+    # 2) SCALED eigenvectors
+    Stmp2[:numeigs, :] /= np.sqrt(eigvals_desc[:numeigs, None])
 
     # ---- Sphere or variance normalize ----
     if do_sphere:
@@ -276,7 +277,7 @@ def pre_whiten(
                 S = (eigvecs * (1.0 / np.sqrt(eigvals))) @ eigvecs.T
             else:
                 # call DCOPY(nx*nx,Stmp2,1,S,1)
-                S = Stmp2.T.copy()
+                S = Stmp2.copy()
         else:
             if do_approx_sphere:
                 # -------------------- FORTRAN CODE -------------------------------------
@@ -287,21 +288,12 @@ def pre_whiten(
 
                 # This is a direct translation of the Fortran code
                 # Which was hard to follow...
-
-                # 1) reorder eigenvectors (descending eigenvalues)
-                # FIXME: Move this above to avoid redundant computation
-                order = np.argsort(eigvals)[::-1]
-                eigvals_desc = eigvals[order]
-                Stmp = eigvecs[:, order].T.copy() # UNCSCALED eigenvectors
-                Stmp2 = Stmp.copy()
-                
-                # 2) build Stmp2 = SCALED eigenvectors
-                Stmp2[:numeigs, :] /= np.sqrt(eigvals_desc[:numeigs, None])
+                # I think this is ZCA whitening
                 
                 # 3) Unscaled eigenvectors goes into SVD
                 S = Stmp.copy()
 
-                # 4) SVD on leading block
+                # 4) SVD on leading block of Unscaled eigenvectors
                 U, s, VT = np.linalg.svd(S[:numeigs, :numeigs], full_matrices=True)
                 Stmp[:numeigs, :numeigs] = VT.T
                 S[:numeigs, :numeigs] = U.T
@@ -313,7 +305,8 @@ def pre_whiten(
                 S.fill(0.0)
                 S[:numeigs, :] = Stmp3 @ Stmp2[:numeigs, :]
             else:
-                S = Stmp2.T.copy()
+                # I think this is PCA whitening
+                S = Stmp2.copy()
             # raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)
@@ -335,7 +328,6 @@ def pre_whiten(
     # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
     # -------------------------------------------------------------------------
     dataseg = np.matmul(dataseg, S.T, out=dataseg)  # In-place if possible
-
 
     nw = numeigs # Number of weights, as per Fortran code
     print(f"numeigs = {numeigs}, nw = {nw}")
