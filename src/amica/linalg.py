@@ -169,7 +169,6 @@ def pre_whiten(
         do_mean: bool = True,
         do_sphere: bool = True,
         do_approx_sphere: bool = True,
-        sphering_matrix: Optional[WeightsArray] = None,
         inplace: bool = True,
 ) -> Tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
     """
