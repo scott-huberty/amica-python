@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run ICA On Toy Data - AMICA-Python documentation</title><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Sphering (whitening) data" href="plot_sphere.html" /><link rel="prev" title="AMICA Tutorials" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b1a1f93b" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=bb284d7b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Run ICA On Toy Data"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      
+      
+      <strong>AMICA-Python</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials"></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">AMICA Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Run ICA On Toy Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_amica.html">Basic usage of amica</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#generate-data-and-load-amica-results-for-comparison">Generate Data and Load AMICA Results for Comparison</a></li>
+<li><a class="reference internal" href="#run-amica-and-fastica-for-comparison">Run AMICA and FastICA for comparison</a></li>
+<li><a class="reference internal" href="#plot-results">Plot Results</a></li>
+</ul>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">AMICA-Python</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">AMICA Tutorials</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Run ICA On Toy Data</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-plot-toy-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="run-ica-on-toy-data">
+<span id="sphx-glr-auto-examples-plot-toy-py"></span><h1>Run ICA On Toy Data<a class="headerlink" href="#run-ica-on-toy-data" title="Link to this heading">¶</a></h1>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastICA</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="kn">import</span><span class="w"> </span><span class="nn">amica</span>
+</span></pre></div>
+</div>
+<section id="generate-data-and-load-amica-results-for-comparison">
+<h2>Generate Data and Load AMICA Results for Comparison<a class="headerlink" href="#generate-data-and-load-amica-results-for-comparison" title="Link to this heading">¶</a></h2>
+<p>%%</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">data_dir</span> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">data_path</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;toy_2&quot;</span> <span class="o">/</span> <span class="s2">&quot;amicaout_toy_2&quot;</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Downloading data from &#39;https://github.com/scott-huberty/amica/releases/download/v0.4.0/test_output.tar.gz&#39; to file &#39;/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz&#39;.
+</span><span data-line="2">
+</span><span data-line="3">  0%|                                              | 0.00/4.75M [00:00&lt;?, ?B/s]
+</span><span data-line="4">  0%|                                              | 0.00/4.75M [00:00&lt;?, ?B/s]
+</span><span data-line="5">100%|█████████████████████████████████████| 4.75M/4.75M [00:00&lt;00:00, 12.2GB/s]
+</span><span data-line="6">Untarring contents of &#39;/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz&#39; to &#39;/home/circleci/amica_test_data/.&#39;
+</span></pre></div>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">x</span> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">generate_toy_data</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span> <span class="n">noise_factor</span><span class="o">=</span><span class="mf">.05</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="run-amica-and-fastica-for-comparison">
+<h2>Run AMICA and FastICA for comparison<a class="headerlink" href="#run-amica-and-fastica-for-comparison" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">fi</span> <span class="o">=</span> <span class="n">FastICA</span><span class="p">()</span>
+</span><span data-line="2"><span class="n">z</span> <span class="o">=</span> <span class="n">fi</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">S</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">gm</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">rho</span><span class="p">,</span> <span class="n">sbeta</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">LL</span> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">fit_amica</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">x</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">centering</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">whiten</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+</span><span data-line="3"><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1"> Getting the covariance matrix ...
+</span><span data-line="2">doing eig nx = 2
+</span><span data-line="3">minimum eigenvalues: [0.37595323]
+</span><span data-line="4">maximum eigenvalues: [0.85690872 0.37595323]
+</span><span data-line="5">num eigvals kept: 2
+</span><span data-line="6">numeigs = 2, nw = 2
+</span><span data-line="7">Allocating variables ...
+</span><span data-line="8">Initializing variables ...
+</span><span data-line="9">1: block size = 10000
+</span><span data-line="10">1 : entering the main loop ...
+</span><span data-line="11">Iteration 1, lrate = 0.05000, LL = -1.2399917, nd = 0.3275493, D = 0.00000 0.00000 took 0.03 seconds
+</span><span data-line="12">Iteration 2, lrate = 0.05000, LL = -0.9382833, nd = 0.4454598, D = 0.00028 0.00028 took 0.10 seconds
+</span><span data-line="13">Iteration 3, lrate = 0.05000, LL = -0.3716062, nd = 1.4621737, D = 0.00282 0.00282 took 0.07 seconds
+</span><span data-line="14">Iteration 4, lrate = 0.05000, LL = -0.7749117, nd = 9.0972713, D = 0.02021 0.02021 took 0.03 seconds
+</span><span data-line="15">Likelihood decreasing!
+</span><span data-line="16">Iteration 5, lrate = 0.05000, LL = -4.5881185, nd = 7.8823846, D = 0.08919 0.08919 took 0.07 seconds
+</span><span data-line="17">Likelihood decreasing!
+</span><span data-line="18">Iteration 6, lrate = 0.05000, LL = -1.3876853, nd = 1.0073286, D = 0.00427 0.00427 took 0.10 seconds
+</span><span data-line="19">Iteration 7, lrate = 0.05000, LL = -0.8606762, nd = 1.2195008, D = 0.00490 0.00490 took 0.10 seconds
+</span><span data-line="20">Iteration 8, lrate = 0.05000, LL = -0.3898277, nd = 1.3471661, D = 0.02127 0.02127 took 0.04 seconds
+</span><span data-line="21">Iteration 9, lrate = 0.05000, LL = -0.4615644, nd = 5.9492825, D = 0.01824 0.01824 took 0.10 seconds
+</span><span data-line="22">Likelihood decreasing!
+</span><span data-line="23">Iteration 10, lrate = 0.02500, LL = -1.9668293, nd = 8.4472018, D = 0.02124 0.02124 took 0.01 seconds
+</span><span data-line="24">Likelihood decreasing!
+</span><span data-line="25">Iteration 11, lrate = 0.02500, LL = -1.2326450, nd = 2.4028939, D = 0.02347 0.02347 took 0.09 seconds
+</span><span data-line="26">Iteration 12, lrate = 0.02500, LL = -0.6915999, nd = 1.1981101, D = 0.02382 0.02382 took 0.10 seconds
+</span><span data-line="27">Iteration 13, lrate = 0.02500, LL = -0.3686665, nd = 0.4281000, D = 0.02466 0.02466 took 0.10 seconds
+</span><span data-line="28">Iteration 14, lrate = 0.02500, LL = -0.0880849, nd = 1.8482352, D = 0.02453 0.02453 took 0.07 seconds
+</span><span data-line="29">Iteration 15, lrate = 0.02500, LL = -0.3490175, nd = 8.4786204, D = 0.02633 0.02633 took 0.10 seconds
+</span><span data-line="30">Likelihood decreasing!
+</span><span data-line="31">Iteration 16, lrate = 0.02500, LL = -4.8945766, nd = 13.1909601, D = 0.02265 0.02265 took 0.10 seconds
+</span><span data-line="32">Likelihood decreasing!
+</span><span data-line="33">Iteration 17, lrate = 0.01250, LL = -1.0644041, nd = 2.5850441, D = 0.02325 0.02325 took 0.04 seconds
+</span><span data-line="34">Iteration 18, lrate = 0.01250, LL = -0.5520909, nd = 0.9726351, D = 0.02335 0.02335 took 0.07 seconds
+</span><span data-line="35">Iteration 19, lrate = 0.01250, LL = -0.2418614, nd = 1.2639586, D = 0.02457 0.02457 took 0.03 seconds
+</span><span data-line="36">Iteration 20, lrate = 0.01250, LL = -0.0532343, nd = 0.8157822, D = 0.02692 0.02692 took 0.07 seconds
+</span><span data-line="37">Iteration 21, lrate = 0.01250, LL = -0.0068040, nd = 2.5148647, D = 0.02573 0.02573 took 0.03 seconds
+</span><span data-line="38">Iteration 22, lrate = 0.01250, LL = -0.1911343, nd = 7.9661016, D = 0.02873 0.02873 took 0.07 seconds
+</span><span data-line="39">Likelihood decreasing!
+</span><span data-line="40">Iteration 23, lrate = 0.01250, LL = -1.6321461, nd = 13.6552586, D = 0.02258 0.02258 took 0.03 seconds
+</span><span data-line="41">Likelihood decreasing!
+</span><span data-line="42">Iteration 24, lrate = 0.01250, LL = -1.1552117, nd = 3.4705067, D = 0.02497 0.02497 took 0.10 seconds
+</span><span data-line="43">Iteration 25, lrate = 0.01250, LL = -0.5185456, nd = 1.6134265, D = 0.02503 0.02503 took 0.17 seconds
+</span><span data-line="44">Iteration 26, lrate = 0.01250, LL = -0.2428567, nd = 0.9568814, D = 0.02566 0.02566 took 0.10 seconds
+</span><span data-line="45">Iteration 27, lrate = 0.01250, LL = -0.0465093, nd = 0.6221524, D = 0.02734 0.02734 took 0.03 seconds
+</span><span data-line="46">Iteration 28, lrate = 0.01250, LL = 0.0030417, nd = 1.9947087, D = 0.02647 0.02647 took 0.10 seconds
+</span><span data-line="47">Iteration 29, lrate = 0.01250, LL = -0.1135484, nd = 6.6908780, D = 0.02869 0.02869 took 0.07 seconds
+</span><span data-line="48">Likelihood decreasing!
+</span><span data-line="49">Iteration 30, lrate = 0.00625, LL = -0.2638145, nd = 8.4079299, D = 0.02598 0.02598 took 0.03 seconds
+</span><span data-line="50">Likelihood decreasing!
+</span><span data-line="51">Iteration 31, lrate = 0.00625, LL = -0.2316696, nd = 5.8127424, D = 0.02743 0.02743 took 0.07 seconds
+</span><span data-line="52">Iteration 32, lrate = 0.00625, LL = -0.0741290, nd = 3.2030257, D = 0.02725 0.02725 took 0.03 seconds
+</span><span data-line="53">Iteration 33, lrate = 0.00625, LL = -0.0188851, nd = 2.7911967, D = 0.02705 0.02705 took 0.10 seconds
+</span><span data-line="54">Iteration 34, lrate = 0.00625, LL = -0.0219431, nd = 4.0067672, D = 0.02729 0.02729 took 0.07 seconds
+</span><span data-line="55">Likelihood decreasing!
+</span><span data-line="56">Iteration 35, lrate = 0.00625, LL = -0.0781558, nd = 5.7230243, D = 0.02694 0.02694 took 0.04 seconds
+</span><span data-line="57">Likelihood decreasing!
+</span><span data-line="58">Iteration 36, lrate = 0.00313, LL = -0.0018905, nd = 2.4915348, D = 0.02720 0.02720 took 0.09 seconds
+</span><span data-line="59">Iteration 37, lrate = 0.00313, LL = 0.0221530, nd = 0.9991690, D = 0.02716 0.02716 took 0.07 seconds
+</span><span data-line="60">Iteration 38, lrate = 0.00313, LL = 0.0262861, nd = 0.5986401, D = 0.02720 0.02720 took 0.03 seconds
+</span><span data-line="61">Iteration 39, lrate = 0.00313, LL = 0.0272866, nd = 0.3962661, D = 0.02720 0.02720 took 0.09 seconds
+</span><span data-line="62">Iteration 40, lrate = 0.00313, LL = 0.0279257, nd = 0.2861881, D = 0.02722 0.02722 took 0.01 seconds
+</span><span data-line="63">Iteration 41, lrate = 0.00313, LL = 0.0284384, nd = 0.2025058, D = 0.02722 0.02722 took 0.09 seconds
+</span><span data-line="64">Iteration 42, lrate = 0.00313, LL = 0.0288805, nd = 0.1584200, D = 0.02724 0.02724 took 0.10 seconds
+</span><span data-line="65">Iteration 43, lrate = 0.00313, LL = 0.0292803, nd = 0.1174072, D = 0.02724 0.02724 took 0.07 seconds
+</span><span data-line="66">Iteration 44, lrate = 0.00313, LL = 0.0296490, nd = 0.0981851, D = 0.02725 0.02725 took 0.10 seconds
+</span><span data-line="67">Iteration 45, lrate = 0.00313, LL = 0.0299916, nd = 0.0737527, D = 0.02725 0.02725 took 0.03 seconds
+</span><span data-line="68">Iteration 46, lrate = 0.00313, LL = 0.0303108, nd = 0.0671245, D = 0.02726 0.02726 took 0.07 seconds
+</span><span data-line="69">Iteration 47, lrate = 0.00313, LL = 0.0306085, nd = 0.0516881, D = 0.02727 0.02727 took 0.03 seconds
+</span><span data-line="70">Iteration 48, lrate = 0.00313, LL = 0.0308857, nd = 0.0509536, D = 0.02728 0.02728 took 0.01 seconds
+</span><span data-line="71">Iteration 49, lrate = 0.00313, LL = 0.0311431, nd = 0.0400333, D = 0.02728 0.02728 took 0.09 seconds
+</span><span data-line="72">Iteration 50, lrate = 0.00313, LL = 0.0313812, nd = 0.0002337, D = 0.02729 0.02729 took 0.10 seconds
+</span><span data-line="73">Starting Newton ... setting numdecs to 0
+</span><span data-line="74">Iteration 51, lrate = 0.00625, LL = 0.0316028, nd = 0.0002047, D = 0.02729 0.02729 took 0.10 seconds
+</span><span data-line="75">Iteration 52, lrate = 0.01250, LL = 0.0318039, nd = 0.0001963, D = 0.02729 0.02729 took 0.04 seconds
+</span><span data-line="76">Iteration 53, lrate = 0.02500, LL = 0.0319872, nd = 0.0001914, D = 0.02729 0.02729 took 0.10 seconds
+</span><span data-line="77">Iteration 54, lrate = 0.05000, LL = 0.0321537, nd = 0.0001852, D = 0.02730 0.02730 took 0.17 seconds
+</span><span data-line="78">Iteration 55, lrate = 0.10000, LL = 0.0323038, nd = 0.0001741, D = 0.02731 0.02731 took 0.04 seconds
+</span><span data-line="79">Iteration 56, lrate = 0.20000, LL = 0.0324385, nd = 0.0001536, D = 0.02732 0.02732 took 0.04 seconds
+</span><span data-line="80">Iteration 57, lrate = 0.30000, LL = 0.0325582, nd = 0.0001268, D = 0.02734 0.02734 took 0.10 seconds
+</span><span data-line="81">Iteration 58, lrate = 0.40000, LL = 0.0326639, nd = 0.0000975, D = 0.02737 0.02737 took 0.10 seconds
+</span><span data-line="82">Iteration 59, lrate = 0.50000, LL = 0.0327563, nd = 0.0000697, D = 0.02739 0.02739 took 0.10 seconds
+</span><span data-line="83">Iteration 60, lrate = 0.60000, LL = 0.0328363, nd = 0.0000463, D = 0.02741 0.02741 took 0.07 seconds
+</span><span data-line="84">Iteration 61, lrate = 0.70000, LL = 0.0329050, nd = 0.0000289, D = 0.02743 0.02743 took 0.04 seconds
+</span><span data-line="85">Iteration 62, lrate = 0.80000, LL = 0.0329633, nd = 0.0000175, D = 0.02744 0.02744 took 0.09 seconds
+</span><span data-line="86">Iteration 63, lrate = 0.90000, LL = 0.0330124, nd = 0.0000111, D = 0.02744 0.02744 took 0.07 seconds
+</span><span data-line="87">Iteration 64, lrate = 1.00000, LL = 0.0330531, nd = 0.0000079, D = 0.02745 0.02745 took 0.04 seconds
+</span><span data-line="88">Iteration 65, lrate = 1.00000, LL = 0.0330866, nd = 0.0000069, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="89">Iteration 66, lrate = 1.00000, LL = 0.0331139, nd = 0.0000058, D = 0.02745 0.02745 took 0.16 seconds
+</span><span data-line="90">Iteration 67, lrate = 1.00000, LL = 0.0331358, nd = 0.0000053, D = 0.02745 0.02745 took 0.04 seconds
+</span><span data-line="91">Iteration 68, lrate = 1.00000, LL = 0.0331488, nd = 0.0000039, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="92">Iteration 69, lrate = 1.00000, LL = 0.0331574, nd = 0.0000040, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="93">Iteration 70, lrate = 1.00000, LL = 0.0331644, nd = 0.0000029, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="94">Iteration 71, lrate = 1.00000, LL = 0.0331700, nd = 0.0000033, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="95">Iteration 72, lrate = 1.00000, LL = 0.0331741, nd = 0.0000023, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="96">Iteration 73, lrate = 1.00000, LL = 0.0331773, nd = 0.0000027, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="97">Iteration 74, lrate = 1.00000, LL = 0.0331798, nd = 0.0000018, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="98">Iteration 75, lrate = 1.00000, LL = 0.0331818, nd = 0.0000022, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="99">Iteration 76, lrate = 1.00000, LL = 0.0331833, nd = 0.0000015, D = 0.02745 0.02745 took 0.09 seconds
+</span><span data-line="100">Iteration 77, lrate = 1.00000, LL = 0.0331845, nd = 0.0000019, D = 0.02745 0.02745 took 0.07 seconds
+</span><span data-line="101">Iteration 78, lrate = 1.00000, LL = 0.0331854, nd = 0.0000013, D = 0.02745 0.02745 took 0.04 seconds
+</span><span data-line="102">Iteration 79, lrate = 1.00000, LL = 0.0331861, nd = 0.0000016, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="103">Iteration 80, lrate = 1.00000, LL = 0.0331866, nd = 0.0000011, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="104">Iteration 81, lrate = 1.00000, LL = 0.0331870, nd = 0.0000014, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="105">Iteration 82, lrate = 1.00000, LL = 0.0331873, nd = 0.0000010, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="106">Iteration 83, lrate = 1.00000, LL = 0.0331876, nd = 0.0000013, D = 0.02745 0.02745 took 0.16 seconds
+</span><span data-line="107">Iteration 84, lrate = 1.00000, LL = 0.0331878, nd = 0.0000009, D = 0.02745 0.02745 took 0.04 seconds
+</span><span data-line="108">Iteration 85, lrate = 1.00000, LL = 0.0331879, nd = 0.0000012, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="109">Iteration 86, lrate = 1.00000, LL = 0.0331880, nd = 0.0000009, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="110">Iteration 87, lrate = 1.00000, LL = 0.0331881, nd = 0.0000011, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="111">Iteration 88, lrate = 1.00000, LL = 0.0331882, nd = 0.0000009, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="112">Iteration 89, lrate = 1.00000, LL = 0.0331883, nd = 0.0000010, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="113">Iteration 90, lrate = 1.00000, LL = 0.0331883, nd = 0.0000009, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="114">Iteration 91, lrate = 1.00000, LL = 0.0331884, nd = 0.0000010, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="115">Iteration 92, lrate = 1.00000, LL = 0.0331884, nd = 0.0000009, D = 0.02745 0.02745 took 0.10 seconds
+</span><span data-line="116">Exiting because likelihood increasing by less than 1e-07 for more than 5 iterations ...
+</span></pre></div>
+</div>
+<p>apply the learned unmixing matrix to the data</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">W</span> <span class="o">=</span> <span class="n">W</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+</span><span data-line="2"><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">fortran_W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">data_dir</span> <span class="o">/</span> <span class="s2">&quot;W&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">y2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fortran_W</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="plot-results">
+<h2>Plot Results<a class="headerlink" href="#plot-results" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;Sources&#39;</span><span class="p">,</span> <span class="s1">&#39;AMICA&#39;</span><span class="p">,</span> <span class="s1">&#39;AMICA-Python&#39;</span><span class="p">,</span> <span class="s1">&#39;FastICA&#39;</span><span class="p">],</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">]):</span>
+</span><span data-line="3">    <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+</span><span data-line="4">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">v</span><span class="p">[:</span><span class="mi">1000</span><span class="p">])</span>
+</span><span data-line="5">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+</span><span data-line="6">    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([])</span>
+</span><span data-line="7">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+</span><span data-line="8">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">1.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="mf">1.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">)])</span>
+</span></pre></div>
+</div>
+<img src="../_images/sphx_glr_plot_toy_001.png" srcset="../_images/sphx_glr_plot_toy_001.png" alt="plot toy" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 14.977 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-toy-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/58943cfe223a5fea72a0b5d6e65a335e/plot_toy.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_toy.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4228faee7eb3a1a7e2b5559be6480e90/plot_toy.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_toy.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/d27c3f0ec22017014d98798687f8ec13/plot_toy.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_toy.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">AMICA Tutorials</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="plot_sphere.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Sphering (whitening) data</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2025, Scott Huberty</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials"></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/shibuya.js?v=e730760c"></script></body>
+</html>
