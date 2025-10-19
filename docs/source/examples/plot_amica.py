@@ -29,7 +29,7 @@ data = raw.get_data().T  # Shape (n_samples, n_channels)
 data *= 1e6  # Convert from Volts to microVolts
 
 # %%
-S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica.fit_amica(
+results = amica.fit_amica(
         X=data,
         max_iter=200,
         initial_weights=initial_weights,
@@ -39,6 +39,7 @@ S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica.fit_amica(
 
 # %%
 A_fortran = fortran_results['A']
+
 def plot_topomaps(A, output="python"):
     fig, ax = plt.subplots(
         nrows=8,
@@ -48,7 +49,7 @@ def plot_topomaps(A, output="python"):
         )
     for i, this_ax in zip(range(32), ax.flat):
         mne.viz.plot_topomap(
-            A[:, i] if output == "python" else A_fortran[:, i],
+            A[:, i],
             pos=raw.info,
             axes=this_ax,
             show=False,
@@ -58,7 +59,7 @@ def plot_topomaps(A, output="python"):
     return fig, ax
 
 # %%
-fig1, ax1 = plot_topomaps(A, output="python")
+fig1, ax1 = plot_topomaps(results["A"], output="python")
 
 
 # %%
