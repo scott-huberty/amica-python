@@ -60,7 +60,7 @@ Generate Data and Load AMICA Results for Comparison
  .. code-block:: none
 
     Downloading data from 'https://github.com/scott-huberty/amica/releases/download/v0.4.0/test_output.tar.gz' to file '/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz'.
-      0%|                                              | 0.00/4.75M [00:00<?, ?B/s]      0%|                                              | 0.00/4.75M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.75M/4.75M [00:00<00:00, 17.6GB/s]
+      0%|                                              | 0.00/4.75M [00:00<?, ?B/s]      0%|                                              | 0.00/4.75M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.75M/4.75M [00:00<00:00, 20.3GB/s]
     Untarring contents of '/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz' to '/home/circleci/amica_test_data/.'
 
 
@@ -102,7 +102,7 @@ Run AMICA and FastICA for comparison
 
 .. code-block:: Python
 
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica.fit_amica(
+    results = amica.fit_amica(
         x.copy(), centering=False, whiten=False, random_state=42,
     )
 
@@ -116,135 +116,196 @@ Run AMICA and FastICA for comparison
 
      Getting the covariance matrix ...
     doing eig nx = 2
-    minimum eigenvalues: [0.37530815]
-    maximum eigenvalues: [0.8592753  0.37530815]
+    minimum eigenvalues: [0.37501357]
+    maximum eigenvalues: [0.85895196 0.37501357]
     num eigvals kept: 2
     numeigs = 2, nw = 2
     Allocating variables ...
     Initializing variables ...
     1: block size = 10000
     1 : entering the main loop ...
-    Iteration 1, lrate = 0.05000, LL = -1.2401436, nd = 0.3264363, D = 0.00000 0.00000 took 0.01 seconds
-    Iteration 2, lrate = 0.05000, LL = -0.9381949, nd = 0.4432006, D = 0.00028 0.00028 took 0.00 seconds
-    Iteration 3, lrate = 0.05000, LL = -0.3691939, nd = 1.4463668, D = 0.00280 0.00280 took 0.09 seconds
-    Iteration 4, lrate = 0.05000, LL = -0.7766687, nd = 9.2151707, D = 0.02009 0.02009 took 0.00 seconds
+    Iteration 1, lrate = 0.05000, LL = -1.2399455, nd = 0.3271257, D = 0.00000 0.00000 took 0.29 seconds
+    Iteration 2, lrate = 0.05000, LL = -0.9381016, nd = 0.4440212, D = 0.00028 0.00028 took 0.01 seconds
+    Iteration 3, lrate = 0.05000, LL = -0.3712883, nd = 1.4547160, D = 0.00282 0.00282 took 0.01 seconds
+    Iteration 4, lrate = 0.05000, LL = -0.7735238, nd = 9.1621988, D = 0.02047 0.02047 took 0.08 seconds
     Likelihood decreasing!
-    Iteration 5, lrate = 0.05000, LL = -4.7306985, nd = 8.2278846, D = 0.09460 0.09460 took 0.01 seconds
+    Iteration 5, lrate = 0.05000, LL = -4.5159344, nd = 7.7611613, D = 0.09606 0.09606 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 6, lrate = 0.05000, LL = -1.3942417, nd = 1.0006491, D = 0.00626 0.00626 took 0.09 seconds
-    Iteration 7, lrate = 0.05000, LL = -0.8529908, nd = 1.3213031, D = 0.00760 0.00760 took 0.01 seconds
-    Iteration 8, lrate = 0.05000, LL = -0.4372223, nd = 2.5777586, D = 0.01862 0.01862 took 0.01 seconds
-    Iteration 9, lrate = 0.05000, LL = -0.9100091, nd = 5.3081877, D = 0.02483 0.02483 took 0.01 seconds
+    Iteration 6, lrate = 0.05000, LL = -1.3795032, nd = 1.0022209, D = 0.00395 0.00395 took 0.01 seconds
+    Iteration 7, lrate = 0.05000, LL = -0.8593755, nd = 1.2205397, D = 0.00462 0.00462 took 0.09 seconds
+    Iteration 8, lrate = 0.05000, LL = -0.3861816, nd = 1.1344341, D = 0.02155 0.02155 took 0.01 seconds
+    Iteration 9, lrate = 0.05000, LL = -0.3637727, nd = 5.5551220, D = 0.01787 0.01787 took 0.01 seconds
+    Iteration 10, lrate = 0.05000, LL = -4.5436900, nd = 1.9366656, D = 0.03250 0.03250 took 0.09 seconds
     Likelihood decreasing!
-    Iteration 10, lrate = 0.02500, LL = -1.0950923, nd = 3.5778694, D = 0.02367 0.02367 took 0.09 seconds
+    Iteration 11, lrate = 0.02500, LL = -1.2644891, nd = 0.0504620, D = 0.03277 0.03277 took 0.01 seconds
+    Iteration 12, lrate = 0.02500, LL = -1.2150768, nd = 0.1936583, D = 0.03281 0.03281 took 0.01 seconds
+    Iteration 13, lrate = 0.02500, LL = -0.9312358, nd = 1.1079051, D = 0.03085 0.03085 took 0.09 seconds
+    Iteration 14, lrate = 0.02500, LL = -0.5982832, nd = 2.3423801, D = 0.01980 0.01980 took 0.01 seconds
+    Iteration 15, lrate = 0.02500, LL = -0.6295221, nd = 5.6718349, D = 0.04684 0.04684 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 11, lrate = 0.02500, LL = -0.7384359, nd = 2.7163202, D = 0.02542 0.02542 took 0.01 seconds
-    Iteration 12, lrate = 0.02500, LL = -0.5299720, nd = 2.5563329, D = 0.02567 0.02567 took 0.01 seconds
-    Iteration 13, lrate = 0.02500, LL = -0.3575560, nd = 2.9495660, D = 0.02612 0.02612 took 0.09 seconds
-    Iteration 14, lrate = 0.02500, LL = -0.5571172, nd = 6.6322322, D = 0.02324 0.02324 took 0.01 seconds
+    Iteration 16, lrate = 0.02500, LL = -0.8198191, nd = 3.4135370, D = 0.00053 0.00053 took 0.09 seconds
     Likelihood decreasing!
-    Iteration 15, lrate = 0.02500, LL = -1.1309710, nd = 4.5257536, D = 0.02603 0.02603 took 0.02 seconds
+    Iteration 17, lrate = 0.02500, LL = -0.3265346, nd = 1.8798115, D = 0.02127 0.02127 took 0.01 seconds
+    Iteration 18, lrate = 0.02500, LL = -0.2606523, nd = 5.6768013, D = 0.03363 0.03363 took 0.01 seconds
+    Iteration 19, lrate = 0.02500, LL = -1.2600658, nd = 7.1210874, D = 0.01369 0.01369 took 0.09 seconds
     Likelihood decreasing!
-    Iteration 16, lrate = 0.01250, LL = -0.5795768, nd = 1.8418300, D = 0.02595 0.02595 took 0.07 seconds
-    Iteration 17, lrate = 0.01250, LL = -0.2888991, nd = 0.5502690, D = 0.02620 0.02620 took 0.01 seconds
-    Iteration 18, lrate = 0.01250, LL = -0.0573294, nd = 0.0661242, D = 0.02540 0.02540 took 0.01 seconds
-    Iteration 19, lrate = 0.01250, LL = 0.0099444, nd = 0.4146092, D = 0.02556 0.02556 took 0.09 seconds
-    Iteration 20, lrate = 0.01250, LL = 0.0143303, nd = 1.5568223, D = 0.02588 0.02588 took 0.01 seconds
-    Iteration 21, lrate = 0.01250, LL = -0.0984184, nd = 6.7720297, D = 0.02520 0.02520 took 0.01 seconds
+    Iteration 20, lrate = 0.01250, LL = -0.6595682, nd = 2.5786725, D = 0.01556 0.01556 took 0.11 seconds
+    Iteration 21, lrate = 0.01250, LL = -0.3873916, nd = 1.9056307, D = 0.01665 0.01665 took 0.01 seconds
+    Iteration 22, lrate = 0.01250, LL = -0.1448030, nd = 0.8500285, D = 0.02540 0.02540 took 0.08 seconds
+    Iteration 23, lrate = 0.01250, LL = -0.0189339, nd = 1.1142994, D = 0.02949 0.02949 took 0.01 seconds
+    Iteration 24, lrate = 0.01250, LL = -0.0184813, nd = 3.4735927, D = 0.02364 0.02364 took 0.01 seconds
+    Iteration 25, lrate = 0.01250, LL = -0.3057379, nd = 8.2939037, D = 0.04150 0.04150 took 0.09 seconds
     Likelihood decreasing!
-    Iteration 22, lrate = 0.01250, LL = -0.9947997, nd = 10.9457373, D = 0.02908 0.02908 took 0.09 seconds
+    Iteration 26, lrate = 0.01250, LL = -0.8246432, nd = 7.5513770, D = 0.00658 0.00658 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 23, lrate = 0.01250, LL = -1.2993497, nd = 4.9318838, D = 0.02714 0.02714 took 0.01 seconds
+    Iteration 27, lrate = 0.01250, LL = -0.2470095, nd = 2.3012680, D = 0.03422 0.03422 took 0.01 seconds
+    Iteration 28, lrate = 0.01250, LL = -0.0808095, nd = 2.4695888, D = 0.02547 0.02547 took 0.09 seconds
+    Iteration 29, lrate = 0.01250, LL = -0.1095423, nd = 5.1620206, D = 0.03070 0.03070 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 24, lrate = 0.00625, LL = -0.3760736, nd = 2.5393296, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 25, lrate = 0.00625, LL = -0.1140941, nd = 1.1471087, D = 0.02691 0.02691 took 0.09 seconds
-    Iteration 26, lrate = 0.00625, LL = -0.0039473, nd = 0.8220246, D = 0.02619 0.02619 took 0.01 seconds
-    Iteration 27, lrate = 0.00625, LL = 0.0165706, nd = 0.9890163, D = 0.02656 0.02656 took 0.09 seconds
-    Iteration 28, lrate = 0.00625, LL = 0.0146634, nd = 1.7658311, D = 0.02609 0.02609 took 0.01 seconds
+    Iteration 30, lrate = 0.00625, LL = -0.0855933, nd = 5.1170506, D = 0.02615 0.02615 took 0.01 seconds
+    Iteration 31, lrate = 0.00625, LL = -0.0952882, nd = 5.2889978, D = 0.02828 0.02828 took 0.09 seconds
     Likelihood decreasing!
-    Iteration 29, lrate = 0.00625, LL = -0.0011374, nd = 3.0782568, D = 0.02707 0.02707 took 0.01 seconds
+    Iteration 32, lrate = 0.00625, LL = -0.1188058, nd = 6.1140813, D = 0.02687 0.02687 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 30, lrate = 0.00625, LL = -0.0574918, nd = 5.5103518, D = 0.02557 0.02557 took 0.07 seconds
+    Iteration 33, lrate = 0.00625, LL = -0.1435780, nd = 5.9702094, D = 0.02778 0.02778 took 0.01 seconds
     Likelihood decreasing!
-    Iteration 31, lrate = 0.00313, LL = -0.0027564, nd = 2.6147704, D = 0.02667 0.02667 took 0.01 seconds
-    Iteration 32, lrate = 0.00313, LL = 0.0203973, nd = 1.0821550, D = 0.02649 0.02649 took 0.01 seconds
-    Iteration 33, lrate = 0.00313, LL = 0.0238153, nd = 0.5728043, D = 0.02664 0.02664 took 0.09 seconds
-    Iteration 34, lrate = 0.00313, LL = 0.0249264, nd = 0.3611165, D = 0.02660 0.02660 took 0.01 seconds
-    Iteration 35, lrate = 0.00313, LL = 0.0255579, nd = 0.2200000, D = 0.02665 0.02665 took 0.01 seconds
-    Iteration 36, lrate = 0.00313, LL = 0.0260510, nd = 0.1615215, D = 0.02666 0.02666 took 0.09 seconds
-    Iteration 37, lrate = 0.00313, LL = 0.0264838, nd = 0.1028525, D = 0.02669 0.02669 took 0.01 seconds
-    Iteration 38, lrate = 0.00313, LL = 0.0268840, nd = 0.0828090, D = 0.02670 0.02670 took 0.01 seconds
-    Iteration 39, lrate = 0.00313, LL = 0.0272572, nd = 0.0525353, D = 0.02672 0.02672 took 0.09 seconds
-    Iteration 40, lrate = 0.00313, LL = 0.0276101, nd = 0.0487660, D = 0.02674 0.02674 took 0.01 seconds
-    Iteration 41, lrate = 0.00313, LL = 0.0279439, nd = 0.0293884, D = 0.02676 0.02676 took 0.01 seconds
-    Iteration 42, lrate = 0.00313, LL = 0.0282601, nd = 0.0312836, D = 0.02678 0.02678 took 0.09 seconds
-    Iteration 43, lrate = 0.00313, LL = 0.0285594, nd = 0.0180733, D = 0.02679 0.02679 took 0.01 seconds
-    Iteration 44, lrate = 0.00313, LL = 0.0288424, nd = 0.0228287, D = 0.02681 0.02681 took 0.01 seconds
-    Iteration 45, lrate = 0.00313, LL = 0.0291094, nd = 0.0132149, D = 0.02683 0.02683 took 0.09 seconds
-    Iteration 46, lrate = 0.00313, LL = 0.0293609, nd = 0.0181334, D = 0.02684 0.02684 took 0.01 seconds
-    Iteration 47, lrate = 0.00313, LL = 0.0295972, nd = 0.0108726, D = 0.02686 0.02686 took 0.01 seconds
-    Iteration 48, lrate = 0.00313, LL = 0.0298186, nd = 0.0153478, D = 0.02687 0.02687 took 0.09 seconds
-    Iteration 49, lrate = 0.00313, LL = 0.0300256, nd = 0.0095796, D = 0.02689 0.02689 took 0.01 seconds
-    Iteration 50, lrate = 0.00313, LL = 0.0302185, nd = 0.0004536, D = 0.02690 0.02690 took 0.01 seconds
+    Iteration 34, lrate = 0.00313, LL = 0.0006212, nd = 0.6192990, D = 0.02747 0.02747 took 0.09 seconds
+    Iteration 35, lrate = 0.00313, LL = 0.0224942, nd = 0.0672011, D = 0.02734 0.02734 took 0.01 seconds
+    Iteration 36, lrate = 0.00313, LL = 0.0249252, nd = 0.0569119, D = 0.02727 0.02727 took 0.01 seconds
+    Iteration 37, lrate = 0.00313, LL = 0.0255854, nd = 0.0250666, D = 0.02727 0.02727 took 0.09 seconds
+    Iteration 38, lrate = 0.00313, LL = 0.0261507, nd = 0.0246405, D = 0.02726 0.02726 took 0.01 seconds
+    Iteration 39, lrate = 0.00313, LL = 0.0266779, nd = 0.0093019, D = 0.02726 0.02726 took 0.01 seconds
+    Iteration 40, lrate = 0.00313, LL = 0.0271918, nd = 0.0153052, D = 0.02726 0.02726 took 0.01 seconds
+    Iteration 41, lrate = 0.00313, LL = 0.0276846, nd = 0.0061553, D = 0.02725 0.02725 took 0.09 seconds
+    Iteration 42, lrate = 0.00313, LL = 0.0281470, nd = 0.0135054, D = 0.02725 0.02725 took 0.01 seconds
+    Iteration 43, lrate = 0.00313, LL = 0.0285939, nd = 0.0056207, D = 0.02725 0.02725 took 0.01 seconds
+    Iteration 44, lrate = 0.00313, LL = 0.0290184, nd = 0.0104300, D = 0.02724 0.02724 took 0.09 seconds
+    Iteration 45, lrate = 0.00313, LL = 0.0294156, nd = 0.0062479, D = 0.02724 0.02724 took 0.01 seconds
+    Iteration 46, lrate = 0.00313, LL = 0.0297850, nd = 0.0119208, D = 0.02724 0.02724 took 0.09 seconds
+    Iteration 47, lrate = 0.00313, LL = 0.0301447, nd = 0.0070645, D = 0.02724 0.02724 took 0.01 seconds
+    Iteration 48, lrate = 0.00313, LL = 0.0304799, nd = 0.0113539, D = 0.02723 0.02723 took 0.01 seconds
+    Iteration 49, lrate = 0.00313, LL = 0.0307852, nd = 0.0104698, D = 0.02723 0.02723 took 0.09 seconds
+    Iteration 50, lrate = 0.00313, LL = 0.0310806, nd = 0.0001162, D = 0.02723 0.02723 took 0.01 seconds
     Starting Newton ... setting numdecs to 0
-    Iteration 51, lrate = 0.00625, LL = 0.0303972, nd = 0.0004522, D = 0.02690 0.02690 took 0.09 seconds
-    Iteration 52, lrate = 0.01250, LL = 0.0305626, nd = 0.0004489, D = 0.02690 0.02690 took 0.01 seconds
-    Iteration 53, lrate = 0.02500, LL = 0.0307155, nd = 0.0004425, D = 0.02691 0.02691 took 0.01 seconds
-    Iteration 54, lrate = 0.05000, LL = 0.0308561, nd = 0.0004296, D = 0.02692 0.02692 took 0.09 seconds
-    Iteration 55, lrate = 0.10000, LL = 0.0309853, nd = 0.0004045, D = 0.02694 0.02694 took 0.01 seconds
-    Iteration 56, lrate = 0.20000, LL = 0.0311038, nd = 0.0003570, D = 0.02698 0.02698 took 0.01 seconds
-    Iteration 57, lrate = 0.30000, LL = 0.0312116, nd = 0.0002944, D = 0.02702 0.02702 took 0.09 seconds
-    Iteration 58, lrate = 0.40000, LL = 0.0313090, nd = 0.0002257, D = 0.02708 0.02708 took 0.01 seconds
-    Iteration 59, lrate = 0.50000, LL = 0.0313964, nd = 0.0001601, D = 0.02713 0.02713 took 0.01 seconds
-    Iteration 60, lrate = 0.60000, LL = 0.0314744, nd = 0.0001047, D = 0.02718 0.02718 took 0.09 seconds
-    Iteration 61, lrate = 0.70000, LL = 0.0315436, nd = 0.0000631, D = 0.02721 0.02721 took 0.01 seconds
-    Iteration 62, lrate = 0.80000, LL = 0.0316049, nd = 0.0000354, D = 0.02723 0.02723 took 0.09 seconds
-    Iteration 63, lrate = 0.90000, LL = 0.0316587, nd = 0.0000194, D = 0.02725 0.02725 took 0.01 seconds
-    Iteration 64, lrate = 1.00000, LL = 0.0317059, nd = 0.0000116, D = 0.02725 0.02725 took 0.01 seconds
-    Iteration 65, lrate = 1.00000, LL = 0.0317470, nd = 0.0000092, D = 0.02726 0.02726 took 0.09 seconds
-    Iteration 66, lrate = 1.00000, LL = 0.0317826, nd = 0.0000077, D = 0.02726 0.02726 took 0.01 seconds
-    Iteration 67, lrate = 1.00000, LL = 0.0318133, nd = 0.0000070, D = 0.02726 0.02726 took 0.01 seconds
-    Iteration 68, lrate = 1.00000, LL = 0.0318396, nd = 0.0000062, D = 0.02726 0.02726 took 0.09 seconds
-    Iteration 69, lrate = 1.00000, LL = 0.0318620, nd = 0.0000056, D = 0.02726 0.02726 took 0.01 seconds
-    Iteration 70, lrate = 1.00000, LL = 0.0318811, nd = 0.0000050, D = 0.02726 0.02726 took 0.09 seconds
-    Iteration 71, lrate = 1.00000, LL = 0.0318972, nd = 0.0000046, D = 0.02726 0.02726 took 0.01 seconds
-    Iteration 72, lrate = 1.00000, LL = 0.0319107, nd = 0.0000041, D = 0.02726 0.02726 took 0.01 seconds
-    Iteration 73, lrate = 1.00000, LL = 0.0319217, nd = 0.0000038, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 74, lrate = 1.00000, LL = 0.0319307, nd = 0.0000034, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 75, lrate = 1.00000, LL = 0.0319382, nd = 0.0000030, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 76, lrate = 1.00000, LL = 0.0319443, nd = 0.0000028, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 77, lrate = 1.00000, LL = 0.0319494, nd = 0.0000025, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 78, lrate = 1.00000, LL = 0.0319535, nd = 0.0000022, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 79, lrate = 1.00000, LL = 0.0319568, nd = 0.0000020, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 80, lrate = 1.00000, LL = 0.0319595, nd = 0.0000018, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 81, lrate = 1.00000, LL = 0.0319617, nd = 0.0000016, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 82, lrate = 1.00000, LL = 0.0319635, nd = 0.0000015, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 83, lrate = 1.00000, LL = 0.0319649, nd = 0.0000013, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 84, lrate = 1.00000, LL = 0.0319661, nd = 0.0000012, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 85, lrate = 1.00000, LL = 0.0319671, nd = 0.0000011, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 86, lrate = 1.00000, LL = 0.0319679, nd = 0.0000010, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 87, lrate = 1.00000, LL = 0.0319685, nd = 0.0000009, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 88, lrate = 1.00000, LL = 0.0319691, nd = 0.0000008, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 89, lrate = 1.00000, LL = 0.0319695, nd = 0.0000007, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 90, lrate = 1.00000, LL = 0.0319699, nd = 0.0000006, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 91, lrate = 1.00000, LL = 0.0319703, nd = 0.0000006, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 92, lrate = 1.00000, LL = 0.0319706, nd = 0.0000005, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 93, lrate = 1.00000, LL = 0.0319708, nd = 0.0000005, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 94, lrate = 1.00000, LL = 0.0319711, nd = 0.0000004, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 95, lrate = 1.00000, LL = 0.0319713, nd = 0.0000004, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 96, lrate = 1.00000, LL = 0.0319715, nd = 0.0000004, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 97, lrate = 1.00000, LL = 0.0319717, nd = 0.0000003, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 98, lrate = 1.00000, LL = 0.0319719, nd = 0.0000003, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 99, lrate = 1.00000, LL = 0.0319721, nd = 0.0000003, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 100, lrate = 1.00000, LL = 0.0319723, nd = 0.0000003, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 101, lrate = 1.00000, LL = 0.0319725, nd = 0.0000005, D = 0.02727 0.02727 took 0.02 seconds
-    Iteration 102, lrate = 1.00000, LL = 0.0319727, nd = 0.0000006, D = 0.02727 0.02727 took 0.07 seconds
-    Iteration 103, lrate = 1.00000, LL = 0.0319728, nd = 0.0000006, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 104, lrate = 1.00000, LL = 0.0319730, nd = 0.0000006, D = 0.02727 0.02727 took 0.09 seconds
-    Iteration 105, lrate = 1.00000, LL = 0.0319732, nd = 0.0000006, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 106, lrate = 1.00000, LL = 0.0319734, nd = 0.0000006, D = 0.02727 0.02727 took 0.01 seconds
-    Iteration 107, lrate = 1.00000, LL = 0.0319736, nd = 0.0000001, D = 0.02727 0.02727 took 0.09 seconds
-    Exiting because norm of weight gradient less than 0.000000100000
+    Iteration 51, lrate = 0.00625, LL = 0.0313515, nd = 0.0001168, D = 0.02723 0.02723 took 0.09 seconds
+    Iteration 52, lrate = 0.01250, LL = 0.0316043, nd = 0.0001154, D = 0.02723 0.02723 took 0.01 seconds
+    Iteration 53, lrate = 0.02500, LL = 0.0318344, nd = 0.0001125, D = 0.02723 0.02723 took 0.09 seconds
+    Iteration 54, lrate = 0.05000, LL = 0.0320422, nd = 0.0001079, D = 0.02722 0.02722 took 0.01 seconds
+    Iteration 55, lrate = 0.10000, LL = 0.0322273, nd = 0.0001017, D = 0.02722 0.02722 took 0.09 seconds
+    Iteration 56, lrate = 0.20000, LL = 0.0324051, nd = 0.0000870, D = 0.02721 0.02721 took 0.01 seconds
+    Iteration 57, lrate = 0.30000, LL = 0.0325678, nd = 0.0000714, D = 0.02720 0.02720 took 0.09 seconds
+    Iteration 58, lrate = 0.40000, LL = 0.0327119, nd = 0.0000575, D = 0.02719 0.02719 took 0.01 seconds
+    Iteration 59, lrate = 0.50000, LL = 0.0328411, nd = 0.0000463, D = 0.02718 0.02718 took 0.09 seconds
+    Iteration 60, lrate = 0.60000, LL = 0.0329596, nd = 0.0000354, D = 0.02717 0.02717 took 0.01 seconds
+    Iteration 61, lrate = 0.70000, LL = 0.0330636, nd = 0.0000321, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 62, lrate = 0.80000, LL = 0.0331571, nd = 0.0000264, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 63, lrate = 0.90000, LL = 0.0332398, nd = 0.0000246, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 64, lrate = 1.00000, LL = 0.0333122, nd = 0.0000208, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 65, lrate = 1.00000, LL = 0.0333748, nd = 0.0000223, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 66, lrate = 1.00000, LL = 0.0334295, nd = 0.0000191, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 67, lrate = 1.00000, LL = 0.0334767, nd = 0.0000196, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 68, lrate = 1.00000, LL = 0.0335176, nd = 0.0000176, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 69, lrate = 1.00000, LL = 0.0335529, nd = 0.0000172, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 70, lrate = 1.00000, LL = 0.0335832, nd = 0.0000157, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 71, lrate = 1.00000, LL = 0.0336091, nd = 0.0000149, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 72, lrate = 1.00000, LL = 0.0336310, nd = 0.0000149, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 73, lrate = 1.00000, LL = 0.0336499, nd = 0.0000134, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 74, lrate = 1.00000, LL = 0.0336660, nd = 0.0000136, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 75, lrate = 1.00000, LL = 0.0336796, nd = 0.0000117, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 76, lrate = 1.00000, LL = 0.0336908, nd = 0.0000117, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 77, lrate = 1.00000, LL = 0.0337003, nd = 0.0000105, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 78, lrate = 1.00000, LL = 0.0337082, nd = 0.0000104, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 79, lrate = 1.00000, LL = 0.0337150, nd = 0.0000091, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 80, lrate = 1.00000, LL = 0.0337206, nd = 0.0000089, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 81, lrate = 1.00000, LL = 0.0337254, nd = 0.0000082, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 82, lrate = 1.00000, LL = 0.0337294, nd = 0.0000077, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 83, lrate = 1.00000, LL = 0.0337328, nd = 0.0000075, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 84, lrate = 1.00000, LL = 0.0337357, nd = 0.0000064, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 85, lrate = 1.00000, LL = 0.0337383, nd = 0.0000067, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 86, lrate = 1.00000, LL = 0.0337405, nd = 0.0000057, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 87, lrate = 1.00000, LL = 0.0337425, nd = 0.0000057, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 88, lrate = 1.00000, LL = 0.0337442, nd = 0.0000052, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 89, lrate = 1.00000, LL = 0.0337458, nd = 0.0000050, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 90, lrate = 1.00000, LL = 0.0337472, nd = 0.0000047, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 91, lrate = 1.00000, LL = 0.0337485, nd = 0.0000046, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 92, lrate = 1.00000, LL = 0.0337497, nd = 0.0000042, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 93, lrate = 1.00000, LL = 0.0337508, nd = 0.0000041, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 94, lrate = 1.00000, LL = 0.0337518, nd = 0.0000040, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 95, lrate = 1.00000, LL = 0.0337527, nd = 0.0000036, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 96, lrate = 1.00000, LL = 0.0337536, nd = 0.0000036, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 97, lrate = 1.00000, LL = 0.0337545, nd = 0.0000033, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 98, lrate = 1.00000, LL = 0.0337552, nd = 0.0000032, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 99, lrate = 1.00000, LL = 0.0337560, nd = 0.0000030, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 100, lrate = 1.00000, LL = 0.0337567, nd = 0.0000029, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 101, lrate = 1.00000, LL = 0.0337574, nd = 0.0000053, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 102, lrate = 1.00000, LL = 0.0337580, nd = 0.0000052, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 103, lrate = 1.00000, LL = 0.0337586, nd = 0.0000051, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 104, lrate = 1.00000, LL = 0.0337592, nd = 0.0000048, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 105, lrate = 1.00000, LL = 0.0337598, nd = 0.0000046, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 106, lrate = 1.00000, LL = 0.0337603, nd = 0.0000045, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 107, lrate = 1.00000, LL = 0.0337609, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 108, lrate = 1.00000, LL = 0.0337614, nd = 0.0000036, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 109, lrate = 1.00000, LL = 0.0337619, nd = 0.0000006, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 110, lrate = 1.00000, LL = 0.0337624, nd = 0.0000030, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 111, lrate = 1.00000, LL = 0.0337628, nd = 0.0000008, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 112, lrate = 1.00000, LL = 0.0337633, nd = 0.0000026, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 113, lrate = 1.00000, LL = 0.0337637, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 114, lrate = 1.00000, LL = 0.0337641, nd = 0.0000022, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 115, lrate = 1.00000, LL = 0.0337645, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 116, lrate = 1.00000, LL = 0.0337649, nd = 0.0000019, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 117, lrate = 1.00000, LL = 0.0337652, nd = 0.0000010, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 118, lrate = 1.00000, LL = 0.0337656, nd = 0.0000017, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 119, lrate = 1.00000, LL = 0.0337659, nd = 0.0000010, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 120, lrate = 1.00000, LL = 0.0337663, nd = 0.0000015, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 121, lrate = 1.00000, LL = 0.0337666, nd = 0.0000009, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 122, lrate = 1.00000, LL = 0.0337669, nd = 0.0000013, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 123, lrate = 1.00000, LL = 0.0337672, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 124, lrate = 1.00000, LL = 0.0337675, nd = 0.0000012, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 125, lrate = 1.00000, LL = 0.0337678, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 126, lrate = 1.00000, LL = 0.0337681, nd = 0.0000011, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 127, lrate = 1.00000, LL = 0.0337684, nd = 0.0000008, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 128, lrate = 1.00000, LL = 0.0337686, nd = 0.0000010, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 129, lrate = 1.00000, LL = 0.0337689, nd = 0.0000008, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 130, lrate = 1.00000, LL = 0.0337691, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 131, lrate = 1.00000, LL = 0.0337693, nd = 0.0000007, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 132, lrate = 1.00000, LL = 0.0337696, nd = 0.0000008, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 133, lrate = 1.00000, LL = 0.0337698, nd = 0.0000007, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 134, lrate = 1.00000, LL = 0.0337700, nd = 0.0000007, D = 0.02716 0.02716 took 0.10 seconds
+    Iteration 135, lrate = 1.00000, LL = 0.0337702, nd = 0.0000006, D = 0.02716 0.02716 took 0.10 seconds
+    Iteration 136, lrate = 1.00000, LL = 0.0337704, nd = 0.0000007, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 137, lrate = 1.00000, LL = 0.0337706, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 138, lrate = 1.00000, LL = 0.0337708, nd = 0.0000006, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 139, lrate = 1.00000, LL = 0.0337710, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 140, lrate = 1.00000, LL = 0.0337712, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 141, lrate = 1.00000, LL = 0.0337714, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 142, lrate = 1.00000, LL = 0.0337716, nd = 0.0000005, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 143, lrate = 1.00000, LL = 0.0337717, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 144, lrate = 1.00000, LL = 0.0337719, nd = 0.0000005, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 145, lrate = 1.00000, LL = 0.0337720, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 146, lrate = 1.00000, LL = 0.0337722, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 147, lrate = 1.00000, LL = 0.0337724, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 148, lrate = 1.00000, LL = 0.0337725, nd = 0.0000004, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 149, lrate = 1.00000, LL = 0.0337726, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 150, lrate = 1.00000, LL = 0.0337728, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 151, lrate = 1.00000, LL = 0.0337729, nd = 0.0000004, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 152, lrate = 1.00000, LL = 0.0337730, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 153, lrate = 1.00000, LL = 0.0337732, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 154, lrate = 1.00000, LL = 0.0337733, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 155, lrate = 1.00000, LL = 0.0337734, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 156, lrate = 1.00000, LL = 0.0337735, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 157, lrate = 1.00000, LL = 0.0337736, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 158, lrate = 1.00000, LL = 0.0337738, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 159, lrate = 1.00000, LL = 0.0337739, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 160, lrate = 1.00000, LL = 0.0337740, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 161, lrate = 1.00000, LL = 0.0337741, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 162, lrate = 1.00000, LL = 0.0337742, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 163, lrate = 1.00000, LL = 0.0337743, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 164, lrate = 1.00000, LL = 0.0337744, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 165, lrate = 1.00000, LL = 0.0337745, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 166, lrate = 1.00000, LL = 0.0337746, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
+    Iteration 167, lrate = 1.00000, LL = 0.0337746, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
+    Iteration 168, lrate = 1.00000, LL = 0.0337747, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
+    Exiting because likelihood increasing by less than 1e-07 for more than 5 iterations ...
 
 
 
@@ -257,7 +318,7 @@ apply the learned unmixing matrix to the data
 
 .. code-block:: Python
 
-    W = W[:, :, 0]
+    W = results["W"][:, :, 0]
     y = np.dot(x, W)
 
 
@@ -315,7 +376,7 @@ Plot Results
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 9.972 seconds)
+   **Total running time of the script:** (0 minutes 13.055 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_toy.py:
