@@ -60,7 +60,7 @@ def test_amica_full_algorithm(load_weights, n_components):
     )
     
     # Run AMICA
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
+    results = fit_amica(
         X=dataseg,
         n_components=n_components,
         max_iter=200,
@@ -91,29 +91,29 @@ def test_amica_full_algorithm(load_weights, n_components):
     comp_list_f = np.reshape(comp_list_f, (want_components, 2), order="F")
     
     # These should be equal regardless of initialization
-    assert_almost_equal(mean, mean_f)
-    assert_almost_equal(S, S_f)
-    assert_almost_equal(c, c_f)
-    assert gm == gm_f == np.array([1.])
+    assert_almost_equal(results["mean"], mean_f)
+    assert_almost_equal(results["S"], S_f)
+    assert_almost_equal(results["c"], c_f)
+    assert results["gm"] == gm_f == np.array([1.])
 
     # The rest depend on initialization    
     if load_weights:
-        assert_almost_equal(LL, LL_f, decimal=4)
-        assert_allclose(LL, LL_f, atol=1e-4)
-        assert_almost_equal(A, A_f, decimal=2)
-        assert_almost_equal(W, W_f, decimal=2)
-        assert_almost_equal(alpha, alpha_f, decimal=2)
-        assert_almost_equal(sbeta, sbeta_f, decimal=1)
-        assert_almost_equal(mu, mu_f, decimal=0)
-        assert_almost_equal(rho, rho_f, decimal=2)
+        assert_almost_equal(results["LL"], LL_f, decimal=4)
+        assert_allclose(results["LL"], LL_f, atol=1e-4)
+        assert_almost_equal(results["A"], A_f, decimal=2)
+        assert_almost_equal(results["W"], W_f, decimal=2)
+        assert_almost_equal(results["alpha"], alpha_f, decimal=2)
+        assert_almost_equal(results["sbeta"], sbeta_f, decimal=1)
+        assert_almost_equal(results["mu"], mu_f, decimal=0)
+        assert_almost_equal(results["rho"], rho_f, decimal=2)
     else:
-        assert_allclose(LL, LL_f, rtol=1e-2)
-        assert_allclose(A, A_f, atol=0.9)
-        assert_allclose(W, W_f, atol=0.9)
-        assert_allclose(alpha, alpha_f, atol=.4)
-        assert_allclose(sbeta, sbeta_f, atol=0.9)
-        assert_allclose(mu, mu_f, atol=1.6)
-        assert_allclose(rho, rho_f, atol=1)
+        assert_allclose(results["LL"], LL_f, rtol=1e-2)
+        assert_allclose(results["A"], A_f, atol=0.9)
+        assert_allclose(results["W"], W_f, atol=0.9)
+        assert_allclose(results["alpha"], alpha_f, atol=.4)
+        assert_allclose(results["sbeta"], sbeta_f, atol=0.9)
+        assert_allclose(results["mu"], mu_f, atol=1.6)
+        assert_allclose(results["rho"], rho_f, atol=1)
 
     if n_components == 16:
         return
@@ -129,7 +129,7 @@ def test_amica_full_algorithm(load_weights, n_components):
             )
         for i, this_ax in zip(range(32), ax.flat):
             mne.viz.plot_topomap(
-                A[:, i] if output == "python" else A_f[:, i],
+                results["A"][:, i] if output == "python" else A_f[:, i],
                 pos=raw.info,
                 axes=this_ax,
                 show=False,
@@ -176,7 +176,7 @@ def test_amica_full_algorithm(load_weights, n_components):
         return sources
 
     sources_python = get_amica_sources(
-        dataseg, W, S, mean
+        dataseg, results["W"], results["S"], results["mean"]
     )
     sources_fortran = get_amica_sources(
         dataseg, W_f, S_f, mean_f
@@ -241,13 +241,24 @@ def test_simulated_data(n_samples, noise_factor):
         )
 
 
-    S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = fit_amica(
+    results = fit_amica(
     x, centering=False, whiten=False, max_iter=500,
     initial_weights=weights, initial_scales=scales, initial_locations=locations,
     )
 
     assert np.all(fortran_results["mean"] == 0)
 
+    S = results["S"]
+    mu = results["mu"]
+    rho = results["rho"]
+    sbeta = results["sbeta"]
+    W = results["W"]
+    A = results["A"]
+    c = results["c"]
+    alpha = results["alpha"]
+    LL = results["LL"]
+
+    # Compare to Fortran results
     S_f = fortran_results["S"]
     assert_allclose(S, S_f, atol=.01)
 

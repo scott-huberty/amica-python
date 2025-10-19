@@ -29,13 +29,13 @@ fi = FastICA()
 z = fi.fit_transform(x)
 
 # %%
-S, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL = amica.fit_amica(
+results = amica.fit_amica(
     x.copy(), centering=False, whiten=False, random_state=42,
 )
 
 # %%
 # apply the learned unmixing matrix to the data
-W = W[:, :, 0]
+W = results["W"][:, :, 0]
 y = np.dot(x, W)
 
 # %%

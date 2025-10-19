@@ -253,16 +253,20 @@ def fit_amica(
         initial_scales=initial_scales,
         initial_locations=initial_locations,
         )
-    gm = state_dict["gm"]
-    mu = state_dict["mu"]
-    rho = state_dict["rho"]
-    sbeta = state_dict["sbeta"]
-    W = state_dict["W"]
-    A = state_dict["A"]
-    c = state_dict["c"]
-    alpha = state_dict["alpha"]
-    return whitening_matrix, mean, gm, mu, rho, sbeta, W, A, c, alpha, LL
 
+    return dict(
+        S=whitening_matrix,
+        mean=mean,
+        gm=state_dict["gm"],
+        mu=state_dict["mu"],
+        rho=state_dict["rho"],
+        sbeta=state_dict["sbeta"],
+        W=state_dict["W"],
+        A=state_dict["A"],
+        c=state_dict["c"],
+        alpha=state_dict["alpha"],
+        LL=LL,
+    )
 
 def _core_amica(
         X,
