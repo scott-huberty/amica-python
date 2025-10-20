@@ -123,7 +123,7 @@ def fit_amica(
         X,
         *,
         whiten=True,
-        centering=True,
+        mean_center=True,
         n_components=None,
         n_models=1,
         n_mixtures=3,
@@ -137,9 +137,9 @@ def fit_amica(
         newtrate=1,
         newt_ramp=10,
         batch_size=None,
-        initial_weights=None,
-        initial_scales=None,
-        initial_locations=None,
+        w_init=None,
+        sbeta_init=None,
+        mu_init=None,
         do_reject=False,
         random_state=None,
 ):
@@ -168,7 +168,7 @@ def fit_amica(
         preprocessed: it should be centered, normed and white,
         otherwise you will get incorrect results.
         In this case the parameter n_components will be ignored.
-    centering : bool, optional
+    mean_center : bool, optional
         If True, X is mean corrected.
     n_mixtures : int, optional
         Number of mixtures to use in the AMICA algorithm.
@@ -231,7 +231,7 @@ def fit_amica(
         raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
     dataseg = X.copy()
 
-    do_mean = True if centering else False
+    do_mean = True if mean_center else False
     do_sphere = True if whiten else False
     dataseg, whitening_matrix, sldet, whitening_inverse, mean = pre_whiten(
         X=dataseg,
@@ -249,9 +249,9 @@ def fit_amica(
         state=state,
         sldet=sldet,
         random_state=random_state,
-        initial_weights=initial_weights,
-        initial_scales=initial_scales,
-        initial_locations=initial_locations,
+        initial_weights=w_init,
+        initial_scales=sbeta_init,
+        initial_locations=mu_init,
         )
 
     return dict(

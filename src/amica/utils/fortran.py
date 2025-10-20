@@ -135,7 +135,7 @@ def load_data(filename, *, dtype=np.float32, shape=None):
     dtype : data-type
         The desired data-type for the loaded array. Default is np.float32.
     shape : tuple of int
-        The shape of the array to load. If None, the shape will be inferred.
+        The shape of the array to load.
 
     Returns
     -------
