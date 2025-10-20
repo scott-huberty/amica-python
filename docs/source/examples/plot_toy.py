@@ -30,7 +30,7 @@ z = fi.fit_transform(x)
 
 # %%
 results = amica.fit_amica(
-    x.copy(), centering=False, whiten=False, random_state=42,
+    x.copy(), mean_center=False, whiten=False, random_state=42,
 )
 
 # %%
