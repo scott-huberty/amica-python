@@ -103,8 +103,8 @@ def write_data(data, filename):
     Parameters
     ----------
     data : array-like
-        The data to save. Will be converted to a Fortran-contiguous array of type
-        float32.
+        The data of shape (n_samples, n_features) to save. Will be converted to a
+        Fortran-contiguous array of type float32.
     filename : str or Path
         The path to the output binary file.
     

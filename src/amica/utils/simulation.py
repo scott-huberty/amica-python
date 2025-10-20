@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def generate_toy_data(n_samples=1000, mix_signals=True, noise_factor=None):
+def generate_toy_data(n_samples=1000, mix_signals=True, noise_factor=None, seed=None):
     """
     Generate toy data consisting of a sine and square wave.
 
@@ -20,13 +20,13 @@ def generate_toy_data(n_samples=1000, mix_signals=True, noise_factor=None):
     mixed_signals : ndarray, shape (n_samples, 2)
         The mixed signals as a 2D numpy array.
     """
-
+    rng = np.random.default_rng(seed)
     t = np.arange(1, n_samples + 1)
     a = np.sin(t * 2*np.pi*0.004)
     b = np.sign(np.sin(t * 2*np.pi*0.006))
     if noise_factor is not None:
-        a += noise_factor * np.random.randn(len(t))
-        b += noise_factor * np.random.randn(len(t))
+        a += noise_factor * rng.standard_normal(len(t))
+        b += noise_factor * rng.standard_normal(len(t))
     x = np.vstack([a, b]).T
 
     # optionally mix the signals

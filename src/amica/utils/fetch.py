@@ -62,12 +62,12 @@ def fetch_test_data() -> Path:
 # -------------------------------
 # Fortran golden outputs
 # -------------------------------
-version = "v0.4.0"
+version = "v0.5.0"
 FORTRAN_URL = (
     "https://github.com/scott-huberty/amica/"
     f"releases/download/{version}/test_output.tar.gz"
 )
-FORTRAN_HASH = "sha256:36793a3d453d87252ae4b5e0bec3d0e5de69b64e6af7373ab859b99e2834bb71"
+FORTRAN_HASH = "sha256:615db0bb08affc64356cc360f73f55422ea120e90213e8c1db82b6cfe289c33b"
 
 
 def fetch_fortran_outputs() -> Path:

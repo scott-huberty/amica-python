@@ -230,7 +230,7 @@ def test_simulated_data(n_samples, noise_factor):
     """
     # Generate toy data
     toy_idx = 1 if n_samples == 10_000 else 2
-    x = generate_toy_data(n_samples=n_samples, noise_factor=noise_factor)
+    x = generate_toy_data(n_samples=n_samples, noise_factor=noise_factor, seed=123456)
     fortran_dir = data_path()
     amicaout_dir = fortran_dir / f"toy_{toy_idx}" / f"amicaout_toy_{toy_idx}"
     weights, scales, locations = load_initial_weights(
@@ -257,28 +257,27 @@ def test_simulated_data(n_samples, noise_factor):
     c = results["c"]
     alpha = results["alpha"]
     LL = results["LL"]
-
     # Compare to Fortran results
     S_f = fortran_results["S"]
-    assert_allclose(S, S_f, atol=.01)
+    assert_allclose(S, S_f)
 
     A_f = fortran_results["A"]
-    assert_allclose(A, A_f, rtol=.09)
+    assert_allclose(A, A_f, rtol=0.1)
 
     W_f = fortran_results["W"]
-    assert_allclose(W, W_f, atol=.009)
+    assert_allclose(W, W_f, rtol=0.1)
 
     alpha_f = fortran_results["alpha"]
-    assert_allclose(alpha, alpha_f, rtol=2.0)
+    assert_allclose(alpha, alpha_f, rtol=0.5)
 
     sbeta_f = fortran_results["sbeta"]
-    assert_allclose(sbeta, sbeta_f, rtol=3.0)
+    assert_allclose(sbeta, sbeta_f, rtol=0.5)
 
     mu_f = fortran_results["mu"]
-    assert_allclose(mu, mu_f, atol=.15)
+    assert_allclose(mu, mu_f, rtol=0.1)
 
     rho_f = fortran_results["rho"]
-    assert_allclose(rho, rho_f, atol=1e-7, rtol=.4)
+    assert_allclose(rho, rho_f, rtol=0.5)
 
 
     LL_f = fortran_results["LL"]
