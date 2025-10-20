@@ -32,9 +32,9 @@ data *= 1e6  # Convert from Volts to microVolts
 results = amica.fit_amica(
         X=data,
         max_iter=200,
-        initial_weights=initial_weights,
-        initial_scales=initial_scales,
-        initial_locations=initial_locations,
+        w_init=initial_weights,
+        sbeta_init=initial_scales,
+        mu_init=initial_locations,
         )
 
 # %%
