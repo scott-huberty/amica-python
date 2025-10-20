@@ -136,12 +136,12 @@ to download the full example code.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">data_dir</span> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">data_path</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;toy_2&quot;</span> <span class="o">/</span> <span class="s2">&quot;amicaout_toy_2&quot;</span>
 </span></pre></div>
 </div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Downloading data from &#39;https://github.com/scott-huberty/amica/releases/download/v0.4.0/test_output.tar.gz&#39; to file &#39;/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz&#39;.
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Downloading data from &#39;https://github.com/scott-huberty/amica/releases/download/v0.5.0/test_output.tar.gz&#39; to file &#39;/home/circleci/amica_test_data/0610669c678872814029216a7b152c02-test_output.tar.gz&#39;.
 </span><span data-line="2">
-</span><span data-line="3">  0%|                                              | 0.00/4.75M [00:00&lt;?, ?B/s]
-</span><span data-line="4">  0%|                                              | 0.00/4.75M [00:00&lt;?, ?B/s]
-</span><span data-line="5">100%|█████████████████████████████████████| 4.75M/4.75M [00:00&lt;00:00, 20.3GB/s]
-</span><span data-line="6">Untarring contents of &#39;/home/circleci/amica_test_data/fdcb4c2de1a0156562d5fe0f60c89b59-test_output.tar.gz&#39; to &#39;/home/circleci/amica_test_data/.&#39;
+</span><span data-line="3">  0%|                                              | 0.00/4.74M [00:00&lt;?, ?B/s]
+</span><span data-line="4">  0%|                                              | 0.00/4.74M [00:00&lt;?, ?B/s]
+</span><span data-line="5">100%|█████████████████████████████████████| 4.74M/4.74M [00:00&lt;00:00, 16.7GB/s]
+</span><span data-line="6">Untarring contents of &#39;/home/circleci/amica_test_data/0610669c678872814029216a7b152c02-test_output.tar.gz&#39; to &#39;/home/circleci/amica_test_data/.&#39;
 </span></pre></div>
 </div>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">x</span> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">generate_toy_data</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span> <span class="n">noise_factor</span><span class="o">=</span><span class="mf">.05</span><span class="p">)</span>
@@ -161,196 +161,138 @@ to download the full example code.</p>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1"> Getting the covariance matrix ...
 </span><span data-line="2">doing eig nx = 2
-</span><span data-line="3">minimum eigenvalues: [0.37501357]
-</span><span data-line="4">maximum eigenvalues: [0.85895196 0.37501357]
+</span><span data-line="3">minimum eigenvalues: [0.37558151]
+</span><span data-line="4">maximum eigenvalues: [0.85864928 0.37558151]
 </span><span data-line="5">num eigvals kept: 2
 </span><span data-line="6">numeigs = 2, nw = 2
 </span><span data-line="7">Allocating variables ...
 </span><span data-line="8">Initializing variables ...
 </span><span data-line="9">1: block size = 10000
 </span><span data-line="10">1 : entering the main loop ...
-</span><span data-line="11">Iteration 1, lrate = 0.05000, LL = -1.2399455, nd = 0.3271257, D = 0.00000 0.00000 took 0.29 seconds
-</span><span data-line="12">Iteration 2, lrate = 0.05000, LL = -0.9381016, nd = 0.4440212, D = 0.00028 0.00028 took 0.01 seconds
-</span><span data-line="13">Iteration 3, lrate = 0.05000, LL = -0.3712883, nd = 1.4547160, D = 0.00282 0.00282 took 0.01 seconds
-</span><span data-line="14">Iteration 4, lrate = 0.05000, LL = -0.7735238, nd = 9.1621988, D = 0.02047 0.02047 took 0.08 seconds
+</span><span data-line="11">Iteration 1, lrate = 0.05000, LL = -1.2402204, nd = 0.3276741, D = 0.00000 0.00000 took 0.01 seconds
+</span><span data-line="12">Iteration 2, lrate = 0.05000, LL = -0.9380503, nd = 0.4455975, D = 0.00028 0.00028 took 0.01 seconds
+</span><span data-line="13">Iteration 3, lrate = 0.05000, LL = -0.3680187, nd = 1.4458393, D = 0.00284 0.00284 took 0.01 seconds
+</span><span data-line="14">Iteration 4, lrate = 0.05000, LL = -0.7740152, nd = 9.2573365, D = 0.02042 0.02042 took 0.08 seconds
 </span><span data-line="15">Likelihood decreasing!
-</span><span data-line="16">Iteration 5, lrate = 0.05000, LL = -4.5159344, nd = 7.7611613, D = 0.09606 0.09606 took 0.01 seconds
+</span><span data-line="16">Iteration 5, lrate = 0.05000, LL = -4.6127336, nd = 7.9579237, D = 0.09862 0.09862 took 0.01 seconds
 </span><span data-line="17">Likelihood decreasing!
-</span><span data-line="18">Iteration 6, lrate = 0.05000, LL = -1.3795032, nd = 1.0022209, D = 0.00395 0.00395 took 0.01 seconds
-</span><span data-line="19">Iteration 7, lrate = 0.05000, LL = -0.8593755, nd = 1.2205397, D = 0.00462 0.00462 took 0.09 seconds
-</span><span data-line="20">Iteration 8, lrate = 0.05000, LL = -0.3861816, nd = 1.1344341, D = 0.02155 0.02155 took 0.01 seconds
-</span><span data-line="21">Iteration 9, lrate = 0.05000, LL = -0.3637727, nd = 5.5551220, D = 0.01787 0.01787 took 0.01 seconds
-</span><span data-line="22">Iteration 10, lrate = 0.05000, LL = -4.5436900, nd = 1.9366656, D = 0.03250 0.03250 took 0.09 seconds
-</span><span data-line="23">Likelihood decreasing!
-</span><span data-line="24">Iteration 11, lrate = 0.02500, LL = -1.2644891, nd = 0.0504620, D = 0.03277 0.03277 took 0.01 seconds
-</span><span data-line="25">Iteration 12, lrate = 0.02500, LL = -1.2150768, nd = 0.1936583, D = 0.03281 0.03281 took 0.01 seconds
-</span><span data-line="26">Iteration 13, lrate = 0.02500, LL = -0.9312358, nd = 1.1079051, D = 0.03085 0.03085 took 0.09 seconds
-</span><span data-line="27">Iteration 14, lrate = 0.02500, LL = -0.5982832, nd = 2.3423801, D = 0.01980 0.01980 took 0.01 seconds
-</span><span data-line="28">Iteration 15, lrate = 0.02500, LL = -0.6295221, nd = 5.6718349, D = 0.04684 0.04684 took 0.01 seconds
-</span><span data-line="29">Likelihood decreasing!
-</span><span data-line="30">Iteration 16, lrate = 0.02500, LL = -0.8198191, nd = 3.4135370, D = 0.00053 0.00053 took 0.09 seconds
-</span><span data-line="31">Likelihood decreasing!
-</span><span data-line="32">Iteration 17, lrate = 0.02500, LL = -0.3265346, nd = 1.8798115, D = 0.02127 0.02127 took 0.01 seconds
-</span><span data-line="33">Iteration 18, lrate = 0.02500, LL = -0.2606523, nd = 5.6768013, D = 0.03363 0.03363 took 0.01 seconds
-</span><span data-line="34">Iteration 19, lrate = 0.02500, LL = -1.2600658, nd = 7.1210874, D = 0.01369 0.01369 took 0.09 seconds
-</span><span data-line="35">Likelihood decreasing!
-</span><span data-line="36">Iteration 20, lrate = 0.01250, LL = -0.6595682, nd = 2.5786725, D = 0.01556 0.01556 took 0.11 seconds
-</span><span data-line="37">Iteration 21, lrate = 0.01250, LL = -0.3873916, nd = 1.9056307, D = 0.01665 0.01665 took 0.01 seconds
-</span><span data-line="38">Iteration 22, lrate = 0.01250, LL = -0.1448030, nd = 0.8500285, D = 0.02540 0.02540 took 0.08 seconds
-</span><span data-line="39">Iteration 23, lrate = 0.01250, LL = -0.0189339, nd = 1.1142994, D = 0.02949 0.02949 took 0.01 seconds
-</span><span data-line="40">Iteration 24, lrate = 0.01250, LL = -0.0184813, nd = 3.4735927, D = 0.02364 0.02364 took 0.01 seconds
-</span><span data-line="41">Iteration 25, lrate = 0.01250, LL = -0.3057379, nd = 8.2939037, D = 0.04150 0.04150 took 0.09 seconds
+</span><span data-line="18">Iteration 6, lrate = 0.05000, LL = -1.3845726, nd = 1.0049061, D = 0.00463 0.00463 took 0.01 seconds
+</span><span data-line="19">Iteration 7, lrate = 0.05000, LL = -0.8575745, nd = 1.2337161, D = 0.00536 0.00536 took 0.09 seconds
+</span><span data-line="20">Iteration 8, lrate = 0.05000, LL = -0.3869701, nd = 1.5040934, D = 0.02181 0.02181 took 0.01 seconds
+</span><span data-line="21">Iteration 9, lrate = 0.05000, LL = -0.5225957, nd = 6.0919918, D = 0.01831 0.01831 took 0.01 seconds
+</span><span data-line="22">Likelihood decreasing!
+</span><span data-line="23">Iteration 10, lrate = 0.02500, LL = -1.8907657, nd = 7.7506809, D = 0.02061 0.02061 took 0.09 seconds
+</span><span data-line="24">Likelihood decreasing!
+</span><span data-line="25">Iteration 11, lrate = 0.02500, LL = -1.1689213, nd = 2.4287966, D = 0.02259 0.02259 took 0.01 seconds
+</span><span data-line="26">Iteration 12, lrate = 0.02500, LL = -0.6769995, nd = 1.3001519, D = 0.02299 0.02299 took 0.01 seconds
+</span><span data-line="27">Iteration 13, lrate = 0.02500, LL = -0.3606881, nd = 0.2480461, D = 0.02398 0.02398 took 0.09 seconds
+</span><span data-line="28">Iteration 14, lrate = 0.02500, LL = -0.0748539, nd = 1.1746897, D = 0.02641 0.02641 took 0.01 seconds
+</span><span data-line="29">Iteration 15, lrate = 0.02500, LL = -0.1487889, nd = 6.2818000, D = 0.02227 0.02227 took 0.01 seconds
+</span><span data-line="30">Likelihood decreasing!
+</span><span data-line="31">Iteration 16, lrate = 0.02500, LL = -4.3367913, nd = 20.6215742, D = 0.04452 0.04452 took 0.09 seconds
+</span><span data-line="32">Likelihood decreasing!
+</span><span data-line="33">Iteration 17, lrate = 0.01250, LL = -1.3660066, nd = 2.4432354, D = 0.03488 0.03488 took 0.01 seconds
+</span><span data-line="34">Iteration 18, lrate = 0.01250, LL = -0.6518742, nd = 0.6612241, D = 0.03485 0.03485 took 0.01 seconds
+</span><span data-line="35">Iteration 19, lrate = 0.01250, LL = -0.3254545, nd = 1.5078712, D = 0.03200 0.03200 took 0.09 seconds
+</span><span data-line="36">Iteration 20, lrate = 0.01250, LL = -0.0913376, nd = 0.1509013, D = 0.02682 0.02682 took 0.01 seconds
+</span><span data-line="37">Iteration 21, lrate = 0.01250, LL = 0.0094338, nd = 0.5282263, D = 0.02609 0.02609 took 0.01 seconds
+</span><span data-line="38">Iteration 22, lrate = 0.01250, LL = 0.0166176, nd = 1.9122238, D = 0.02804 0.02804 took 0.09 seconds
+</span><span data-line="39">Iteration 23, lrate = 0.01250, LL = -0.1335478, nd = 7.5183014, D = 0.02180 0.02180 took 0.01 seconds
+</span><span data-line="40">Likelihood decreasing!
+</span><span data-line="41">Iteration 24, lrate = 0.01250, LL = -0.9386951, nd = 9.2104489, D = 0.04638 0.04638 took 0.01 seconds
 </span><span data-line="42">Likelihood decreasing!
-</span><span data-line="43">Iteration 26, lrate = 0.01250, LL = -0.8246432, nd = 7.5513770, D = 0.00658 0.00658 took 0.01 seconds
-</span><span data-line="44">Likelihood decreasing!
-</span><span data-line="45">Iteration 27, lrate = 0.01250, LL = -0.2470095, nd = 2.3012680, D = 0.03422 0.03422 took 0.01 seconds
-</span><span data-line="46">Iteration 28, lrate = 0.01250, LL = -0.0808095, nd = 2.4695888, D = 0.02547 0.02547 took 0.09 seconds
-</span><span data-line="47">Iteration 29, lrate = 0.01250, LL = -0.1095423, nd = 5.1620206, D = 0.03070 0.03070 took 0.01 seconds
+</span><span data-line="43">Iteration 25, lrate = 0.01250, LL = -0.7312840, nd = 4.5711212, D = 0.03002 0.03002 took 0.09 seconds
+</span><span data-line="44">Iteration 26, lrate = 0.01250, LL = -0.3977788, nd = 3.5763846, D = 0.03012 0.03012 took 0.01 seconds
+</span><span data-line="45">Iteration 27, lrate = 0.01250, LL = -0.1444529, nd = 1.9942289, D = 0.02853 0.02853 took 0.01 seconds
+</span><span data-line="46">Iteration 28, lrate = 0.01250, LL = -0.0589732, nd = 3.2353969, D = 0.02548 0.02548 took 0.09 seconds
+</span><span data-line="47">Iteration 29, lrate = 0.01250, LL = -0.2990322, nd = 9.0461731, D = 0.02934 0.02934 took 0.01 seconds
 </span><span data-line="48">Likelihood decreasing!
-</span><span data-line="49">Iteration 30, lrate = 0.00625, LL = -0.0855933, nd = 5.1170506, D = 0.02615 0.02615 took 0.01 seconds
-</span><span data-line="50">Iteration 31, lrate = 0.00625, LL = -0.0952882, nd = 5.2889978, D = 0.02828 0.02828 took 0.09 seconds
-</span><span data-line="51">Likelihood decreasing!
-</span><span data-line="52">Iteration 32, lrate = 0.00625, LL = -0.1188058, nd = 6.1140813, D = 0.02687 0.02687 took 0.01 seconds
-</span><span data-line="53">Likelihood decreasing!
-</span><span data-line="54">Iteration 33, lrate = 0.00625, LL = -0.1435780, nd = 5.9702094, D = 0.02778 0.02778 took 0.01 seconds
-</span><span data-line="55">Likelihood decreasing!
-</span><span data-line="56">Iteration 34, lrate = 0.00313, LL = 0.0006212, nd = 0.6192990, D = 0.02747 0.02747 took 0.09 seconds
-</span><span data-line="57">Iteration 35, lrate = 0.00313, LL = 0.0224942, nd = 0.0672011, D = 0.02734 0.02734 took 0.01 seconds
-</span><span data-line="58">Iteration 36, lrate = 0.00313, LL = 0.0249252, nd = 0.0569119, D = 0.02727 0.02727 took 0.01 seconds
-</span><span data-line="59">Iteration 37, lrate = 0.00313, LL = 0.0255854, nd = 0.0250666, D = 0.02727 0.02727 took 0.09 seconds
-</span><span data-line="60">Iteration 38, lrate = 0.00313, LL = 0.0261507, nd = 0.0246405, D = 0.02726 0.02726 took 0.01 seconds
-</span><span data-line="61">Iteration 39, lrate = 0.00313, LL = 0.0266779, nd = 0.0093019, D = 0.02726 0.02726 took 0.01 seconds
-</span><span data-line="62">Iteration 40, lrate = 0.00313, LL = 0.0271918, nd = 0.0153052, D = 0.02726 0.02726 took 0.01 seconds
-</span><span data-line="63">Iteration 41, lrate = 0.00313, LL = 0.0276846, nd = 0.0061553, D = 0.02725 0.02725 took 0.09 seconds
-</span><span data-line="64">Iteration 42, lrate = 0.00313, LL = 0.0281470, nd = 0.0135054, D = 0.02725 0.02725 took 0.01 seconds
-</span><span data-line="65">Iteration 43, lrate = 0.00313, LL = 0.0285939, nd = 0.0056207, D = 0.02725 0.02725 took 0.01 seconds
-</span><span data-line="66">Iteration 44, lrate = 0.00313, LL = 0.0290184, nd = 0.0104300, D = 0.02724 0.02724 took 0.09 seconds
-</span><span data-line="67">Iteration 45, lrate = 0.00313, LL = 0.0294156, nd = 0.0062479, D = 0.02724 0.02724 took 0.01 seconds
-</span><span data-line="68">Iteration 46, lrate = 0.00313, LL = 0.0297850, nd = 0.0119208, D = 0.02724 0.02724 took 0.09 seconds
-</span><span data-line="69">Iteration 47, lrate = 0.00313, LL = 0.0301447, nd = 0.0070645, D = 0.02724 0.02724 took 0.01 seconds
-</span><span data-line="70">Iteration 48, lrate = 0.00313, LL = 0.0304799, nd = 0.0113539, D = 0.02723 0.02723 took 0.01 seconds
-</span><span data-line="71">Iteration 49, lrate = 0.00313, LL = 0.0307852, nd = 0.0104698, D = 0.02723 0.02723 took 0.09 seconds
-</span><span data-line="72">Iteration 50, lrate = 0.00313, LL = 0.0310806, nd = 0.0001162, D = 0.02723 0.02723 took 0.01 seconds
+</span><span data-line="49">Iteration 30, lrate = 0.00625, LL = -0.2657295, nd = 6.0758475, D = 0.02636 0.02636 took 0.01 seconds
+</span><span data-line="50">Iteration 31, lrate = 0.00625, LL = -0.0794523, nd = 3.1021032, D = 0.02663 0.02663 took 0.09 seconds
+</span><span data-line="51">Iteration 32, lrate = 0.00625, LL = -0.0102453, nd = 2.2473606, D = 0.02716 0.02716 took 0.01 seconds
+</span><span data-line="52">Iteration 33, lrate = 0.00625, LL = -0.0024792, nd = 3.1788636, D = 0.02686 0.02686 took 0.01 seconds
+</span><span data-line="53">Iteration 34, lrate = 0.00625, LL = -0.0345877, nd = 4.6632754, D = 0.02728 0.02728 took 0.09 seconds
+</span><span data-line="54">Likelihood decreasing!
+</span><span data-line="55">Iteration 35, lrate = 0.00625, LL = -0.1358782, nd = 7.3663283, D = 0.02687 0.02687 took 0.01 seconds
+</span><span data-line="56">Likelihood decreasing!
+</span><span data-line="57">Iteration 36, lrate = 0.00625, LL = -0.2545752, nd = 7.4913800, D = 0.02730 0.02730 took 0.01 seconds
+</span><span data-line="58">Likelihood decreasing!
+</span><span data-line="59">Iteration 37, lrate = 0.00313, LL = -0.0256683, nd = 0.8549321, D = 0.02716 0.02716 took 0.09 seconds
+</span><span data-line="60">Iteration 38, lrate = 0.00313, LL = 0.0233246, nd = 0.1606447, D = 0.02715 0.02715 took 0.01 seconds
+</span><span data-line="61">Iteration 39, lrate = 0.00313, LL = 0.0295449, nd = 0.0206503, D = 0.02709 0.02709 took 0.01 seconds
+</span><span data-line="62">Iteration 40, lrate = 0.00313, LL = 0.0302727, nd = 0.0285176, D = 0.02710 0.02710 took 0.09 seconds
+</span><span data-line="63">Iteration 41, lrate = 0.00313, LL = 0.0307524, nd = 0.0139608, D = 0.02711 0.02711 took 0.01 seconds
+</span><span data-line="64">Iteration 42, lrate = 0.00313, LL = 0.0312088, nd = 0.0158674, D = 0.02712 0.02712 took 0.01 seconds
+</span><span data-line="65">Iteration 43, lrate = 0.00313, LL = 0.0316466, nd = 0.0073881, D = 0.02713 0.02713 took 0.01 seconds
+</span><span data-line="66">Iteration 44, lrate = 0.00313, LL = 0.0320664, nd = 0.0106061, D = 0.02714 0.02714 took 0.09 seconds
+</span><span data-line="67">Iteration 45, lrate = 0.00313, LL = 0.0324683, nd = 0.0057717, D = 0.02715 0.02715 took 0.01 seconds
+</span><span data-line="68">Iteration 46, lrate = 0.00313, LL = 0.0328524, nd = 0.0083505, D = 0.02715 0.02715 took 0.01 seconds
+</span><span data-line="69">Iteration 47, lrate = 0.00313, LL = 0.0332190, nd = 0.0053686, D = 0.02716 0.02716 took 0.09 seconds
+</span><span data-line="70">Iteration 48, lrate = 0.00313, LL = 0.0335682, nd = 0.0070820, D = 0.02717 0.02717 took 0.01 seconds
+</span><span data-line="71">Iteration 49, lrate = 0.00313, LL = 0.0338999, nd = 0.0051926, D = 0.02717 0.02717 took 0.01 seconds
+</span><span data-line="72">Iteration 50, lrate = 0.00313, LL = 0.0342143, nd = 0.0002292, D = 0.02718 0.02718 took 0.09 seconds
 </span><span data-line="73">Starting Newton ... setting numdecs to 0
-</span><span data-line="74">Iteration 51, lrate = 0.00625, LL = 0.0313515, nd = 0.0001168, D = 0.02723 0.02723 took 0.09 seconds
-</span><span data-line="75">Iteration 52, lrate = 0.01250, LL = 0.0316043, nd = 0.0001154, D = 0.02723 0.02723 took 0.01 seconds
-</span><span data-line="76">Iteration 53, lrate = 0.02500, LL = 0.0318344, nd = 0.0001125, D = 0.02723 0.02723 took 0.09 seconds
-</span><span data-line="77">Iteration 54, lrate = 0.05000, LL = 0.0320422, nd = 0.0001079, D = 0.02722 0.02722 took 0.01 seconds
-</span><span data-line="78">Iteration 55, lrate = 0.10000, LL = 0.0322273, nd = 0.0001017, D = 0.02722 0.02722 took 0.09 seconds
-</span><span data-line="79">Iteration 56, lrate = 0.20000, LL = 0.0324051, nd = 0.0000870, D = 0.02721 0.02721 took 0.01 seconds
-</span><span data-line="80">Iteration 57, lrate = 0.30000, LL = 0.0325678, nd = 0.0000714, D = 0.02720 0.02720 took 0.09 seconds
-</span><span data-line="81">Iteration 58, lrate = 0.40000, LL = 0.0327119, nd = 0.0000575, D = 0.02719 0.02719 took 0.01 seconds
-</span><span data-line="82">Iteration 59, lrate = 0.50000, LL = 0.0328411, nd = 0.0000463, D = 0.02718 0.02718 took 0.09 seconds
-</span><span data-line="83">Iteration 60, lrate = 0.60000, LL = 0.0329596, nd = 0.0000354, D = 0.02717 0.02717 took 0.01 seconds
-</span><span data-line="84">Iteration 61, lrate = 0.70000, LL = 0.0330636, nd = 0.0000321, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="85">Iteration 62, lrate = 0.80000, LL = 0.0331571, nd = 0.0000264, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="86">Iteration 63, lrate = 0.90000, LL = 0.0332398, nd = 0.0000246, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="87">Iteration 64, lrate = 1.00000, LL = 0.0333122, nd = 0.0000208, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="88">Iteration 65, lrate = 1.00000, LL = 0.0333748, nd = 0.0000223, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="89">Iteration 66, lrate = 1.00000, LL = 0.0334295, nd = 0.0000191, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="90">Iteration 67, lrate = 1.00000, LL = 0.0334767, nd = 0.0000196, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="91">Iteration 68, lrate = 1.00000, LL = 0.0335176, nd = 0.0000176, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="92">Iteration 69, lrate = 1.00000, LL = 0.0335529, nd = 0.0000172, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="93">Iteration 70, lrate = 1.00000, LL = 0.0335832, nd = 0.0000157, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="94">Iteration 71, lrate = 1.00000, LL = 0.0336091, nd = 0.0000149, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="95">Iteration 72, lrate = 1.00000, LL = 0.0336310, nd = 0.0000149, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="96">Iteration 73, lrate = 1.00000, LL = 0.0336499, nd = 0.0000134, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="97">Iteration 74, lrate = 1.00000, LL = 0.0336660, nd = 0.0000136, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="98">Iteration 75, lrate = 1.00000, LL = 0.0336796, nd = 0.0000117, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="99">Iteration 76, lrate = 1.00000, LL = 0.0336908, nd = 0.0000117, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="100">Iteration 77, lrate = 1.00000, LL = 0.0337003, nd = 0.0000105, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="101">Iteration 78, lrate = 1.00000, LL = 0.0337082, nd = 0.0000104, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="102">Iteration 79, lrate = 1.00000, LL = 0.0337150, nd = 0.0000091, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="103">Iteration 80, lrate = 1.00000, LL = 0.0337206, nd = 0.0000089, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="104">Iteration 81, lrate = 1.00000, LL = 0.0337254, nd = 0.0000082, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="105">Iteration 82, lrate = 1.00000, LL = 0.0337294, nd = 0.0000077, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="106">Iteration 83, lrate = 1.00000, LL = 0.0337328, nd = 0.0000075, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="107">Iteration 84, lrate = 1.00000, LL = 0.0337357, nd = 0.0000064, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="108">Iteration 85, lrate = 1.00000, LL = 0.0337383, nd = 0.0000067, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="109">Iteration 86, lrate = 1.00000, LL = 0.0337405, nd = 0.0000057, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="110">Iteration 87, lrate = 1.00000, LL = 0.0337425, nd = 0.0000057, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="111">Iteration 88, lrate = 1.00000, LL = 0.0337442, nd = 0.0000052, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="112">Iteration 89, lrate = 1.00000, LL = 0.0337458, nd = 0.0000050, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="113">Iteration 90, lrate = 1.00000, LL = 0.0337472, nd = 0.0000047, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="114">Iteration 91, lrate = 1.00000, LL = 0.0337485, nd = 0.0000046, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="115">Iteration 92, lrate = 1.00000, LL = 0.0337497, nd = 0.0000042, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="116">Iteration 93, lrate = 1.00000, LL = 0.0337508, nd = 0.0000041, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="117">Iteration 94, lrate = 1.00000, LL = 0.0337518, nd = 0.0000040, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="118">Iteration 95, lrate = 1.00000, LL = 0.0337527, nd = 0.0000036, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="119">Iteration 96, lrate = 1.00000, LL = 0.0337536, nd = 0.0000036, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="120">Iteration 97, lrate = 1.00000, LL = 0.0337545, nd = 0.0000033, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="121">Iteration 98, lrate = 1.00000, LL = 0.0337552, nd = 0.0000032, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="122">Iteration 99, lrate = 1.00000, LL = 0.0337560, nd = 0.0000030, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="123">Iteration 100, lrate = 1.00000, LL = 0.0337567, nd = 0.0000029, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="124">Iteration 101, lrate = 1.00000, LL = 0.0337574, nd = 0.0000053, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="125">Iteration 102, lrate = 1.00000, LL = 0.0337580, nd = 0.0000052, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="126">Iteration 103, lrate = 1.00000, LL = 0.0337586, nd = 0.0000051, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="127">Iteration 104, lrate = 1.00000, LL = 0.0337592, nd = 0.0000048, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="128">Iteration 105, lrate = 1.00000, LL = 0.0337598, nd = 0.0000046, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="129">Iteration 106, lrate = 1.00000, LL = 0.0337603, nd = 0.0000045, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="130">Iteration 107, lrate = 1.00000, LL = 0.0337609, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="131">Iteration 108, lrate = 1.00000, LL = 0.0337614, nd = 0.0000036, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="132">Iteration 109, lrate = 1.00000, LL = 0.0337619, nd = 0.0000006, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="133">Iteration 110, lrate = 1.00000, LL = 0.0337624, nd = 0.0000030, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="134">Iteration 111, lrate = 1.00000, LL = 0.0337628, nd = 0.0000008, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="135">Iteration 112, lrate = 1.00000, LL = 0.0337633, nd = 0.0000026, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="136">Iteration 113, lrate = 1.00000, LL = 0.0337637, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="137">Iteration 114, lrate = 1.00000, LL = 0.0337641, nd = 0.0000022, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="138">Iteration 115, lrate = 1.00000, LL = 0.0337645, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="139">Iteration 116, lrate = 1.00000, LL = 0.0337649, nd = 0.0000019, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="140">Iteration 117, lrate = 1.00000, LL = 0.0337652, nd = 0.0000010, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="141">Iteration 118, lrate = 1.00000, LL = 0.0337656, nd = 0.0000017, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="142">Iteration 119, lrate = 1.00000, LL = 0.0337659, nd = 0.0000010, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="143">Iteration 120, lrate = 1.00000, LL = 0.0337663, nd = 0.0000015, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="144">Iteration 121, lrate = 1.00000, LL = 0.0337666, nd = 0.0000009, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="145">Iteration 122, lrate = 1.00000, LL = 0.0337669, nd = 0.0000013, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="146">Iteration 123, lrate = 1.00000, LL = 0.0337672, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="147">Iteration 124, lrate = 1.00000, LL = 0.0337675, nd = 0.0000012, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="148">Iteration 125, lrate = 1.00000, LL = 0.0337678, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="149">Iteration 126, lrate = 1.00000, LL = 0.0337681, nd = 0.0000011, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="150">Iteration 127, lrate = 1.00000, LL = 0.0337684, nd = 0.0000008, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="151">Iteration 128, lrate = 1.00000, LL = 0.0337686, nd = 0.0000010, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="152">Iteration 129, lrate = 1.00000, LL = 0.0337689, nd = 0.0000008, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="153">Iteration 130, lrate = 1.00000, LL = 0.0337691, nd = 0.0000009, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="154">Iteration 131, lrate = 1.00000, LL = 0.0337693, nd = 0.0000007, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="155">Iteration 132, lrate = 1.00000, LL = 0.0337696, nd = 0.0000008, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="156">Iteration 133, lrate = 1.00000, LL = 0.0337698, nd = 0.0000007, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="157">Iteration 134, lrate = 1.00000, LL = 0.0337700, nd = 0.0000007, D = 0.02716 0.02716 took 0.10 seconds
-</span><span data-line="158">Iteration 135, lrate = 1.00000, LL = 0.0337702, nd = 0.0000006, D = 0.02716 0.02716 took 0.10 seconds
-</span><span data-line="159">Iteration 136, lrate = 1.00000, LL = 0.0337704, nd = 0.0000007, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="160">Iteration 137, lrate = 1.00000, LL = 0.0337706, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="161">Iteration 138, lrate = 1.00000, LL = 0.0337708, nd = 0.0000006, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="162">Iteration 139, lrate = 1.00000, LL = 0.0337710, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="163">Iteration 140, lrate = 1.00000, LL = 0.0337712, nd = 0.0000006, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="164">Iteration 141, lrate = 1.00000, LL = 0.0337714, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="165">Iteration 142, lrate = 1.00000, LL = 0.0337716, nd = 0.0000005, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="166">Iteration 143, lrate = 1.00000, LL = 0.0337717, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="167">Iteration 144, lrate = 1.00000, LL = 0.0337719, nd = 0.0000005, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="168">Iteration 145, lrate = 1.00000, LL = 0.0337720, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="169">Iteration 146, lrate = 1.00000, LL = 0.0337722, nd = 0.0000005, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="170">Iteration 147, lrate = 1.00000, LL = 0.0337724, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="171">Iteration 148, lrate = 1.00000, LL = 0.0337725, nd = 0.0000004, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="172">Iteration 149, lrate = 1.00000, LL = 0.0337726, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="173">Iteration 150, lrate = 1.00000, LL = 0.0337728, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="174">Iteration 151, lrate = 1.00000, LL = 0.0337729, nd = 0.0000004, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="175">Iteration 152, lrate = 1.00000, LL = 0.0337730, nd = 0.0000004, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="176">Iteration 153, lrate = 1.00000, LL = 0.0337732, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="177">Iteration 154, lrate = 1.00000, LL = 0.0337733, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="178">Iteration 155, lrate = 1.00000, LL = 0.0337734, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="179">Iteration 156, lrate = 1.00000, LL = 0.0337735, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="180">Iteration 157, lrate = 1.00000, LL = 0.0337736, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="181">Iteration 158, lrate = 1.00000, LL = 0.0337738, nd = 0.0000003, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="182">Iteration 159, lrate = 1.00000, LL = 0.0337739, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="183">Iteration 160, lrate = 1.00000, LL = 0.0337740, nd = 0.0000003, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="184">Iteration 161, lrate = 1.00000, LL = 0.0337741, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="185">Iteration 162, lrate = 1.00000, LL = 0.0337742, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="186">Iteration 163, lrate = 1.00000, LL = 0.0337743, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="187">Iteration 164, lrate = 1.00000, LL = 0.0337744, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="188">Iteration 165, lrate = 1.00000, LL = 0.0337745, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="189">Iteration 166, lrate = 1.00000, LL = 0.0337746, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="190">Iteration 167, lrate = 1.00000, LL = 0.0337746, nd = 0.0000002, D = 0.02716 0.02716 took 0.01 seconds
-</span><span data-line="191">Iteration 168, lrate = 1.00000, LL = 0.0337747, nd = 0.0000002, D = 0.02716 0.02716 took 0.09 seconds
-</span><span data-line="192">Exiting because likelihood increasing by less than 1e-07 for more than 5 iterations ...
+</span><span data-line="74">Iteration 51, lrate = 0.00625, LL = 0.0345114, nd = 0.0002296, D = 0.02718 0.02718 took 0.01 seconds
+</span><span data-line="75">Iteration 52, lrate = 0.01250, LL = 0.0347915, nd = 0.0002279, D = 0.02718 0.02718 took 0.09 seconds
+</span><span data-line="76">Iteration 53, lrate = 0.02500, LL = 0.0350548, nd = 0.0002241, D = 0.02718 0.02718 took 0.01 seconds
+</span><span data-line="77">Iteration 54, lrate = 0.05000, LL = 0.0353016, nd = 0.0002171, D = 0.02719 0.02719 took 0.01 seconds
+</span><span data-line="78">Iteration 55, lrate = 0.10000, LL = 0.0355322, nd = 0.0002038, D = 0.02720 0.02720 took 0.09 seconds
+</span><span data-line="79">Iteration 56, lrate = 0.20000, LL = 0.0357469, nd = 0.0001794, D = 0.02722 0.02722 took 0.01 seconds
+</span><span data-line="80">Iteration 57, lrate = 0.30000, LL = 0.0359460, nd = 0.0001476, D = 0.02724 0.02724 took 0.09 seconds
+</span><span data-line="81">Iteration 58, lrate = 0.40000, LL = 0.0361297, nd = 0.0001130, D = 0.02727 0.02727 took 0.01 seconds
+</span><span data-line="82">Iteration 59, lrate = 0.50000, LL = 0.0362985, nd = 0.0000803, D = 0.02729 0.02729 took 0.01 seconds
+</span><span data-line="83">Iteration 60, lrate = 0.60000, LL = 0.0364528, nd = 0.0000529, D = 0.02731 0.02731 took 0.09 seconds
+</span><span data-line="84">Iteration 61, lrate = 0.70000, LL = 0.0365931, nd = 0.0000326, D = 0.02733 0.02733 took 0.01 seconds
+</span><span data-line="85">Iteration 62, lrate = 0.80000, LL = 0.0367201, nd = 0.0000194, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="86">Iteration 63, lrate = 0.90000, LL = 0.0368343, nd = 0.0000120, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="87">Iteration 64, lrate = 1.00000, LL = 0.0369365, nd = 0.0000085, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="88">Iteration 65, lrate = 1.00000, LL = 0.0370273, nd = 0.0000075, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="89">Iteration 66, lrate = 1.00000, LL = 0.0371075, nd = 0.0000065, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="90">Iteration 67, lrate = 1.00000, LL = 0.0371777, nd = 0.0000061, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="91">Iteration 68, lrate = 1.00000, LL = 0.0372388, nd = 0.0000055, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="92">Iteration 69, lrate = 1.00000, LL = 0.0372915, nd = 0.0000052, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="93">Iteration 70, lrate = 1.00000, LL = 0.0373367, nd = 0.0000047, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="94">Iteration 71, lrate = 1.00000, LL = 0.0373750, nd = 0.0000044, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="95">Iteration 72, lrate = 1.00000, LL = 0.0374073, nd = 0.0000039, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="96">Iteration 73, lrate = 1.00000, LL = 0.0374343, nd = 0.0000037, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="97">Iteration 74, lrate = 1.00000, LL = 0.0374567, nd = 0.0000033, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="98">Iteration 75, lrate = 1.00000, LL = 0.0374751, nd = 0.0000030, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="99">Iteration 76, lrate = 1.00000, LL = 0.0374901, nd = 0.0000027, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="100">Iteration 77, lrate = 1.00000, LL = 0.0375023, nd = 0.0000025, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="101">Iteration 78, lrate = 1.00000, LL = 0.0375122, nd = 0.0000022, D = 0.02735 0.02735 took 0.08 seconds
+</span><span data-line="102">Iteration 79, lrate = 1.00000, LL = 0.0375202, nd = 0.0000020, D = 0.02735 0.02735 took 0.02 seconds
+</span><span data-line="103">Iteration 80, lrate = 1.00000, LL = 0.0375265, nd = 0.0000018, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="104">Iteration 81, lrate = 1.00000, LL = 0.0375317, nd = 0.0000016, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="105">Iteration 82, lrate = 1.00000, LL = 0.0375358, nd = 0.0000014, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="106">Iteration 83, lrate = 1.00000, LL = 0.0375391, nd = 0.0000013, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="107">Iteration 84, lrate = 1.00000, LL = 0.0375413, nd = 0.0000008, D = 0.02735 0.02735 took 0.01 seconds
+</span><span data-line="108">Iteration 85, lrate = 1.00000, LL = 0.0375429, nd = 0.0000011, D = 0.02735 0.02735 took 0.09 seconds
+</span><span data-line="109">Iteration 86, lrate = 1.00000, LL = 0.0375444, nd = 0.0000004, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="110">Iteration 87, lrate = 1.00000, LL = 0.0375456, nd = 0.0000009, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="111">Iteration 88, lrate = 1.00000, LL = 0.0375468, nd = 0.0000003, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="112">Iteration 89, lrate = 1.00000, LL = 0.0375478, nd = 0.0000008, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="113">Iteration 90, lrate = 1.00000, LL = 0.0375488, nd = 0.0000003, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="114">Iteration 91, lrate = 1.00000, LL = 0.0375497, nd = 0.0000007, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="115">Iteration 92, lrate = 1.00000, LL = 0.0375505, nd = 0.0000002, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="116">Iteration 93, lrate = 1.00000, LL = 0.0375513, nd = 0.0000006, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="117">Iteration 94, lrate = 1.00000, LL = 0.0375520, nd = 0.0000002, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="118">Iteration 95, lrate = 1.00000, LL = 0.0375527, nd = 0.0000006, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="119">Iteration 96, lrate = 1.00000, LL = 0.0375533, nd = 0.0000002, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="120">Iteration 97, lrate = 1.00000, LL = 0.0375539, nd = 0.0000005, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="121">Iteration 98, lrate = 1.00000, LL = 0.0375545, nd = 0.0000002, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="122">Iteration 99, lrate = 1.00000, LL = 0.0375550, nd = 0.0000005, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="123">Iteration 100, lrate = 1.00000, LL = 0.0375554, nd = 0.0000002, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="124">Iteration 101, lrate = 1.00000, LL = 0.0375558, nd = 0.0000004, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="125">Iteration 102, lrate = 1.00000, LL = 0.0375562, nd = 0.0000005, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="126">Iteration 103, lrate = 1.00000, LL = 0.0375565, nd = 0.0000006, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="127">Iteration 104, lrate = 1.00000, LL = 0.0375568, nd = 0.0000007, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="128">Iteration 105, lrate = 1.00000, LL = 0.0375570, nd = 0.0000008, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="129">Iteration 106, lrate = 1.00000, LL = 0.0375573, nd = 0.0000009, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="130">Iteration 107, lrate = 1.00000, LL = 0.0375574, nd = 0.0000001, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="131">Iteration 108, lrate = 1.00000, LL = 0.0375576, nd = 0.0000003, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="132">Iteration 109, lrate = 1.00000, LL = 0.0375577, nd = 0.0000001, D = 0.02734 0.02734 took 0.09 seconds
+</span><span data-line="133">Iteration 110, lrate = 1.00000, LL = 0.0375578, nd = 0.0000001, D = 0.02734 0.02734 took 0.01 seconds
+</span><span data-line="134">Exiting because norm of weight gradient less than 0.000000100000
 </span></pre></div>
 </div>
 <p>apply the learned unmixing matrix to the data</p>
@@ -375,7 +317,7 @@ to download the full example code.</p>
 </span><span data-line="8">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">1.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="mf">1.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">)])</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_toy_001.png" srcset="../_images/sphx_glr_plot_toy_001.png" alt="plot toy" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 13.055 seconds)</p>
+<img src="../_images/sphx_glr_plot_toy_001.png" srcset="../_images/sphx_glr_plot_toy_001.png" alt="plot toy" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 9.977 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-toy-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/58943cfe223a5fea72a0b5d6e65a335e/plot_toy.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_toy.ipynb</span></code></a></p>
