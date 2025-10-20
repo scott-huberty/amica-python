@@ -1,9 +1,10 @@
 """
-Basic usage of amica
-======================
+Run AMICA on EEG Data
+=====================
 """
 # %%
 import amica
+from amica import AMICA
 import matplotlib.pyplot as plt
 import mne
 
@@ -29,13 +30,13 @@ data = raw.get_data().T  # Shape (n_samples, n_channels)
 data *= 1e6  # Convert from Volts to microVolts
 
 # %%
-results = amica.fit_amica(
-        X=data,
+transformer = AMICA(
         max_iter=200,
         w_init=initial_weights,
         sbeta_init=initial_scales,
         mu_init=initial_locations,
-        )
+)
+transformer.fit(data)
 
 # %%
 A_fortran = fortran_results['A']
@@ -59,7 +60,7 @@ def plot_topomaps(A, output="python"):
     return fig, ax
 
 # %%
-fig1, ax1 = plot_topomaps(results["A"], output="python")
+fig1, ax1 = plot_topomaps(transformer.mixing_, output="python")
 
 
 # %%

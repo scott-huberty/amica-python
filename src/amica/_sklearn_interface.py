@@ -187,10 +187,10 @@ class AMICA(TransformerMixin, BaseEstimator):
             self.mean_ = fit_dict['mean']
         self.n_features_in = X.shape[1]
         self.n_iter_ = np.count_nonzero(fit_dict['LL'])
-        self.whitening_ = fit_dict["S"]
+        self.whitening_ = fit_dict["S"][:self.n_components, :]
         self.mixing_ = fit_dict['A']
-        self._unmixing = fit_dict['W']
-        self.components_ = np.dot(fit_dict['W'], fit_dict['S'])
+        self._unmixing = fit_dict['W'][:, :, 0]
+        self.components_ = self._unmixing @ fit_dict['S'][:self.n_components, :]
         return self
 
     def transform(self, X, copy=True):
@@ -213,8 +213,8 @@ class AMICA(TransformerMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = validate_data(self, X=X, reset=False, copy=copy)
-        return np.dot(X, self.components_.T)
-    
+        return X @ self.components_.T
+ 
     def fit_transform(self, X, y=None):
         """Fit the model to the data and transform it.
         
