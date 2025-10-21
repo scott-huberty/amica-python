@@ -18,14 +18,15 @@
 .. _sphx_glr_auto_examples_plot_amica.py:
 
 
-Basic usage of amica
-======================
+Run AMICA on EEG Data
+=====================
 
-.. GENERATED FROM PYTHON SOURCE LINES 6-10
+.. GENERATED FROM PYTHON SOURCE LINES 6-11
 
 .. code-block:: Python
 
     import amica
+    from amica import AMICA
     import matplotlib.pyplot as plt
     import mne
 
@@ -36,7 +37,7 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 11-13
+.. GENERATED FROM PYTHON SOURCE LINES 12-14
 
 .. code-block:: Python
 
@@ -49,7 +50,7 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 14-18
+.. GENERATED FROM PYTHON SOURCE LINES 15-19
 
 .. code-block:: Python
 
@@ -64,7 +65,7 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 19-24
+.. GENERATED FROM PYTHON SOURCE LINES 20-25
 
 .. code-block:: Python
 
@@ -80,7 +81,7 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 25-31
+.. GENERATED FROM PYTHON SOURCE LINES 26-32
 
 .. code-block:: Python
 
@@ -104,17 +105,17 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 32-40
+.. GENERATED FROM PYTHON SOURCE LINES 33-41
 
 .. code-block:: Python
 
-    results = amica.fit_amica(
-            X=data,
+    transformer = AMICA(
             max_iter=200,
-            initial_weights=initial_weights,
-            initial_scales=initial_scales,
-            initial_locations=initial_locations,
-            )
+            w_init=initial_weights,
+            sbeta_init=initial_scales,
+            mu_init=initial_locations,
+    )
+    transformer.fit(data)
 
 
 
@@ -136,213 +137,919 @@ Basic usage of amica
     Initializing variables ...
     1: block size = 30504
     1 : entering the main loop ...
-    Iteration 1, lrate = 0.05000, LL = -3.5136812, nd = 0.0578126, D = 0.00446 0.00446 took 0.36 seconds
-    Iteration 2, lrate = 0.05000, LL = -3.4687938, nd = 0.0254382, D = 0.00391 0.00391 took 0.21 seconds
-    Iteration 3, lrate = 0.05000, LL = -3.4616091, nd = 0.0243398, D = 0.00376 0.00376 took 0.29 seconds
-    Iteration 4, lrate = 0.05000, LL = -3.4589193, nd = 0.0270364, D = 0.00554 0.00554 took 0.21 seconds
-    Iteration 5, lrate = 0.05000, LL = -3.4569812, nd = 0.0277558, D = 0.00994 0.00994 took 0.28 seconds
-    Iteration 6, lrate = 0.05000, LL = -3.4553322, nd = 0.0273357, D = 0.01680 0.01680 took 0.23 seconds
+    Iteration 1, lrate = 0.05000, LL = -3.5136812, nd = 0.0578126, D = 0.00446 0.00446 took 0.48 seconds
+    Iteration 2, lrate = 0.05000, LL = -3.4687938, nd = 0.0254382, D = 0.00391 0.00391 took 0.30 seconds
+    Iteration 3, lrate = 0.05000, LL = -3.4616091, nd = 0.0243398, D = 0.00376 0.00376 took 0.22 seconds
+    Iteration 4, lrate = 0.05000, LL = -3.4589193, nd = 0.0270364, D = 0.00554 0.00554 took 0.30 seconds
+    Iteration 5, lrate = 0.05000, LL = -3.4569812, nd = 0.0277558, D = 0.00994 0.00994 took 0.30 seconds
+    Iteration 6, lrate = 0.05000, LL = -3.4553322, nd = 0.0273357, D = 0.01680 0.01680 took 0.39 seconds
     Iteration 7, lrate = 0.05000, LL = -3.4538623, nd = 0.0264404, D = 0.02561 0.02561 took 0.30 seconds
-    Iteration 8, lrate = 0.05000, LL = -3.4525343, nd = 0.0253345, D = 0.03580 0.03580 took 0.21 seconds
+    Iteration 8, lrate = 0.05000, LL = -3.4525343, nd = 0.0253345, D = 0.03580 0.03580 took 0.30 seconds
     Iteration 9, lrate = 0.05000, LL = -3.4513419, nd = 0.0240417, D = 0.04681 0.04681 took 0.30 seconds
-    Iteration 10, lrate = 0.05000, LL = -3.4502908, nd = 0.0225440, D = 0.05812 0.05812 took 0.30 seconds
-    Iteration 11, lrate = 0.05000, LL = -3.4493812, nd = 0.0208842, D = 0.06919 0.06919 took 0.29 seconds
-    Iteration 12, lrate = 0.05000, LL = -3.4486110, nd = 0.0191358, D = 0.07957 0.07957 took 0.28 seconds
-    Iteration 13, lrate = 0.05000, LL = -3.4479766, nd = 0.0173017, D = 0.08886 0.08886 took 0.23 seconds
-    Iteration 14, lrate = 0.05000, LL = -3.4474541, nd = 0.0157049, D = 0.09674 0.09674 took 0.29 seconds
-    Iteration 15, lrate = 0.05000, LL = -3.4470230, nd = 0.0143406, D = 0.10318 0.10318 took 0.29 seconds
-    Iteration 16, lrate = 0.05000, LL = -3.4466620, nd = 0.0132093, D = 0.10822 0.10822 took 0.21 seconds
+    Iteration 10, lrate = 0.05000, LL = -3.4502908, nd = 0.0225440, D = 0.05812 0.05812 took 0.40 seconds
+    Iteration 11, lrate = 0.05000, LL = -3.4493812, nd = 0.0208842, D = 0.06919 0.06919 took 0.30 seconds
+    Iteration 12, lrate = 0.05000, LL = -3.4486110, nd = 0.0191358, D = 0.07957 0.07957 took 0.33 seconds
+    Iteration 13, lrate = 0.05000, LL = -3.4479766, nd = 0.0173017, D = 0.08886 0.08886 took 0.30 seconds
+    Iteration 14, lrate = 0.05000, LL = -3.4474541, nd = 0.0157049, D = 0.09674 0.09674 took 0.27 seconds
+    Iteration 15, lrate = 0.05000, LL = -3.4470230, nd = 0.0143406, D = 0.10318 0.10318 took 0.38 seconds
+    Iteration 16, lrate = 0.05000, LL = -3.4466620, nd = 0.0132093, D = 0.10822 0.10822 took 0.30 seconds
     Iteration 17, lrate = 0.05000, LL = -3.4463566, nd = 0.0123128, D = 0.11195 0.11195 took 0.30 seconds
-    Iteration 18, lrate = 0.05000, LL = -3.4460886, nd = 0.0116321, D = 0.11453 0.11453 took 0.29 seconds
+    Iteration 18, lrate = 0.05000, LL = -3.4460886, nd = 0.0116321, D = 0.11453 0.11453 took 0.30 seconds
     Iteration 19, lrate = 0.05000, LL = -3.4458483, nd = 0.0111260, D = 0.11613 0.11613 took 0.30 seconds
-    Iteration 20, lrate = 0.05000, LL = -3.4456281, nd = 0.0107474, D = 0.11691 0.11691 took 0.21 seconds
+    Iteration 20, lrate = 0.05000, LL = -3.4456281, nd = 0.0107474, D = 0.11691 0.11691 took 0.33 seconds
     Iteration 21, lrate = 0.05000, LL = -3.4454248, nd = 0.0104621, D = 0.11705 0.11705 took 0.30 seconds
-    Iteration 22, lrate = 0.05000, LL = -3.4452315, nd = 0.0102427, D = 0.11668 0.11668 took 0.30 seconds
-    Iteration 23, lrate = 0.05000, LL = -3.4450469, nd = 0.0100642, D = 0.11591 0.11591 took 0.29 seconds
-    Iteration 24, lrate = 0.05000, LL = -3.4448684, nd = 0.0099194, D = 0.11485 0.11485 took 0.30 seconds
-    Iteration 25, lrate = 0.05000, LL = -3.4446946, nd = 0.0097942, D = 0.11356 0.11356 took 0.29 seconds
-    Iteration 26, lrate = 0.05000, LL = -3.4445274, nd = 0.0096848, D = 0.11212 0.11212 took 0.21 seconds
-    Iteration 27, lrate = 0.05000, LL = -3.4443640, nd = 0.0095878, D = 0.11055 0.11055 took 0.30 seconds
-    Iteration 28, lrate = 0.05000, LL = -3.4442042, nd = 0.0094994, D = 0.10891 0.10891 took 0.29 seconds
-    Iteration 29, lrate = 0.05000, LL = -3.4440468, nd = 0.0094174, D = 0.10722 0.10722 took 0.21 seconds
-    Iteration 30, lrate = 0.05000, LL = -3.4438931, nd = 0.0093397, D = 0.10550 0.10550 took 0.29 seconds
+    Iteration 22, lrate = 0.05000, LL = -3.4452315, nd = 0.0102427, D = 0.11668 0.11668 took 0.35 seconds
+    Iteration 23, lrate = 0.05000, LL = -3.4450469, nd = 0.0100642, D = 0.11591 0.11591 took 0.24 seconds
+    Iteration 24, lrate = 0.05000, LL = -3.4448684, nd = 0.0099194, D = 0.11485 0.11485 took 0.27 seconds
+    Iteration 25, lrate = 0.05000, LL = -3.4446946, nd = 0.0097942, D = 0.11356 0.11356 took 0.38 seconds
+    Iteration 26, lrate = 0.05000, LL = -3.4445274, nd = 0.0096848, D = 0.11212 0.11212 took 0.31 seconds
+    Iteration 27, lrate = 0.05000, LL = -3.4443640, nd = 0.0095878, D = 0.11055 0.11055 took 0.39 seconds
+    Iteration 28, lrate = 0.05000, LL = -3.4442042, nd = 0.0094994, D = 0.10891 0.10891 took 0.31 seconds
+    Iteration 29, lrate = 0.05000, LL = -3.4440468, nd = 0.0094174, D = 0.10722 0.10722 took 0.33 seconds
+    Iteration 30, lrate = 0.05000, LL = -3.4438931, nd = 0.0093397, D = 0.10550 0.10550 took 0.35 seconds
     Iteration 31, lrate = 0.05000, LL = -3.4437427, nd = 0.0092648, D = 0.10377 0.10377 took 0.22 seconds
-    Iteration 32, lrate = 0.05000, LL = -3.4435953, nd = 0.0091963, D = 0.10203 0.10203 took 0.29 seconds
+    Iteration 32, lrate = 0.05000, LL = -3.4435953, nd = 0.0091963, D = 0.10203 0.10203 took 0.38 seconds
     Iteration 33, lrate = 0.05000, LL = -3.4434508, nd = 0.0091354, D = 0.10031 0.10031 took 0.30 seconds
-    Iteration 34, lrate = 0.05000, LL = -3.4433075, nd = 0.0090772, D = 0.09860 0.09860 took 0.30 seconds
-    Iteration 35, lrate = 0.05000, LL = -3.4431664, nd = 0.0090246, D = 0.09690 0.09690 took 0.21 seconds
-    Iteration 36, lrate = 0.05000, LL = -3.4430270, nd = 0.0089755, D = 0.09524 0.09524 took 0.29 seconds
-    Iteration 37, lrate = 0.05000, LL = -3.4428892, nd = 0.0089301, D = 0.09360 0.09360 took 0.30 seconds
-    Iteration 38, lrate = 0.05000, LL = -3.4427538, nd = 0.0088823, D = 0.09199 0.09199 took 0.30 seconds
-    Iteration 39, lrate = 0.05000, LL = -3.4426197, nd = 0.0088381, D = 0.09042 0.09042 took 0.29 seconds
-    Iteration 40, lrate = 0.05000, LL = -3.4424862, nd = 0.0087970, D = 0.08887 0.08887 took 0.22 seconds
-    Iteration 41, lrate = 0.05000, LL = -3.4423540, nd = 0.0087556, D = 0.08736 0.08736 took 0.30 seconds
-    Iteration 42, lrate = 0.05000, LL = -3.4422232, nd = 0.0087197, D = 0.08588 0.08588 took 0.31 seconds
-    Iteration 43, lrate = 0.05000, LL = -3.4420933, nd = 0.0086862, D = 0.08444 0.08444 took 0.29 seconds
-    Iteration 44, lrate = 0.05000, LL = -3.4419646, nd = 0.0086524, D = 0.08303 0.08303 took 0.30 seconds
-    Iteration 45, lrate = 0.05000, LL = -3.4418373, nd = 0.0086199, D = 0.08166 0.08166 took 0.30 seconds
+    Iteration 34, lrate = 0.05000, LL = -3.4433075, nd = 0.0090772, D = 0.09860 0.09860 took 0.31 seconds
+    Iteration 35, lrate = 0.05000, LL = -3.4431664, nd = 0.0090246, D = 0.09690 0.09690 took 0.39 seconds
+    Iteration 36, lrate = 0.05000, LL = -3.4430270, nd = 0.0089755, D = 0.09524 0.09524 took 0.31 seconds
+    Iteration 37, lrate = 0.05000, LL = -3.4428892, nd = 0.0089301, D = 0.09360 0.09360 took 0.39 seconds
+    Iteration 38, lrate = 0.05000, LL = -3.4427538, nd = 0.0088823, D = 0.09199 0.09199 took 0.39 seconds
+    Iteration 39, lrate = 0.05000, LL = -3.4426197, nd = 0.0088381, D = 0.09042 0.09042 took 0.31 seconds
+    Iteration 40, lrate = 0.05000, LL = -3.4424862, nd = 0.0087970, D = 0.08887 0.08887 took 0.39 seconds
+    Iteration 41, lrate = 0.05000, LL = -3.4423540, nd = 0.0087556, D = 0.08736 0.08736 took 0.31 seconds
+    Iteration 42, lrate = 0.05000, LL = -3.4422232, nd = 0.0087197, D = 0.08588 0.08588 took 0.39 seconds
+    Iteration 43, lrate = 0.05000, LL = -3.4420933, nd = 0.0086862, D = 0.08444 0.08444 took 0.30 seconds
+    Iteration 44, lrate = 0.05000, LL = -3.4419646, nd = 0.0086524, D = 0.08303 0.08303 took 0.31 seconds
+    Iteration 45, lrate = 0.05000, LL = -3.4418373, nd = 0.0086199, D = 0.08166 0.08166 took 0.39 seconds
     Iteration 46, lrate = 0.05000, LL = -3.4417108, nd = 0.0085875, D = 0.08031 0.08031 took 0.30 seconds
-    Iteration 47, lrate = 0.05000, LL = -3.4415852, nd = 0.0085546, D = 0.07900 0.07900 took 0.30 seconds
-    Iteration 48, lrate = 0.05000, LL = -3.4414605, nd = 0.0085204, D = 0.07772 0.07772 took 0.30 seconds
-    Iteration 49, lrate = 0.05000, LL = -3.4413368, nd = 0.0084880, D = 0.07648 0.07648 took 0.30 seconds
-    Iteration 50, lrate = 0.05000, LL = -3.4412141, nd = 0.0073543, D = 0.07526 0.07526 took 0.39 seconds
+    Iteration 47, lrate = 0.05000, LL = -3.4415852, nd = 0.0085546, D = 0.07900 0.07900 took 0.34 seconds
+    Iteration 48, lrate = 0.05000, LL = -3.4414605, nd = 0.0085204, D = 0.07772 0.07772 took 0.36 seconds
+    Iteration 49, lrate = 0.05000, LL = -3.4413368, nd = 0.0084880, D = 0.07648 0.07648 took 0.31 seconds
+    Iteration 50, lrate = 0.05000, LL = -3.4412141, nd = 0.0073543, D = 0.07526 0.07526 took 0.40 seconds
     Starting Newton ... setting numdecs to 0
-    Iteration 51, lrate = 0.10000, LL = -3.4410153, nd = 0.0073382, D = 0.07393 0.07393 took 0.31 seconds
-    Iteration 52, lrate = 0.20000, LL = -3.4406297, nd = 0.0072815, D = 0.07138 0.07138 took 0.39 seconds
-    Iteration 53, lrate = 0.30000, LL = -3.4400645, nd = 0.0072103, D = 0.06776 0.06776 took 0.31 seconds
-    Iteration 54, lrate = 0.40000, LL = -3.4393286, nd = 0.0071177, D = 0.06335 0.06335 took 0.39 seconds
-    Iteration 55, lrate = 0.50000, LL = -3.4384318, nd = 0.0070106, D = 0.05841 0.05841 took 0.31 seconds
-    Iteration 56, lrate = 0.60000, LL = -3.4373848, nd = 0.0068971, D = 0.05329 0.05329 took 0.38 seconds
-    Iteration 57, lrate = 0.70000, LL = -3.4361987, nd = 0.0067655, D = 0.04824 0.04824 took 0.31 seconds
-    Iteration 58, lrate = 0.80000, LL = -3.4348913, nd = 0.0065746, D = 0.04351 0.04351 took 0.39 seconds
-    Iteration 59, lrate = 0.90000, LL = -3.4334897, nd = 0.0063575, D = 0.03915 0.03915 took 0.31 seconds
-    Iteration 60, lrate = 1.00000, LL = -3.4320188, nd = 0.0061067, D = 0.03526 0.03526 took 0.31 seconds
-    Iteration 61, lrate = 1.00000, LL = -3.4306358, nd = 0.0058437, D = 0.03208 0.03208 took 0.39 seconds
-    Iteration 62, lrate = 1.00000, LL = -3.4293480, nd = 0.0055608, D = 0.02950 0.02950 took 0.29 seconds
-    Iteration 63, lrate = 1.00000, LL = -3.4281674, nd = 0.0052852, D = 0.02744 0.02744 took 0.32 seconds
-    Iteration 64, lrate = 1.00000, LL = -3.4270908, nd = 0.0050457, D = 0.02596 0.02596 took 0.38 seconds
-    Iteration 65, lrate = 1.00000, LL = -3.4261086, nd = 0.0048192, D = 0.02501 0.02501 took 0.39 seconds
-    Iteration 66, lrate = 1.00000, LL = -3.4252134, nd = 0.0046352, D = 0.02453 0.02453 took 0.31 seconds
-    Iteration 67, lrate = 1.00000, LL = -3.4243906, nd = 0.0044602, D = 0.02436 0.02436 took 0.39 seconds
-    Iteration 68, lrate = 1.00000, LL = -3.4236320, nd = 0.0042983, D = 0.02438 0.02438 took 0.31 seconds
-    Iteration 69, lrate = 1.00000, LL = -3.4229292, nd = 0.0041607, D = 0.02452 0.02452 took 0.39 seconds
-    Iteration 70, lrate = 1.00000, LL = -3.4222697, nd = 0.0040357, D = 0.02469 0.02469 took 0.40 seconds
-    Iteration 71, lrate = 1.00000, LL = -3.4216493, nd = 0.0039241, D = 0.02491 0.02491 took 0.31 seconds
-    Iteration 72, lrate = 1.00000, LL = -3.4210611, nd = 0.0038298, D = 0.02513 0.02513 took 0.39 seconds
-    Iteration 73, lrate = 1.00000, LL = -3.4205009, nd = 0.0037453, D = 0.02540 0.02540 took 0.40 seconds
-    Iteration 74, lrate = 1.00000, LL = -3.4199619, nd = 0.0036837, D = 0.02570 0.02570 took 0.31 seconds
-    Iteration 75, lrate = 1.00000, LL = -3.4194385, nd = 0.0036249, D = 0.02600 0.02600 took 0.39 seconds
-    Iteration 76, lrate = 1.00000, LL = -3.4189275, nd = 0.0035612, D = 0.02632 0.02632 took 0.31 seconds
-    Iteration 77, lrate = 1.00000, LL = -3.4184312, nd = 0.0035074, D = 0.02664 0.02664 took 0.40 seconds
-    Iteration 78, lrate = 1.00000, LL = -3.4179484, nd = 0.0034497, D = 0.02700 0.02700 took 0.39 seconds
-    Iteration 79, lrate = 1.00000, LL = -3.4174800, nd = 0.0033848, D = 0.02735 0.02735 took 0.30 seconds
-    Iteration 80, lrate = 1.00000, LL = -3.4170287, nd = 0.0033195, D = 0.02772 0.02772 took 0.31 seconds
-    Iteration 81, lrate = 1.00000, LL = -3.4165952, nd = 0.0032325, D = 0.02812 0.02812 took 0.39 seconds
-    Iteration 82, lrate = 1.00000, LL = -3.4161830, nd = 0.0031517, D = 0.02853 0.02853 took 0.30 seconds
-    Iteration 83, lrate = 1.00000, LL = -3.4157913, nd = 0.0030529, D = 0.02897 0.02897 took 0.39 seconds
-    Iteration 84, lrate = 1.00000, LL = -3.4154220, nd = 0.0029687, D = 0.02942 0.02942 took 0.38 seconds
-    Iteration 85, lrate = 1.00000, LL = -3.4150726, nd = 0.0028891, D = 0.02989 0.02989 took 0.33 seconds
-    Iteration 86, lrate = 1.00000, LL = -3.4147410, nd = 0.0028211, D = 0.03037 0.03037 took 0.39 seconds
-    Iteration 87, lrate = 1.00000, LL = -3.4144238, nd = 0.0027517, D = 0.03084 0.03084 took 0.31 seconds
-    Iteration 88, lrate = 1.00000, LL = -3.4141223, nd = 0.0026898, D = 0.03132 0.03132 took 0.39 seconds
-    Iteration 89, lrate = 1.00000, LL = -3.4138336, nd = 0.0026323, D = 0.03177 0.03177 took 0.31 seconds
-    Iteration 90, lrate = 1.00000, LL = -3.4135576, nd = 0.0025806, D = 0.03223 0.03223 took 0.39 seconds
-    Iteration 91, lrate = 1.00000, LL = -3.4132922, nd = 0.0025343, D = 0.03268 0.03268 took 0.29 seconds
-    Iteration 92, lrate = 1.00000, LL = -3.4130358, nd = 0.0024917, D = 0.03309 0.03309 took 0.40 seconds
-    Iteration 93, lrate = 1.00000, LL = -3.4127897, nd = 0.0024397, D = 0.03351 0.03351 took 0.21 seconds
-    Iteration 94, lrate = 1.00000, LL = -3.4125521, nd = 0.0023930, D = 0.03393 0.03393 took 0.40 seconds
-    Iteration 95, lrate = 1.00000, LL = -3.4123238, nd = 0.0023509, D = 0.03434 0.03434 took 0.40 seconds
-    Iteration 96, lrate = 1.00000, LL = -3.4121040, nd = 0.0023114, D = 0.03475 0.03475 took 0.30 seconds
-    Iteration 97, lrate = 1.00000, LL = -3.4118909, nd = 0.0022850, D = 0.03514 0.03514 took 0.40 seconds
-    Iteration 98, lrate = 1.00000, LL = -3.4116837, nd = 0.0022638, D = 0.03552 0.03552 took 0.39 seconds
-    Iteration 99, lrate = 1.00000, LL = -3.4114808, nd = 0.0022458, D = 0.03588 0.03588 took 0.30 seconds
-    Iteration 100, lrate = 1.00000, LL = -3.4112805, nd = 0.0022392, D = 0.03622 0.03622 took 0.40 seconds
-    Iteration 101, lrate = 1.00000, LL = -3.4112473, nd = 0.0022956, D = 0.03622 0.03622 took 0.30 seconds
-    Iteration 102, lrate = 1.00000, LL = -3.4112207, nd = 0.0023272, D = 0.03622 0.03622 took 0.40 seconds
-    Iteration 103, lrate = 1.00000, LL = -3.4111964, nd = 0.0023483, D = 0.03622 0.03622 took 0.39 seconds
-    Iteration 104, lrate = 1.00000, LL = -3.4111729, nd = 0.0023640, D = 0.03622 0.03622 took 0.32 seconds
-    Iteration 105, lrate = 1.00000, LL = -3.4111506, nd = 0.0023764, D = 0.03622 0.03622 took 0.39 seconds
-    Iteration 106, lrate = 1.00000, LL = -3.4111301, nd = 0.0023884, D = 0.03622 0.03622 took 0.31 seconds
-    Iteration 107, lrate = 1.00000, LL = -3.4109266, nd = 0.0023276, D = 0.03690 0.03690 took 0.39 seconds
-    Iteration 108, lrate = 1.00000, LL = -3.4107273, nd = 0.0022918, D = 0.03720 0.03720 took 0.39 seconds
-    Iteration 109, lrate = 1.00000, LL = -3.4105313, nd = 0.0022727, D = 0.03744 0.03744 took 0.31 seconds
-    Iteration 110, lrate = 1.00000, LL = -3.4103368, nd = 0.0022643, D = 0.03767 0.03767 took 0.29 seconds
-    Iteration 111, lrate = 1.00000, LL = -3.4101409, nd = 0.0022601, D = 0.03790 0.03790 took 0.31 seconds
-    Iteration 112, lrate = 1.00000, LL = -3.4099455, nd = 0.0022440, D = 0.03812 0.03812 took 0.40 seconds
-    Iteration 113, lrate = 1.00000, LL = -3.4097521, nd = 0.0022293, D = 0.03832 0.03832 took 0.30 seconds
-    Iteration 114, lrate = 1.00000, LL = -3.4095607, nd = 0.0022083, D = 0.03851 0.03851 took 0.39 seconds
-    Iteration 115, lrate = 1.00000, LL = -3.4093716, nd = 0.0021900, D = 0.03868 0.03868 took 0.31 seconds
-    Iteration 116, lrate = 1.00000, LL = -3.4091845, nd = 0.0021744, D = 0.03887 0.03887 took 0.37 seconds
-    Iteration 117, lrate = 1.00000, LL = -3.4089971, nd = 0.0021577, D = 0.03907 0.03907 took 0.32 seconds
-    Iteration 118, lrate = 1.00000, LL = -3.4088128, nd = 0.0021364, D = 0.03925 0.03925 took 0.30 seconds
-    Iteration 119, lrate = 1.00000, LL = -3.4086308, nd = 0.0021171, D = 0.03944 0.03944 took 0.38 seconds
-    Iteration 120, lrate = 1.00000, LL = -3.4084515, nd = 0.0020959, D = 0.03963 0.03963 took 0.31 seconds
-    Iteration 121, lrate = 1.00000, LL = -3.4082753, nd = 0.0020711, D = 0.03983 0.03983 took 0.29 seconds
-    Iteration 122, lrate = 1.00000, LL = -3.4081029, nd = 0.0020386, D = 0.04005 0.04005 took 0.32 seconds
-    Iteration 123, lrate = 1.00000, LL = -3.4079340, nd = 0.0020013, D = 0.04026 0.04026 took 0.39 seconds
-    Iteration 124, lrate = 1.00000, LL = -3.4077711, nd = 0.0019667, D = 0.04047 0.04047 took 0.31 seconds
-    Iteration 125, lrate = 1.00000, LL = -3.4076131, nd = 0.0019212, D = 0.04069 0.04069 took 0.30 seconds
-    Iteration 126, lrate = 1.00000, LL = -3.4074624, nd = 0.0018728, D = 0.04090 0.04090 took 0.39 seconds
-    Iteration 127, lrate = 1.00000, LL = -3.4073182, nd = 0.0018270, D = 0.04111 0.04111 took 0.31 seconds
-    Iteration 128, lrate = 1.00000, LL = -3.4071802, nd = 0.0017890, D = 0.04130 0.04130 took 0.30 seconds
-    Iteration 129, lrate = 1.00000, LL = -3.4070460, nd = 0.0017514, D = 0.04150 0.04150 took 0.31 seconds
-    Iteration 130, lrate = 1.00000, LL = -3.4069168, nd = 0.0017227, D = 0.04167 0.04167 took 0.39 seconds
-    Iteration 131, lrate = 1.00000, LL = -3.4067888, nd = 0.0016955, D = 0.04183 0.04183 took 0.31 seconds
-    Iteration 132, lrate = 1.00000, LL = -3.4066631, nd = 0.0016813, D = 0.04198 0.04198 took 0.39 seconds
-    Iteration 133, lrate = 1.00000, LL = -3.4065376, nd = 0.0016737, D = 0.04212 0.04212 took 0.31 seconds
-    Iteration 134, lrate = 1.00000, LL = -3.4064114, nd = 0.0016767, D = 0.04226 0.04226 took 0.31 seconds
-    Iteration 135, lrate = 1.00000, LL = -3.4062835, nd = 0.0016900, D = 0.04241 0.04241 took 0.38 seconds
-    Iteration 136, lrate = 1.00000, LL = -3.4061521, nd = 0.0017107, D = 0.04255 0.04255 took 0.31 seconds
-    Iteration 137, lrate = 1.00000, LL = -3.4060158, nd = 0.0017305, D = 0.04268 0.04268 took 0.40 seconds
-    Iteration 138, lrate = 1.00000, LL = -3.4058767, nd = 0.0017373, D = 0.04282 0.04282 took 0.30 seconds
-    Iteration 139, lrate = 1.00000, LL = -3.4057356, nd = 0.0017294, D = 0.04298 0.04298 took 0.30 seconds
-    Iteration 140, lrate = 1.00000, LL = -3.4055959, nd = 0.0017091, D = 0.04314 0.04314 took 0.40 seconds
-    Iteration 141, lrate = 1.00000, LL = -3.4054587, nd = 0.0016871, D = 0.04328 0.04328 took 0.29 seconds
-    Iteration 142, lrate = 1.00000, LL = -3.4053235, nd = 0.0016625, D = 0.04344 0.04344 took 0.39 seconds
-    Iteration 143, lrate = 1.00000, LL = -3.4051911, nd = 0.0016314, D = 0.04359 0.04359 took 0.31 seconds
-    Iteration 144, lrate = 1.00000, LL = -3.4050635, nd = 0.0016046, D = 0.04374 0.04374 took 0.39 seconds
-    Iteration 145, lrate = 1.00000, LL = -3.4049404, nd = 0.0015785, D = 0.04387 0.04387 took 0.31 seconds
-    Iteration 146, lrate = 1.00000, LL = -3.4048190, nd = 0.0015519, D = 0.04402 0.04402 took 0.31 seconds
-    Iteration 147, lrate = 1.00000, LL = -3.4047005, nd = 0.0015254, D = 0.04415 0.04415 took 0.29 seconds
-    Iteration 148, lrate = 1.00000, LL = -3.4045854, nd = 0.0014940, D = 0.04431 0.04431 took 0.31 seconds
-    Iteration 149, lrate = 1.00000, LL = -3.4044787, nd = 0.0014649, D = 0.04445 0.04445 took 0.39 seconds
-    Iteration 150, lrate = 1.00000, LL = -3.4043793, nd = 0.0014381, D = 0.04461 0.04461 took 0.29 seconds
-    Iteration 151, lrate = 1.00000, LL = -3.4042844, nd = 0.0014067, D = 0.04477 0.04477 took 0.32 seconds
-    Iteration 152, lrate = 1.00000, LL = -3.4041924, nd = 0.0013688, D = 0.04491 0.04491 took 0.39 seconds
-    Iteration 153, lrate = 1.00000, LL = -3.4041046, nd = 0.0013324, D = 0.04506 0.04506 took 0.22 seconds
-    Iteration 154, lrate = 1.00000, LL = -3.4040210, nd = 0.0012956, D = 0.04521 0.04521 took 0.38 seconds
-    Iteration 155, lrate = 1.00000, LL = -3.4039410, nd = 0.0012585, D = 0.04536 0.04536 took 0.30 seconds
-    Iteration 156, lrate = 1.00000, LL = -3.4038642, nd = 0.0012230, D = 0.04550 0.04550 took 0.30 seconds
-    Iteration 157, lrate = 1.00000, LL = -3.4037904, nd = 0.0011900, D = 0.04564 0.04564 took 0.39 seconds
-    Iteration 158, lrate = 1.00000, LL = -3.4037199, nd = 0.0011554, D = 0.04578 0.04578 took 0.21 seconds
-    Iteration 159, lrate = 1.00000, LL = -3.4036526, nd = 0.0011232, D = 0.04592 0.04592 took 0.39 seconds
-    Iteration 160, lrate = 1.00000, LL = -3.4035876, nd = 0.0010950, D = 0.04606 0.04606 took 0.31 seconds
-    Iteration 161, lrate = 1.00000, LL = -3.4035248, nd = 0.0010694, D = 0.04621 0.04621 took 0.29 seconds
-    Iteration 162, lrate = 1.00000, LL = -3.4034637, nd = 0.0010420, D = 0.04635 0.04635 took 0.32 seconds
-    Iteration 163, lrate = 1.00000, LL = -3.4034039, nd = 0.0010184, D = 0.04650 0.04650 took 0.38 seconds
-    Iteration 164, lrate = 1.00000, LL = -3.4033463, nd = 0.0009986, D = 0.04665 0.04665 took 0.31 seconds
-    Iteration 165, lrate = 1.00000, LL = -3.4032956, nd = 0.0009742, D = 0.04678 0.04678 took 0.30 seconds
-    Iteration 166, lrate = 1.00000, LL = -3.4032469, nd = 0.0009559, D = 0.04693 0.04693 took 0.39 seconds
-    Iteration 167, lrate = 1.00000, LL = -3.4031996, nd = 0.0009387, D = 0.04706 0.04706 took 0.31 seconds
-    Iteration 168, lrate = 1.00000, LL = -3.4031538, nd = 0.0009253, D = 0.04719 0.04719 took 0.31 seconds
-    Iteration 169, lrate = 1.00000, LL = -3.4031082, nd = 0.0009094, D = 0.04732 0.04732 took 0.39 seconds
-    Iteration 170, lrate = 1.00000, LL = -3.4030638, nd = 0.0008968, D = 0.04744 0.04744 took 0.31 seconds
-    Iteration 171, lrate = 1.00000, LL = -3.4030200, nd = 0.0008858, D = 0.04756 0.04756 took 0.31 seconds
-    Iteration 172, lrate = 1.00000, LL = -3.4029771, nd = 0.0008753, D = 0.04768 0.04768 took 0.38 seconds
-    Iteration 173, lrate = 1.00000, LL = -3.4029344, nd = 0.0008618, D = 0.04781 0.04781 took 0.31 seconds
-    Iteration 174, lrate = 1.00000, LL = -3.4028925, nd = 0.0008517, D = 0.04792 0.04792 took 0.31 seconds
-    Iteration 175, lrate = 1.00000, LL = -3.4028507, nd = 0.0008431, D = 0.04804 0.04804 took 0.30 seconds
-    Iteration 176, lrate = 1.00000, LL = -3.4028095, nd = 0.0008378, D = 0.04816 0.04816 took 0.29 seconds
-    Iteration 177, lrate = 1.00000, LL = -3.4027687, nd = 0.0008311, D = 0.04828 0.04828 took 0.40 seconds
-    Iteration 178, lrate = 1.00000, LL = -3.4027280, nd = 0.0008214, D = 0.04840 0.04840 took 0.40 seconds
-    Iteration 179, lrate = 1.00000, LL = -3.4026880, nd = 0.0008159, D = 0.04852 0.04852 took 0.39 seconds
-    Iteration 180, lrate = 1.00000, LL = -3.4026476, nd = 0.0008090, D = 0.04864 0.04864 took 0.32 seconds
-    Iteration 181, lrate = 1.00000, LL = -3.4026074, nd = 0.0008017, D = 0.04876 0.04876 took 0.39 seconds
-    Iteration 182, lrate = 1.00000, LL = -3.4025672, nd = 0.0007963, D = 0.04887 0.04887 took 0.31 seconds
-    Iteration 183, lrate = 1.00000, LL = -3.4025265, nd = 0.0007885, D = 0.04899 0.04899 took 0.31 seconds
-    Iteration 184, lrate = 1.00000, LL = -3.4024864, nd = 0.0007815, D = 0.04911 0.04911 took 0.38 seconds
-    Iteration 185, lrate = 1.00000, LL = -3.4024484, nd = 0.0007764, D = 0.04923 0.04923 took 0.31 seconds
-    Iteration 186, lrate = 1.00000, LL = -3.4024102, nd = 0.0007709, D = 0.04936 0.04936 took 0.31 seconds
-    Iteration 187, lrate = 1.00000, LL = -3.4023717, nd = 0.0007643, D = 0.04947 0.04947 took 0.39 seconds
-    Iteration 188, lrate = 1.00000, LL = -3.4023323, nd = 0.0007572, D = 0.04959 0.04959 took 0.31 seconds
-    Iteration 189, lrate = 1.00000, LL = -3.4022922, nd = 0.0007562, D = 0.04970 0.04970 took 0.29 seconds
-    Iteration 190, lrate = 1.00000, LL = -3.4022503, nd = 0.0007578, D = 0.04982 0.04982 took 0.31 seconds
-    Iteration 191, lrate = 1.00000, LL = -3.4022061, nd = 0.0007576, D = 0.04994 0.04994 took 0.30 seconds
-    Iteration 192, lrate = 1.00000, LL = -3.4021596, nd = 0.0007588, D = 0.05006 0.05006 took 0.39 seconds
-    Iteration 193, lrate = 1.00000, LL = -3.4021103, nd = 0.0007577, D = 0.05019 0.05019 took 0.30 seconds
-    Iteration 194, lrate = 1.00000, LL = -3.4020682, nd = 0.0007565, D = 0.05032 0.05032 took 0.31 seconds
-    Iteration 195, lrate = 1.00000, LL = -3.4020311, nd = 0.0007537, D = 0.05046 0.05046 took 0.30 seconds
-    Iteration 196, lrate = 1.00000, LL = -3.4019946, nd = 0.0007490, D = 0.05059 0.05059 took 0.30 seconds
-    Iteration 197, lrate = 1.00000, LL = -3.4019579, nd = 0.0007465, D = 0.05073 0.05073 took 0.39 seconds
-    Iteration 198, lrate = 1.00000, LL = -3.4019210, nd = 0.0007458, D = 0.05088 0.05088 took 0.31 seconds
-    Iteration 199, lrate = 1.00000, LL = -3.4018832, nd = 0.0007426, D = 0.05102 0.05102 took 0.30 seconds
-    Iteration 200, lrate = 1.00000, LL = -3.4018445, nd = 0.0007407, D = 0.05115 0.05115 took 0.39 seconds
-    Finished in 64.96 seconds
+    Iteration 51, lrate = 0.10000, LL = -3.4410153, nd = 0.0073382, D = 0.07393 0.07393 took 0.43 seconds
+    Iteration 52, lrate = 0.20000, LL = -3.4406297, nd = 0.0072815, D = 0.07138 0.07138 took 0.47 seconds
+    Iteration 53, lrate = 0.30000, LL = -3.4400645, nd = 0.0072103, D = 0.06776 0.06776 took 0.43 seconds
+    Iteration 54, lrate = 0.40000, LL = -3.4393286, nd = 0.0071177, D = 0.06335 0.06335 took 0.46 seconds
+    Iteration 55, lrate = 0.50000, LL = -3.4384318, nd = 0.0070106, D = 0.05841 0.05841 took 0.40 seconds
+    Iteration 56, lrate = 0.60000, LL = -3.4373848, nd = 0.0068971, D = 0.05329 0.05329 took 0.49 seconds
+    Iteration 57, lrate = 0.70000, LL = -3.4361987, nd = 0.0067655, D = 0.04824 0.04824 took 0.40 seconds
+    Iteration 58, lrate = 0.80000, LL = -3.4348913, nd = 0.0065746, D = 0.04351 0.04351 took 0.49 seconds
+    Iteration 59, lrate = 0.90000, LL = -3.4334897, nd = 0.0063575, D = 0.03915 0.03915 took 0.34 seconds
+    Iteration 60, lrate = 1.00000, LL = -3.4320188, nd = 0.0061067, D = 0.03526 0.03526 took 0.47 seconds
+    Iteration 61, lrate = 1.00000, LL = -3.4306358, nd = 0.0058437, D = 0.03208 0.03208 took 0.40 seconds
+    Iteration 62, lrate = 1.00000, LL = -3.4293480, nd = 0.0055608, D = 0.02950 0.02950 took 0.40 seconds
+    Iteration 63, lrate = 1.00000, LL = -3.4281674, nd = 0.0052852, D = 0.02744 0.02744 took 0.48 seconds
+    Iteration 64, lrate = 1.00000, LL = -3.4270908, nd = 0.0050457, D = 0.02596 0.02596 took 0.42 seconds
+    Iteration 65, lrate = 1.00000, LL = -3.4261086, nd = 0.0048192, D = 0.02501 0.02501 took 0.50 seconds
+    Iteration 66, lrate = 1.00000, LL = -3.4252134, nd = 0.0046352, D = 0.02453 0.02453 took 0.49 seconds
+    Iteration 67, lrate = 1.00000, LL = -3.4243906, nd = 0.0044602, D = 0.02436 0.02436 took 0.41 seconds
+    Iteration 68, lrate = 1.00000, LL = -3.4236320, nd = 0.0042983, D = 0.02438 0.02438 took 0.43 seconds
+    Iteration 69, lrate = 1.00000, LL = -3.4229292, nd = 0.0041607, D = 0.02452 0.02452 took 0.46 seconds
+    Iteration 70, lrate = 1.00000, LL = -3.4222697, nd = 0.0040357, D = 0.02469 0.02469 took 0.41 seconds
+    Iteration 71, lrate = 1.00000, LL = -3.4216493, nd = 0.0039241, D = 0.02491 0.02491 took 0.43 seconds
+    Iteration 72, lrate = 1.00000, LL = -3.4210611, nd = 0.0038298, D = 0.02513 0.02513 took 0.46 seconds
+    Iteration 73, lrate = 1.00000, LL = -3.4205009, nd = 0.0037453, D = 0.02540 0.02540 took 0.41 seconds
+    Iteration 74, lrate = 1.00000, LL = -3.4199619, nd = 0.0036837, D = 0.02570 0.02570 took 0.41 seconds
+    Iteration 75, lrate = 1.00000, LL = -3.4194385, nd = 0.0036249, D = 0.02600 0.02600 took 0.49 seconds
+    Iteration 76, lrate = 1.00000, LL = -3.4189275, nd = 0.0035612, D = 0.02632 0.02632 took 0.40 seconds
+    Iteration 77, lrate = 1.00000, LL = -3.4184312, nd = 0.0035074, D = 0.02664 0.02664 took 0.41 seconds
+    Iteration 78, lrate = 1.00000, LL = -3.4179484, nd = 0.0034497, D = 0.02700 0.02700 took 0.43 seconds
+    Iteration 79, lrate = 1.00000, LL = -3.4174800, nd = 0.0033848, D = 0.02735 0.02735 took 0.46 seconds
+    Iteration 80, lrate = 1.00000, LL = -3.4170287, nd = 0.0033195, D = 0.02772 0.02772 took 0.41 seconds
+    Iteration 81, lrate = 1.00000, LL = -3.4165952, nd = 0.0032325, D = 0.02812 0.02812 took 0.50 seconds
+    Iteration 82, lrate = 1.00000, LL = -3.4161830, nd = 0.0031517, D = 0.02853 0.02853 took 0.50 seconds
+    Iteration 83, lrate = 1.00000, LL = -3.4157913, nd = 0.0030529, D = 0.02897 0.02897 took 0.41 seconds
+    Iteration 84, lrate = 1.00000, LL = -3.4154220, nd = 0.0029687, D = 0.02942 0.02942 took 0.43 seconds
+    Iteration 85, lrate = 1.00000, LL = -3.4150726, nd = 0.0028891, D = 0.02989 0.02989 took 0.37 seconds
+    Iteration 86, lrate = 1.00000, LL = -3.4147410, nd = 0.0028211, D = 0.03037 0.03037 took 0.59 seconds
+    Iteration 87, lrate = 1.00000, LL = -3.4144238, nd = 0.0027517, D = 0.03084 0.03084 took 0.44 seconds
+    Iteration 88, lrate = 1.00000, LL = -3.4141223, nd = 0.0026898, D = 0.03132 0.03132 took 0.55 seconds
+    Iteration 89, lrate = 1.00000, LL = -3.4138336, nd = 0.0026323, D = 0.03177 0.03177 took 0.44 seconds
+    Iteration 90, lrate = 1.00000, LL = -3.4135576, nd = 0.0025806, D = 0.03223 0.03223 took 0.56 seconds
+    Iteration 91, lrate = 1.00000, LL = -3.4132922, nd = 0.0025343, D = 0.03268 0.03268 took 0.50 seconds
+    Iteration 92, lrate = 1.00000, LL = -3.4130358, nd = 0.0024917, D = 0.03309 0.03309 took 0.50 seconds
+    Iteration 93, lrate = 1.00000, LL = -3.4127897, nd = 0.0024397, D = 0.03351 0.03351 took 0.50 seconds
+    Iteration 94, lrate = 1.00000, LL = -3.4125521, nd = 0.0023930, D = 0.03393 0.03393 took 0.45 seconds
+    Iteration 95, lrate = 1.00000, LL = -3.4123238, nd = 0.0023509, D = 0.03434 0.03434 took 0.50 seconds
+    Iteration 96, lrate = 1.00000, LL = -3.4121040, nd = 0.0023114, D = 0.03475 0.03475 took 0.50 seconds
+    Iteration 97, lrate = 1.00000, LL = -3.4118909, nd = 0.0022850, D = 0.03514 0.03514 took 0.50 seconds
+    Iteration 98, lrate = 1.00000, LL = -3.4116837, nd = 0.0022638, D = 0.03552 0.03552 took 0.50 seconds
+    Iteration 99, lrate = 1.00000, LL = -3.4114808, nd = 0.0022458, D = 0.03588 0.03588 took 0.44 seconds
+    Iteration 100, lrate = 1.00000, LL = -3.4112805, nd = 0.0022392, D = 0.03622 0.03622 took 0.50 seconds
+    Iteration 101, lrate = 1.00000, LL = -3.4112473, nd = 0.0022956, D = 0.03622 0.03622 took 0.47 seconds
+    Iteration 102, lrate = 1.00000, LL = -3.4112207, nd = 0.0023272, D = 0.03622 0.03622 took 0.59 seconds
+    Iteration 103, lrate = 1.00000, LL = -3.4111964, nd = 0.0023483, D = 0.03622 0.03622 took 0.44 seconds
+    Iteration 104, lrate = 1.00000, LL = -3.4111729, nd = 0.0023640, D = 0.03622 0.03622 took 0.47 seconds
+    Iteration 105, lrate = 1.00000, LL = -3.4111506, nd = 0.0023764, D = 0.03622 0.03622 took 0.50 seconds
+    Iteration 106, lrate = 1.00000, LL = -3.4111301, nd = 0.0023884, D = 0.03622 0.03622 took 0.60 seconds
+    Iteration 107, lrate = 1.00000, LL = -3.4109266, nd = 0.0023276, D = 0.03690 0.03690 took 0.53 seconds
+    Iteration 108, lrate = 1.00000, LL = -3.4107273, nd = 0.0022918, D = 0.03720 0.03720 took 0.47 seconds
+    Iteration 109, lrate = 1.00000, LL = -3.4105313, nd = 0.0022727, D = 0.03744 0.03744 took 0.59 seconds
+    Iteration 110, lrate = 1.00000, LL = -3.4103368, nd = 0.0022643, D = 0.03767 0.03767 took 0.41 seconds
+    Iteration 111, lrate = 1.00000, LL = -3.4101409, nd = 0.0022601, D = 0.03790 0.03790 took 0.53 seconds
+    Iteration 112, lrate = 1.00000, LL = -3.4099455, nd = 0.0022440, D = 0.03812 0.03812 took 0.47 seconds
+    Iteration 113, lrate = 1.00000, LL = -3.4097521, nd = 0.0022293, D = 0.03832 0.03832 took 0.50 seconds
+    Iteration 114, lrate = 1.00000, LL = -3.4095607, nd = 0.0022083, D = 0.03851 0.03851 took 0.53 seconds
+    Iteration 115, lrate = 1.00000, LL = -3.4093716, nd = 0.0021900, D = 0.03868 0.03868 took 0.47 seconds
+    Iteration 116, lrate = 1.00000, LL = -3.4091845, nd = 0.0021744, D = 0.03887 0.03887 took 0.50 seconds
+    Iteration 117, lrate = 1.00000, LL = -3.4089971, nd = 0.0021577, D = 0.03907 0.03907 took 0.50 seconds
+    Iteration 118, lrate = 1.00000, LL = -3.4088128, nd = 0.0021364, D = 0.03925 0.03925 took 0.50 seconds
+    Iteration 119, lrate = 1.00000, LL = -3.4086308, nd = 0.0021171, D = 0.03944 0.03944 took 0.59 seconds
+    Iteration 120, lrate = 1.00000, LL = -3.4084515, nd = 0.0020959, D = 0.03963 0.03963 took 0.50 seconds
+    Iteration 121, lrate = 1.00000, LL = -3.4082753, nd = 0.0020711, D = 0.03983 0.03983 took 0.50 seconds
+    Iteration 122, lrate = 1.00000, LL = -3.4081029, nd = 0.0020386, D = 0.04005 0.04005 took 0.50 seconds
+    Iteration 123, lrate = 1.00000, LL = -3.4079340, nd = 0.0020013, D = 0.04026 0.04026 took 0.50 seconds
+    Iteration 124, lrate = 1.00000, LL = -3.4077711, nd = 0.0019667, D = 0.04047 0.04047 took 0.50 seconds
+    Iteration 125, lrate = 1.00000, LL = -3.4076131, nd = 0.0019212, D = 0.04069 0.04069 took 0.59 seconds
+    Iteration 126, lrate = 1.00000, LL = -3.4074624, nd = 0.0018728, D = 0.04090 0.04090 took 0.50 seconds
+    Iteration 127, lrate = 1.00000, LL = -3.4073182, nd = 0.0018270, D = 0.04111 0.04111 took 0.50 seconds
+    Iteration 128, lrate = 1.00000, LL = -3.4071802, nd = 0.0017890, D = 0.04130 0.04130 took 0.50 seconds
+    Iteration 129, lrate = 1.00000, LL = -3.4070460, nd = 0.0017514, D = 0.04150 0.04150 took 0.50 seconds
+    Iteration 130, lrate = 1.00000, LL = -3.4069168, nd = 0.0017227, D = 0.04167 0.04167 took 0.50 seconds
+    Iteration 131, lrate = 1.00000, LL = -3.4067888, nd = 0.0016955, D = 0.04183 0.04183 took 0.45 seconds
+    Iteration 132, lrate = 1.00000, LL = -3.4066631, nd = 0.0016813, D = 0.04198 0.04198 took 0.50 seconds
+    Iteration 133, lrate = 1.00000, LL = -3.4065376, nd = 0.0016737, D = 0.04212 0.04212 took 0.50 seconds
+    Iteration 134, lrate = 1.00000, LL = -3.4064114, nd = 0.0016767, D = 0.04226 0.04226 took 0.50 seconds
+    Iteration 135, lrate = 1.00000, LL = -3.4062835, nd = 0.0016900, D = 0.04241 0.04241 took 0.55 seconds
+    Iteration 136, lrate = 1.00000, LL = -3.4061521, nd = 0.0017107, D = 0.04255 0.04255 took 0.45 seconds
+    Iteration 137, lrate = 1.00000, LL = -3.4060158, nd = 0.0017305, D = 0.04268 0.04268 took 0.50 seconds
+    Iteration 138, lrate = 1.00000, LL = -3.4058767, nd = 0.0017373, D = 0.04282 0.04282 took 0.55 seconds
+    Iteration 139, lrate = 1.00000, LL = -3.4057356, nd = 0.0017294, D = 0.04298 0.04298 took 0.50 seconds
+    Iteration 140, lrate = 1.00000, LL = -3.4055959, nd = 0.0017091, D = 0.04314 0.04314 took 0.50 seconds
+    Iteration 141, lrate = 1.00000, LL = -3.4054587, nd = 0.0016871, D = 0.04328 0.04328 took 0.51 seconds
+    Iteration 142, lrate = 1.00000, LL = -3.4053235, nd = 0.0016625, D = 0.04344 0.04344 took 0.59 seconds
+    Iteration 143, lrate = 1.00000, LL = -3.4051911, nd = 0.0016314, D = 0.04359 0.04359 took 0.50 seconds
+    Iteration 144, lrate = 1.00000, LL = -3.4050635, nd = 0.0016046, D = 0.04374 0.04374 took 0.50 seconds
+    Iteration 145, lrate = 1.00000, LL = -3.4049404, nd = 0.0015785, D = 0.04387 0.04387 took 0.50 seconds
+    Iteration 146, lrate = 1.00000, LL = -3.4048190, nd = 0.0015519, D = 0.04402 0.04402 took 0.50 seconds
+    Iteration 147, lrate = 1.00000, LL = -3.4047005, nd = 0.0015254, D = 0.04415 0.04415 took 0.41 seconds
+    Iteration 148, lrate = 1.00000, LL = -3.4045854, nd = 0.0014940, D = 0.04431 0.04431 took 0.53 seconds
+    Iteration 149, lrate = 1.00000, LL = -3.4044787, nd = 0.0014649, D = 0.04445 0.04445 took 0.50 seconds
+    Iteration 150, lrate = 1.00000, LL = -3.4043793, nd = 0.0014381, D = 0.04461 0.04461 took 0.56 seconds
+    Iteration 151, lrate = 1.00000, LL = -3.4042844, nd = 0.0014067, D = 0.04477 0.04477 took 0.51 seconds
+    Iteration 152, lrate = 1.00000, LL = -3.4041924, nd = 0.0013688, D = 0.04491 0.04491 took 0.53 seconds
+    Iteration 153, lrate = 1.00000, LL = -3.4041046, nd = 0.0013324, D = 0.04506 0.04506 took 0.50 seconds
+    Iteration 154, lrate = 1.00000, LL = -3.4040210, nd = 0.0012956, D = 0.04521 0.04521 took 0.55 seconds
+    Iteration 155, lrate = 1.00000, LL = -3.4039410, nd = 0.0012585, D = 0.04536 0.04536 took 0.50 seconds
+    Iteration 156, lrate = 1.00000, LL = -3.4038642, nd = 0.0012230, D = 0.04550 0.04550 took 0.50 seconds
+    Iteration 157, lrate = 1.00000, LL = -3.4037904, nd = 0.0011900, D = 0.04564 0.04564 took 0.42 seconds
+    Iteration 158, lrate = 1.00000, LL = -3.4037199, nd = 0.0011554, D = 0.04578 0.04578 took 0.50 seconds
+    Iteration 159, lrate = 1.00000, LL = -3.4036526, nd = 0.0011232, D = 0.04592 0.04592 took 0.59 seconds
+    Iteration 160, lrate = 1.00000, LL = -3.4035876, nd = 0.0010950, D = 0.04606 0.04606 took 0.49 seconds
+    Iteration 161, lrate = 1.00000, LL = -3.4035248, nd = 0.0010694, D = 0.04621 0.04621 took 0.50 seconds
+    Iteration 162, lrate = 1.00000, LL = -3.4034637, nd = 0.0010420, D = 0.04635 0.04635 took 0.50 seconds
+    Iteration 163, lrate = 1.00000, LL = -3.4034039, nd = 0.0010184, D = 0.04650 0.04650 took 0.50 seconds
+    Iteration 164, lrate = 1.00000, LL = -3.4033463, nd = 0.0009986, D = 0.04665 0.04665 took 0.50 seconds
+    Iteration 165, lrate = 1.00000, LL = -3.4032956, nd = 0.0009742, D = 0.04678 0.04678 took 0.41 seconds
+    Iteration 166, lrate = 1.00000, LL = -3.4032469, nd = 0.0009559, D = 0.04693 0.04693 took 0.51 seconds
+    Iteration 167, lrate = 1.00000, LL = -3.4031996, nd = 0.0009387, D = 0.04706 0.04706 took 0.49 seconds
+    Iteration 168, lrate = 1.00000, LL = -3.4031538, nd = 0.0009253, D = 0.04719 0.04719 took 0.41 seconds
+    Iteration 169, lrate = 1.00000, LL = -3.4031082, nd = 0.0009094, D = 0.04732 0.04732 took 0.53 seconds
+    Iteration 170, lrate = 1.00000, LL = -3.4030638, nd = 0.0008968, D = 0.04744 0.04744 took 0.50 seconds
+    Iteration 171, lrate = 1.00000, LL = -3.4030200, nd = 0.0008858, D = 0.04756 0.04756 took 0.46 seconds
+    Iteration 172, lrate = 1.00000, LL = -3.4029771, nd = 0.0008753, D = 0.04768 0.04768 took 0.41 seconds
+    Iteration 173, lrate = 1.00000, LL = -3.4029344, nd = 0.0008618, D = 0.04781 0.04781 took 0.59 seconds
+    Iteration 174, lrate = 1.00000, LL = -3.4028925, nd = 0.0008517, D = 0.04792 0.04792 took 0.50 seconds
+    Iteration 175, lrate = 1.00000, LL = -3.4028507, nd = 0.0008431, D = 0.04804 0.04804 took 0.50 seconds
+    Iteration 176, lrate = 1.00000, LL = -3.4028095, nd = 0.0008378, D = 0.04816 0.04816 took 0.44 seconds
+    Iteration 177, lrate = 1.00000, LL = -3.4027687, nd = 0.0008311, D = 0.04828 0.04828 took 0.50 seconds
+    Iteration 178, lrate = 1.00000, LL = -3.4027280, nd = 0.0008214, D = 0.04840 0.04840 took 0.47 seconds
+    Iteration 179, lrate = 1.00000, LL = -3.4026880, nd = 0.0008159, D = 0.04852 0.04852 took 0.59 seconds
+    Iteration 180, lrate = 1.00000, LL = -3.4026476, nd = 0.0008090, D = 0.04864 0.04864 took 0.41 seconds
+    Iteration 181, lrate = 1.00000, LL = -3.4026074, nd = 0.0008017, D = 0.04876 0.04876 took 0.53 seconds
+    Iteration 182, lrate = 1.00000, LL = -3.4025672, nd = 0.0007963, D = 0.04887 0.04887 took 0.47 seconds
+    Iteration 183, lrate = 1.00000, LL = -3.4025265, nd = 0.0007885, D = 0.04899 0.04899 took 0.49 seconds
+    Iteration 184, lrate = 1.00000, LL = -3.4024864, nd = 0.0007815, D = 0.04911 0.04911 took 0.49 seconds
+    Iteration 185, lrate = 1.00000, LL = -3.4024484, nd = 0.0007764, D = 0.04923 0.04923 took 0.41 seconds
+    Iteration 186, lrate = 1.00000, LL = -3.4024102, nd = 0.0007709, D = 0.04936 0.04936 took 0.49 seconds
+    Iteration 187, lrate = 1.00000, LL = -3.4023717, nd = 0.0007643, D = 0.04947 0.04947 took 0.50 seconds
+    Iteration 188, lrate = 1.00000, LL = -3.4023323, nd = 0.0007572, D = 0.04959 0.04959 took 0.50 seconds
+    Iteration 189, lrate = 1.00000, LL = -3.4022922, nd = 0.0007562, D = 0.04970 0.04970 took 0.50 seconds
+    Iteration 190, lrate = 1.00000, LL = -3.4022503, nd = 0.0007578, D = 0.04982 0.04982 took 0.53 seconds
+    Iteration 191, lrate = 1.00000, LL = -3.4022061, nd = 0.0007576, D = 0.04994 0.04994 took 0.50 seconds
+    Iteration 192, lrate = 1.00000, LL = -3.4021596, nd = 0.0007588, D = 0.05006 0.05006 took 0.50 seconds
+    Iteration 193, lrate = 1.00000, LL = -3.4021103, nd = 0.0007577, D = 0.05019 0.05019 took 0.47 seconds
+    Iteration 194, lrate = 1.00000, LL = -3.4020682, nd = 0.0007565, D = 0.05032 0.05032 took 0.58 seconds
+    Iteration 195, lrate = 1.00000, LL = -3.4020311, nd = 0.0007537, D = 0.05046 0.05046 took 0.44 seconds
+    Iteration 196, lrate = 1.00000, LL = -3.4019946, nd = 0.0007490, D = 0.05059 0.05059 took 0.47 seconds
+    Iteration 197, lrate = 1.00000, LL = -3.4019579, nd = 0.0007465, D = 0.05073 0.05073 took 0.53 seconds
+    Iteration 198, lrate = 1.00000, LL = -3.4019210, nd = 0.0007458, D = 0.05088 0.05088 took 0.47 seconds
+    Iteration 199, lrate = 1.00000, LL = -3.4018832, nd = 0.0007426, D = 0.05102 0.05102 took 0.58 seconds
+    Iteration 200, lrate = 1.00000, LL = -3.4018445, nd = 0.0007407, D = 0.05115 0.05115 took 0.42 seconds
+    Finished in 89.42 seconds
 
 
+.. raw:: html
+
+    <div class="output_subarea output_html rendered_html output_result">
+    <style>#sk-container-id-2 {
+      /* Definition of color scheme common for light and dark mode */
+      --sklearn-color-text: #000;
+      --sklearn-color-text-muted: #666;
+      --sklearn-color-line: gray;
+      /* Definition of color scheme for unfitted estimators */
+      --sklearn-color-unfitted-level-0: #fff5e6;
+      --sklearn-color-unfitted-level-1: #f6e4d2;
+      --sklearn-color-unfitted-level-2: #ffe0b3;
+      --sklearn-color-unfitted-level-3: chocolate;
+      /* Definition of color scheme for fitted estimators */
+      --sklearn-color-fitted-level-0: #f0f8ff;
+      --sklearn-color-fitted-level-1: #d4ebff;
+      --sklearn-color-fitted-level-2: #b3dbfd;
+      --sklearn-color-fitted-level-3: cornflowerblue;
+
+      /* Specific color for light theme */
+      --sklearn-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
+      --sklearn-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, white)));
+      --sklearn-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
+      --sklearn-color-icon: #696969;
+
+      @media (prefers-color-scheme: dark) {
+        /* Redefinition of color scheme for dark theme */
+        --sklearn-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
+        --sklearn-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, #111)));
+        --sklearn-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
+        --sklearn-color-icon: #878787;
+      }
+    }
+
+    #sk-container-id-2 {
+      color: var(--sklearn-color-text);
+    }
+
+    #sk-container-id-2 pre {
+      padding: 0;
+    }
+
+    #sk-container-id-2 input.sk-hidden--visually {
+      border: 0;
+      clip: rect(1px 1px 1px 1px);
+      clip: rect(1px, 1px, 1px, 1px);
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 1px;
+    }
+
+    #sk-container-id-2 div.sk-dashed-wrapped {
+      border: 1px dashed var(--sklearn-color-line);
+      margin: 0 0.4em 0.5em 0.4em;
+      box-sizing: border-box;
+      padding-bottom: 0.4em;
+      background-color: var(--sklearn-color-background);
+    }
+
+    #sk-container-id-2 div.sk-container {
+      /* jupyter's `normalize.less` sets `[hidden] { display: none; }`
+         but bootstrap.min.css set `[hidden] { display: none !important; }`
+         so we also need the `!important` here to be able to override the
+         default hidden behavior on the sphinx rendered scikit-learn.org.
+         See: https://github.com/scikit-learn/scikit-learn/issues/21755 */
+      display: inline-block !important;
+      position: relative;
+    }
+
+    #sk-container-id-2 div.sk-text-repr-fallback {
+      display: none;
+    }
+
+    div.sk-parallel-item,
+    div.sk-serial,
+    div.sk-item {
+      /* draw centered vertical line to link estimators */
+      background-image: linear-gradient(var(--sklearn-color-text-on-default-background), var(--sklearn-color-text-on-default-background));
+      background-size: 2px 100%;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    /* Parallel-specific style estimator block */
+
+    #sk-container-id-2 div.sk-parallel-item::after {
+      content: "";
+      width: 100%;
+      border-bottom: 2px solid var(--sklearn-color-text-on-default-background);
+      flex-grow: 1;
+    }
+
+    #sk-container-id-2 div.sk-parallel {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      background-color: var(--sklearn-color-background);
+      position: relative;
+    }
+
+    #sk-container-id-2 div.sk-parallel-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #sk-container-id-2 div.sk-parallel-item:first-child::after {
+      align-self: flex-end;
+      width: 50%;
+    }
+
+    #sk-container-id-2 div.sk-parallel-item:last-child::after {
+      align-self: flex-start;
+      width: 50%;
+    }
+
+    #sk-container-id-2 div.sk-parallel-item:only-child::after {
+      width: 0;
+    }
+
+    /* Serial-specific style estimator block */
+
+    #sk-container-id-2 div.sk-serial {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: var(--sklearn-color-background);
+      padding-right: 1em;
+      padding-left: 1em;
+    }
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 41-61
+    /* Toggleable style: style used for estimator/Pipeline/ColumnTransformer box that is
+    clickable and can be expanded/collapsed.
+    - Pipeline and ColumnTransformer use this feature and define the default style
+    - Estimators will overwrite some part of the style using the `sk-estimator` class
+    */
+
+    /* Pipeline and ColumnTransformer style (default) */
+
+    #sk-container-id-2 div.sk-toggleable {
+      /* Default theme specific background. It is overwritten whether we have a
+      specific estimator or a Pipeline/ColumnTransformer */
+      background-color: var(--sklearn-color-background);
+    }
+
+    /* Toggleable label */
+    #sk-container-id-2 label.sk-toggleable__label {
+      cursor: pointer;
+      display: flex;
+      width: 100%;
+      margin-bottom: 0;
+      padding: 0.5em;
+      box-sizing: border-box;
+      text-align: center;
+      align-items: start;
+      justify-content: space-between;
+      gap: 0.5em;
+    }
+
+    #sk-container-id-2 label.sk-toggleable__label .caption {
+      font-size: 0.6rem;
+      font-weight: lighter;
+      color: var(--sklearn-color-text-muted);
+    }
+
+    #sk-container-id-2 label.sk-toggleable__label-arrow:before {
+      /* Arrow on the left of the label */
+      content: "▸";
+      float: left;
+      margin-right: 0.25em;
+      color: var(--sklearn-color-icon);
+    }
+
+    #sk-container-id-2 label.sk-toggleable__label-arrow:hover:before {
+      color: var(--sklearn-color-text);
+    }
+
+    /* Toggleable content - dropdown */
+
+    #sk-container-id-2 div.sk-toggleable__content {
+      display: none;
+      text-align: left;
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-0);
+    }
+
+    #sk-container-id-2 div.sk-toggleable__content.fitted {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-0);
+    }
+
+    #sk-container-id-2 div.sk-toggleable__content pre {
+      margin: 0.2em;
+      border-radius: 0.25em;
+      color: var(--sklearn-color-text);
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-0);
+    }
+
+    #sk-container-id-2 div.sk-toggleable__content.fitted pre {
+      /* unfitted */
+      background-color: var(--sklearn-color-fitted-level-0);
+    }
+
+    #sk-container-id-2 input.sk-toggleable__control:checked~div.sk-toggleable__content {
+      /* Expand drop-down */
+      display: block;
+      width: 100%;
+      overflow: visible;
+    }
+
+    #sk-container-id-2 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {
+      content: "▾";
+    }
+
+    /* Pipeline/ColumnTransformer-specific style */
+
+    #sk-container-id-2 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {
+      color: var(--sklearn-color-text);
+      background-color: var(--sklearn-color-unfitted-level-2);
+    }
+
+    #sk-container-id-2 div.sk-label.fitted input.sk-toggleable__control:checked~label.sk-toggleable__label {
+      background-color: var(--sklearn-color-fitted-level-2);
+    }
+
+    /* Estimator-specific style */
+
+    /* Colorize estimator box */
+    #sk-container-id-2 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-2);
+    }
+
+    #sk-container-id-2 div.sk-estimator.fitted input.sk-toggleable__control:checked~label.sk-toggleable__label {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-2);
+    }
+
+    #sk-container-id-2 div.sk-label label.sk-toggleable__label,
+    #sk-container-id-2 div.sk-label label {
+      /* The background is the default theme color */
+      color: var(--sklearn-color-text-on-default-background);
+    }
+
+    /* On hover, darken the color of the background */
+    #sk-container-id-2 div.sk-label:hover label.sk-toggleable__label {
+      color: var(--sklearn-color-text);
+      background-color: var(--sklearn-color-unfitted-level-2);
+    }
+
+    /* Label box, darken color on hover, fitted */
+    #sk-container-id-2 div.sk-label.fitted:hover label.sk-toggleable__label.fitted {
+      color: var(--sklearn-color-text);
+      background-color: var(--sklearn-color-fitted-level-2);
+    }
+
+    /* Estimator label */
+
+    #sk-container-id-2 div.sk-label label {
+      font-family: monospace;
+      font-weight: bold;
+      display: inline-block;
+      line-height: 1.2em;
+    }
+
+    #sk-container-id-2 div.sk-label-container {
+      text-align: center;
+    }
+
+    /* Estimator-specific */
+    #sk-container-id-2 div.sk-estimator {
+      font-family: monospace;
+      border: 1px dotted var(--sklearn-color-border-box);
+      border-radius: 0.25em;
+      box-sizing: border-box;
+      margin-bottom: 0.5em;
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-0);
+    }
+
+    #sk-container-id-2 div.sk-estimator.fitted {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-0);
+    }
+
+    /* on hover */
+    #sk-container-id-2 div.sk-estimator:hover {
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-2);
+    }
+
+    #sk-container-id-2 div.sk-estimator.fitted:hover {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-2);
+    }
+
+    /* Specification for estimator info (e.g. "i" and "?") */
+
+    /* Common style for "i" and "?" */
+
+    .sk-estimator-doc-link,
+    a:link.sk-estimator-doc-link,
+    a:visited.sk-estimator-doc-link {
+      float: right;
+      font-size: smaller;
+      line-height: 1em;
+      font-family: monospace;
+      background-color: var(--sklearn-color-background);
+      border-radius: 1em;
+      height: 1em;
+      width: 1em;
+      text-decoration: none !important;
+      margin-left: 0.5em;
+      text-align: center;
+      /* unfitted */
+      border: var(--sklearn-color-unfitted-level-1) 1pt solid;
+      color: var(--sklearn-color-unfitted-level-1);
+    }
+
+    .sk-estimator-doc-link.fitted,
+    a:link.sk-estimator-doc-link.fitted,
+    a:visited.sk-estimator-doc-link.fitted {
+      /* fitted */
+      border: var(--sklearn-color-fitted-level-1) 1pt solid;
+      color: var(--sklearn-color-fitted-level-1);
+    }
+
+    /* On hover */
+    div.sk-estimator:hover .sk-estimator-doc-link:hover,
+    .sk-estimator-doc-link:hover,
+    div.sk-label-container:hover .sk-estimator-doc-link:hover,
+    .sk-estimator-doc-link:hover {
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-3);
+      color: var(--sklearn-color-background);
+      text-decoration: none;
+    }
+
+    div.sk-estimator.fitted:hover .sk-estimator-doc-link.fitted:hover,
+    .sk-estimator-doc-link.fitted:hover,
+    div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
+    .sk-estimator-doc-link.fitted:hover {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-3);
+      color: var(--sklearn-color-background);
+      text-decoration: none;
+    }
+
+    /* Span, style for the box shown on hovering the info icon */
+    .sk-estimator-doc-link span {
+      display: none;
+      z-index: 9999;
+      position: relative;
+      font-weight: normal;
+      right: .2ex;
+      padding: .5ex;
+      margin: .5ex;
+      width: min-content;
+      min-width: 20ex;
+      max-width: 50ex;
+      color: var(--sklearn-color-text);
+      box-shadow: 2pt 2pt 4pt #999;
+      /* unfitted */
+      background: var(--sklearn-color-unfitted-level-0);
+      border: .5pt solid var(--sklearn-color-unfitted-level-3);
+    }
+
+    .sk-estimator-doc-link.fitted span {
+      /* fitted */
+      background: var(--sklearn-color-fitted-level-0);
+      border: var(--sklearn-color-fitted-level-3);
+    }
+
+    .sk-estimator-doc-link:hover span {
+      display: block;
+    }
+
+    /* "?"-specific style due to the `<a>` HTML tag */
+
+    #sk-container-id-2 a.estimator_doc_link {
+      float: right;
+      font-size: 1rem;
+      line-height: 1em;
+      font-family: monospace;
+      background-color: var(--sklearn-color-background);
+      border-radius: 1rem;
+      height: 1rem;
+      width: 1rem;
+      text-decoration: none;
+      /* unfitted */
+      color: var(--sklearn-color-unfitted-level-1);
+      border: var(--sklearn-color-unfitted-level-1) 1pt solid;
+    }
+
+    #sk-container-id-2 a.estimator_doc_link.fitted {
+      /* fitted */
+      border: var(--sklearn-color-fitted-level-1) 1pt solid;
+      color: var(--sklearn-color-fitted-level-1);
+    }
+
+    /* On hover */
+    #sk-container-id-2 a.estimator_doc_link:hover {
+      /* unfitted */
+      background-color: var(--sklearn-color-unfitted-level-3);
+      color: var(--sklearn-color-background);
+      text-decoration: none;
+    }
+
+    #sk-container-id-2 a.estimator_doc_link.fitted:hover {
+      /* fitted */
+      background-color: var(--sklearn-color-fitted-level-3);
+    }
+
+    .estimator-table summary {
+        padding: .5rem;
+        font-family: monospace;
+        cursor: pointer;
+    }
+
+    .estimator-table details[open] {
+        padding-left: 0.1rem;
+        padding-right: 0.1rem;
+        padding-bottom: 0.3rem;
+    }
+
+    .estimator-table .parameters-table {
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .estimator-table .parameters-table tr:nth-child(odd) {
+        background-color: #fff;
+    }
+
+    .estimator-table .parameters-table tr:nth-child(even) {
+        background-color: #f6f6f6;
+    }
+
+    .estimator-table .parameters-table tr:hover {
+        background-color: #e0e0e0;
+    }
+
+    .estimator-table table td {
+        border: 1px solid rgba(106, 105, 104, 0.232);
+    }
+
+    .user-set td {
+        color:rgb(255, 94, 0);
+        text-align: left;
+    }
+
+    .user-set td.value pre {
+        color:rgb(255, 94, 0) !important;
+        background-color: transparent !important;
+    }
+
+    .default td {
+        color: black;
+        text-align: left;
+    }
+
+    .user-set td i,
+    .default td i {
+        color: black;
+    }
+
+    .copy-paste-icon {
+        background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tIUZvbnQgQXdlc29tZSBGcmVlIDYuNy4yIGJ5IEBmb250YXdlc29tZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tIExpY2Vuc2UgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbS9saWNlbnNlL2ZyZWUgQ29weXJpZ2h0IDIwMjUgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTIwOCAwTDMzMi4xIDBjMTIuNyAwIDI0LjkgNS4xIDMzLjkgMTQuMWw2Ny45IDY3LjljOSA5IDE0LjEgMjEuMiAxNC4xIDMzLjlMNDQ4IDMzNmMwIDI2LjUtMjEuNSA0OC00OCA0OGwtMTkyIDBjLTI2LjUgMC00OC0yMS41LTQ4LTQ4bDAtMjg4YzAtMjYuNSAyMS41LTQ4IDQ4LTQ4ek00OCAxMjhsODAgMCAwIDY0LTY0IDAgMCAyNTYgMTkyIDAgMC0zMiA2NCAwIDAgNDhjMCAyNi41LTIxLjUgNDgtNDggNDhMNDggNTEyYy0yNi41IDAtNDgtMjEuNS00OC00OEwwIDE3NmMwLTI2LjUgMjEuNS00OCA0OC00OHoiLz48L3N2Zz4=);
+        background-repeat: no-repeat;
+        background-size: 14px 14px;
+        background-position: 0;
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+    }
+    </style><body><div id="sk-container-id-2" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>AMICA(max_iter=200,
+          mu_init=array([[0.50965947, 0.04527889, 0.35247896],
+           [0.8762351 , 0.26628711, 0.99480272],
+           [0.40212523, 0.27389552, 0.20770561],
+           [0.65411987, 0.34182142, 0.09300251],
+           [0.80444938, 0.44339815, 0.8126825 ],
+           [0.97930402, 0.74877807, 0.04348142],
+           [0.78631199, 0.60419269, 0.85805117],
+           [0.02165665, 0.84801097, 0.85489792],
+           [0.27966586, 0.56910808, 0.53418476],
+           [0....
+           [0.76343641, 0.05840647, 0.34338642, ..., 0.97308572, 0.76182668,
+            0.83096944],
+           [0.58233765, 0.04081942, 0.43449808, ..., 0.33150471, 0.73984712,
+            0.66007229],
+           ...,
+           [0.63443108, 0.33966091, 0.97756094, ..., 0.92677176, 0.24606719,
+            0.54599154],
+           [0.85448053, 0.88756462, 0.86326901, ..., 0.93752582, 0.87834654,
+            0.02637342],
+           [0.93852255, 0.64263167, 0.14632447, ..., 0.74057343, 0.5679117 ,
+            0.47788761]], shape=(32, 32)))</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden><div class="sk-item"><div class="sk-estimator fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-2" type="checkbox" checked><label for="sk-estimator-id-2" class="sk-toggleable__label fitted sk-toggleable__label-arrow"><div><div>AMICA</div></div><div><span class="sk-estimator-doc-link fitted">i<span>Fitted</span></span></div></label><div class="sk-toggleable__content fitted" data-param-prefix="">
+            <div class="estimator-table">
+                <details>
+                    <summary>Parameters</summary>
+                    <table class="parameters-table">
+                      <tbody>
+                    
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('n_components',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">n_components&nbsp;</td>
+                <td class="value">None</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('n_mixtures',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">n_mixtures&nbsp;</td>
+                <td class="value">3</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('n_models',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">n_models&nbsp;</td>
+                <td class="value">1</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('mean_center',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">mean_center&nbsp;</td>
+                <td class="value">True</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('whiten',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">whiten&nbsp;</td>
+                <td class="value">&#x27;zca&#x27;</td>
+            </tr>
+    
+
+            <tr class="user-set">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('max_iter',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">max_iter&nbsp;</td>
+                <td class="value">200</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('tol',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">tol&nbsp;</td>
+                <td class="value">1e-07</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('lrate',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">lrate&nbsp;</td>
+                <td class="value">0.05</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('pdftype',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">pdftype&nbsp;</td>
+                <td class="value">0</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('do_newton',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">do_newton&nbsp;</td>
+                <td class="value">True</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('newt_start',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">newt_start&nbsp;</td>
+                <td class="value">50</td>
+            </tr>
+    
+
+            <tr class="user-set">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('w_init',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">w_init&nbsp;</td>
+                <td class="value">array([[0.089...hape=(32, 32))</td>
+            </tr>
+    
+
+            <tr class="user-set">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('sbeta_init',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">sbeta_init&nbsp;</td>
+                <td class="value">array([[0.846... 0.3616952 ]])</td>
+            </tr>
+    
+
+            <tr class="user-set">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('mu_init',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">mu_init&nbsp;</td>
+                <td class="value">array([[0.509... 0.51339233]])</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('random_state',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">random_state&nbsp;</td>
+                <td class="value">None</td>
+            </tr>
+    
+                      </tbody>
+                    </table>
+                </details>
+            </div>
+        </div></div></div></div></div><script>function copyToClipboard(text, element) {
+        // Get the parameter prefix from the closest toggleable content
+        const toggleableContent = element.closest('.sk-toggleable__content');
+        const paramPrefix = toggleableContent ? toggleableContent.dataset.paramPrefix : '';
+        const fullParamName = paramPrefix ? `${paramPrefix}${text}` : text;
+
+        const originalStyle = element.style;
+        const computedStyle = window.getComputedStyle(element);
+        const originalWidth = computedStyle.width;
+        const originalHTML = element.innerHTML.replace('Copied!', '');
+
+        navigator.clipboard.writeText(fullParamName)
+            .then(() => {
+                element.style.width = originalWidth;
+                element.style.color = 'green';
+                element.innerHTML = "Copied!";
+
+                setTimeout(() => {
+                    element.innerHTML = originalHTML;
+                    element.style = originalStyle;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Failed to copy:', err);
+                element.style.color = 'red';
+                element.innerHTML = "Failed!";
+                setTimeout(() => {
+                    element.innerHTML = originalHTML;
+                    element.style = originalStyle;
+                }, 2000);
+            });
+        return false;
+    }
+
+    document.querySelectorAll('.fa-regular.fa-copy').forEach(function(element) {
+        const toggleableContent = element.closest('.sk-toggleable__content');
+        const paramPrefix = toggleableContent ? toggleableContent.dataset.paramPrefix : '';
+        const paramName = element.parentElement.nextElementSibling.textContent.trim();
+        const fullParamName = paramPrefix ? `${paramPrefix}${paramName}` : paramName;
+
+        element.setAttribute('title', fullParamName);
+    });
+    </script></body>
+    </div>
+    <br />
+    <br />
+
+.. GENERATED FROM PYTHON SOURCE LINES 42-62
 
 .. code-block:: Python
 
@@ -373,11 +1080,11 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 62-65
+.. GENERATED FROM PYTHON SOURCE LINES 63-66
 
 .. code-block:: Python
 
-    fig1, ax1 = plot_topomaps(results["A"], output="python")
+    fig1, ax1 = plot_topomaps(transformer.mixing_, output="python")
 
 
 
@@ -392,7 +1099,7 @@ Basic usage of amica
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 66-66
+.. GENERATED FROM PYTHON SOURCE LINES 67-67
 
 .. code-block:: Python
 
@@ -411,7 +1118,7 @@ Basic usage of amica
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (1 minutes 9.440 seconds)
+   **Total running time of the script:** (1 minutes 33.722 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_amica.py:

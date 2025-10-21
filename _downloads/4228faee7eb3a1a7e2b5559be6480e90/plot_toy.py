@@ -10,6 +10,7 @@ import numpy as np
 from sklearn.decomposition import FastICA
 
 import amica
+from amica import AMICA
 
 # %%
 # Generate Data and Load AMICA Results for Comparison
@@ -18,7 +19,7 @@ import amica
 data_dir = amica.datasets.data_path() / "toy_2" / "amicaout_toy_2"
 
 # %%
-x = amica.utils.generate_toy_data(n_samples=10_000, noise_factor=.05)
+x = amica.utils.generate_toy_data(n_samples=10_000, noise_factor=.05, seed=42)
 
 # %%
 # Run AMICA and FastICA for comparison
@@ -29,18 +30,19 @@ fi = FastICA()
 z = fi.fit_transform(x)
 
 # %%
-results = amica.fit_amica(
-    x.copy(), centering=False, whiten=False, random_state=42,
-)
+transformer = AMICA(mean_center=False, whiten="variance", random_state=42,)
+transformer.fit(x.copy())
 
 # %%
 # apply the learned unmixing matrix to the data
-W = results["W"][:, :, 0]
-y = np.dot(x, W)
+y = transformer.transform(x)
 
 # %%
-fortran_W = np.fromfile(data_dir / "W", dtype=np.float64).reshape((2, 2), order="F")
-y2 = np.dot(x, fortran_W)
+fortran_results = amica.utils.load_fortran_results(
+    data_dir, n_components=2, n_mixtures=3
+    )
+W_f = fortran_results["W"][:, :, 0]
+y2 = x @ (W_f @ fortran_results["S"]).T
 
 
 # %%

@@ -50,7 +50,7 @@ Example AMICA usage.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Basic usage of amica">
+    <div class="sphx-glr-thumbcontainer" tooltip="Run AMICA on EEG Data">
 
 .. only:: html
 
@@ -61,7 +61,7 @@ Example AMICA usage.
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basic usage of amica</div>
+      <div class="sphx-glr-thumbnail-title">Run AMICA on EEG Data</div>
     </div>
 
 

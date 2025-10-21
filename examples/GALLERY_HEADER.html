@@ -6,7 +6,7 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b1a1f93b" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=bb284d7b" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=b7a6840d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
@@ -63,7 +63,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1"><a class="reference internal" href="../auto_examples/index.html">AMICA Tutorials</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_sphere.html">Sphering (whitening) data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_amica.html">Basic usage of amica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_amica.html">Run AMICA on EEG Data</a></li>
 </ul>
 </li>
 </ul>
