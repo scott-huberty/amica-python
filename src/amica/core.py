@@ -2,6 +2,7 @@ from copy import copy
 from pathlib import Path
 import time
 from typing import Literal, Optional, Tuple
+from warnings import warn
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
@@ -219,11 +220,9 @@ def fit_amica(
     )
     
     # Step 2: Create initial state (this will eventually replace manual initialization)
-    torch.set_default_dtype(config.dtype)
+    torch.set_default_dtype(config.dtype) # TODO: Make this less global
     state = get_initial_state(config)
     
-    # random_state = check_random_state(random_state)
-
     # Init
     if n_models > 1:
         raise NotImplementedError("n_models > 1 not yet supported")
@@ -916,8 +915,8 @@ def accum_updates_and_likelihood(
         # end if (do_newton .and. iter >= newt_start)
         if ((not config.do_newton) or (iteration < config.newt_start)):
             #  Wtmp = dA(:,:,h)
-            assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].squeeze().shape == (nw, nw)
-            Wtmp_working = (accumulators.dA[:, :, h - 1].squeeze()).clone()
+            assert Wtmp_working.shape == accumulators.dA[:, :, h - 1].shape == (nw, nw)
+            Wtmp_working = (accumulators.dA[:, :, h - 1]).clone()
             assert Wtmp_working.shape == (nw, nw)
         #--------------------------FORTRAN CODE-------------------------
         # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)

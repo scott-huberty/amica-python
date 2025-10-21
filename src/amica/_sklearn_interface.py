@@ -7,6 +7,12 @@ from sklearn.utils.validation import validate_data, check_is_fitted
 
 from amica import fit_amica
 
+CHECK_ARRAY_KWARGS = {
+    "dtype": [np.float64, np.float32],
+    "ensure_min_samples": 2,
+    "ensure_min_features": 2,
+}
+
 class AMICA(TransformerMixin, BaseEstimator):
     """AMICA: adaptive Mixture algorithm for Independent Component Analysis.
     
@@ -161,7 +167,11 @@ class AMICA(TransformerMixin, BaseEstimator):
             Fitted estimator.
         """        
         # Validate input data
-        X = validate_data(self, X=X, reset=True)
+        X = validate_data(
+            self, X=X,
+            reset=True,
+            **CHECK_ARRAY_KWARGS
+            )
         # Fit the model
         fit_dict = fit_amica(
             X,
@@ -185,7 +195,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         # Set attributes
         if self.mean_center:
             self.mean_ = fit_dict['mean']
-        self.n_features_in = X.shape[1]
+        self.n_features_in_ = X.shape[1]
         self.n_iter_ = np.count_nonzero(fit_dict['LL'])
         self.whitening_ = fit_dict["S"][:self.n_components, :]
         self.mixing_ = fit_dict['A']
@@ -212,7 +222,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             unmixing matrix.
         """
         check_is_fitted(self)
-        X = validate_data(self, X=X, reset=False, copy=copy)
+        X = validate_data(self, X=X, reset=False, copy=copy, dtype=[np.float64, np.float32])
         return X @ self.components_.T
  
     def fit_transform(self, X, y=None):
