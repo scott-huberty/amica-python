@@ -28,6 +28,8 @@ pytestmark = pytest.mark.timeout(120)
             (True, None, "function"),
             (True, 16, "function"),
             (False, None, "function"),
+            (True, None, "class"),
+            (True, 16, "class"),
             ]
         )
 def test_eeglab_data(load_weights, n_components, entrypoint):
@@ -77,12 +79,19 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
         W = results["W"]
         A = results["A"]
     elif entrypoint == "class":
-        transformer = AMICA(n_components=n_components)
+        transformer = AMICA(
+            n_components=n_components,
+            max_iter=200,
+            w_init=initial_weights if load_weights else None,
+            sbeta_init=initial_scales if load_weights else None,
+            mu_init=initial_locations if load_weights else None,
+            random_state=12345,  # Only used if initial_* are None
+            )
         transformer.fit(dataseg)
         mean = transformer.mean_
         S = transformer.whitening_
         A = transformer.mixing_
-        W = transformer._unmixing
+        W = transformer._unmixing[:, :, None] # Expand dims to match Fortran shape
 
     LL_f = fortran_results["LL"]        # Log-likelihood
     mean_f = fortran_results["mean"]    # Channel means
@@ -102,7 +111,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
     
     # These should be equal regardless of initialization
     assert_almost_equal(mean, mean_f)
-    assert_almost_equal(S, S_f)
+    assert_almost_equal(S[:want_components], S_f[:want_components])
     # Only accessible when using function entrypoint
     if entrypoint == "function":
         assert_almost_equal(results["c"], c_f)
@@ -234,7 +243,10 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
 @pytest.mark.parametrize(
         "n_samples, noise_factor, entrypoint",
         [
-            (10_000, 0.05, "function"), (5_000, None, "function")
+            (10_000, 0.05, "function"),
+            (5_000, None, "function"),
+            (10_000, 0.05, "class"),
+            (5_000, None, "class"),
             ]
             )
 def test_simulated_data(n_samples, noise_factor, entrypoint):
@@ -292,11 +304,19 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
         S_f = fortran_results["S"]
         assert_allclose(S, S_f)
     else:
-        transformer = AMICA(n_components=2, whiten=False, mean_center=False)
+        transformer = AMICA(
+            n_components=2,
+            whiten=False,
+            mean_center=False,
+            max_iter=500,
+            w_init=weights,
+            sbeta_init=scales,
+            mu_init=locations,
+            )
         transformer.fit(x)
         S = transformer.whitening_
         A = transformer.mixing_
-        W = transformer._unmixing
+        W = transformer._unmixing[:, :, None]  # Expand dims to match Fortran shape
 
     assert_allclose(A, A_f, rtol=0.1)
     assert_allclose(W, W_f, rtol=0.1)

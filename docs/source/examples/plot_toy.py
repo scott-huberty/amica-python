@@ -42,7 +42,7 @@ fortran_results = amica.utils.load_fortran_results(
     data_dir, n_components=2, n_mixtures=3
     )
 W_f = fortran_results["W"][:, :, 0]
-y2 = np.dot(x, np.dot(W_f, fortran_results["S"]).T)
+y2 = x @ (W_f @ fortran_results["S"]).T
 
 
 # %%
