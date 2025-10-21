@@ -682,7 +682,7 @@ def compute_scaled_scores(
     ufp = weighted_scores
     assert ufp.ndim == 3, f"ufp must be 3D, got {ufp.ndim}D"
     assert sbeta.ndim == 2, f"sbeta must be 2D, got {sbeta.ndim}D"
-    assert ufp[0,:,:].squeeze().shape == sbeta.shape, (
+    assert ufp[0,:,:].shape == sbeta.shape, (
         f"ufp shape {ufp.shape} and sbeta shape {sbeta.shape} are incompatible"
     )
     g = torch.sum(ufp * sbeta, dim=-1)
@@ -910,12 +910,23 @@ def accumulate_mu_stats(
                 )
             # Clamp y to avoid divide-by-zero and re-compute mu_denom_sum
             signs = torch.sign(y)
-            # Float32 needs an epsilon that it can actually represent
-            eps = 1e-10 if y.dtype == torch.float64 else 1e-6
-            y = torch.clamp(torch.abs(y), min=eps, out=y)
-            y *= signs
-            mu_denom_sum = torch.sum(ufp / y, dim=0)
+            no_sign = torch.nonzero(signs == 0)
+            signs[no_sign] = 1.0
 
+            epsdble = torch.finfo(y.dtype).eps
+            y = signs * (abs(y) + epsdble)
+            mu_denom_sum = torch.sum(ufp / y, dim=0)
+        if torch.any(~torch.isfinite(mu_denom_sum)):
+            raise RuntimeError(
+                "Non-finite values still present in mu (locations) update "
+                "after clamping; aborting."
+            )
+        if torch.any(mu_denom_sum == 0.0):
+            warn(
+                "Zero value in mu denominator during update. Adding small epsilon to avoid"
+                "NaNs."
+            )
+            mu_denom_sum += torch.finfo(mu_denom_sum.dtype).eps
         tmpsum_mu_denom = (sbeta * mu_denom_sum)
         out_denom += tmpsum_mu_denom
     else:

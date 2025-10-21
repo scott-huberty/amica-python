@@ -13,7 +13,7 @@ from numpy.testing import assert_almost_equal, assert_allclose
 
 import pytest
 
-from amica import fit_amica
+from amica import AMICA, fit_amica
 from amica.linalg import pre_whiten
 from amica.datasets import data_path
 from amica.utils import generate_toy_data, load_initial_weights, load_fortran_results
@@ -23,14 +23,16 @@ pytestmark = pytest.mark.timeout(120)
 
 
 @pytest.mark.parametrize(
-        "load_weights, n_components",
+        "load_weights, n_components, entrypoint",
         [
-            (True, None),
-            (True, 16),
-            (False, None),
+            (True, None, "function"),
+            (True, 16, "function"),
+            (False, None, "function"),
+            (True, None, "class"),
+            (True, 16, "class"),
             ]
         )
-def test_amica_full_algorithm(load_weights, n_components):
+def test_eeglab_data(load_weights, n_components, entrypoint):
     """
     Test the complete AMICA algorithm by executing the full main script.
     
@@ -54,25 +56,42 @@ def test_amica_full_algorithm(load_weights, n_components):
         )
     # Load weights
     initial_weights, initial_scales, initial_locations = load_initial_weights(
-        amica_outdir,
-        n_components=want_components,
-        n_mixtures=3
+        amica_outdir,n_components=want_components, n_mixtures=3
     )
     
     # Run AMICA
-    results = fit_amica(
-        X=dataseg,
-        n_components=n_components,
-        max_iter=200,
-        tol=1e-7,
-        lrate=0.05,
-        rholrate=0.05,
-        newtrate=1.0,
-        initial_weights=initial_weights if load_weights else None,
-        initial_scales=initial_scales if load_weights else None,
-        initial_locations=initial_locations if load_weights else None,
-        random_state=12345,  # Only used if initial_* are None
-        )
+    if entrypoint == "function":
+        results = fit_amica(
+            X=dataseg,
+            n_components=n_components,
+            max_iter=200,
+            tol=1e-7,
+            lrate=0.05,
+            rholrate=0.05,
+            newtrate=1.0,
+            w_init=initial_weights if load_weights else None,
+            sbeta_init=initial_scales if load_weights else None,
+            mu_init=initial_locations if load_weights else None,
+            random_state=12345,  # Only used if initial_* are None
+            )
+        mean = results["mean"]
+        S = results["S"]
+        W = results["W"]
+        A = results["A"]
+    elif entrypoint == "class":
+        transformer = AMICA(
+            n_components=n_components,
+            max_iter=200,
+            w_init=initial_weights if load_weights else None,
+            sbeta_init=initial_scales if load_weights else None,
+            mu_init=initial_locations if load_weights else None,
+            random_state=12345,  # Only used if initial_* are None
+            )
+        transformer.fit(dataseg)
+        mean = transformer.mean_
+        S = transformer.whitening_
+        A = transformer.mixing_
+        W = transformer._unmixing[:, :, None] # Expand dims to match Fortran shape
 
     LL_f = fortran_results["LL"]        # Log-likelihood
     mean_f = fortran_results["mean"]    # Channel means
@@ -91,31 +110,36 @@ def test_amica_full_algorithm(load_weights, n_components):
     comp_list_f = np.reshape(comp_list_f, (want_components, 2), order="F")
     
     # These should be equal regardless of initialization
-    assert_almost_equal(results["mean"], mean_f)
-    assert_almost_equal(results["S"], S_f)
-    assert_almost_equal(results["c"], c_f)
-    assert results["gm"] == gm_f == np.array([1.])
+    assert_almost_equal(mean, mean_f)
+    assert_almost_equal(S[:want_components], S_f[:want_components])
+    # Only accessible when using function entrypoint
+    if entrypoint == "function":
+        assert_almost_equal(results["c"], c_f)
+        assert results["gm"] == gm_f == np.array([1.])
 
     # The rest depend on initialization    
     if load_weights:
-        assert_almost_equal(results["LL"], LL_f, decimal=4)
-        assert_allclose(results["LL"], LL_f, atol=1e-4)
-        assert_almost_equal(results["A"], A_f, decimal=2)
-        assert_almost_equal(results["W"], W_f, decimal=2)
-        assert_almost_equal(results["alpha"], alpha_f, decimal=2)
-        assert_almost_equal(results["sbeta"], sbeta_f, decimal=1)
-        assert_almost_equal(results["mu"], mu_f, decimal=0)
-        assert_almost_equal(results["rho"], rho_f, decimal=2)
+        assert_almost_equal(A, A_f, decimal=2)
+        assert_almost_equal(W, W_f, decimal=2)
+        # The rest are only exposed via function entrypoint
+        if entrypoint == "function":
+            assert_almost_equal(results["LL"], LL_f, decimal=4)
+            assert_allclose(results["LL"], LL_f, atol=1e-4)
+            assert_almost_equal(results["alpha"], alpha_f, decimal=2)
+            assert_almost_equal(results["sbeta"], sbeta_f, decimal=1)
+            assert_almost_equal(results["mu"], mu_f, decimal=0)
+            assert_almost_equal(results["rho"], rho_f, decimal=2)
     else:
-        assert_allclose(results["LL"], LL_f, rtol=1e-2)
-        assert_allclose(results["A"], A_f, atol=0.9)
-        assert_allclose(results["W"], W_f, atol=0.9)
-        assert_allclose(results["alpha"], alpha_f, atol=.4)
-        assert_allclose(results["sbeta"], sbeta_f, atol=0.9)
-        assert_allclose(results["mu"], mu_f, atol=1.6)
-        assert_allclose(results["rho"], rho_f, atol=1)
-
-    if n_components == 16:
+        assert_allclose(A, A_f, atol=0.9)
+        assert_allclose(W, W_f, atol=0.9)
+        if entrypoint == "function":
+            assert_allclose(results["LL"], LL_f, rtol=1e-2)
+            assert_allclose(results["alpha"], alpha_f, atol=.4)
+            assert_allclose(results["sbeta"], sbeta_f, atol=0.9)
+            assert_allclose(results["mu"], mu_f, atol=1.6)
+            assert_allclose(results["rho"], rho_f, atol=1)
+    # Everything past this point is just figure generation for visual inspection
+    if n_components == 16 or entrypoint == "class":
         return
 
     out_dir = data_path() / "figs"
@@ -216,9 +240,16 @@ def test_amica_full_algorithm(load_weights, n_components):
     plt.close(fig)
 
 
-
-@pytest.mark.parametrize("n_samples, noise_factor", [(10_000, 0.05), (5_000, None)])
-def test_simulated_data(n_samples, noise_factor):
+@pytest.mark.parametrize(
+        "n_samples, noise_factor, entrypoint",
+        [
+            (10_000, 0.05, "function"),
+            (5_000, None, "function"),
+            (10_000, 0.05, "class"),
+            (5_000, None, "class"),
+            ]
+            )
+def test_simulated_data(n_samples, noise_factor, entrypoint):
     """Test AMICA on simulated data and compare to Fortran results.
     
 
@@ -239,72 +270,93 @@ def test_simulated_data(n_samples, noise_factor):
     fortran_results = load_fortran_results(
         amicaout_dir, n_components=2, n_mixtures=3
         )
-
-
-    results = fit_amica(
-    x, centering=False, whiten=False, max_iter=500,
-    initial_weights=weights, initial_scales=scales, initial_locations=locations,
-    )
-
     assert np.all(fortran_results["mean"] == 0)
-
-    S = results["S"]
-    mu = results["mu"]
-    rho = results["rho"]
-    sbeta = results["sbeta"]
-    W = results["W"]
-    A = results["A"]
-    c = results["c"]
-    alpha = results["alpha"]
-    LL = results["LL"]
-    # Compare to Fortran results
-    S_f = fortran_results["S"]
-    assert_allclose(S, S_f)
-
+    # Unpack Fortran results
     A_f = fortran_results["A"]
-    assert_allclose(A, A_f, rtol=0.1)
-
     W_f = fortran_results["W"]
-    assert_allclose(W, W_f, rtol=0.1)
-
     alpha_f = fortran_results["alpha"]
-    assert_allclose(alpha, alpha_f, rtol=0.5)
-
     sbeta_f = fortran_results["sbeta"]
-    assert_allclose(sbeta, sbeta_f, rtol=0.5)
-
     mu_f = fortran_results["mu"]
-    assert_allclose(mu, mu_f, rtol=0.1)
-
     rho_f = fortran_results["rho"]
-    assert_allclose(rho, rho_f, rtol=0.5)
-
-
     LL_f = fortran_results["LL"]
+
+    # Run AMICA
+    if entrypoint == "function":
+        results = fit_amica(
+            x,
+            mean_center=False,
+            whiten=False,
+            max_iter=500,
+            w_init=weights,
+            sbeta_init=scales,
+            mu_init=locations,
+        )
+        S = results["S"]
+        mu = results["mu"]
+        rho = results["rho"]
+        sbeta = results["sbeta"]
+        W = results["W"]
+        A = results["A"]
+        c = results["c"]
+        alpha = results["alpha"]
+        LL = results["LL"]
+        # Compare to Fortran results
+        S_f = fortran_results["S"]
+        assert_allclose(S, S_f)
+    else:
+        transformer = AMICA(
+            n_components=2,
+            whiten=False,
+            mean_center=False,
+            max_iter=500,
+            w_init=weights,
+            sbeta_init=scales,
+            mu_init=locations,
+            )
+        transformer.fit(x)
+        S = transformer.whitening_
+        A = transformer.mixing_
+        W = transformer._unmixing[:, :, None]  # Expand dims to match Fortran shape
+
+    assert_allclose(A, A_f, rtol=0.1)
+    assert_allclose(W, W_f, rtol=0.1)
+    # These are only exposed via function entrypoint
+    if entrypoint == "function":
+        assert_allclose(alpha, alpha_f, rtol=0.5)
+        assert_allclose(sbeta, sbeta_f, rtol=0.5)    
+        assert_allclose(mu, mu_f, rtol=0.1)    
+        assert_allclose(rho, rho_f, rtol=0.5)
+
+    if entrypoint == "function":
+         iterations_python = np.count_nonzero(LL)
+    else:
+        iterations_python = transformer.n_iter_
     iterations_fortran = np.count_nonzero(LL_f)
-    iterations_python = np.count_nonzero(LL)
+   
     # We have to be very lenient here because of the instability across runs..
     # The source of the instability should be investigated further. It might be
     # due to numerical issues in the updates, especially when denominators get small.
     if n_samples == 10_000:
         assert iterations_python < 500
-        assert_allclose(LL[:2], LL_f[:2], rtol=.006, atol=1e-7)
-        assert_allclose(LL[:10], LL_f[:10], rtol=20, atol=1e-7)
-        assert_allclose(LL[:30], LL_f[:30], atol=6)
-        assert_allclose(LL[:200], LL_f[:200], atol=6)
+        if entrypoint == "function":
+            assert_allclose(LL[:2], LL_f[:2], rtol=.006, atol=1e-7)
+            assert_allclose(LL[:10], LL_f[:10], rtol=20, atol=1e-7)
+            assert_allclose(LL[:30], LL_f[:30], atol=6)
+            assert_allclose(LL[:200], LL_f[:200], atol=6)
     
     elif n_samples == 5_000:
         # Both programs solved the problem around ~205 iterations
         assert np.abs(iterations_fortran - iterations_python) < 3
-        # The first 2 iterations we are very close
-        assert_allclose(LL[:2], LL_f[:2])
-        # Then we start to diverge a bit...
-        assert_allclose(LL[:10], LL_f[:10], 1e-4)
-        # By iteration 30 our paths are quite different
-        assert_allclose(LL[:30], LL_f[:30], rtol=.1)
-        # The end our final log likelihoods have diverged a lot
-        assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
-        # AFAICT, this is because of compounding numerical differences in the updates
+        if entrypoint == "function":
+            # The first 2 iterations we are very close
+            assert_allclose(LL[:2], LL_f[:2])
+            # Then we start to diverge a bit...
+            assert_allclose(LL[:10], LL_f[:10], 1e-4)
+            # By iteration 30 our paths are quite different
+            assert_allclose(LL[:30], LL_f[:30], rtol=.1)
+            # The end our final log likelihoods have diverged a lot
+            assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
+            # AFAICT, this is because of compounding numerical differences in the updates
     
 
 @pytest.mark.parametrize(
