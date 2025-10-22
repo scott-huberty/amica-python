@@ -1,0 +1,19 @@
+name: Setup project environment
+description: Sets up Python, installs uv, and configures caching for the workflow
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.8.22"
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+    - uses: actions/cache@v4
+      with:
+        path: /tmp/.uv-cache
+        key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: uv-${{ runner.os }}-
