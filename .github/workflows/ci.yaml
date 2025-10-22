@@ -26,7 +26,7 @@ jobs:
       - name: Run ruff
         run: |
           source .venv/bin/activate
-          ruff --check src/amica
+          ruff check src/amica
 
   test:
     runs-on: ${{ matrix.os }}
