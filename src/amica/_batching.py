@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from typing import Union
+from warnings import warn
 
 import numpy as np
 import psutil
@@ -182,7 +183,7 @@ def choose_batch_size(
     min_batch_size = max(8192, n_comps * 32)  # at least 32 samples per component
     min_batch_size = min(min_batch_size, N)  # Cannot exceed N
     if batch_size < min_batch_size:
-        print(
+        warn(
             f"Warning: To stay within the memory cap, batch size is {batch_size} "
             f"samples, which is below the recommended minimum of {min_batch_size}."
         )
