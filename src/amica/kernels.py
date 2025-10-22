@@ -1,34 +1,34 @@
+"""AMICA core computational kernels."""
+from typing import Literal
 from warnings import warn
 
 import torch
 
-from typing import Optional, Tuple, Literal
-
 from amica._types import (
-    DataArray2D,
-    WeightsArray,
     ComponentsVector,
-    SourceArray2D,
-    SourceArray3D,
+    DataArray2D,
+    LikelihoodArray,
     ParamsArray,
     ParamsModelArray,
     SamplesVector,
-    LikelihoodArray,
+    SourceArray2D,
+    SourceArray3D,
+    WeightsArray,
 )
-
 from amica.constants import LOG_2, LOG_SQRT_PI
+
 
 def compute_preactivations(
         *,
         X: DataArray2D,  # (n_features, n_samples)
         unmixing_matrix: WeightsArray,  # (n_components, n_features)
         bias: ComponentsVector,  # (n_components,)
-        do_reject=False, 
+        do_reject=False,
         n_weights=None,
-        out_activations: Optional[SourceArray2D] = None,  # (n_samples, n_components)
+        out_activations: SourceArray2D | None = None,  # (n_samples, n_components)
 ) -> SourceArray2D:
     """Compute source pre-activations b[t, :] = X_t^T @ W^T - wc for model h.
-    
+
     Parameters
     ----------
     X : array, shape (n_samples, n_features)
@@ -44,7 +44,7 @@ def compute_preactivations(
         i.e. all n_features columns of the input array X. If specified, X
         will be sliced to use only the first n_weights columns. This is `nw` in the
         Fortran program.
-    
+
     Returns
     -------
     b : array, shape (T, N)
@@ -70,17 +70,17 @@ def compute_preactivations(
 
     if do_reject:
         #--------------------------FORTRAN CODE-------------------------
-        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg)%goodinds(xstrt:xstp)),nx, &
+        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,dataseg(seg...
         #       W(:,:,h),nw,dble(1.0),b(bstrt:bstp,:,h),tblksize)
         #---------------------------------------------------------------
         raise NotImplementedError("do_reject (rejecting bad data) is not implemented.")
     else:
         # Multiply the transpose of the data w/ the transpose of the unmixing matrix
         #--------------------------FORTRAN CODE-------------------------
-        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp),nx,W(:,:,h),nw,dble(1.0), &
+        # call DGEMM('T','T',tblksize,nw,nw,dble(1.0),dataseg(seg)%data(:,xstrt:xstp)...
         #    b(bstrt:bstp,:,h),tblksize)
         #---------------------------------------------------------------
-        
+
         # Matrix multiplication to get pre-activations
         # This is equivalent to (f=features, t=samples, c=components):
         # Same as np.einsum("ft,cf->tc", dataseg, W)
@@ -100,13 +100,13 @@ def compute_source_densities(
         alpha: ParamsArray,
         rho: ParamsArray,
         comp_slice: slice, # TODO: pass in the pre-indexed arrays instead
-        ) -> Tuple[SourceArray3D, SourceArray3D]:
+        ) -> tuple[SourceArray3D, SourceArray3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
      Compute logits = log alpha + log p(y) for each component and mixture. Default to
      generalized Gaussian, then overwrite Laplacian/Gaussian positions using masks.
      This way is faster since vast majority of values are generalized Gaussian.
-    
+
     Parameters
     ----------
     pdftype : int
@@ -126,20 +126,23 @@ def compute_source_densities(
     comp_slice : slice
         slice containing component indices for the current model.
     out_sources : np.ndarray
-        Buffer to write scaled sources into. Shape (n_samples, n_components, n_mixtures).
+        Buffer to write scaled sources into. Shape (n_samples, n_components,
+        n_mixtures).
         This array is modified in-place. This is the `y` array in the Fortran code.
     out_logits : np.ndarray
-        Buffer to write per-mixture log-densities into. Shape (n_samples, n_components, n_mixtures).
+        Buffer to write per-mixture log-densities into. Shape (n_samples, n_components,
+        n_mixtures).
         This array is modified in-place. This is the `z0` array in the Fortran code.
 
     Returns
     -------
     scaled_sources : np.ndarray
-        The modified y array containing scaled sources (n_samples, n_components, n_mixtures).
+        The modified y array containing scaled sources (n_samples, n_components,
+        n_mixtures).
     log_densities : np.ndarray
         unnormalized log-probabilies (i.e. posteriors) per mixtures. this is the
         out_z0 array modified in-place (n_samples, n_components, n_mixtures).
-    
+
     Notes
     -----
     logits/log_densities == z0 in Fortran code.
@@ -151,19 +154,27 @@ def compute_source_densities(
     N1 = b.shape[0]
     nw = b.shape[1]
     num_mix = alpha.shape[1]
-    
+
     # Shape assertions for new dimension standard
     # These parameters are the full arrays, not indexed yet
     assert alpha.shape[0] >= nw, f"alpha.shape[0]={alpha.shape[0]} must be >= nw={nw}"
-    assert alpha.shape[1] == num_mix, f"alpha.shape[1]={alpha.shape[1]} != num_mix={num_mix}"
-    assert sbeta.shape == alpha.shape, f"sbeta shape {sbeta.shape} != alpha shape {alpha.shape}"
-    assert mu.shape == alpha.shape, f"mu shape {mu.shape} != alpha shape {alpha.shape}"
-    assert rho.shape == alpha.shape, f"rho shape {rho.shape} != alpha shape {alpha.shape}"
+    assert alpha.shape[1] == num_mix, (
+        f"alpha.shape[1]={alpha.shape[1]} != num_mix={num_mix}"
+        )
+    assert sbeta.shape == alpha.shape, (
+        f"sbeta shape {sbeta.shape} != alpha shape {alpha.shape}"
+        )
+    assert mu.shape == alpha.shape, (
+        f"mu shape {mu.shape} != alpha shape {alpha.shape}"
+        )
+    assert rho.shape == alpha.shape, (
+        f"rho shape {rho.shape} != alpha shape {alpha.shape}"
+        )
     assert b.shape == (N1, nw), f"b shape {b.shape} != (N1={N1}, nw={nw})"
-    
+
     # We have 3 possible log-probability functions
     def generalized_gaussian_logprob(sources, log_alpha, log_sbeta, rho):
-        """log p(y) = log(alpha) + log(sbeta) - |y|^rho - log( Gamma(1+1/rho) ) + log(2)"""
+        """Log p(y) = log(alpha)+log(sbeta)-|y|^rho-log( Gamma(1+1/rho) ) + log(2)."""
         # log(|y|)
         out_logits = torch.abs(sources)
         torch.log(out_logits, out=out_logits)
@@ -178,19 +189,19 @@ def compute_source_densities(
         return out_logits
 
     def laplacian_logprob(sources, log_alpha, log_sbeta, out_logits):
-        """log p(y) = log(alpha) + log(sbeta) - |y| - log(2)"""
+        """Log p(y) = log(alpha) + log(sbeta) - |y| - log(2)."""
         torch.abs(sources, out=out_logits)
         torch.subtract(log_alpha + log_sbeta, out_logits, out=out_logits)
         torch.subtract(out_logits, LOG_2, out=out_logits)
         return out_logits
 
     def gaussian_logprob(sources, log_alpha, log_sbeta, out_logits):
-        """log p(y) = log(alpha) + log(sbeta) - y^2 - log(sqrt(pi))"""
+        """Log p(y) = log(alpha) + log(sbeta) - y^2 - log(sqrt(pi))."""
         torch.square(sources, out=out_logits)
         torch.subtract(log_alpha + log_sbeta, out_logits, out=out_logits)
         torch.subtract(out_logits, LOG_SQRT_PI, out=out_logits)
         return out_logits
-  
+
     # ---------------------------FORTRAN CODE-------------------------
     # !--- get y z
     # do i = 1,nw
@@ -199,18 +210,18 @@ def compute_source_densities(
     #-----------------------------------------------------------------
     if pdftype == 0: # Gaussian
         #--------------------------FORTRAN CODE-------------------------
-        # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,comp_list(i,h)) )
+        # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,...
         #---------------------------------------------------------------
         # 1. Select the components for this model.
         alpha_h = alpha[comp_slice, :]
         rho_h = rho[comp_slice, :] # All mixtures, components for this model
         sbeta_h = sbeta[comp_slice, :]      # Shape: (nw, num_mix)
         mu_h = mu[comp_slice, :]            # Shape: (nw, num_mix)
-        
+
         # 1. Center and scale the source estimates (In-place)
         out_sources = torch.subtract(b[:, :, None], mu_h[None, :, :])
         torch.multiply(sbeta_h, out_sources, out=out_sources)
-        
+
         #------------------Mixture Log-Likelihood for each component----------------
 
         #--------------------------FORTRAN CODE-------------------------
@@ -227,10 +238,15 @@ def compute_source_densities(
             raise RuntimeError("Non-finite log scales encountered.")
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = (torch.isclose(rho_h, torch.tensor(1.0, dtype=torch.float64), atol=1e-12))
-        gau_mask = (torch.isclose(rho_h, torch.tensor(2.0, dtype=torch.float64), atol=1e-12))
+        lap_mask = torch.isclose(
+            rho_h, torch.tensor(1.0, dtype=torch.float64), atol=1e-12
+            )
 
-        # Default: generalized Gaussian log-prob + log mixture weight 
+        gau_mask = (
+            torch.isclose(rho_h, torch.tensor(2.0, dtype=torch.float64), atol=1e-12)
+            )
+
+        # Default: generalized Gaussian log-prob + log mixture weight
         # This is all or the vast majority of values, so just compute gen gau over all
         # and then overwrite lap/gau where needed using a small loop
         out_logits = generalized_gaussian_logprob(
@@ -266,7 +282,9 @@ def compute_source_densities(
     elif pdftype == 3:
         raise NotImplementedError()
     else:
-        raise ValueError(f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported.")
+        raise ValueError(
+            f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported."
+            )
     # end select
     # !--- end for j
     return out_sources, out_logits
@@ -275,13 +293,13 @@ def compute_source_densities(
 def compute_model_loglikelihood_per_sample(
         *,
         log_densities: SourceArray3D,
-        out_modloglik: Optional[SamplesVector] = None,
+        out_modloglik: SamplesVector | None = None,
 ):
     """Compute the per-sample log-likelihood for a single model h.
 
     Computes Logsumexp across mixtures for each component, then sums across components
     to get the per-sample log-likelihood for this model.
-    
+
     Parameters
     ----------
     log_densities : array, shape (N1, nw, num_mix)
@@ -291,9 +309,10 @@ def compute_model_loglikelihood_per_sample(
         If None, a new array is allocated, but note that AMICA expects this array
         to be pre-filled with an initial value. See get_initial_model_log_likelihood.
     """
-    assert log_densities.ndim == 3, f"log_densities must be 3D, got {log_densities.ndim}D"
+    assert log_densities.ndim == 3, (
+        f"log_densities must be 3D, got {log_densities.ndim}D"
+        )
     N1 = log_densities.shape[0]
-    nw = log_densities.shape[1]
     if out_modloglik is None:
         out_modloglik = torch.zeros((N1,), dtype=torch.float64)
     assert out_modloglik.shape == (N1,)
@@ -319,7 +338,7 @@ def compute_mixture_responsibilities(
         ) -> SourceArray3D:
     """
     Convert per-mixture log-densities to responsibilities via softmax.
-    
+
     Mutates log_densities in-place and returns it if inplace=True (default).
 
     Parameters
@@ -336,7 +355,9 @@ def compute_mixture_responsibilities(
         Per-sample, per-component, per-mixture responsibilities.
         Each slice [:, i, :] sums to 1 over dim=-1 (mixtures).
     """
-    assert log_densities.ndim == 3, f"log_densities must be (N1, nw, num_mix), got {log_densities.shape}"
+    assert log_densities.ndim == 3, (
+        f"log_densities must be (N1, nw, num_mix), got {log_densities.shape}"
+        )
     num_mix = log_densities.shape[-1]
     if inplace:
         # Use z as workspace: log-densities mutates into responsibilities
@@ -354,11 +375,11 @@ def compute_mixture_responsibilities(
 def compute_total_loglikelihood_per_sample(
         *,
         modloglik: LikelihoodArray,
-        out_loglik: Optional[SamplesVector] = None,
+        out_loglik: SamplesVector | None = None,
 ) -> SamplesVector:
     """
     Compute the total log-likelihood for each sample marginalized across models.
-    
+
     Implements a stable log-sum-exp across the model dim for each sample.
 
     Parameters
@@ -368,12 +389,12 @@ def compute_total_loglikelihood_per_sample(
     out_loglik : array, shape (n_samples,)
         Output buffer. If provided, results are written in-place and returned. Must be
         float64 and length n_samples. If None, a new array is allocated.
-    
+
     Returns
     -------
     loglik : array, shape (n_samples,)
         Total log-likelihood across models per sample.
-    
+
     Notes
     -----
     Fortran reference:
@@ -414,7 +435,7 @@ def compute_total_loglikelihood_per_sample(
 
 
 def compute_model_responsibilities(
-        *, modloglik: LikelihoodArray, out: Optional[LikelihoodArray] = None
+        *, modloglik: LikelihoodArray, out: LikelihoodArray | None = None
         ) -> LikelihoodArray:
     """
     Compute model responsibilities via softmax over models.
@@ -423,12 +444,12 @@ def compute_model_responsibilities(
     ----------
     modloglik : array, shape (n_samples, n_models)
         Per-sample, per-model log-likelihoods.
-    
+
     Returns
     -------
     responsibilities : array, shape (n_samples, n_models)
         Per-sample, per-model responsibilities (posterior probabilities).
-    
+
     Notes
     -----
     Fortran reference:
@@ -490,7 +511,7 @@ def compute_weighted_responsibilities(
         the model responsibility. This is `u` in the Fortran code. Note that if
         `single_model` is True, weighted_responsibilities is a view of
         mixture_responsibilities (no copy is made).
-    
+
     Notes
     -----
     Fortran reference:
@@ -508,7 +529,7 @@ def compute_weighted_responsibilities(
     )
     # fast-path: for num_models == 1, v is all ones and thus u == z
     if single_model:
-        return z  # NOTE: returns a view of z, no copy 
+        return z  # NOTE: returns a view of z, no copy
     else:
         # Weight mixture responsibilities by model responsibility
         u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
@@ -527,14 +548,16 @@ def compute_source_scores(
     Parameters
     ----------
     pdftype : int
-        Probability density function type. Currently, only pdftype=0 (Gaussian) is supported.
+        Probability density function type. Currently, only pdftype=0 (Gaussian) is
+        supported.
     y : np.ndarray
-        Scaled sources for the current model, of shape (n_samples, n_components, n_mixtures).
-        Not modified.
+        Scaled sources for the current model, of shape (n_samples, n_components,
+        n_mixtures). Not modified.
     rho : np.ndarray
         Shape parameters of shape (n_components, n_mixtures). Not modified.
     comp_slice : slice
         Slice object containing component indices for the current model.
+
     Returns
     -------
     out_scores : np.ndarray
@@ -549,17 +572,17 @@ def compute_source_scores(
 
     # !--- get fp, zfp
     if pdftype == 0:
-        #-------------------------------FORTRAN CODE-------------------------------------
+        #-------------------------------FORTRAN CODE------------------------------------
         # if (rho(j,comp_list(i,h)) == dble(1.0)) then
         # fp(bstrt:bstp) = sign(dble(1.0),y(bstrt:bstp,i,j,h))
         # else if (rho(j,comp_list(i,h)) == dble(2.0)) then
         # fp(bstrt:bstp) = y(bstrt:bstp,i,j,h) * dble(2.0)
         # else
         # tmpvec(bstrt:bstp) = log(abs(y(bstrt:bstp,i,j,h)))
-        # tmpvec2(bstrt:bstp) = exp((rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:bstp))
-        # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)) *
-        #--------------------------------------------------------------------------------
-        
+        # tmpvec2(bstrt:bstp) = exp((rho(j,comp_list(i,h))-dble(1.0))*tmpvec(bstrt:...
+        # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)...
+        #-------------------------------------------------------------------------------
+
         # Get components for this model
         rho_h = rho[comp_slice, :]
 
@@ -567,7 +590,7 @@ def compute_source_scores(
         lap_mask = (torch.isclose(rho_h, torch.tensor(1.0), atol=1e-12))
         gau_mask = (torch.isclose(rho_h, torch.tensor(2.0), atol=1e-12))
 
-        # Default: generalized Gaussian score function        
+        # Default: generalized Gaussian score function
         # Step 1. Compute |y|^(rho_h - 1) in-place
         out_scores = torch.abs(y)                  # out_scores = |y|
         torch.log(out_scores, out=out_scores)         # log(|y|)
@@ -576,7 +599,7 @@ def compute_source_scores(
 
         # Step 2. Multiply by rho_h and sign(y) without np.sign allocation
         out_scores *= rho_h * torch.where(y >= 0, 1.0, -1.0)
-        
+
         # Overwrite with Laplacian/Gaussian score function where needed
         # This is usually a small loop, and ensures we get a view of the arrays
         if lap_mask.any():
@@ -605,7 +628,7 @@ def precompute_weighted_scores(
         *,
         scores: SourceArray3D,
         weighted_responsibilities: SourceArray3D,
-        out_ufp: Optional[SourceArray3D] = None,
+        out_ufp: SourceArray3D | None = None,
 ) -> SourceArray3D:
     """
     Compute the weighted score function and g update for the current model.
@@ -657,7 +680,7 @@ def compute_scaled_scores(
         ) -> SourceArray2D:
     """
     Weigh ufp by the per-component mixture scale parameters (sbeta).
-    
+
     Parameters
     ----------
     weighted_scores : torch.Tensor
@@ -665,13 +688,13 @@ def compute_scaled_scores(
         shape (n_samples, n_components, n_mixtures). Not modified.
     scales : torch.Tensor
         Scale parameters (sbeta) of shape (n_components, n_mixtures). Not modified.
-    
+
     Returns
     -------
     torch.Tensor
         The scaled scores (g) of shape (n_samples, n_components), i.e. ufp further
         weighted by the per-component summed-mixture scale parameters.
-    
+
     Notes
     -----
     Fortran reference:
@@ -696,10 +719,10 @@ def accumulate_c_stats(
         model_responsibilities: SamplesVector,
         vsum: float,
         do_reject: bool = False,
-        n_weights: Optional[int] = None,
+        n_weights: int | None = None,
         out_numer: ComponentsVector,
         out_denom: ComponentsVector,
-        ) -> Tuple[ParamsModelArray, ParamsModelArray]:
+        ) -> tuple[ParamsModelArray, ParamsModelArray]:
     """
     Get sufficient statistics for model bias vector c.
 
@@ -724,16 +747,16 @@ def accumulate_c_stats(
     out_denom : np.ndarray
         Shape (n_components,). Accumulator for the denominator of the c
         gradient for one model. This array is mutated in-place and returned.
-    
+
     Returns
     -------
     out_numer : np.ndarray
         Sum of X weighted by the model responsibilities (n_features, n_features).
         This is out_numer mutated in-place.
     out_denom : np.ndarray
-        Total responsibility mass for the model, broadcasted to (n_components, n_mixtures)
-        This is out_denom mutated in-place.
-    
+        Total responsibility mass for the model, broadcasted to (n_components,
+        n_mixtures). This is out_denom mutated in-place.
+
     Notes
     -----
     Fortran reference:
@@ -779,10 +802,10 @@ def accumulate_alpha_stats(
         vsum: torch.float64,
         out_numer: ParamsArray,
         out_denom: ParamsArray
-        ) -> Tuple[ParamsArray, ParamsArray]:
+        ) -> tuple[ParamsArray, ParamsArray]:
     """
     Accumulate sufficient statistics for alpha (mixture weights) update.
-    
+
     Parameters
     ----------
     usum : np.ndarray
@@ -797,7 +820,7 @@ def accumulate_alpha_stats(
     out_denom : np.ndarray
         Shape (nw, num_mix). Accumulator for the denominator of the alpha
         gradient. This array is mutated in-place and returned.
-    
+
     Returns
     -------
     out_numer : np.ndarray
@@ -806,14 +829,14 @@ def accumulate_alpha_stats(
     out_denom : np.ndarray
         Updated denominator accumulator (n_components, n_mixtures). This is
         out_denom mutated in-place.
-    
+
     Notes
     -----
     Fortran reference:
         for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
-            dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) + usum
-            dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) + vsum
-    
+            dalpha_numer_tmp(j,comp_list(i,h)) = dalpha_numer_tmp(j,comp_list(i,h)) +...
+            dalpha_denom_tmp(j,comp_list(i,h)) = dalpha_denom_tmp(j,comp_list(i,h)) +...
+
     ..Warning::
         If you pass a slice created via fancy indexing, NumPy will return a copy, so you
         must reassign the result back into the parent array.
@@ -841,10 +864,10 @@ def accumulate_mu_stats(
         y: SourceArray3D,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
-        ) -> Tuple[ParamsArray, ParamsArray]:
+        ) -> tuple[ParamsArray, ParamsArray]:
     """
     Accumulate sufficient statistics for mu (location) update.
-    
+
     Parameters
     ----------
     ufp : np.ndarray
@@ -863,7 +886,7 @@ def accumulate_mu_stats(
     out_denom : np.ndarray
         Shape (n_components, n_mixtures). Accumulator for the denominator of the
         mu gradient. This array is mutated in-place and returned.
-    
+
     Returns
     -------
     out_numer : np.ndarray
@@ -872,15 +895,15 @@ def accumulate_mu_stats(
     out_denom : np.ndarray
         Updated denominator accumulator (n_components, n_mixtures). This is
         out_denom mutated in-place.
-    
+
     Notes
     -----
     Fortran reference:
         for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
-            dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + sum( ufp(bstrt:bstp) )
-            dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + rho(j,comp_list(i,h)) * sum( abs(ufp(bstrt:bstp)) )
+            dmu_numer_tmp(j,comp_list(i,h)) = dmu_numer_tmp(j,comp_list(i,h)) + ...
+            dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + ...
     """
-    assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D" 
+    assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D"
     assert out_denom.ndim == 2, f"out_denom must be 2D, got {out_denom.ndim}D"
     # -------------------------------FORTRAN--------------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
@@ -893,7 +916,7 @@ def accumulate_mu_stats(
     # for (i = 1, nw) ... for (j = 1, num_mix)
     # if (rho(j,comp_list(i,h)) .le. dble(2.0)) then
     # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) / y(bstrt:bstp,i,j,h) )
-    # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum 
+    # dmu_denom_tmp(j,comp_list(i,h)) = dmu_denom_tmp(j,comp_list(i,h)) + tmpsum
     # else
     # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
     # -----------------------------------------------------------------------
@@ -923,8 +946,8 @@ def accumulate_mu_stats(
             )
         if torch.any(mu_denom_sum == 0.0):
             warn(
-                "Zero value in mu denominator during update. Adding small epsilon to avoid"
-                "NaNs."
+                "Zero value in mu denominator during update. Adding small epsilon to "
+                "avoid NaNs."
             )
             mu_denom_sum += torch.finfo(mu_denom_sum.dtype).eps
         tmpsum_mu_denom = (sbeta * mu_denom_sum)
@@ -941,7 +964,7 @@ def accumulate_beta_stats(
         y: SourceArray3D,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
-        ) -> Tuple[ParamsArray, ParamsArray]:
+        ) -> tuple[ParamsArray, ParamsArray]:
     """
     Get the numerator and denominator for the scale accumulators.
 
@@ -1001,11 +1024,12 @@ def accumulate_rho_stats(
         usum: ParamsArray,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
-        ) -> Tuple[ParamsArray, ParamsArray]:
+        ) -> tuple[ParamsArray, ParamsArray]:
     """
     Compute the numerator and denominator for the shape accumulators.
 
     Parameters
+    ----------
     y : np.ndarray
         Shape (n_samples, n_components, n_mixtures). The scaled sources for the
         current model.
@@ -1025,7 +1049,7 @@ def accumulate_rho_stats(
     out_denom : np.ndarray
         Shape (n_components, n_mixtures). Accumulator for the denominator of the
         rho gradient. This array is mutated in-place and returned.
-    
+
     Returns
     -------
     out_numer : np.ndarray
@@ -1040,8 +1064,12 @@ def accumulate_rho_stats(
     assert rho.ndim == 2, f"rho must be 2D, got {rho.ndim}D"
     assert usum.shape == rho.shape, f"usum shape {usum.shape} != rho shape {rho.shape}"
     assert isinstance(epsdble, float), f"epsdble must be a float, got {epsdble}"
-    assert out_numer.shape == rho.shape, f"out_numer shape {out_numer.shape} != rho shape {rho.shape}"
-    assert out_denom.shape == rho.shape, f"out_denom shape {out_denom.shape} != rho shape {rho.shape}"
+    assert out_numer.shape == rho.shape, (
+        f"out_numer shape {out_numer.shape} != rho shape {rho.shape}"
+        )
+    assert out_denom.shape == rho.shape, (
+        f"out_denom shape {out_denom.shape} != rho shape {rho.shape}"
+        )
     # -------------------------------FORTRAN--------------------------------
     # for (i = 1, nw) ... for (j = 1, num_mix)
     # tmpy(bstrt:bstp) = abs(y(bstrt:bstp,i,j,h))
@@ -1102,7 +1130,7 @@ def accumulate_sigma2_stats(
         Shape (n_components,). The numerator accumulator.
     out_denom : np.ndarray
         Shape (n_components,). The denominator accumulator.
-    
+
     Returns
     -------
     out_numer : np.ndarray
@@ -1111,7 +1139,7 @@ def accumulate_sigma2_stats(
     out_denom : np.ndarray
         Updated denominator accumulator (n_components,). This is out_denom
         mutated in-place.
-    
+
     Notes
     -----
     Fortran reference:
@@ -1120,8 +1148,8 @@ def accumulate_sigma2_stats(
             dsigma2_numer_tmp(i,h) = dsigma2_numer_tmp(i,h) + tmpsum
             dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
 
-    Fortran accumulators dsigma2_numer and dsigma2_denom in all iterations, but that is not
-    necessary.
+    Fortran accumulates dsigma2_numer and dsigma2_denom in all iterations, but that is
+    not necessary.
     """
     # Alias for clarity with Fortran code
     v_h = model_responsibilities
@@ -1129,7 +1157,9 @@ def accumulate_sigma2_stats(
     assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
     assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
-    assert b.shape[0] == v_h.shape[0], f"samples dimension mismatch {b.shape[0]} != {v_h.shape[0]}"
+    assert b.shape[0] == v_h.shape[0], (
+        f"samples dimension mismatch {b.shape[0]} != {v_h.shape[0]}"
+    )
     #--------------------------FORTRAN CODE-------------------------
     # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
     # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
@@ -1151,11 +1181,12 @@ def accumulate_kappa_stats(
         usum: ParamsArray,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
-        ) -> Tuple[ParamsArray, ParamsArray]:
+        ) -> tuple[ParamsArray, ParamsArray]:
     """
     Get sufficient statistics for kappa (curvature) update.
-    
+
     Parameters
+    ----------
     ufp : np.ndarray
         Shape (n_samples, n_components, n_mixtures). The elementwise product of
         responsibilities and score function.
@@ -1181,14 +1212,14 @@ def accumulate_kappa_stats(
     out_denom : np.ndarray
         Updated denominator accumulator (n_components, n_mixtures). This is
         out_denom mutated in-place.
-    
+
     Notes
     -----
     Fortran reference:
         for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
             tmpsum = sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
-            dkappa_numer_tmp(j,comp_list(i,h)) = dkappa_numer_tmp(j,comp_list(i,h)) + sbeta(j,comp_list(i,h)) * tmpsum
-            dkappa_denom_tmp(j,comp_list(i,h)) = dkappa_denom_tmp(j,comp_list(i,h)) + usum
+            dkappa_numer_tmp(j,comp_list(i,h)) = dkappa_numer_tmp(j,comp_list(i,h))...
+            dkappa_denom_tmp(j,comp_list(i,h)) = dkappa_denom_tmp(j,comp_list(i,h))...
     """
     assert ufp.ndim == 3, f"ufp must be 3D, got {ufp.ndim}D"
     assert fp.ndim == 3, f"fp must be 3D, got {fp.ndim}D"
@@ -1218,11 +1249,12 @@ def accumulate_lambda_stats(
         usum: ParamsArray,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
-) -> Tuple[ParamsArray, ParamsArray]:
+) -> tuple[ParamsArray, ParamsArray]:
     """
     Get sufficient statistics for lambda (nonlinearity) update.
 
     Parameters
+    ----------
     fp : np.ndarray
         Shape (n_samples, n_components, n_mixtures). The score function.
     y : np.ndarray
@@ -1255,17 +1287,20 @@ def accumulate_lambda_stats(
     Fortran reference:
         for (h = num_models) ... for (i = 1, nw) ... for (j = 1, num_mix)
             tmpsum = sum( fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
-            dlambda_numer_tmp(j,comp_list(i,h)) = dlambda_numer_tmp(j,comp_list(i,h)) + tmpsum
-            dlambda_denom_tmp(j,comp_list(i,h)) = dlambda_denom_tmp(j,comp_list(i,h)) + usum
+            dlambda_numer_tmp(j,comp_list(i,h)) = dlambda_numer_tmp(j,comp_list(i,h))...
+            dlambda_denom_tmp(j,comp_list(i,h)) = dlambda_denom_tmp(j,comp_list(i,h))...
     """
     assert fp.ndim == 3, f"fp must be 3D, got {fp.ndim}D"
     assert y.ndim == 3, f"y must be 3D, got {y.ndim}D"
     assert u.ndim == 3, f"u must be 3D, got {u.ndim}D"
     assert out_numer.ndim == 2, f"out_numer must be 2D, got {out_numer.ndim}D"
     assert out_denom.ndim == 2, f"out_denom must be 2D, got {out_denom.ndim}D"
-    assert fp.shape == y.shape == u.shape, f"fp {fp.shape}, y {y.shape}, u {u.shape} shape mismatch"
+    assert fp.shape == y.shape == u.shape, (
+        f"fp {fp.shape}, y {y.shape}, u {u.shape} shape mismatch"
+    )
     assert out_numer.shape == out_denom.shape == usum.shape, (
-        f"out_numer {out_numer.shape}, out_denom {out_denom.shape}, usum {usum.shape} shape mismatch"
+        f"out_numer {out_numer.shape}, out_denom {out_denom.shape}, usum {usum.shape} "
+        "shape mismatch"
     )
     # ---------------------------FORTRAN CODE---------------------------
     # tmpvec(bstrt:bstp) = fp(bstrt:bstp) * y(bstrt:bstp,i,j,h) - dble(1.0)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Generator, Iterator, Optional, Sequence, Tuple, Union
+from collections.abc import Iterator
+from typing import Union
 
 import numpy as np
-import torch
-
 import psutil
+import torch
 
 ArrayLike2D = Union[np.ndarray, "np.typing.NDArray[np.floating]"]
 
@@ -27,7 +26,7 @@ class BatchLoader:
             ...
     """
 
-    def __init__(self, X: ArrayLike2D, axis: int, batch_size: Optional[int] = None):
+    def __init__(self, X: ArrayLike2D, axis: int, batch_size: int | None = None):
         cls_name = self.__class__.__name__
         if not isinstance(X, torch.Tensor):
             raise TypeError(f"{cls_name} expects a torch.Tensor")
@@ -39,7 +38,9 @@ class BatchLoader:
         if self.axis < 0:
             self.axis += X.ndim
         if not (0 <= self.axis < X.ndim):
-            raise ValueError(f"axis {self.axis} out of bounds for array with ndim={X.ndim}")
+            raise ValueError(
+                f"axis {self.axis} out of bounds for array with ndim={X.ndim}"
+                )
 
         n = X.shape[self.axis]
         start = 0
@@ -70,7 +71,7 @@ class BatchLoader:
         idx[self.axis] = slice(start, stop)
         return self.X[tuple(idx)]
 
-    def __iter__(self) -> Iterator[Tuple[np.ndarray, slice]]:
+    def __iter__(self) -> Iterator[tuple[np.ndarray, slice]]:
         axis = self.axis
         start = self.start
         stop = self.stop
@@ -87,7 +88,7 @@ class BatchLoader:
             batch_slice = slice(s, e)
             idx[axis] = batch_slice
             yield self.X[tuple(idx)], batch_slice
-    
+
     def __len__(self) -> int:
         return (self.X.shape[self.axis] + self.batch_size - 1) // self.batch_size
 

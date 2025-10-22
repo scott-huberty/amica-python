@@ -1,37 +1,63 @@
-from copy import copy
-from pathlib import Path
-import time
-from typing import Literal, Optional, Tuple
-from warnings import warn
+"""Module containing amica funciton entry point."""
 
-import numpy as np
-from numpy.testing import assert_almost_equal, assert_allclose
+import time
+import warnings
 
 import torch
+from numpy.testing import assert_allclose
 
 from amica._batching import BatchLoader, choose_batch_size
+from amica._types import (
+    DataTensor2D,
+    ParamsModelTensor,
+)
 from amica.constants import (
+    doscaling,
+    epsdble,
+    invsigmax,
+    invsigmin,
+    lratefact,
+    maxdecs,
+    maxincs,
+    maxrho,
     mineig,
     minlog,
-    epsdble,
-    doscaling,
-    share_comps,
-    share_start,
-    share_iter,
-    minrho,
-    maxrho,
-    invsigmin,
-    invsigmax,
-    use_min_dll,
-    use_grad_norm,
-    maxincs,
-    maxdecs,
-    outstep,
     minlrate,
-    lratefact,
+    minrho,
+    outstep,
     rholratefact,
+    share_comps,
+    share_iter,
+    share_start,
+    use_grad_norm,
+    use_min_dll,
 )
-
+from amica.kernels import (
+    accumulate_alpha_stats,
+    accumulate_beta_stats,
+    accumulate_c_stats,
+    accumulate_kappa_stats,
+    accumulate_lambda_stats,
+    accumulate_mu_stats,
+    accumulate_rho_stats,
+    accumulate_sigma2_stats,
+    compute_mixture_responsibilities,
+    compute_model_loglikelihood_per_sample,
+    compute_model_responsibilities,
+    compute_preactivations,
+    compute_scaled_scores,
+    compute_source_densities,
+    compute_source_scores,
+    compute_total_loglikelihood_per_sample,
+    compute_weighted_responsibilities,
+    precompute_weighted_scores,
+)
+from amica.linalg import (
+    compute_sign_log_determinant,
+    get_initial_model_log_likelihood,
+    get_unmixing_matrices,
+    pre_whiten,
+)
 from amica.state import (
     AmicaConfig,
     AmicaState,
@@ -39,51 +65,7 @@ from amica.state import (
     get_initial_state,
     initialize_accumulators,
 )
-from amica._types import (
-    SamplesVector,
-    ComponentsVector,
-    DataArray2D,
-    DataTensor2D,
-    WeightsArray,
-    SourceArray2D,
-    SourceArray3D,
-    ParamsArray,
-    ParamsModelArray,
-    ParamsModelTensor,
-    LikelihoodArray,
-    ScalarTensor,
-)
 
-from amica.kernels import (
-    compute_preactivations,
-    compute_source_densities,
-    compute_model_loglikelihood_per_sample,
-    compute_mixture_responsibilities,
-    compute_total_loglikelihood_per_sample,
-    compute_model_responsibilities,
-    compute_weighted_responsibilities,
-    compute_source_scores,
-    precompute_weighted_scores,
-    compute_scaled_scores,
-    accumulate_c_stats,
-    accumulate_alpha_stats,
-    accumulate_mu_stats,
-    accumulate_beta_stats,
-    accumulate_rho_stats,
-    accumulate_sigma2_stats,
-    accumulate_kappa_stats,
-    accumulate_lambda_stats,
-)
-
-from amica.linalg import (
-    get_unmixing_matrices,
-    compute_sign_log_determinant,
-    get_initial_model_log_likelihood,
-    pre_whiten,
-)
-
-from amica.utils import fetch_datasets
-import warnings
 warnings.filterwarnings("error")
 
 
@@ -91,10 +73,12 @@ def get_component_slice(h: int, n_components: int) -> slice:
     """Return slice for components of model h.
 
     Parameters
+    ----------
     - h: model number (1-based)
     - n_components: number of components per model (nw)
 
     Returns
+    -------
     - slice object for components of model h
 
     Notes
@@ -102,7 +86,7 @@ def get_component_slice(h: int, n_components: int) -> slice:
     - Creating a slice ensures that we get a view when indexing arrays.
     - The fortran code pre-computes comp_list(num_components, num_models). We avoid this
         by computing the slice on-the-fly and thus avoiding fancy indexing.
-    
+
     Fortran reference:
         do h = 1,num_models
             do i = 1,nw
@@ -113,12 +97,6 @@ def get_component_slice(h: int, n_components: int) -> slice:
     end = start + n_components
     return slice(start, end)
 
-
-# TODO's
-# - consider keeping z and z0 separate once chunking is implemented
-# - consider giving g its own array one chunking is implemented
-# - if we never chunk process the M-step, then numer/denom accumulators are once per iteration
-#   so we can assign directly instead of accumulating e.g. dalpha_denom.fill(vsum)
 
 def fit_amica(
         X,
@@ -145,7 +123,7 @@ def fit_amica(
         random_state=None,
 ):
     """Perform Adaptive Mixture Independent Component Analysis (AMICA).
-    
+
     Parameters
     ----------
     X : array-like, shape (n_samples, n_features)
@@ -159,10 +137,10 @@ def fit_amica(
         Chunk size for processing data in chunks along the samples axis. If ``None``,
         chunking is chosen automatically to keep peak memory under ~1.5 GB, and
         warns if the chunk size is below ~8k samples (If the input data is small enough
-        to process in one shot, no chunking is used). If you want to enforce no chunking,
-        you can override this memory cap by setting batch_size explicitly, e.g. to
-        `X.shape[0]` to process all samples at once.", but note that this may lead to
-        high memory usage for large datasets.
+        to process in one shot, no chunking is used). If you want to enforce no
+        chunking, you can override this memory cap by setting batch_size explicitly,
+        e.g. to  `X.shape[0]` to process all samples at once.", but note that this may
+        lead to high memory usage for large datasets.
     whiten : boolean, optional
         If True perform an initial whitening of the data.
         If False, the data is assumed to have already been
@@ -182,17 +160,17 @@ def fit_amica(
         If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used
         by `np.random`.
-    initial_weights : array-like, shape (n_components, n_components), optional
-        Initial weights for the mixture components. If None, weights are initialized randomly.
-        This is meant to be used for testing and debugging purposes only.
-    initial_scales : array-like, shape (n_components, n_mixtures), optional
+    w_init : array-like, shape (n_components, n_components), optional
+        Initial weights for the mixture components. If None, weights are initialized
+        randomly. This is meant to be used for testing and debugging purposes only.
+    sbeta_init : array-like, shape (n_components, n_mixtures), optional
         Initial scales (sbeta) for the mixture components. If None, scales are
-        initialized randomly. This is meant to be used for testing and debugging purposes
-        only.
-    initial_locations : array-like, shape (n_components, n_mixtures), optional
+        initialized randomly. This is meant to be used for testing and debugging
+        purposes only.
+    mu_init : array-like, shape (n_components, n_mixtures), optional
         Initial locations (mu) for the mixture components. If None, locations are
-        initialized randomly. This is meant to be used for testing and debugging purposes
-        only.
+        initialized randomly. This is meant to be used for testing and debugging
+        purposes only.
     """
     if batch_size is None:
         batch_size = choose_batch_size(
@@ -218,16 +196,18 @@ def fit_amica(
         newt_ramp=newt_ramp,
         do_reject=do_reject,
     )
-    
+
     # Step 2: Create initial state (this will eventually replace manual initialization)
     torch.set_default_dtype(config.dtype) # TODO: Make this less global
     state = get_initial_state(config)
-    
+
     # Init
     if n_models > 1:
         raise NotImplementedError("n_models > 1 not yet supported")
     if config.do_reject:
-        raise NotImplementedError("Sample rejection by log likelihood is not yet supported yet")
+        raise NotImplementedError(
+            "Sample rejection by log likelihood is not yet supported." # pragma no cover
+            )
     dataseg = X.copy()
 
     do_mean = True if mean_center else False
@@ -278,8 +258,8 @@ def _core_amica(
         initial_scales=None,
         initial_locations=None,
 ):
-    """Runs the AMICA algorithm.
-    
+    """Run the AMICA algorithm.
+
     Parameters
     ----------
     X : array, shape (N, T)
@@ -290,12 +270,12 @@ def _core_amica(
         randomly. This is meant to be used for testing and debugging purposes only.
     initial_scales : array-like, shape (n_components, n_mixtures), optional
         Initial scales (sbeta) for the mixture components. If None, scales are
-        initialized randomly. This is meant to be used for testing and debugging purposes
-        only.
+        initialized randomly. This is meant to be used for testing and debugging
+       purposes only.
     initial_locations : array-like, shape (n_components, n_mixtures), optional
         Initial locations (mu) for the mixture components. If None, locations are
-        initialized randomly. This is meant to be used for testing and debugging purposes
-        only.
+        initialized randomly. This is meant to be used for testing and debugging
+        purposes only.
     """
     X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype) # No-copy (if on CPU)
     rng = torch.Generator()
@@ -335,7 +315,7 @@ def _core_amica(
     state.sbeta = 1.0 + 0.1 * (0.5 - initial_scales)
     # load_c:
     state.c.fill_(0.0)
-    
+
     # load_A:
     for h, _ in enumerate(range(num_models), start=1):
         h_index = h - 1
@@ -351,9 +331,9 @@ def _core_amica(
         cols = h_index * num_comps + idx
         state.A[idx, cols] = 1.0
         Anrmk = torch.linalg.norm(state.A[:, cols], dim=0)
-        state.A[:, cols] /= Anrmk   
+        state.A[:, cols] /= Anrmk
     # end load_A
-    
+
     W, wc = get_unmixing_matrices(
         c=state.c,
         A=state.A,
@@ -368,9 +348,9 @@ def _core_amica(
 
     # !-------------------- Determine optimal block size -------------------
     print(f"1: block size = {config.batch_size}")
-    
+
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    print(f"1 : entering the main loop ...")
+    print("1 : entering the main loop ...")
     with torch.no_grad():
         state, LL = optimize(
             X=X,
@@ -383,7 +363,7 @@ def _core_amica(
     state_dict = state.to_numpy()
     LL = LL.numpy()
     return state_dict, LL
-    
+
 
 def optimize(
         *,
@@ -393,11 +373,11 @@ def optimize(
         config: AmicaConfig,
         state: AmicaState,
 ):
-    """Main optimization loop for AMICA."""
+    """Optimize the learnable Paramters."""
     # Just set all convergence creterion to the user specific tol
     min_dll = config.tol
     min_nd = config.tol
-    
+
     # These variables can be updated in the loop
     leave = False
     do_newton = config.do_newton
@@ -417,7 +397,7 @@ def optimize(
     # We allocate these separately.
     Dsum = torch.zeros(config.n_models, dtype=torch.float64)
     Dsign = torch.zeros(config.n_models, dtype=torch.float64)
-    loglik = torch.zeros((X.shape[0],), dtype=torch.float64)  # per sample log likelihood
+    loglik = torch.zeros((X.shape[0],), dtype=torch.float64)  # per sample loglik
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # likelihood history
 
     c_start = time.time()
@@ -436,7 +416,7 @@ def optimize(
                 minlog=minlog,
             )
             Dsum[h_index] = logabsdet
-            Dsign[h_index] = sign                 
+            Dsign[h_index] = sign
 
         if config.do_reject:
             raise NotImplementedError()
@@ -454,19 +434,19 @@ def optimize(
                 whitening_logdet=sldet,
                 model_weight=state.gm[h_index],
         )
-        
-        #=============================== Subsection =====================================
+
+        #=============================== Subsection ====================================
         # === Begin chunk loop ===
-        # ===============================================================================
+        # ==============================================================================
         batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
         for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
             for h, _ in enumerate(range(config.n_models), start=1):
                 comp_slice = get_component_slice(h, config.n_components)
                 h_index = h - 1
-                
-                # =======================================================================
+
+                # ======================================================================
                 #                       Expectation Step (E-step)
-                # =======================================================================
+                # ======================================================================
 
                 # 1. --- Compute source pre-activations
                 # !--- get b
@@ -477,7 +457,7 @@ def optimize(
                     do_reject=config.do_reject,
                     n_weights=config.n_components,
                 )
-                # 2. --- Source densities, and per-sample mixture log-densities (logits) ---
+                # 2. --- Source densities, and per-sample mixture log-densities (logits)
                 y, z = compute_source_densities(
                     pdftype=config.pdftype,
                     b=b,
@@ -499,11 +479,12 @@ def optimize(
                     log_densities=z0,
                     out_modloglik=modloglik[:, h_index],
                 )
-                
+
                 # 4. -- Responsibilities within each component ---
                 # !--- get normalized z
                 z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-                z0 = None; del z0  # guard against use of stale name. z owns that memory
+                z0 = None
+                del z0  # guard against use of stale name. z owns that memory
             # end do (h)
 
             # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
@@ -514,27 +495,28 @@ def optimize(
 
             if config.do_reject:
                 raise NotImplementedError()
-            else:    
+            else:
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
                     modloglik=modloglik,
                     out=modloglik,  # reuse modloglik memory
                     )
-                modloglik = None; del modloglik  # Guard. v owns that memory now
-            
-            # ================================ M-STEP ===================================
+                modloglik = None
+                del modloglik  # Guard. v owns that memory now
+
+            # ================================ M-STEP ==================================
             # === Maximization-step: Parameter accumulators ===
             # - Update parameters based on current responsibilities
-            # - Update unmixing matrices with gradient ascent and optional Newton-Raphson
-            # ===========================================================================
-            
+            # - Update unmixing matrices with gradient ascent and Newton-Raphson
+            # ==========================================================================
+
             # !--- get g, u, ufp
             for h, _ in enumerate(range(config.n_models), start=1):
                 comp_slice = get_component_slice(h, config.n_components)
                 h_index = h - 1
                 #--------------------------FORTRAN CODE-------------------------
                 # vsum = sum( v(bstrt:bstp,h) )
-                # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum 
+                # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum
                 #---------------------------------------------------------------
                 v_h = v[:, h_index] #  select responsibilities for this model
                 vsum = v_h.sum()
@@ -545,7 +527,8 @@ def optimize(
                     model_responsibilities=v_h,
                     single_model=(config.n_models == 1),
                 )
-                z = None; del z # guard against use of stale name. u owns that memory now
+                z = None
+                del z # guard against use of stale name. u owns that memory now
                 usum = u.sum(dim=0)  # shape: (nw, num_mix)
 
                 fp = compute_source_scores(
@@ -562,17 +545,18 @@ def optimize(
                     out_ufp=fp if not doing_newton else None,
                 )
                 if not doing_newton:
-                    fp = None; del fp  # End of life. ufp owns that memory now
-                
+                    fp = None
+                    del fp  # End of life. ufp owns that memory now
+
                 g = compute_scaled_scores(
                     weighted_scores=ufp,
-                    scales=state.sbeta[comp_slice, :], 
+                    scales=state.sbeta[comp_slice, :],
                 )
 
                 # --- Stochastic Gradient Descent accumulators ---
                 # gm (model weights)
                 accumulators.dgm_numer[h_index] += vsum
-                # c (bias)  
+                # c (bias)
                 accumulate_c_stats(
                     X=data_batch,
                     model_responsibilities=v_h,
@@ -656,19 +640,19 @@ def optimize(
 
                 # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
                 # if update_A:
-                #--------------------------FORTRAN CODE-------------------------
-                # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)   
-                # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),tblksize,b(bstrt:bstp,:,h),tblksize, &
+                #--------------------------FORTRAN CODE--------------------------------
+                # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)
+                # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),...
                 #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
                 # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
-                #---------------------------------------------------------------
+                #----------------------------------------------------------------------
                 accumulators.dA[:, :, h - 1] += torch.matmul(g.T, b)
             # end do (h)
         # end do (blk)'
 
         # In Fortran, the OMP parallel region is closed here
         # !$OMP END PARALLEL
-        
+
         # End of these lifetimes
         del b, g, u, ufp, usum, vsum, v, v_h, y
         if doing_newton:
@@ -698,7 +682,9 @@ def optimize(
 
         if (metrics.iter % outstep) == 0:
             print(
-                f"Iteration {metrics.iter}, lrate = {metrics.lrate:.5f}, LL = {LL[metrics.iter - 1]:.7f}, "
+                f"Iteration {metrics.iter}, "
+                f"lrate = {metrics.lrate:.5f}, "
+                f"LL = {LL[metrics.iter - 1]:.7f}, "
                 f"nd = {ndtmpsum:.7f}, D = {Dsum.max():.5f} {Dsum.min():.5f} "
                 f"took {t0:.2f} seconds"
                 )
@@ -738,8 +724,8 @@ def optimize(
                     if numincs > maxincs:
                         leave = True
                         print(
-                            f"Exiting because likelihood increasing by less than {min_dll} "
-                            f"for more than {maxincs} iterations ..."
+                            "Exiting because likelihood increasing by less than "
+                            f"{min_dll} for more than {maxincs} iterations ..."
                             )
                 else:
                     numincs = 0
@@ -749,7 +735,8 @@ def optimize(
                 if ndtmpsum < min_nd:
                     leave = True
                     print(
-                        f"Exiting because norm of weight gradient less than {min_nd:.12f}"
+                        "Exiting because norm of weight gradient less than "
+                        f"{min_nd:.12f}"
                     )
         # end if (iter > 1)
         if config.do_newton and (metrics.iter == config.newt_start):
@@ -797,6 +784,7 @@ def accum_updates_and_likelihood(
         total_LL,  # this is LLtmp in Fortran
         iteration
         ):
+    """Use accumulated arrays to updated logk and ndtmpsum."""
     # !--- add to the cumulative dtmps
     # ...
     #--------------------------FORTRAN CODE-------------------------
@@ -815,11 +803,17 @@ def accum_updates_and_likelihood(
         # lambda = dble(0.0)
         #---------------------------------------------------------------
         # shape (num_mix, num_comps, num_models)
-        baralpha = accumulators.newton.dbaralpha_numer / accumulators.newton.dbaralpha_denom
-        sigma2 = accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
+        baralpha = (
+            accumulators.newton.dbaralpha_numer / accumulators.newton.dbaralpha_denom
+            )
+        sigma2 = (
+            accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
+            )
         kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
-        lambda_ = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
-        
+        lambda_ = torch.zeros(
+            (config.n_components, config.n_models), dtype=config.dtype
+            )
+
         for h, _ in enumerate(range(config.n_models), start=1):
             comp_slice = get_component_slice(h, config.n_components)
             h_idx = h - 1
@@ -831,7 +825,7 @@ def accum_updates_and_likelihood(
             dlambda_numer_h = accumulators.newton.dlambda_numer[:, :, h_idx]
             dlambda_denom_h = accumulators.newton.dlambda_denom[:, :, h_idx]
 
-            # Calculate dkap for all mixtures 
+            # Calculate dkap for all mixtures
             # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
             # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
             # --- Update kappa ---
@@ -845,7 +839,9 @@ def accum_updates_and_likelihood(
             #---------------------------------------------------------------
             mu_selected = state.mu[comp_slice, :]
             # Calculate the full lambda update term
-            lambda_inner_term = (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
+            lambda_inner_term = (
+                (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
+                )
             lambda_update = torch.sum(baralpha_h * lambda_inner_term, dim=1)
             lambda_[:, h_idx] += lambda_update
             # end do (j)
@@ -867,7 +863,7 @@ def accum_updates_and_likelihood(
             raise NotImplementedError()
         else:
             accumulators.dA[:, :, h - 1] *= -1.0 / accumulators.dgm_numer[h - 1]
-        
+
         # basically the same as np.fill_diagonal where fill value is diag + 1.0
         diag = accumulators.dA[:, :, h_index].diagonal()
         idx = torch.arange(nw)
@@ -901,12 +897,16 @@ def accum_updates_and_likelihood(
             if torch.any(~positive_mask):
                 raise RuntimeError(
                     f"Non-positive definite Hessian encountered in Newton update. "
-                    f"Iteration {iteration} model {h}. Please try setting do_newton to False."
+                    f"Iteration {iteration} model {h}. Try setting do_newton to False."
                     )
             condition_mask = positive_mask & off_diag_mask
             if torch.any(condition_mask):
                 # # Wtmp(i,k) = (sk1*dA(i,k,h) - dA(k,i,h)) / (sk1*sk2 - dble(1.0))
-                numerator = sk1 * accumulators.dA[i_indices, k_indices, h-1] - accumulators.dA[k_indices, i_indices, h-1]
+                numerator = (
+                    sk1
+                    * accumulators.dA[i_indices, k_indices, h-1]
+                    - accumulators.dA[k_indices, i_indices, h-1]
+                    )
                 denominator = sk1 * sk2 - 1.0
                 Wtmp_working[condition_mask] = (numerator / denominator)[condition_mask]
             # end if (i == k)
@@ -920,16 +920,18 @@ def accum_updates_and_likelihood(
             assert Wtmp_working.shape == (nw, nw)
         #--------------------------FORTRAN CODE-------------------------
         # call DSCAL(nw*nw,dble(0.0),dA(:,:,h),1)
-        # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble(1.0),dA(:,:,h),nw) 
+        # call DGEMM('N','N',nw,nw,nw,dble(1.0),A(:,comp_list(:,h)),nw,Wtmp,nw,dble...
         #---------------------------------------------------------------
         accumulators.dA[:, :, h - 1] = 0.0
-        accumulators.dA[:, :, h - 1] += torch.matmul(state.A[:, comp_slice], Wtmp_working)
+        accumulators.dA[:, :, h - 1] += torch.matmul(
+            state.A[:, comp_slice], Wtmp_working
+            )
     # end do (h)
 
     zeta = torch.zeros(config.n_components, dtype=config.dtype)
     for h, _ in enumerate(range(config.n_models), start=1):
         comp_slice = get_component_slice(h, config.n_components)
-        h_index = h - 1        
+        h_index = h - 1
         #--------------------------FORTRAN CODE-------------------------
         # dAk(:,comp_list(i,h)) = dAk(:,comp_list(i,h)) + gm(h)*dA(:,i,h)
         # zeta(comp_list(i,h)) = zeta(comp_list(i,h)) + gm(h)
@@ -937,7 +939,7 @@ def accum_updates_and_likelihood(
         source_columns = state.gm[h - 1] * accumulators.dA[:, :, h - 1]
         accumulators.dAK[comp_slice, :] += source_columns
         zeta[comp_slice] += state.gm[h - 1]
-    
+
     #--------------------------FORTRAN CODE-------------------------
     # dAk(:,k) = dAk(:,k) / zeta(k)
     # nd(iter,:) = sum(dAk*dAk,1)
@@ -945,7 +947,7 @@ def accum_updates_and_likelihood(
     #---------------------------------------------------------------
     accumulators.dAK[:,:] /= zeta  # Broadcasting division
     # nd is (num_iters, num_comps) in Fortran, but we only store current iteration
-    nd = torch.sum(accumulators.dAK * accumulators.dAK, dim=0)  # Python-only variable name
+    nd = torch.sum(accumulators.dAK * accumulators.dAK, dim=0)
     assert nd.shape == (config.n_components,)
 
     # comp_used should be a vector of True
@@ -957,7 +959,7 @@ def accum_updates_and_likelihood(
     assert comp_used.dtype == torch.bool
     ndtmpsum = torch.sqrt(torch.sum(nd) / (nw * torch.count_nonzero(comp_used)))
     # end if (update_A)
-    
+
     # if (seg_rank == 0) then
     if config.do_reject:
         raise NotImplementedError()
@@ -982,6 +984,7 @@ def update_params(
         newtrate,
         wc,
 ):
+    """Update learnable ICA Parameters, and learning rates."""
     nw = config.n_components
 
     # if (seg_rank == 0) then
@@ -990,7 +993,7 @@ def update_params(
         raise NotImplementedError()
         # gm = dgm_numer / dble(numgoodsum)
     else:
-        state.gm[:] = accumulators.dgm_numer / X.shape[0] 
+        state.gm[:] = accumulators.dgm_numer / X.shape[0]
     # end if (update_gm)
 
     # if update_alpha:
@@ -1016,7 +1019,7 @@ def update_params(
             lrate = min(newtrate, lrate + min(1.0 / config.newt_ramp, lrate))
             rholrate = rholrate0
             state.A -= lrate * accumulators.dAK
-        else:            
+        else:
             lrate = min(lrate0, lrate + min(1 / config.newt_ramp, lrate))
             rholrate = rholrate0
             # call DAXPY(nw*num_comps,dble(-1.0)*lrate,dAk,1,A,1)
@@ -1064,12 +1067,12 @@ def update_params(
             state.mu[positive_mask, :] *= Anrmk[positive_mask, None]
             state.sbeta[positive_mask, :] /= Anrmk[positive_mask, None]
         else:
-            raise NotImplementedError()            
+            raise NotImplementedError()
     # end if (doscaling)
 
     if share_comps:
         raise NotImplementedError()
-    
+
     state.W, wc = get_unmixing_matrices(
         c=state.c,
         A=state.A,

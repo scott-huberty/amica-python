@@ -1,8 +1,10 @@
 """Whitening, unmixing helpers, determinant computation, etc."""
 
-import torch
+from typing import Literal
+
 import numpy as np
-from typing import Literal, Optional, Tuple
+import torch
+
 from amica._types import ComponentsVector, DataArray2D, WeightsArray
 
 
@@ -15,7 +17,6 @@ def get_unmixing_matrices(
         num_models,
         ):
     """Get unmixing matrices for AMICA."""
-
     wc = torch.zeros_like(c)
     for h, _ in enumerate(range(num_models), start=1):
 
@@ -51,10 +52,10 @@ def compute_sign_log_determinant(
         *,
         unmixing_matrix: WeightsArray,
         minlog: float = -1500,
-        mode: Literal["strict", "fallback"] = "strict", 
+        mode: Literal["strict", "fallback"] = "strict",
 ) -> tuple[Literal[-1, 1], float]:
     """Compute the sign and log-determinant of the unmixing matrix for a single model.
-    
+
     Parameters
     ----------
     unmixing_matrix: array, shape (n_components, n_features)
@@ -73,11 +74,11 @@ def compute_sign_log_determinant(
     Returns
     -------
     sign: {-1, 1}
-        The sign of the determinant (+1 or -1). In "fallback" mode, sign is set to −1 if
-        the determinant is zero, to maintain the invariant that sign ∈ {−1, 1} (never 0).
+        The sign of the determinant (+1 or -1). In "fallback" mode, sign is set to -1 if
+        the determinant is zero, to maintain the invariant that sign (never 0).
     logabsdet: float
-        The (natural) log-determinant of the unmixing matrix. In "fallback" mode, this is
-        set to minlog (default: -1500).
+        The (natural) log-determinant of the unmixing matrix. In "fallback" mode, this
+        is set to minlog (default: -1500).
     """
     #--------------------------------FORTRAN CODE------------------------------
     #    call DCOPY(nw*nw,W(:,:,h),1,Wtmp,1)
@@ -91,7 +92,7 @@ def compute_sign_log_determinant(
     # Alias for clarity with Fortran code
     W = unmixing_matrix
     sign, logabsdet = np.linalg.slogdet(W)
-    # TODO: slogdet requires a square unmixing matrix. Confirm that AMICA gaurantees this
+    # TODO: slogdet requires a square unmixing matrix. Does AMICA gaurantee this?
     if logabsdet == -np.inf or sign == 0:  # Model fit has collapsed.
         msg = (
                 "Unmixing matrix (W) is singular (determinant = 0)\n\n"
@@ -122,7 +123,7 @@ def get_initial_model_log_likelihood(
 ) -> float:
     """
     Initialize the per-sample model log-likelihood with baseline terms.
-    
+
     Parameters
     ----------
     unmixing_logdet : float
@@ -139,7 +140,7 @@ def get_initial_model_log_likelihood(
     initial_modloglik : float
         A scalar baseline log-likelihood value. This should be broadcast across all
         samples of the model log-likelihood array at the call site.
-    
+
     Notes
     -----
     - The Jacobian from x → u is |det(W S)|, so log|det(W S)| = log|det(W)| +
@@ -148,12 +149,14 @@ def get_initial_model_log_likelihood(
     issue
     - In the Fortran code, the variable Ptmp(bstrt:bstp,h) holds the initial
     model log-likelihood for model h across the data block (bstrt:bstp). This gets
-    copied into modloglik. 
+    copied into modloglik.
     """
     whitening_logdet = torch.as_tensor(whitening_logdet, dtype=torch.float64)
     unmixing_logdet = torch.as_tensor(unmixing_logdet, dtype=torch.float64)
     if model_weight <= 0:
-        raise ValueError(f"model_weight must be > 0, got {model_weight}")  # pragma no cover noqa: E501
+        raise ValueError(
+            f"model_weight must be > 0, got {model_weight}"
+            )  # pragma no cover noqa: E501
     #--------------------------FORTRAN CODE-------------------------
     # Ptmp(bstrt:bstp,h) = Dsum(h) + log(gm(h)) + sldet
     #---------------------------------------------------------------
@@ -164,16 +167,16 @@ def get_initial_model_log_likelihood(
 def pre_whiten(
         *,
         X: DataArray2D,
-        n_components: Optional[int] = None,
+        n_components: int | None = None,
         mineig: float = 1e-6,
         do_mean: bool = True,
         do_sphere: bool = True,
         do_approx_sphere: bool = True,
         inplace: bool = True,
-) -> Tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
+) -> tuple[DataArray2D, WeightsArray, float, WeightsArray, ComponentsVector | None]:
     """
     Pre-whiten the input data matrix X prior to ICA.
-    
+
     Parameters
     ----------
     X : array, shape (n_samples, n_features)
@@ -193,7 +196,7 @@ def pre_whiten(
         If True, use approximate sphering.
     inplace : bool
         If True, modify X in place. If False, make a copy of X and modify that.
-    
+
     Returns
     -------
     X : array, shape (n_samples, n_features)
@@ -217,7 +220,7 @@ def pre_whiten(
     n_samples, nx = dataseg.shape
     if n_components is None:
         n_components = nx
-    
+
     # ---- Mean-centering ----
     if do_mean:
         print("getting the mean ...")
@@ -230,11 +233,11 @@ def pre_whiten(
     # Compute the covariance matrix
     # The Fortran code only computes the upper triangular part of the covariance matrix
 
-    # -------------------- FORTRAN CODE ---------------------------------------
+    # -------------------- FORTRAN CODE ------------------------------------------------
     # call DSCAL(nx*nx,dble(0.0),Stmp,1)
     # call DSYRK('L','N',nx,blk_size(seg),dble(1.0),dataseg(seg)%data(:,bstrt:bstp)...
     # call DSCAL(nx*nx,dble(1.0)/dble(cnt),S,1)
-    #------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------
     Cov = dataseg.T @ dataseg / n_samples
 
     # ---- Eigen-decomposition
@@ -245,7 +248,7 @@ def pre_whiten(
     max_eigs = eigvals[::-1][:3]
     print(f"minimum eigenvalues: {min_eigs}")
     print(f"maximum eigenvalues: {max_eigs}")
-    
+
     # keep only valid eigs (pcakeep)
     # Do we need to pass numeigs to optimize if sum(eigvals > mineig) < n_components?
     numeigs = min(n_components, sum(eigvals > mineig)) # np.linalg.matrix_rank?
@@ -256,7 +259,7 @@ def pre_whiten(
         sldet = -0.5 * np.sum(np.log(eigvals))
     else:
         sldet = -0.5 * np.sum(np.log(eigvals[::-1][:numeigs]))
-    
+
     # 1) reorder eigenvectors (descending eigenvalues)
     order = np.argsort(eigvals)[::-1]
     eigvals_desc = eigvals[order]
@@ -279,16 +282,16 @@ def pre_whiten(
                 S = Stmp2.copy()
         else:
             if do_approx_sphere:
-                # -------------------- FORTRAN CODE -------------------------------------
+                # -------------------- FORTRAN CODE ------------------------------------
                 # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
-                # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data
+                # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)...
                 # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)
-                # ------------------------------------------------------------------------
+                # ----------------------------------------------------------------------
 
                 # This is a direct translation of the Fortran code
                 # Which was hard to follow...
                 # I think this is ZCA whitening
-                
+
                 # 3) Unscaled eigenvectors goes into SVD
                 S = Stmp.copy()
 
@@ -296,10 +299,10 @@ def pre_whiten(
                 U, s, VT = np.linalg.svd(S[:numeigs, :numeigs], full_matrices=True)
                 Stmp[:numeigs, :numeigs] = VT.T
                 S[:numeigs, :numeigs] = U.T
-                
+
                 # 5) Stmp3 = Stmp^T @ S^T (numeigs×numeigs block)
                 Stmp3 = Stmp[:numeigs, :numeigs] @ S[:numeigs, :numeigs]
-                
+
                 # 6) zero S and form final S = Stmp3 @ Stmp2
                 S.fill(0.0)
                 S[:numeigs, :] = Stmp3 @ Stmp2[:numeigs, :]
@@ -323,29 +326,28 @@ def pre_whiten(
             numeigs = nx
     # -------------------- FORTRAN CODE ---------------------------------------
     # call DSCAL(nx*blk_size(seg),dble(0.0),xtmp(:,1:blk_size(seg)),1)
-    # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt:bstp),nx,dble(1.0),xtmp(:,1:blk_size(seg)),nx)
-    # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt:bstp),1)
+    # call DGEMM('N','N',nx,blk_size(seg),nx,dble(1.0),S,nx,dataseg(seg)%data(:,bstrt...
+    # call DCOPY(nx*blk_size(seg),xtmp(:,1:blk_size(seg)),1,dataseg(seg)%data(:,bstrt...
     # -------------------------------------------------------------------------
     dataseg = np.matmul(dataseg, S.T, out=dataseg)  # In-place if possible
 
     nw = numeigs # Number of weights, as per Fortran code
     print(f"numeigs = {numeigs}, nw = {nw}")
     # ! get the pseudoinverse of the sphering matrix
-    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp, numeigs, work, lwork, info )
-    Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix 
+    # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp...
+    Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix
 
     if n_components is None:
-        # TODO
-        # In the Fortran code n_components == nw IF num_models == 1
-        # if num_models > 1, num_comps is nw*num_models
-        # Arrays like A(nw, num_comps), and alpha/mu/sbeta/rho(:, num_comps) use this.
-        # Indexing: comp_list(i,h) = (h-1)*nw + i ranges up to nw*num_models.
-        # So for num_model > 1, we should refactor those arrays to have a num_models dim.
         n_components = nw
     elif n_components > nw:
-        raise ValueError(f"n_components must be less than or equal to the rank of the data: {nw}")
-    
+        raise ValueError(
+            f"n_components must be less than or equal to the rank of the data. Got {nw}"
+            )
+
     if not do_mean:
         mean = None
-    assert dataseg.shape == (n_samples, nx), f"dataseg shape {dataseg.shape} != (n_samples, n_features) = ({n_samples}, {nx})"
+    assert dataseg.shape == (n_samples, nx), (
+        f"dataseg shape {dataseg.shape} "
+        "!= (n_samples, n_features) = ({n_samples}, {nx}) "
+    )
     return dataseg, S, sldet, Winv, mean
