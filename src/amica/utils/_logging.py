@@ -14,7 +14,7 @@ logger.add(
     format=FORMAT,
 )
 
-def set_level(verbose: str | int) -> None:
+def set_log_level(verbose: str | int) -> None:
     """Set global log level for amica.
 
     Parameters

@@ -13,9 +13,9 @@ from amica.utils import _logging, logger
     (20, "INFO"),
     (logging.DEBUG, "DEBUG"),
 ])
-def test_set_level_coercion(verbose, expected, capsys):
+def test_set_log_level_coercion(verbose, expected, capsys):
     """Ensure bools and None are coerced correctly."""
-    _logging.set_level(verbose)
+    _logging.set_log_level(verbose)
     logger.log(expected, "message")
     out = capsys.readouterr().out
     assert expected in out

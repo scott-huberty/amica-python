@@ -2,7 +2,7 @@ from ._logging import (
     logger as logger,
 )
 from ._logging import (
-    set_level as set_level,
+    set_log_level as set_log_level,
 )
 from .fetch import (
     fetch_datasets as fetch_datasets,

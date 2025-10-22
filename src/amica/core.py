@@ -66,7 +66,7 @@ from amica.state import (
     initialize_accumulators,
 )
 
-from .utils._logging import logger, set_level
+from .utils._logging import logger, set_log_level
 
 warnings.filterwarnings("error")
 
@@ -181,7 +181,7 @@ def fit_amica(
         ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
         ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
     """
-    set_level(verbose)
+    set_log_level(verbose)
 
     if batch_size is None:
         batch_size = choose_batch_size(
