@@ -12,10 +12,11 @@ env:
 
 jobs:
   style:
-    uses: ./.github/workflows/_setup.yml
-    with:
-      python-version: '3.11'
+    runs-on: ubuntu-latest
     steps:
+      - uses: ./.github/workflows/_setup.yml
+        with:
+          python-version: '3.11'
       - name: Install dev extras
         run: |
           uv venv
