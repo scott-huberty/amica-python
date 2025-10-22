@@ -66,6 +66,8 @@ from amica.state import (
     initialize_accumulators,
 )
 
+from .utils._logging import logger, set_log_level
+
 warnings.filterwarnings("error")
 
 
@@ -121,6 +123,7 @@ def fit_amica(
         mu_init=None,
         do_reject=False,
         random_state=None,
+        verbose=None,
 ):
     """Perform Adaptive Mixture Independent Component Analysis (AMICA).
 
@@ -171,7 +174,15 @@ def fit_amica(
         Initial locations (mu) for the mixture components. If None, locations are
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
+    verbose : bool or str or int or None, default=None
+        Control verbosity of the logging output. If a str, it can be either
+        ``"DEBUG"``, ``"INFO"``, ``"WARNING"``, ``"ERROR"``, or ``"CRITICAL"``.
+        Note that these are for convenience and are equivalent to passing in
+        ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
+        ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
     """
+    set_log_level(verbose)
+
     if batch_size is None:
         batch_size = choose_batch_size(
             N=X.shape[0],
@@ -287,12 +298,10 @@ def _core_amica(
     num_models = config.n_models
     num_mix = config.n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
-    print("Allocating variables ...")
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
     # if (seg_rank == 0) then
-    print("Initializing variables ...")
 
     assert_allclose(state.gm.sum(), 1.0)
     # load_alpha:
@@ -347,10 +356,12 @@ def _core_amica(
 
 
     # !-------------------- Determine optimal block size -------------------
-    print(f"1: block size = {config.batch_size}")
+    logger.info(f"1: block size = {config.batch_size}")
 
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    print("1 : entering the main loop ...")
+    logger.opt(colors=True).info(
+        "<lvl><blue>Solving. (please be patient, this may take a while)...</blue></lvl>"
+        )
     with torch.no_grad():
         state, LL = optimize(
             X=X,
@@ -681,7 +692,7 @@ def optimize(
         #  if (mod(iter,outstep) == 0) then
 
         if (metrics.iter % outstep) == 0:
-            print(
+            logger.info(
                 f"Iteration {metrics.iter}, "
                 f"lrate = {metrics.lrate:.5f}, "
                 f"LL = {LL[metrics.iter - 1]:.7f}, "
@@ -699,10 +710,12 @@ def optimize(
         if metrics.iter > 1:
             if (LL[metrics.iter - 1] < LL[metrics.iter - 2]):
                 # assert 1 == 0
-                print("Likelihood decreasing!")
+                logger.opt(colors=True).info("<green>Likelihood decreasing!</green>")
                 if (metrics.lrate < minlrate) or (ndtmpsum <= min_nd):
                     leave = True
-                    print("minimum change threshold met, exiting loop")
+                    logger.opt(colors=True).info(
+                        "<green>minimum change threshold met, exiting loop</green>"
+                        )
                 else:
                     metrics.lrate *= lratefact
                     metrics.rholrate *= rholratefact
@@ -712,7 +725,9 @@ def optimize(
                         if metrics.iter > config.newt_start:
                             metrics.rholrate0 *= rholratefact
                         if config.do_newton and metrics.iter > config.newt_start:
-                            print("Reducing maximum Newton lrate")
+                            logger.opt(colors=True).info(
+                                "<blue>Reducing maximum Newton lrate</blue>"
+                                )
                             metrics.newtrate *= lratefact
                         numdecs = 0
                     # end if (numdecs >= maxdecs)
@@ -723,9 +738,11 @@ def optimize(
                     numincs += 1
                     if numincs > maxincs:
                         leave = True
-                        print(
+                        logger.opt(colors=True).info(
+                            "<lvl><green>"
                             "Exiting because likelihood increasing by less than "
                             f"{min_dll} for more than {maxincs} iterations ..."
+                            "</green></lvl>"
                             )
                 else:
                     numincs = 0
@@ -734,17 +751,25 @@ def optimize(
             if use_grad_norm:
                 if ndtmpsum < min_nd:
                     leave = True
-                    print(
+                    logger.opt(colors=True).info(
+                        "<lvl><green>"
                         "Exiting because norm of weight gradient less than "
                         f"{min_nd:.12f}"
+                        "</green></lvl>"
                     )
         # end if (iter > 1)
         if config.do_newton and (metrics.iter == config.newt_start):
-            print("Starting Newton ... setting numdecs to 0")
+            logger.opt(colors=True).info(
+                "<blue>"
+                "Starting Newton ... setting numdecs to 0"
+                "</blue>"
+                )
             numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
         if leave:
+            c_end = time.time()
+            logger.info(f"Finished in {c_end - c_start:.2f} seconds")
             return state, LL
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
@@ -770,8 +795,14 @@ def optimize(
         metrics.iter += 1
         # end if/else
     # end while
+    logger.opt(colors=True).warning(
+        "<lvl><yellow>"
+        "Maximum number of iterations reached before convergence."
+        " Consider increasing max_iter or relaxing tol."
+        "</yellow></lvl>"
+        )
     c_end = time.time()
-    print(f"Finished in {c_end - c_start:.2f} seconds")
+    logger.info(f"Finished in {c_end - c_start:.2f} seconds")
     return state, LL
 
 

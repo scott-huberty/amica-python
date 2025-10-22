@@ -9,6 +9,7 @@ description = "Adaptive Mixture ICA in Python"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "loguru",
     "psutil",
     "numpy>=2.2.6",
     "scikit-learn>=1.7.0",

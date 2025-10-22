@@ -7,6 +7,8 @@ import torch
 
 from amica._types import ComponentsVector, DataArray2D, WeightsArray
 
+from .utils._logging import logger
+
 
 def get_unmixing_matrices(
         *,
@@ -37,7 +39,7 @@ def get_unmixing_matrices(
             # This issue would originate with matrix A
             # we should review the code and provide a more user friendly error message
             # if A is singular. e.g. the "weights matrix is singular or something"
-            print(f"Matrix W[:,:,{h-1}] is singular!")
+            logger.error(f"Matrix W[:,:,{h-1}] is singular!")
             raise e
 
         #--------------------------FORTRAN CODE-------------------------
@@ -107,8 +109,8 @@ def compute_sign_log_determinant(
             # By default Let's raise an error until we can test this case properly
             raise ValueError(msg)
         else:
-            print(msg)
-            print(f"Setting log-determinant to {minlog} and sign to -1")
+            logger.warning(msg)
+            logger.warning(f"Setting log-determinant to {minlog} and sign to -1")
             # fallback values (numerical hack to let training continue)
             logabsdet = minlog
             sign = -1  # matches dsign = 1 if det > 0 else -1 in Fortran
@@ -223,13 +225,13 @@ def pre_whiten(
 
     # ---- Mean-centering ----
     if do_mean:
-        print("getting the mean ...")
+        logger.info("getting the mean ...")
         mean = dataseg.mean(axis=0)
         # !--- subtract the mean
         dataseg -= mean[None, :]  # Subtract mean from each channel
 
     # ---- Covariance ----
-    print(" Getting the covariance matrix ...")
+    logger.info(" Getting the covariance matrix ...")
     # Compute the covariance matrix
     # The Fortran code only computes the upper triangular part of the covariance matrix
 
@@ -241,18 +243,18 @@ def pre_whiten(
     Cov = dataseg.T @ dataseg / n_samples
 
     # ---- Eigen-decomposition
-    print(f"doing eig nx = {nx}")
+    logger.info(f"doing eigenvalue decomposition for {nx} features ...")
     eigvals, eigvecs = np.linalg.eigh(Cov) # ascending order
 
     min_eigs = eigvals[:min(nx//2, 3)]
     max_eigs = eigvals[::-1][:3]
-    print(f"minimum eigenvalues: {min_eigs}")
-    print(f"maximum eigenvalues: {max_eigs}")
+    logger.info(f"minimum eigenvalues: {min_eigs}")
+    logger.info(f"maximum eigenvalues: {max_eigs}")
 
     # keep only valid eigs (pcakeep)
     # Do we need to pass numeigs to optimize if sum(eigvals > mineig) < n_components?
     numeigs = min(n_components, sum(eigvals > mineig)) # np.linalg.matrix_rank?
-    print(f"num eigvals kept: {numeigs}")
+    logger.info(f"num eigvals kept: {numeigs}")
 
     # Log determinant of the whitening matrix
     if numeigs == nx:
@@ -271,7 +273,7 @@ def pre_whiten(
 
     # ---- Sphere or variance normalize ----
     if do_sphere:
-        print("Sphering the data...")
+        logger.info("Sphering the data...")
         if numeigs == nx:
             # call DSCAL(nx*nx,dble(0.0),S,1)
             if do_approx_sphere:
@@ -332,7 +334,7 @@ def pre_whiten(
     dataseg = np.matmul(dataseg, S.T, out=dataseg)  # In-place if possible
 
     nw = numeigs # Number of weights, as per Fortran code
-    print(f"numeigs = {numeigs}, nw = {nw}")
+    logger.info(f"numeigs = {numeigs}, nw = {nw}")
     # ! get the pseudoinverse of the sphering matrix
     # call DGESVD( 'A', 'S', numeigs, nx, Stmp2, nx, eigvals, sUtmp, numeigs, sVtmp...
     Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix

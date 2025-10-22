@@ -149,7 +149,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.mu_init = mu_init
         self.random_state = random_state
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, verbose=None):
         """Fit the AMICA model to the data X.
 
         Parameters
@@ -159,6 +159,12 @@ class AMICA(TransformerMixin, BaseEstimator):
             and n_features is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
+        verbose : bool or str or int or None, default=None
+            Control verbosity of the logging output. If a str, it can be either
+            ``"DEBUG"``, ``"INFO"``, ``"WARNING"``, ``"ERROR"``, or ``"CRITICAL"``.
+            Note that these are for convenience and are equivalent to passing in
+            ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
+            ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
 
         Returns
         -------
@@ -189,6 +195,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             sbeta_init=self.sbeta_init,
             mu_init=self.mu_init,
             random_state=self.random_state,
+            verbose=verbose,
         )
 
         # Set attributes
