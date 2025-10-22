@@ -179,41 +179,13 @@ Whitening with different options
          :class: sphx-glr-multi-img
 
 
-.. rst-class:: sphx-glr-script-out
-
- .. code-block:: none
-
-    getting the mean ...
-     Getting the covariance matrix ...
-    doing eig nx = 2
-    minimum eigenvalues: [0.96456694]
-    maximum eigenvalues: [9.23569666 0.96456694]
-    num eigvals kept: 2
-    Sphering the data...
-    numeigs = 2, nw = 2
-    getting the mean ...
-     Getting the covariance matrix ...
-    doing eig nx = 2
-    minimum eigenvalues: [0.96456694]
-    maximum eigenvalues: [9.23569666 0.96456694]
-    num eigvals kept: 2
-    Sphering the data...
-    numeigs = 2, nw = 2
-    getting the mean ...
-     Getting the covariance matrix ...
-    doing eig nx = 2
-    minimum eigenvalues: [0.96456694]
-    maximum eigenvalues: [9.23569666 0.96456694]
-    num eigvals kept: 2
-    numeigs = 2, nw = 2
-
 
 
 
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.335 seconds)
+   **Total running time of the script:** (0 minutes 0.394 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_sphere.py:
