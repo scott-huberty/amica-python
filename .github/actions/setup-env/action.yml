@@ -1,4 +1,5 @@
 name: Setup project environment
+description: Sets up Python, installs uv, and configures caching for the workflow
 runs:
   using: "composite"
   steps:
