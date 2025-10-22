@@ -26,3 +26,14 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["amica*"]
 exclude = ["amica.tests*"]
+
+[tool.ruff.lint]
+select = ["A", "B006", "D", "E", "F", "I", "UP", "UP031", "W"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"src/amica/_types.py" = ["E501"]  # Line too long
+"src/amica/**/__init__.py" = ["D104"]  # Missing docstring in public package
+"src/amica/**/tests/*.py" = ["D100"]  # Missing docstring in public module

@@ -1,5 +1,7 @@
-from amica.utils import fetch_datasets
+"""Functions for accessing AMICA datasets."""
 from pathlib import Path
+
+from amica.utils import fetch_datasets
 
 
 def data_path() -> Path:

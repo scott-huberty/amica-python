@@ -1,10 +1,6 @@
-"""
-Utilities for downloading and caching test datasets
-for AMICA Python comparisons.
-"""
+"""Utilities for downloading and caching test datasets for AMICA Python comparisons."""
 
 from pathlib import Path
-
 
 # Cache directory for all test data
 CACHE_DIR = Path.home() / "amica_test_data"
@@ -49,7 +45,7 @@ def fetch_test_data() -> Path:
     sample_dir.mkdir(parents=True, exist_ok=True)
     for _, (fname, known_hash) in EEGLAB_FILES.items():
         url = f"{EEGLAB_BASE}{fname}"
-        fpath = pooch.retrieve(
+        _ = pooch.retrieve(
             url=url,
             known_hash=known_hash,
             path=sample_dir,

@@ -1,3 +1,4 @@
+"""Utility functions for simulating data."""
 import numpy as np
 
 

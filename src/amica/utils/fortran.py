@@ -1,10 +1,12 @@
 """Utilities for interfacing with Fortran AMICA outputs."""
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
+
 import numpy as np
 
 
 def load_initial_weights(fortran_outdir, *, n_components, n_mixtures):
+    """Load w_init, sbeta_init, and mu_init binary files from a Fortran AMICA run."""
     fortran_outdir = Path(fortran_outdir)
     assert fortran_outdir.exists()
 
@@ -99,7 +101,7 @@ def load_fortran_results(fortran_outdir, *, n_components, n_mixtures, n_features
 
 def write_data(data, filename):
     """Save data to a binary file in Fortran-compatible format.
-    
+
     Parameters
     ----------
     data : array-like
@@ -107,7 +109,7 @@ def write_data(data, filename):
         Fortran-contiguous array of type float32.
     filename : str or Path
         The path to the output binary file.
-    
+
     Returns
     -------
     data : np.ndarray
@@ -141,7 +143,7 @@ def load_data(filename, *, dtype=np.float32, shape=None):
     -------
     data : np.ndarray
         The Fortran-contiguous array that was loaded.
-    
+
     Notes
     -----
     Fortran stores arrays in column-major order, and the Fortran program
@@ -202,13 +204,14 @@ def write_param_file(fpath, *, files, outdir, data, **kwargs):
 @dataclass
 class FortranParams:
     """Dataclass to hold Fortran AMICA parameters."""
+
     # Required parameters
     files:          str | Path
     outdir:         str | Path
     # Data Shape
     block_size:     int
     data_dim:       int  # n_features
-    field_dim:      int # n_samples 
+    field_dim:      int # n_samples
     max_iter:       int = 200
     blk_min:        int | None = None
     blk_step:       int | None = None
@@ -272,7 +275,7 @@ class FortranParams:
     max_decs:       int = 3
     fix_init:       int = 0
     update_A:       int = 1
-    update_c:       int = 1 
+    update_c:       int = 1
     update_gm:      int = 1
     update_alpha:   int = 1
     update_mu:      int = 1
@@ -295,7 +298,7 @@ class FortranParams:
     scalestep:      int = 1
 
     def __post_init__(self):
-
+        """Initialize attributes."""
         if self.blk_min is None:
             self.blk_min = self.block_size // 4
         if self.blk_step is None:
@@ -304,14 +307,12 @@ class FortranParams:
             self.blk_max = self.block_size
         if self.pcakeep is None:
             self.pcakeep = self.data_dim
-        
+
         # Convert bools to int
         for field in fields(self):
             if isinstance(getattr(self, field.name), bool):
                 setattr(self, field.name, int(getattr(self, field.name)))
-        
+
     def to_param_dict(self):
-        """Convert the dataclass to a dictionary suitable for writing to a
-        Fortran AMICA parameter file.
-        """
+        """Convert to a dict suitable for writing to aFortran AMICA parameter file."""
         return asdict(self)

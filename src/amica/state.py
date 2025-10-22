@@ -4,35 +4,16 @@ State management for the AMICA Python port.
 This module introduces structured containers to replace globals and clarify
 what is persistent model state vs. per-iteration temporaries and aggregated
 updates. It keeps allocations explicit and allows reuse of large buffers.
-
-Key containers
-- AmicaConfig: immutable configuration and sizes.
-    - (nchan, ncomp, nmix, block_size, dtype).
-- AmicaState: persistent parameters updated across iterations.
-    - W: (n_components, n_components, n_models), A: (n_components, n_components), mu/sbeta/rho: (n_models, n_components), gm: (n_models,).
-    - Includes to_dict() for easy serialization.
-- AmicaAccumulators: per-iteration aggregated numerators/denominators and grads.
-    - (dalpha/dbeta/dmu/drho numerators/denominators, dgm_numer, loglik_sum).
-- AmicaMetrics: optional diagnostics for logging/inspection.
-
-Factory helpers
-- get_initial_state(cfg, seeds): create an AmicaState from sizes and seeds.
-
-Note: This file is intentionally self-contained and does not depend on the
-rest of the code until wired. It is safe to import without side effects.
-
-- Shapes: mu/sbeta/rho use (ncomp, nmix), matching new standard (e.g., mu[comp_indices, :]).
-- Workspace is intentionally generic (name → buffer). This lets us wire temps one-by-one without locking the shapes prematurely.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Mapping, Optional, Tuple, List
 
 import numpy as np
-from numpy.typing import NDArray
 import torch
+from numpy.typing import NDArray
 
 from amica.constants import rho0
 
@@ -44,7 +25,7 @@ class AmicaConfig:
     """Immutable configuration for AMICA."""
 
     n_features: int  # nchan - number of input channels/features
-    n_components: int  # ncomp - number of output components  
+    n_components: int  # ncomp - number of output components
     n_models: int  # number of AMICA models
     n_mixtures: int  # nmix - number of mixture components per source
     batch_size: int
@@ -57,7 +38,7 @@ class AmicaConfig:
     do_reject: bool = False
     pdftype: int = 0
     do_newton: bool = True
-    
+
     # Tolerances and learning rates
     tol: float = 1e-7
     lrate: float = 0.05
@@ -94,7 +75,7 @@ class AmicaState:
     alpha: NDArray
     gm: NDArray
 
-    def to_dict(self) -> Dict[str, NDArray]:
+    def to_dict(self) -> dict[str, NDArray]:
         """Return a lightweight serialization of array fields."""
         return {
             "W": self.W,
@@ -106,8 +87,8 @@ class AmicaState:
             "gm": self.gm,
             "c": self.c,
         }
-    
-    def to_numpy(self) -> Dict[str, np.ndarray]:
+
+    def to_numpy(self) -> dict[str, np.ndarray]:
         """Return a lightweight serialization of array fields as numpy arrays."""
         return {k: v.cpu().numpy() for k, v in self.to_dict().items()}
 
@@ -118,8 +99,8 @@ class AmicaAccumulators:
     This container mainly helps to shuttle a number of arrays together
     across functions. All these arrays are zeroed at the start of each
     iteration but must persist across chunks within the iteration. If processing the
-    dataset in one chunk, these are just calculated once per iteration (thus they are not
-    really "accumulators" in that case).
+    dataset in one chunk, these are just calculated once per iteration (thus they are
+    not really "accumulators" in that case).
 
     Shapes:
     - dmu_numer/denom: (ncomp, nmix)
@@ -151,7 +132,7 @@ class AmicaAccumulators:
     dAK: NDArray
     loglik_sum: float = 0.0
 
-    newton: Optional[AmicaNewtonAccumulators] = None
+    newton: AmicaNewtonAccumulators | None = None
 
     def reset(self) -> None:
         """Zero all per-iteration accumulators in-place.
@@ -222,23 +203,24 @@ class IterationMetrics:
     This container tracks iteration specific metadata that evolves during training and
     influences convergence behavior, but are not learnable parameters themselves.
     The container helps oraganize the values and pass them around functions.
-    
+
     Fields:
-    - ndtmpsum: Total norm of the weight gradient, summed across all components; computed as sqrt(mean of per-component squared update norms).
+    - ndtmpsum: Total norm of the weight gradient, summed across all components
+      computed as sqrt(mean of per-component squared update norms).
     """
 
     iter: int                           # 1-based iteration index
-    loglik: Optional[float] = None      # total log-likelihood for the iteration
-    ndtmpsum: Optional[float] = None    # normalized update norm for the iteration
-    lrate: Optional[float] = None       # learning rate used for the iteration
-    rholrate: Optional[float] = None    # rho learning rate used for the iteration
-    lrate0: Optional[float] = None      # initial learning rate (from config)
-    rholrate0: Optional[float] = None   # initial rho learning rate (from config)
-    newtrate: Optional[float] = None    # Newton learning rate used for the iteration
+    loglik: float | None = None      # total log-likelihood for the iteration
+    ndtmpsum: float | None = None    # normalized update norm for the iteration
+    lrate: float | None = None       # learning rate used for the iteration
+    rholrate: float | None = None    # rho learning rate used for the iteration
+    lrate0: float | None = None      # initial learning rate (from config)
+    rholrate0: float | None = None   # initial rho learning rate (from config)
+    newtrate: float | None = None    # Newton learning rate used for the iteration
     ll_inc: float = 0.0                 # improvement vs previous iteration
-    step_time_s: Optional[float] = None
-    numincs: Optional[int] = None
-    numdecs: Optional[int] = None
+    step_time_s: float | None = None
+    numincs: int | None = None
+    numdecs: int | None = None
 
 
 @dataclass(slots=True)
@@ -248,7 +230,7 @@ class AmicaHistory:
     Provides lightweight accessors commonly used by callers and tests.
     """
 
-    metrics: List[IterationMetrics] = field(default_factory=list)
+    metrics: list[IterationMetrics] = field(default_factory=list)
 
     def append(self, m: IterationMetrics) -> None:
         self.metrics.append(m)
@@ -260,7 +242,7 @@ class AmicaHistory:
     def ll_inc_array(self) -> torch.Tensor:
         return torch.tensor([m.ll_inc for m in self.metrics], dtype=torch.float64)
 
-    def last(self) -> Optional[IterationMetrics]:
+    def last(self) -> IterationMetrics | None:
         return self.metrics[-1] if self.metrics else None
 
 # TODO: consider making an IterationContext or IterationMetrics class
@@ -272,7 +254,7 @@ class AmicaHistory:
 def get_initial_state(
     cfg: AmicaConfig,
     *,
-    seeds: Optional[Mapping[str, NDArray]] = None,
+    seeds: Mapping[str, NDArray] | None = None,
 ) -> AmicaState:
     """Create an initial AmicaState.
 
@@ -281,7 +263,7 @@ def get_initial_state(
     the corresponding fields.
     """
     num_comps = cfg.n_components  # Match amica.py variable names
-    num_models = cfg.n_models  
+    num_models = cfg.n_models
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
 
@@ -294,13 +276,14 @@ def get_initial_state(
             f"W seed shape {W.shape} != {(num_comps, num_comps, num_models)}"
         )
     else:
-        W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)  # Weights for each model
+        # Weights for each model
+        W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)
     assert W.dtype == torch.float64
 
-    # A - match amica.py: A = np.zeros((num_comps, num_comps))  
+    # A - match amica.py: A = np.zeros((num_comps, num_comps))
     A = torch.zeros((num_comps, num_comps), dtype=dtype)
 
-    c = torch.zeros((num_comps, num_models), dtype=dtype)  # Bias terms per component and model
+    c = torch.zeros((num_comps, num_models), dtype=dtype)  # Bias terms per component
     # sbeta, mu, rho - match amica.py patterns
     if "sbeta" in seeds:
         sbeta = torch.tensor(seeds["sbeta"], dtype=dtype)
@@ -314,12 +297,13 @@ def get_initial_state(
     else:
         mu = torch.zeros((num_comps, num_mix), dtype=dtype)
 
-    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype)  # Shape parameters
-    
-    # Initialize alpha (mixing coefficients) to zeros - will be computed in first iteration
+    # Shape parameters
+    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype)
+
+    # Initialize alpha (mixing coefficients)
     alpha = torch.zeros((num_comps, num_mix), dtype=dtype)
 
-    gm = torch.full(fill_value=1.0 / num_models, size=(num_models,), dtype=dtype)  # Equal weights initially
+    gm = torch.full(fill_value=1.0 / num_models, size=(num_models,), dtype=dtype)
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
@@ -327,7 +311,7 @@ def get_initial_state(
 def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     """Allocate zeroed update accumulators with shapes from the config."""
     num_comps = cfg.n_components
-    num_models = cfg.n_models  
+    num_models = cfg.n_models
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
     do_newton = cfg.do_newton
@@ -352,7 +336,7 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     dc_numer = torch.zeros((num_comps, num_models), dtype=dtype)
     dc_denom = torch.zeros((num_comps, num_models), dtype=dtype)
 
-    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype)  # Derivative of A per model
+    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype)  # Derivative of A
     dAK = torch.zeros((num_comps, num_comps), dtype=dtype)  # Derivative of A
 
     if do_newton:
@@ -447,7 +431,6 @@ __all__ = [
     "AmicaConfig",
     "AmicaState",
     "AmicaAccumulators",
-    "AmicaMetrics",
     "get_initial_state",
     "initialize_accumulators",
     "reset_accumulators",

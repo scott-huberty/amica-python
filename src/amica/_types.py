@@ -1,7 +1,8 @@
-from typing import Annotated, Optional, Tuple, TypeAlias, Literal
+"""Type hints for AMICA arrays."""
+from typing import Annotated, TypeAlias
+
 import numpy as np
 import numpy.typing as npt
-
 import torch
 
 SamplesVector: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples,)"]
@@ -28,7 +29,9 @@ SourceArray3D: TypeAlias = Annotated[npt.NDArray[np.float64], "(n_samples, n_com
 ParamsArray: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_mixtures)"]
 """Alias for a 2D array with shape (n_components, n_mixtures)."""
 
-ParamsModelArray: TypeAlias  = Annotated[npt.NDArray[np.float64], "(n_components, n_models)"]
+ParamsModelArray: TypeAlias  = (
+    Annotated[npt.NDArray[np.float64], "(n_components, n_models)"]
+)
 """Alias for a 2D array with shape (n_components, n_models)."""
 
 ParamsModelTensor: TypeAlias  = Annotated[torch.Tensor, "(n_components, n_models)", 2]

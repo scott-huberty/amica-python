@@ -1,3 +1,4 @@
+"""Parameters taken from Fortran program that we do not want to expose via the API."""
 import numpy as np
 
 fix_init = False
@@ -20,7 +21,7 @@ invsigmax = 100 # default is 1000.0 but config file set it to 100
 use_min_dll = True
 use_grad_norm = True
 min_dll = 1.000000e-09
-maxincs = 5  # Number of consecutive iterations where likelihood increases by less than tol/min_dll before exiting
+maxincs = 5  # Consecutive iters where loglik increase is less than tol before exiting
 maxdecs = 3 # XXX: Default is 5 but somehow it is 3. Need to figure out why.
 outstep = 1
 restartiter = 10

@@ -1,11 +1,11 @@
+"""Scikit-learn class wrapper for AMICA."""
 import warnings
 
 import numpy as np
-
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils.validation import validate_data, check_is_fitted
+from sklearn.utils.validation import check_is_fitted, validate_data
 
-from amica import fit_amica
+from .core import fit_amica
 
 CHECK_ARRAY_KWARGS = {
     "dtype": [np.float64, np.float32],
@@ -15,7 +15,7 @@ CHECK_ARRAY_KWARGS = {
 
 class AMICA(TransformerMixin, BaseEstimator):
     """AMICA: adaptive Mixture algorithm for Independent Component Analysis.
-    
+
     Parameters
     ----------
     n_components : int, default=None
@@ -52,8 +52,8 @@ class AMICA(TransformerMixin, BaseEstimator):
         Tolerance for stopping criteria. A positive scalar giving the tolerance at which
         the un-mixing matrix is considered to have converged. The default is 1e-7.
         Whereas the Fortran AMICA program contained tunable tolerance parameters for two
-        different stopping criteria ``min_dll`` and ``min_grad_norm``. We only expose one
-        parameter, which is applied to both criteria.
+        different stopping criteria ``min_dll`` and ``min_grad_norm``. We only expose
+        one parameter, which is applied to both criteria.
     lrate : float, default=0.05
         Initial learning rate for the optimization algorithm. The Fortran AMICA program
         exposed 2 tunable learning rate parameters, ``lrate`` and ``rholrate``, but we
@@ -65,10 +65,11 @@ class AMICA(TransformerMixin, BaseEstimator):
         If True, the optimization method will switch to newton updates after
         ``newt_start`` iterations. If ``False``, only SGD updates are used.
     newt_start : int, default=50
-        Number of iterations before switching to Newton updates if ``do_newton`` is True.
+        Number of iterations before switching to Newton updates if ``do_newton`` is
+        True.
     w_init : ndarray of shape (n_components, n_components), default=None
-        Initial un-mixing array. If ``None``, then an array of values drawn from a normal
-        distribution is used.
+        Initial un-mixing array. If ``None``, then an array of values drawn from a
+        normal distribution is used.
     sbeta_init : ndarray of shape (n_components, n_mixtures), default=None
         Initial scale parameters for the mixture components. If ``None``, then an array
         of values drawn from a uniform distribution is used.
@@ -79,7 +80,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         Used to initialize ``w_init`` when not specified, with a
         normal distribution. Pass an int, for reproducible results
         across multiple function calls.
-    
+
     Attributes
     ----------
     components_ : ndarray of shape (n_components, n_features)
@@ -99,11 +100,8 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of features seen during `fit`.
     n_iter_ : int
         Number of iterations taken to converge during fit.
-    
-        
+
     Examples
-    --------
-        Examples
     --------
     >>> from sklearn.datasets import load_digits
     >>> from amica import AMICA
@@ -113,6 +111,7 @@ class AMICA(TransformerMixin, BaseEstimator):
     >>> X_transformed.shape
     (1797, 7)
     """
+
     def __init__(
             self,
             n_components=None,
@@ -149,10 +148,10 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.sbeta_init = sbeta_init
         self.mu_init = mu_init
         self.random_state = random_state
-    
+
     def fit(self, X, y=None):
         """Fit the AMICA model to the data X.
-        
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
@@ -160,12 +159,12 @@ class AMICA(TransformerMixin, BaseEstimator):
             and n_features is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
-        
+
         Returns
         -------
         self : object
             Fitted estimator.
-        """        
+        """
         # Validate input data
         X = validate_data(
             self, X=X,
@@ -205,8 +204,7 @@ class AMICA(TransformerMixin, BaseEstimator):
 
     def transform(self, X, copy=True):
         """Recover the sources from X (apply the unmixing matrix).
-            
-        
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
@@ -214,7 +212,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             and n_features is the number of features.
         copy : bool, default=True
             If False, data passed to fit can be overwritten. Defaults to True.
-        
+
         Returns
         -------
         X_new : ndarray of shape (n_samples, n_components)
@@ -222,12 +220,14 @@ class AMICA(TransformerMixin, BaseEstimator):
             unmixing matrix.
         """
         check_is_fitted(self)
-        X = validate_data(self, X=X, reset=False, copy=copy, dtype=[np.float64, np.float32])
+        X = validate_data(
+            self, X=X, reset=False, copy=copy, dtype=[np.float64, np.float32]
+            )
         return X @ self.components_.T
- 
+
     def fit_transform(self, X, y=None):
         """Fit the model to the data and transform it.
-        
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
@@ -235,7 +235,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             and n_features is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
-        
+
         Returns
         -------
         X_new : ndarray of shape (n_samples, n_components)

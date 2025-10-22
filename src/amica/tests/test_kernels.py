@@ -1,23 +1,24 @@
 from pathlib import Path
 
-import pytest
 import numpy as np
-from numpy.testing import assert_allclose
+import pytest
 import torch
+from numpy.testing import assert_allclose
 
 from amica.kernels import (
-    compute_preactivations,
-    compute_source_densities,
-    compute_model_loglikelihood_per_sample,
-    compute_total_loglikelihood_per_sample,
-    compute_model_responsibilities,
     compute_mixture_responsibilities,
-    compute_weighted_responsibilities,
-    compute_source_scores,
-    precompute_weighted_scores,
+    compute_model_loglikelihood_per_sample,
+    compute_model_responsibilities,
+    compute_preactivations,
     compute_scaled_scores,
+    compute_source_densities,
+    compute_source_scores,
+    compute_total_loglikelihood_per_sample,
+    compute_weighted_responsibilities,
+    precompute_weighted_scores,
 )
 
+pytestmark = pytest.mark.skip(reason="The data for these tests is not in the VCS yet.")
 
 # Data for testing
 torch.set_default_dtype(torch.float64)
@@ -175,7 +176,7 @@ def test_compute_scaled_scores(u, fp, sbeta):
     """Test the compute_scaled_scores function."""
     g = compute_scaled_scores(
         weighted_scores=u * fp,
-        scales=sbeta, 
+        scales=sbeta,
         )
     assert g.size() == (93, 32)
     assert_allclose(g[:2, 0], [-0.24500792120056003, -0.243892663692031])

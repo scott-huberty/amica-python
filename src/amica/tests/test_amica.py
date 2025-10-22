@@ -4,19 +4,16 @@ Test for the AMICA algorithm implementation.
 This test runs the main AMICA algorithm and validates that it produces
 expected outputs, serving as a regression test during refactoring.
 """
-from pathlib import Path
 import matplotlib.pyplot as plt
-
 import mne
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_allclose
-
 import pytest
+from numpy.testing import assert_allclose, assert_almost_equal
 
 from amica import AMICA, fit_amica
-from amica.linalg import pre_whiten
 from amica.datasets import data_path
-from amica.utils import generate_toy_data, load_initial_weights, load_fortran_results
+from amica.linalg import pre_whiten
+from amica.utils import generate_toy_data, load_fortran_results, load_initial_weights
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -35,11 +32,15 @@ pytestmark = pytest.mark.timeout(120)
 def test_eeglab_data(load_weights, n_components, entrypoint):
     """
     Test the complete AMICA algorithm by executing the full main script.
-    
+
     This test runs the entire algorithm and checks that it completes successfully
     with expected outputs.
     """
-    out_type = "amicaout_test" if n_components is None else "amicaout_dimension_reduction_approx_sphere"
+    out_type = (
+        "amicaout_test"
+        if n_components is None
+        else "amicaout_dimension_reduction_approx_sphere"
+    )
     amica_outdir = data_path() / "eeglab_sample_data" / out_type
 
     raw = mne.io.read_raw_eeglab(data_path() / "eeglab_sample_data" / "eeglab_data.set")
@@ -58,7 +59,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
     initial_weights, initial_scales, initial_locations = load_initial_weights(
         amica_outdir,n_components=want_components, n_mixtures=3
     )
-    
+
     # Run AMICA
     if entrypoint == "function":
         results = fit_amica(
@@ -108,7 +109,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
     comp_list_f = fortran_results["comp_list"]
     # Something weird is happening there. I expect (num_comps, num_models) = (32, 1)
     comp_list_f = np.reshape(comp_list_f, (want_components, 2), order="F")
-    
+
     # These should be equal regardless of initialization
     assert_almost_equal(mean, mean_f)
     assert_almost_equal(S[:want_components], S_f[:want_components])
@@ -117,7 +118,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
         assert_almost_equal(results["c"], c_f)
         assert results["gm"] == gm_f == np.array([1.])
 
-    # The rest depend on initialization    
+    # The rest depend on initialization
     if load_weights:
         assert_almost_equal(A, A_f, decimal=2)
         assert_almost_equal(W, W_f, decimal=2)
@@ -171,20 +172,20 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
     def get_amica_sources(X, W, S, mean):
         """
         Apply AMICA transformation to get ICA sources.
-        
-        Parameters:
-        -----------
+
+        Parameters
+        ----------
         X : ndarray, shape (n_samples, n_features)
             Input data matrix
-        W : ndarray, shape (n_components, n_channels) 
+        W : ndarray, shape (n_components, n_channels)
             Unmixing matrix from AMICA (for single model, use W[:,:,0])
         S : ndarray, shape (n_channels, n_channels)
-            Sphering/whitening matrix  
+            Sphering/whitening matrix
         mean : ndarray, shape (n_channels,)
             Channel means
-            
-        Returns:
-        --------
+
+        Returns
+        -------
         sources : ndarray, shape (n_components, n_times)
             Independent component time series
         """
@@ -214,11 +215,11 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
             sources_fortran[::10, i]
         )[0, 1]
         corrs[i] = corr
-    
+
     threshold = 0.99 if load_weights else 0.6
     assert np.all(np.abs(corrs) > threshold)
 
-    
+
     if not load_weights:
         return
 
@@ -251,7 +252,6 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
             )
 def test_simulated_data(n_samples, noise_factor, entrypoint):
     """Test AMICA on simulated data and compare to Fortran results.
-    
 
     On this simulated data the convergence between languages varies much more
     and is less stable across runs (at least in the Python version). AFAICT this is
@@ -297,7 +297,6 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
         sbeta = results["sbeta"]
         W = results["W"]
         A = results["A"]
-        c = results["c"]
         alpha = results["alpha"]
         LL = results["LL"]
         # Compare to Fortran results
@@ -323,8 +322,8 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
     # These are only exposed via function entrypoint
     if entrypoint == "function":
         assert_allclose(alpha, alpha_f, rtol=0.5)
-        assert_allclose(sbeta, sbeta_f, rtol=0.5)    
-        assert_allclose(mu, mu_f, rtol=0.1)    
+        assert_allclose(sbeta, sbeta_f, rtol=0.5)
+        assert_allclose(mu, mu_f, rtol=0.1)
         assert_allclose(rho, rho_f, rtol=0.5)
 
     if entrypoint == "function":
@@ -332,7 +331,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
     else:
         iterations_python = transformer.n_iter_
     iterations_fortran = np.count_nonzero(LL_f)
-   
+
     # We have to be very lenient here because of the instability across runs..
     # The source of the instability should be investigated further. It might be
     # due to numerical issues in the updates, especially when denominators get small.
@@ -343,7 +342,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
             assert_allclose(LL[:10], LL_f[:10], rtol=20, atol=1e-7)
             assert_allclose(LL[:30], LL_f[:30], atol=6)
             assert_allclose(LL[:200], LL_f[:200], atol=6)
-    
+
     elif n_samples == 5_000:
         # Both programs solved the problem around ~205 iterations
         assert np.abs(iterations_fortran - iterations_python) < 3
@@ -356,8 +355,8 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
             assert_allclose(LL[:30], LL_f[:30], rtol=.1)
             # The end our final log likelihoods have diverged a lot
             assert_allclose(LL[:200], LL_f[:200], rtol=15, atol=5)
-            # AFAICT, this is because of compounding numerical differences in the updates
-    
+            # AFAICT this is because of compounding numerical differences in the updates
+
 
 @pytest.mark.parametrize(
         "n_components, do_approx_sphere",
@@ -403,7 +402,7 @@ def test_pre_whiten(n_components, do_approx_sphere):
         results = load_fortran_results(
             amica_outdir / sub_dir,
             n_features=32,
-            n_components=16, 
+            n_components=16,
             n_mixtures=3
         )
         S_fortran = results["S"]

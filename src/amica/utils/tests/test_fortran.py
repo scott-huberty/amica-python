@@ -1,16 +1,19 @@
+"""Tests for Fortran AMICA I/O utilities."""
 from pathlib import Path
 
-from amica.utils.fortran import (
-    load_data,
-    write_param_file,
-    write_data,
-)
-from amica.datasets import data_path
 import mne
 from numpy.testing import assert_allclose
 
-def test_write_param_file(tmp_path):
+from amica.datasets import data_path
+from amica.utils.fortran import (
+    load_data,
+    write_data,
+    write_param_file,
+)
 
+
+def test_write_param_file(tmp_path):
+    """Test writing a paraam file for use with the Fortran AMICA Program."""
     fpath = data_path() / "eeglab_sample_data" / "eeglab_data.set"
     raw = mne.io.read_raw_eeglab(fpath, preload=True)
     data = raw.get_data().T
