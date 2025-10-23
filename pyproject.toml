@@ -17,8 +17,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torch = ["torch>=2.2.0"]
-cpu = ["torch-cpu"]  # This uses the torch-cpu index defined below
+torch-cpu = ["torch"]
+torch-cuda = ["torch"]
 dev = ["pytest", "pytest-timeout", "matplotlib", "mne", "ruff"]
 doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc"]
 
@@ -43,9 +43,10 @@ convention = "numpy"
 
 
 [[tool.uv.index]]
-name = "pytorch-cpu-index"
+name = "pytorch_cpu"
 url = "https://download.pytorch.org/whl/cpu"
-explicit = true
+explicit = true # only fetch from this index if we explicitly map a package there.
 
 [tool.uv.sources]
-torch-cpu = { index = "pytorch-cpu-index" }
+torch = { index = "pytorch_cpu" }
+markupsafe = { index = "pytorch_cpu" }
