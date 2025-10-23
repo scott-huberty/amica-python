@@ -61,7 +61,7 @@ Generate Data and Load AMICA Results for Comparison
  .. code-block:: none
 
     Downloading data from 'https://github.com/scott-huberty/amica/releases/download/v0.5.0/test_output.tar.gz' to file '/home/circleci/amica_test_data/0610669c678872814029216a7b152c02-test_output.tar.gz'.
-      0%|                                              | 0.00/4.74M [00:00<?, ?B/s]     96%|███████████████████████████████████▎ | 4.53M/4.74M [00:00<00:00, 45.3MB/s]      0%|                                              | 0.00/4.74M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.74M/4.74M [00:00<00:00, 19.8GB/s]
+      0%|                                              | 0.00/4.74M [00:00<?, ?B/s]     83%|██████████████████████████████▌      | 3.92M/4.74M [00:00<00:00, 39.2MB/s]      0%|                                              | 0.00/4.74M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.74M/4.74M [00:00<00:00, 17.2GB/s]
     Untarring contents of '/home/circleci/amica_test_data/0610669c678872814029216a7b152c02-test_output.tar.gz' to '/home/circleci/amica_test_data/.'
 
 
@@ -125,116 +125,116 @@ Run AMICA and FastICA for comparison
     INFO     | Solving. (please be patient, this may take a while)... - amica.core:_core_amica
     INFO     | Iteration 1, lrate = 0.05000, LL = -1.0867528, nd = 0.2669125, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
     INFO     | Iteration 2, lrate = 0.05000, LL = -0.7574042, nd = 0.1819452, D = 0.00001 0.00001 took 0.07 seconds - amica.core:optimize
-    INFO     | Iteration 3, lrate = 0.05000, LL = -0.1328071, nd = 1.5249039, D = 0.00010 0.00010 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 4, lrate = 0.05000, LL = -0.8407174, nd = 11.9890026, D = 0.00105 0.00105 took 0.10 seconds - amica.core:optimize
+    INFO     | Iteration 3, lrate = 0.05000, LL = -0.1328071, nd = 1.5249039, D = 0.00010 0.00010 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 4, lrate = 0.05000, LL = -0.8407174, nd = 11.9890026, D = 0.00105 0.00105 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 5, lrate = 0.05000, LL = -9.3867164, nd = 15.0830853, D = 0.00182 0.00182 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 5, lrate = 0.05000, LL = -9.3867164, nd = 15.0830853, D = 0.00182 0.00182 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 6, lrate = 0.05000, LL = -1.4543557, nd = 0.3816262, D = 0.00019 0.00019 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 7, lrate = 0.05000, LL = -1.1845931, nd = 0.2253036, D = 0.00006 0.00006 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 8, lrate = 0.05000, LL = -1.0907295, nd = 0.0830087, D = 0.00001 0.00001 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 9, lrate = 0.05000, LL = -0.9606763, nd = 0.3962654, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 10, lrate = 0.05000, LL = -0.5891208, nd = 0.3880257, D = 0.00002 0.00002 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 11, lrate = 0.05000, LL = -0.1771749, nd = 3.4245323, D = 0.00069 0.00069 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 12, lrate = 0.05000, LL = -2.3512200, nd = 5.6411489, D = 0.04131 0.04131 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 6, lrate = 0.05000, LL = -1.4543557, nd = 0.3816262, D = 0.00019 0.00019 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 7, lrate = 0.05000, LL = -1.1845931, nd = 0.2253036, D = 0.00006 0.00006 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 8, lrate = 0.05000, LL = -1.0907295, nd = 0.0830087, D = 0.00001 0.00001 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 9, lrate = 0.05000, LL = -0.9606763, nd = 0.3962654, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 10, lrate = 0.05000, LL = -0.5891208, nd = 0.3880257, D = 0.00002 0.00002 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 11, lrate = 0.05000, LL = -0.1771749, nd = 3.4245323, D = 0.00069 0.00069 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 12, lrate = 0.05000, LL = -2.3512200, nd = 5.6411489, D = 0.04131 0.04131 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
     INFO     | Iteration 13, lrate = 0.02500, LL = -0.5202757, nd = 1.2354974, D = 0.00015 0.00015 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 14, lrate = 0.02500, LL = -0.0977299, nd = 3.3675807, D = 0.00085 0.00085 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 15, lrate = 0.02500, LL = -0.6134257, nd = 7.1277043, D = 0.00712 0.00712 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 14, lrate = 0.02500, LL = -0.0977299, nd = 3.3675807, D = 0.00085 0.00085 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 15, lrate = 0.02500, LL = -0.6134257, nd = 7.1277043, D = 0.00712 0.00712 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 16, lrate = 0.02500, LL = -0.8744933, nd = 4.2876204, D = 0.02763 0.02763 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 16, lrate = 0.02500, LL = -0.8744933, nd = 4.2876204, D = 0.02763 0.02763 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 17, lrate = 0.02500, LL = -0.2046298, nd = 1.8107090, D = 0.00010 0.00010 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 18, lrate = 0.02500, LL = -0.1364192, nd = 5.1263292, D = 0.00008 0.00008 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 19, lrate = 0.02500, LL = -0.8872815, nd = 6.7228030, D = 0.00026 0.00026 took 0.10 seconds - amica.core:optimize
+    INFO     | Iteration 17, lrate = 0.02500, LL = -0.2046298, nd = 1.8107090, D = 0.00010 0.00010 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 18, lrate = 0.02500, LL = -0.1364192, nd = 5.1263292, D = 0.00008 0.00008 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 19, lrate = 0.02500, LL = -0.8872815, nd = 6.7228030, D = 0.00026 0.00026 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 20, lrate = 0.01250, LL = -0.5182318, nd = 3.4772856, D = 0.00022 0.00022 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 21, lrate = 0.01250, LL = -0.2065442, nd = 2.5055246, D = 0.00020 0.00020 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 22, lrate = 0.01250, LL = 0.0231025, nd = 1.7913690, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 20, lrate = 0.01250, LL = -0.5182318, nd = 3.4772856, D = 0.00022 0.00022 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 21, lrate = 0.01250, LL = -0.2065442, nd = 2.5055246, D = 0.00020 0.00020 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 22, lrate = 0.01250, LL = 0.0231025, nd = 1.7913690, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 23, lrate = 0.01250, LL = 0.0779782, nd = 3.4809772, D = 0.00001 0.00001 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 24, lrate = 0.01250, LL = -0.2405498, nd = 10.0078491, D = 0.00004 0.00004 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 24, lrate = 0.01250, LL = -0.2405498, nd = 10.0078491, D = 0.00004 0.00004 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 25, lrate = 0.01250, LL = -0.8587391, nd = 6.3373399, D = 0.00009 0.00009 took 0.19 seconds - amica.core:optimize
+    INFO     | Iteration 25, lrate = 0.01250, LL = -0.8587391, nd = 6.3373399, D = 0.00009 0.00009 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 26, lrate = 0.01250, LL = -0.5131003, nd = 3.7051679, D = 0.00008 0.00008 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 27, lrate = 0.01250, LL = -0.1976170, nd = 2.7094099, D = 0.00008 0.00008 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 26, lrate = 0.01250, LL = -0.5131003, nd = 3.7051679, D = 0.00008 0.00008 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 27, lrate = 0.01250, LL = -0.1976170, nd = 2.7094099, D = 0.00008 0.00008 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 28, lrate = 0.01250, LL = 0.0206429, nd = 2.1428181, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 29, lrate = 0.01250, LL = 0.0579296, nd = 4.0912697, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 30, lrate = 0.01250, LL = -0.3486809, nd = 10.5167098, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 29, lrate = 0.01250, LL = 0.0579296, nd = 4.0912697, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 30, lrate = 0.01250, LL = -0.3486809, nd = 10.5167098, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 31, lrate = 0.00625, LL = -0.2428853, nd = 5.5593130, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 32, lrate = 0.00625, LL = 0.0381081, nd = 1.2866779, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 33, lrate = 0.00625, LL = 0.1283764, nd = 0.3557359, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 34, lrate = 0.00625, LL = 0.1492062, nd = 0.5195936, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
+    INFO     | Iteration 31, lrate = 0.00625, LL = -0.2428853, nd = 5.5593130, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 32, lrate = 0.00625, LL = 0.0381081, nd = 1.2866779, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 33, lrate = 0.00625, LL = 0.1283764, nd = 0.3557359, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 34, lrate = 0.00625, LL = 0.1492062, nd = 0.5195936, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 35, lrate = 0.00625, LL = 0.1511405, nd = 0.7956202, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 36, lrate = 0.00625, LL = 0.1488857, nd = 1.3752915, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 36, lrate = 0.00625, LL = 0.1488857, nd = 1.3752915, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 37, lrate = 0.00625, LL = 0.1400741, nd = 2.3893498, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 37, lrate = 0.00625, LL = 0.1400741, nd = 2.3893498, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 38, lrate = 0.00625, LL = 0.1085111, nd = 4.2634243, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 38, lrate = 0.00625, LL = 0.1085111, nd = 4.2634243, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
     INFO     | Likelihood decreasing! - amica.core:optimize
-    INFO     | Iteration 39, lrate = 0.00313, LL = 0.1414829, nd = 2.0692040, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 40, lrate = 0.00313, LL = 0.1535147, nd = 0.9581445, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 41, lrate = 0.00313, LL = 0.1559753, nd = 0.5254447, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 39, lrate = 0.00313, LL = 0.1414829, nd = 2.0692040, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 40, lrate = 0.00313, LL = 0.1535147, nd = 0.9581445, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 41, lrate = 0.00313, LL = 0.1559753, nd = 0.5254447, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 42, lrate = 0.00313, LL = 0.1570470, nd = 0.3164077, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 43, lrate = 0.00313, LL = 0.1577344, nd = 0.1892195, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 44, lrate = 0.00313, LL = 0.1583135, nd = 0.1305219, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 45, lrate = 0.00313, LL = 0.1588413, nd = 0.0811322, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 46, lrate = 0.00313, LL = 0.1593390, nd = 0.0655557, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 47, lrate = 0.00313, LL = 0.1598142, nd = 0.0378039, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 48, lrate = 0.00313, LL = 0.1602687, nd = 0.0363867, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 49, lrate = 0.00313, LL = 0.1607038, nd = 0.0186326, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 50, lrate = 0.00313, LL = 0.1611201, nd = 0.0000990, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 43, lrate = 0.00313, LL = 0.1577344, nd = 0.1892195, D = 0.00000 0.00000 took 0.02 seconds - amica.core:optimize
+    INFO     | Iteration 44, lrate = 0.00313, LL = 0.1583135, nd = 0.1305219, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 45, lrate = 0.00313, LL = 0.1588413, nd = 0.0811322, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 46, lrate = 0.00313, LL = 0.1593390, nd = 0.0655557, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 47, lrate = 0.00313, LL = 0.1598142, nd = 0.0378039, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 48, lrate = 0.00313, LL = 0.1602687, nd = 0.0363867, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 49, lrate = 0.00313, LL = 0.1607038, nd = 0.0186326, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 50, lrate = 0.00313, LL = 0.1611201, nd = 0.0000990, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
     INFO     | Starting Newton ... setting numdecs to 0 - amica.core:optimize
-    INFO     | Iteration 51, lrate = 0.00625, LL = 0.1615167, nd = 0.0000957, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 52, lrate = 0.01250, LL = 0.1618948, nd = 0.0000905, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 53, lrate = 0.02500, LL = 0.1622547, nd = 0.0000859, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 54, lrate = 0.05000, LL = 0.1625963, nd = 0.0000805, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 55, lrate = 0.10000, LL = 0.1629200, nd = 0.0000739, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 56, lrate = 0.20000, LL = 0.1632261, nd = 0.0000642, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 57, lrate = 0.30000, LL = 0.1635151, nd = 0.0000539, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 58, lrate = 0.40000, LL = 0.1637874, nd = 0.0000444, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 59, lrate = 0.50000, LL = 0.1640238, nd = 0.0000335, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 60, lrate = 0.60000, LL = 0.1642418, nd = 0.0000266, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 61, lrate = 0.70000, LL = 0.1644435, nd = 0.0000215, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 62, lrate = 0.80000, LL = 0.1646300, nd = 0.0000181, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 63, lrate = 0.90000, LL = 0.1648021, nd = 0.0000154, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 64, lrate = 1.00000, LL = 0.1649603, nd = 0.0000136, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 65, lrate = 1.00000, LL = 0.1651054, nd = 0.0000131, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 66, lrate = 1.00000, LL = 0.1652378, nd = 0.0000119, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 51, lrate = 0.00625, LL = 0.1615167, nd = 0.0000957, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 52, lrate = 0.01250, LL = 0.1618948, nd = 0.0000905, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 53, lrate = 0.02500, LL = 0.1622547, nd = 0.0000859, D = 0.00000 0.00000 took 0.02 seconds - amica.core:optimize
+    INFO     | Iteration 54, lrate = 0.05000, LL = 0.1625963, nd = 0.0000805, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 55, lrate = 0.10000, LL = 0.1629200, nd = 0.0000739, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 56, lrate = 0.20000, LL = 0.1632261, nd = 0.0000642, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 57, lrate = 0.30000, LL = 0.1635151, nd = 0.0000539, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 58, lrate = 0.40000, LL = 0.1637874, nd = 0.0000444, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 59, lrate = 0.50000, LL = 0.1640238, nd = 0.0000335, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 60, lrate = 0.60000, LL = 0.1642418, nd = 0.0000266, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 61, lrate = 0.70000, LL = 0.1644435, nd = 0.0000215, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 62, lrate = 0.80000, LL = 0.1646300, nd = 0.0000181, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 63, lrate = 0.90000, LL = 0.1648021, nd = 0.0000154, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 64, lrate = 1.00000, LL = 0.1649603, nd = 0.0000136, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 65, lrate = 1.00000, LL = 0.1651054, nd = 0.0000131, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 66, lrate = 1.00000, LL = 0.1652378, nd = 0.0000119, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 67, lrate = 1.00000, LL = 0.1653580, nd = 0.0000113, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 68, lrate = 1.00000, LL = 0.1654667, nd = 0.0000104, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 69, lrate = 1.00000, LL = 0.1655643, nd = 0.0000098, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 70, lrate = 1.00000, LL = 0.1656515, nd = 0.0000090, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 71, lrate = 1.00000, LL = 0.1657288, nd = 0.0000084, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 72, lrate = 1.00000, LL = 0.1657970, nd = 0.0000077, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 73, lrate = 1.00000, LL = 0.1658566, nd = 0.0000072, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 74, lrate = 1.00000, LL = 0.1659082, nd = 0.0000066, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 75, lrate = 1.00000, LL = 0.1659527, nd = 0.0000061, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 68, lrate = 1.00000, LL = 0.1654667, nd = 0.0000104, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 69, lrate = 1.00000, LL = 0.1655643, nd = 0.0000098, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 70, lrate = 1.00000, LL = 0.1656515, nd = 0.0000090, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 71, lrate = 1.00000, LL = 0.1657288, nd = 0.0000084, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 72, lrate = 1.00000, LL = 0.1657970, nd = 0.0000077, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 73, lrate = 1.00000, LL = 0.1658566, nd = 0.0000072, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 74, lrate = 1.00000, LL = 0.1659082, nd = 0.0000066, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 75, lrate = 1.00000, LL = 0.1659527, nd = 0.0000061, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
     INFO     | Iteration 76, lrate = 1.00000, LL = 0.1659906, nd = 0.0000056, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 77, lrate = 1.00000, LL = 0.1660226, nd = 0.0000051, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 78, lrate = 1.00000, LL = 0.1660494, nd = 0.0000046, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 79, lrate = 1.00000, LL = 0.1660716, nd = 0.0000042, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 80, lrate = 1.00000, LL = 0.1660899, nd = 0.0000038, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 81, lrate = 1.00000, LL = 0.1661047, nd = 0.0000034, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
+    INFO     | Iteration 77, lrate = 1.00000, LL = 0.1660226, nd = 0.0000051, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 78, lrate = 1.00000, LL = 0.1660494, nd = 0.0000046, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 79, lrate = 1.00000, LL = 0.1660716, nd = 0.0000042, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 80, lrate = 1.00000, LL = 0.1660899, nd = 0.0000038, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 81, lrate = 1.00000, LL = 0.1661047, nd = 0.0000034, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
     INFO     | Iteration 82, lrate = 1.00000, LL = 0.1661167, nd = 0.0000030, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 83, lrate = 1.00000, LL = 0.1661262, nd = 0.0000027, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 84, lrate = 1.00000, LL = 0.1661337, nd = 0.0000024, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 85, lrate = 1.00000, LL = 0.1661385, nd = 0.0000009, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 86, lrate = 1.00000, LL = 0.1661412, nd = 0.0000013, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 87, lrate = 1.00000, LL = 0.1661432, nd = 0.0000007, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 88, lrate = 1.00000, LL = 0.1661448, nd = 0.0000011, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 89, lrate = 1.00000, LL = 0.1661453, nd = 0.0000010, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 90, lrate = 1.00000, LL = 0.1661454, nd = 0.0000009, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 91, lrate = 1.00000, LL = 0.1661455, nd = 0.0000009, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 92, lrate = 1.00000, LL = 0.1661456, nd = 0.0000009, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 93, lrate = 1.00000, LL = 0.1661457, nd = 0.0000009, D = 0.00000 0.00000 took 0.10 seconds - amica.core:optimize
-    INFO     | Iteration 94, lrate = 1.00000, LL = 0.1661458, nd = 0.0000008, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 95, lrate = 1.00000, LL = 0.1661458, nd = 0.0000008, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
-    INFO     | Iteration 96, lrate = 1.00000, LL = 0.1661459, nd = 0.0000007, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
-    INFO     | Iteration 97, lrate = 1.00000, LL = 0.1661459, nd = 0.0000008, D = 0.00000 0.00000 took 0.09 seconds - amica.core:optimize
+    INFO     | Iteration 83, lrate = 1.00000, LL = 0.1661262, nd = 0.0000027, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 84, lrate = 1.00000, LL = 0.1661337, nd = 0.0000024, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 85, lrate = 1.00000, LL = 0.1661385, nd = 0.0000009, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 86, lrate = 1.00000, LL = 0.1661412, nd = 0.0000013, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 87, lrate = 1.00000, LL = 0.1661432, nd = 0.0000007, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 88, lrate = 1.00000, LL = 0.1661448, nd = 0.0000011, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 89, lrate = 1.00000, LL = 0.1661453, nd = 0.0000010, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 90, lrate = 1.00000, LL = 0.1661454, nd = 0.0000009, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 91, lrate = 1.00000, LL = 0.1661455, nd = 0.0000009, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 92, lrate = 1.00000, LL = 0.1661456, nd = 0.0000009, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 93, lrate = 1.00000, LL = 0.1661457, nd = 0.0000009, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 94, lrate = 1.00000, LL = 0.1661458, nd = 0.0000008, D = 0.00000 0.00000 took 0.01 seconds - amica.core:optimize
+    INFO     | Iteration 95, lrate = 1.00000, LL = 0.1661458, nd = 0.0000008, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
+    INFO     | Iteration 96, lrate = 1.00000, LL = 0.1661459, nd = 0.0000007, D = 0.00000 0.00000 took 0.07 seconds - amica.core:optimize
+    INFO     | Iteration 97, lrate = 1.00000, LL = 0.1661459, nd = 0.0000008, D = 0.00000 0.00000 took 0.03 seconds - amica.core:optimize
     INFO     | Exiting because likelihood increasing by less than 1e-07 for more than 5 iterations ... - amica.core:optimize
-    INFO     | Finished in 5.79 seconds - amica.core:optimize
+    INFO     | Finished in 4.21 seconds - amica.core:optimize
 
 
 .. raw:: html
@@ -992,7 +992,7 @@ Plot Results
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 12.761 seconds)
+   **Total running time of the script:** (0 minutes 11.425 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_toy.py:
