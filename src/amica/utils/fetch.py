@@ -77,7 +77,7 @@ def fetch_fortran_outputs() -> Path:
     """
     import pooch
 
-    unpack = pooch.Untar(extract_dir=".", filter="fully_trusted")
+    unpack = pooch.Untar(extract_dir=".")
     outputs_dir = pooch.retrieve(
         url=FORTRAN_URL,
         known_hash=FORTRAN_HASH,
