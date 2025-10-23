@@ -4,6 +4,8 @@ Test for the AMICA algorithm implementation.
 This test runs the main AMICA algorithm and validates that it produces
 expected outputs, serving as a regression test during refactoring.
 """
+import sys
+
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
@@ -348,7 +350,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
 
     elif n_samples == 5_000:
         # Both programs solved the problem around ~205 iterations
-        diff_iters = np.abs(iterations_fortran - iterations_python) 
+        diff_iters = np.abs(iterations_fortran - iterations_python)
         # On non-Windows we are very close, but Windows takes way longer to converge
         assert diff_iters < 3 if sys.platform != "win32" else diff_iters < 103
         if entrypoint == "function":
