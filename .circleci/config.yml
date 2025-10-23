@@ -16,7 +16,7 @@ jobs:
           command: |
             uv venv
             source .venv/bin/activate
-            uv pip install -e ".[dev,doc]"
+            uv pip install -e ".[torch-cpu,dev,doc]"
       - run:
           name: Build Sphinx docs
           command: |

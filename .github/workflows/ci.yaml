@@ -73,7 +73,7 @@ jobs:
       - name: Install Base Deps and check import
         run: |
           source .venv/${ACTIVATE_DIR}/activate
-          uv pip install -e .
+          uv pip install -e ".[torch-cpu]"
           python -c "import amica"
 
       - name: Install dev extras

@@ -10,14 +10,16 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "loguru",
+    "pooch >= 1.5", 
     "psutil",
     "numpy>=2.2.6",
     "scikit-learn>=1.7.0",
-    "torch>=2.2.0",
 ]
 
 [project.optional-dependencies]
-dev = [ "pooch", "pytest", "pytest-timeout", "matplotlib", "mne", "ruff"]
+torch-cpu = ["torch"]
+torch-cuda = ["torch"]
+dev = ["pytest", "pytest-timeout", "matplotlib", "mne", "ruff"]
 doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc"]
 
 [tool.setuptools]
@@ -38,3 +40,13 @@ convention = "numpy"
 "src/amica/_types.py" = ["E501"]  # Line too long
 "src/amica/**/__init__.py" = ["D104"]  # Missing docstring in public package
 "src/amica/**/tests/*.py" = ["D100"]  # Missing docstring in public module
+
+
+[[tool.uv.index]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true # only fetch from this index if we explicitly map a package there.
+
+[tool.uv.sources]
+torch = { index = "pytorch_cpu" }
+markupsafe = { index = "pytorch_cpu" }
