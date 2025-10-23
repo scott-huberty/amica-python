@@ -21,8 +21,7 @@ class AMICA(TransformerMixin, BaseEstimator):
     n_components : int, default=None
         Number of components to use. If None is passed, all are used.
     n_mixtures : int, default=3
-        Number of mixtures components to use in the source model.
-        default is 3.
+        Number of mixtures components to use in the source model. default is 3.
     n_models : int, default=1
         Number of models to learn, only 1 is supported currently.
     batch_size : int, optional
@@ -31,21 +30,23 @@ class AMICA(TransformerMixin, BaseEstimator):
         warns if the batch size is below ~8k samples. If the input data is small enough
         to process in one shot, no batching is used. If you want to enforce no batching,
         you can override this memory cap by setting batch_size explicitly, e.g. to
-        `X.shape[0]` to process all samples at once.", but note that this may lead to
+        ``X.shape[0]`` to process all samples at once.", but note that this may lead to
         high memory usage for large datasets.
     mean_center : bool, default=True
         If True, the data is mean-centered before whitening and fitting.
     whiten : str {"zca", "pca", "variance"}, default="zca"
         whitening strategy.
+
         - 'zca': Data is whitened and rotated back to original axes. This is equivalent
-            to `do_mean=True` + `do_sphere=True` + `do_approx_sphere=False` in the
+            to ``do_mean=True`` + ``do_sphere=True`` + ``do_approx_sphere=False`` in the
             Fortran AMICA program.
         - 'pca': Data is whitened and left in the PCA basis. This is equivalent to
-            `do_mean=True` + `do_sphere=True` + `do_approx_sphere=True` in the
+            ``do_mean=True`` + ``do_sphere=True`` + ``do_approx_sphere=True`` in the
             Fortran AMICA program.
         - 'variance': Diagonal Normalization. Each feature is scaled by the variance
-            across features. This is equivalent to `do_mean=True` + `do_sphere=False` +
-            in the Fortran AMICA program.
+            across features. This is equivalent to ``do_mean=True`` +
+            ``do_sphere=False`` + in the Fortran AMICA program.
+
     max_iter : int, default=500
         Maximum number of iterations during fit.
     tol : float, default=1e-7
@@ -67,13 +68,13 @@ class AMICA(TransformerMixin, BaseEstimator):
     newt_start : int, default=50
         Number of iterations before switching to Newton updates if ``do_newton`` is
         True.
-    w_init : ndarray of shape (n_components, n_components), default=None
+    w_init : ndarray of shape (``n_components``, ``n_components``), default=None
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.
-    sbeta_init : ndarray of shape (n_components, n_mixtures), default=None
+    sbeta_init : ndarray of shape (``n_components``, n_mixtures), default=None
         Initial scale parameters for the mixture components. If ``None``, then an array
         of values drawn from a uniform distribution is used.
-    mu_init : ndarray of shape (n_components, n_mixtures), default=None
+    mu_init : ndarray of shape (``n_components``, n_mixtures), default=None
         Initial location parameters for the mixture components. If ``None``, then an
         array of values drawn from a normal distribution is used.
     random_state : int, RandomState instance or None, default=None
@@ -83,19 +84,19 @@ class AMICA(TransformerMixin, BaseEstimator):
 
     Attributes
     ----------
-    components_ : ndarray of shape (n_components, n_features)
+    components_ : ndarray of shape (``n_components``, ``n_features``)
         The linear operator to apply to the data to get the independent
         sources. This is equal to the unmixing matrix when ``whiten`` is
         False, and equal to ``np.dot(unmixing_matrix, self.whitening_)`` when
         ``whiten`` is True.
-    mixing_ : ndarray of shape (n_features, n_components)
+    mixing_ : ndarray of shape (``n_features``, ``n_components``)
         The pseudo-inverse of ``components_``. It is the linear operator
         that maps independent sources to the data.
-    mean_ : ndarray of shape(n_features,)
+    mean_ : ndarray of shape(``n_features``,)
         The mean over features. Only set if `self.whiten` is True.
-    whitening_ : ndarray of shape (n_components, n_features)
+    whitening_ : ndarray of shape (``n_components``, ``n_features``)
         Only set if whiten is 'True'. This is the pre-whitening matrix
-        that projects data onto the first `n_components` principal components.
+        that projects data onto the first ```n_components``` principal components.
     n_features_in_ : int
         Number of features seen during `fit`.
     n_iter_ : int
@@ -154,9 +155,9 @@ class AMICA(TransformerMixin, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where n_samples is the number of samples
-            and n_features is the number of features.
+        X : array-like of shape (n_samples, ``n_features``)
+            Training data, where ``n_samples`` is the number of samples
+            and ``n_features`` is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
         verbose : bool or str or int or None, default=None
@@ -214,15 +215,15 @@ class AMICA(TransformerMixin, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
-            Data to transform, where n_samples is the number of samples
-            and n_features is the number of features.
+        X : array-like of shape (n_samples, ``n_features``)
+            Data to transform, where ``n_samples`` is the number of samples
+            and ``n_features`` is the number of features.
         copy : bool, default=True
             If False, data passed to fit can be overwritten. Defaults to True.
 
         Returns
         -------
-        X_new : ndarray of shape (n_samples, n_components)
+        X_new : ndarray of shape (n_samples, ``n_components``)
             Estimated sources obtained by transforming the data with the estimated
             unmixing matrix.
         """
@@ -237,15 +238,15 @@ class AMICA(TransformerMixin, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : array-like of shape (n_samples, ``n_features``)
             Training data, where n_samples is the number of samples
-            and n_features is the number of features.
+            and ``n_features`` is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
 
         Returns
         -------
-        X_new : ndarray of shape (n_samples, n_components)
+        X_new : ndarray of shape (n_samples, ``n_components``)
             Estimated sources obtained by transforming the data with the estimated
             unmixing matrix.
         """

@@ -6,6 +6,11 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# Tell sphinx where to find my package
+import os
+import sys
+sys.path.insert(0, os.path.abspath("../../src"))
+
 project = 'AMICA-Python'
 copyright = '2025, Scott Huberty'
 author = 'Scott Huberty'
@@ -13,7 +18,13 @@ author = 'Scott Huberty'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx_gallery.gen_gallery',]
+extensions = [
+    "numpydoc", # For NumPy style docstrings
+    'sphinx_gallery.gen_gallery', # For generating example galleries
+    "sphinx.ext.autodoc", # For automatic API documentation generation
+    "sphinx.ext.autosummary", # For generating summary tables
+    "sphinx.ext.intersphinx", # For linking to other projects' docs
+        ]
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -27,10 +38,48 @@ html_theme = 'shibuya'
 html_static_path = ['_static']
 
 
+# Sphinx Gallery configuration ----------------------------------------------
 sphinx_gallery_conf = {
     'examples_dirs': ['examples'],      # source examples
     'gallery_dirs': ['auto_examples'],  # generated gallery
     'filename_pattern': r'.*',          # include all example files
     'download_all_examples': False,
     'remove_config_comments': True,
+}
+
+
+# autosummary configuration ---------------------------------------------------
+# Do NOT generate autosummary for the class page — we’ll rely on numpydoc
+autosummary_generate = False
+# autosummary_generate_overwrite = True
+
+# NumPyDoc configuration -----------------------------------------------------
+# Tell numpydoc to create a table of contents for class members
+numpydoc_show_class_members = True # # show table of methods inline
+numpydoc_class_members_toctree = False # do NOT generate a toctree/stubs for methods
+numpydoc_show_inherited_class_members = False
+# numpydoc_validate = True
+numpydoc_xref_aliases = {
+    'BaseEstimator': 'sklearn.base.BaseEstimator',
+    'TransformerMixin': 'sklearn.base.TransformerMixin',
+    "FastICA": "sklearn.decomposition.FastICA",
+}
+
+# autodoc configuration -------------------------------------------------------
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": False,
+    "inherited-members": False,
+    "show-inheritance": True,
+}
+
+'''suppress_warnings = [
+    "ref.term",
+    "ref.ref",
+]'''
+
+# -- Intersphinx configuration -----------------------------------------------
+
+intersphinx_mapping = {
+    "sklearn": ("https://scikit-learn.org/stable/", None),
 }
