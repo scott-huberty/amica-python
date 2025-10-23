@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [ "pooch", "pytest", "pytest-timeout", "matplotlib", "mne", "ruff"]
-doc = ["sphinx", "shibuya", "sphinx-gallery", "numpydoc"]
+doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

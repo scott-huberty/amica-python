@@ -18,8 +18,9 @@ neuroimaging data, and can be generally used for many BSS problems. See the exam
 below for a few use cases.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
+   api/index
    auto_examples/index
 
