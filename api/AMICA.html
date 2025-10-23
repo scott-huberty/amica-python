@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AMICA - AMICA-Python documentation</title><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Functional API" href="functions.html" /><link rel="prev" title="API Reference" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=d140fbf8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="AMICA"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      
+      
+      <strong>AMICA-Python</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials"></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">AMICA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="functions.html">Functional API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utilities and Helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datasets.html">Dataset Fetchers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../auto_examples/index.html">AMICA Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_toy.html">Run ICA On Toy Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_sphere.html">Sphering (whitening) data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_amica.html">Run AMICA on EEG Data</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#amica.AMICA"><code class="docutils literal notranslate"><span class="pre">AMICA</span></code></a><ul>
+<li><a class="reference internal" href="#amica.AMICA.fit"><code class="docutils literal notranslate">fit()</span></code></a></li>
+<li><a class="reference internal" href="#amica.AMICA.fit_transform"><code class="docutils literal notranslate">fit_transform()</span></code></a></li>
+<li><a class="reference internal" href="#amica.AMICA.transform"><code class="docutils literal notranslate">transform()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">AMICA-Python</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">API Reference</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">AMICA</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="amica">
+<h1>AMICA<a class="headerlink" href="#amica" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The AMICA class is Scikit-Learn compatible, so most methods available to
+<a class="reference external" href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html#sklearn.decomposition.FastICA" title="(in scikit-learn v1.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">sklearn.decomposition.FastICA</span></code></a> should also be available to
+<a class="reference internal" href="#amica.AMICA" title="amica.AMICA"><code class="xref py py-class docutils literal notranslate"><span class="pre">amica.AMICA</span></code></a>.</p>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="amica.AMICA">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">amica.</span></span><span class="sig-name descname"><span class="pre">AMICA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mixtures</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_models</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">whiten</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zca'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lrate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdftype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_newton</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newt_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sbeta_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="(in scikit-learn v1.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TransformerMixin</span></code></a>, <a class="reference external" href="https://scikit-learn.org/stable/modules/generated/sklearn.base.BaseEstimator.html#sklearn.base.BaseEstimator" title="(in scikit-learn v1.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEstimator</span></code></a></p>
+<p>AMICA: adaptive Mixture algorithm for Independent Component Analysis.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>n_components</strong><span class="classifier">int, default=None</span></dt><dd><p>Number of components to use. If None is passed, all are used.</p>
+</dd>
+<dt><strong>n_mixtures</strong><span class="classifier">int, default=3</span></dt><dd><p>Number of mixtures components to use in the source model. default is 3.</p>
+</dd>
+<dt><strong>n_models</strong><span class="classifier">int, default=1</span></dt><dd><p>Number of models to learn, only 1 is supported currently.</p>
+</dd>
+<dt><strong>batch_size</strong><span class="classifier">int, optional</span></dt><dd><p>Batch size for processing data in chunks along the samples axis. If <code class="docutils literal notranslate"><span class="pre">None</span></code>,
+batching is chosen automatically to keep peak memory under ~1.5 GB, and
+warns if the batch size is below ~8k samples. If the input data is small enough
+to process in one shot, no batching is used. If you want to enforce no batching,
+you can override this memory cap by setting batch_size explicitly, e.g. to
+<code class="docutils literal notranslate"><span class="pre">X.shape[0]</span></code> to process all samples at once.”, but note that this may lead to
+high memory usage for large datasets.</p>
+</dd>
+<dt><strong>mean_center</strong><span class="classifier">bool, default=True</span></dt><dd><p>If True, the data is mean-centered before whitening and fitting.</p>
+</dd>
+<dt><strong>whiten</strong><span class="classifier">str {“zca”, “pca”, “variance”}, default=”zca”</span></dt><dd><p>whitening strategy.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>‘zca’: Data is whitened and rotated back to original axes. This is equivalent</dt><dd><p>to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=False</span></code> in the
+Fortran AMICA program.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>‘pca’: Data is whitened and left in the PCA basis. This is equivalent to</dt><dd><p><code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=True</span></code> in the
+Fortran AMICA program.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>‘variance’: Diagonal Normalization. Each feature is scaled by the variance</dt><dd><p>across features. This is equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> +
+<code class="docutils literal notranslate"><span class="pre">do_sphere=False</span></code> + in the Fortran AMICA program.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt><strong>max_iter</strong><span class="classifier">int, default=500</span></dt><dd><p>Maximum number of iterations during fit.</p>
+</dd>
+<dt><strong>tol</strong><span class="classifier">float, default=1e-7</span></dt><dd><p>Tolerance for stopping criteria. A positive scalar giving the tolerance at which
+the un-mixing matrix is considered to have converged. The default is 1e-7.
+Whereas the Fortran AMICA program contained tunable tolerance parameters for two
+different stopping criteria <code class="docutils literal notranslate"><span class="pre">min_dll</span></code> and <code class="docutils literal notranslate"><span class="pre">min_grad_norm</span></code>. We only expose
+one parameter, which is applied to both criteria.</p>
+</dd>
+<dt><strong>lrate</strong><span class="classifier">float, default=0.05</span></dt><dd><p>Initial learning rate for the optimization algorithm. The Fortran AMICA program
+exposed 2 tunable learning rate parameters, <code class="docutils literal notranslate"><span class="pre">lrate</span></code> and <code class="docutils literal notranslate"><span class="pre">rholrate</span></code>, but we
+expose only one for simplicity, which is applied to both.</p>
+</dd>
+<dt><strong>pdftype</strong><span class="classifier">int, default=0</span></dt><dd><p>Type of source density model to use. Currently only <code class="docutils literal notranslate"><span class="pre">0</span></code> is supported,
+which corresponds to the Gaussian Mixture Model (GMM) density.</p>
+</dd>
+<dt><strong>do_newton</strong><span class="classifier">bool, default=True</span></dt><dd><p>If True, the optimization method will switch to newton updates after
+<code class="docutils literal notranslate"><span class="pre">newt_start</span></code> iterations. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, only SGD updates are used.</p>
+</dd>
+<dt><strong>newt_start</strong><span class="classifier">int, default=50</span></dt><dd><p>Number of iterations before switching to Newton updates if <code class="docutils literal notranslate"><span class="pre">do_newton</span></code> is
+True.</p>
+</dd>
+<dt><strong>w_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>), default=None</span></dt><dd><p>Initial un-mixing array. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array of values drawn from a
+normal distribution is used.</p>
+</dd>
+<dt><strong>sbeta_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, n_mixtures), default=None</span></dt><dd><p>Initial scale parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array
+of values drawn from a uniform distribution is used.</p>
+</dd>
+<dt><strong>mu_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, n_mixtures), default=None</span></dt><dd><p>Initial location parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an
+array of values drawn from a normal distribution is used.</p>
+</dd>
+<dt><strong>random_state</strong><span class="classifier">int, RandomState instance or None, default=None</span></dt><dd><p>Used to initialize <code class="docutils literal notranslate"><span class="pre">w_init</span></code> when not specified, with a
+normal distribution. Pass an int, for reproducible results
+across multiple function calls.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Attributes<span class="colon">:</span></dt>
+<dd class="field-even"><dl>
+<dt><strong>components_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>The linear operator to apply to the data to get the independent
+sources. This is equal to the unmixing matrix when <code class="docutils literal notranslate"><span class="pre">whiten</span></code> is
+False, and equal to <code class="docutils literal notranslate"><span class="pre">np.dot(unmixing_matrix,</span> <span class="pre">self.whitening_)</span></code> when
+<code class="docutils literal notranslate"><span class="pre">whiten</span></code> is True.</p>
+</dd>
+<dt><strong>mixing_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_features</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>The pseudo-inverse of <code class="docutils literal notranslate"><span class="pre">components_</span></code>. It is the linear operator
+that maps independent sources to the data.</p>
+</dd>
+<dt><strong>mean_</strong><span class="classifier">ndarray of shape(<code class="docutils literal notranslate"><span class="pre">n_features</span></code>,)</span></dt><dd><p>The mean over features. Only set if <cite>self.whiten</cite> is True.</p>
+</dd>
+<dt><strong>whitening_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Only set if whiten is ‘True’. This is the pre-whitening matrix
+that projects data onto the first <code class="docutils literal notranslate"><span class="pre">`n_components`</span></code> principal components.</p>
+</dd>
+<dt><strong>n_features_in_</strong><span class="classifier">int</span></dt><dd><p>Number of features seen during <cite>fit</cite>.</p>
+</dd>
+<dt><strong>n_iter_</strong><span class="classifier">int</span></dt><dd><p>Number of iterations taken to converge during fit.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<div class="table-wrapper autosummary longtable docutils container">
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.fit" title="amica.AMICA.fit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit</span></code></a>(X[, y, verbose])</p></td>
+<td><p>Fit the AMICA model to the data X.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#amica.AMICA.fit_transform" title="amica.AMICA.fit_transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit_transform</span></code></a>(X[, y])</p></td>
+<td><p>Fit the model to the data and transform it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.transform" title="amica.AMICA.transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform</span></code></a>(X[, copy])</p></td>
+<td><p>Recover the sources from X (apply the unmixing matrix).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_digits</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">amica</span><span class="w"> </span><span class="kn">import</span> <span class="n">AMICA</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">load_digits</span><span class="p">(</span><span class="n">return_X_y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">&gt;&gt;&gt; </span><span class="n">transformer</span> <span class="o">=</span> <span class="n">AMICA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</span><span data-line="5"><span class="gp">&gt;&gt;&gt; </span><span class="n">X_transformed</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span data-line="6"><span class="gp">&gt;&gt;&gt; </span><span class="n">X_transformed</span><span class="o">.</span><span class="n">shape</span>
+</span><span data-line="7"><span class="go">(1797, 7)</span>
+</span></pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="amica.AMICA.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA.fit" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the AMICA model to the data X.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>X</strong><span class="classifier">array-like of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Training data, where <code class="docutils literal notranslate"><span class="pre">n_samples</span></code> is the number of samples
+and <code class="docutils literal notranslate"><span class="pre">n_features</span></code> is the number of features.</p>
+</dd>
+<dt><strong>y</strong><span class="classifier">Ignored</span></dt><dd><p>Not used, present here for API consistency by convention.</p>
+</dd>
+<dt><strong>verbose</strong><span class="classifier">bool or str or int or None, default=None</span></dt><dd><p>Control verbosity of the logging output. If a str, it can be either
+<code class="docutils literal notranslate"><span class="pre">&quot;DEBUG&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;INFO&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;WARNING&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;ERROR&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;CRITICAL&quot;</span></code>.
+Note that these are for convenience and are equivalent to passing in
+<code class="docutils literal notranslate"><span class="pre">logging.DEBUG</span></code>, etc. For <code class="docutils literal notranslate"><span class="pre">bool</span></code>, <code class="docutils literal notranslate"><span class="pre">True</span></code> is the same as <code class="docutils literal notranslate"><span class="pre">&quot;INFO&quot;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">False</span></code> is the same as <code class="docutils literal notranslate"><span class="pre">&quot;WARNING&quot;</span></code>. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, defaults to <code class="docutils literal notranslate"><span class="pre">&quot;INFO&quot;</span></code>.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>self</strong><span class="classifier">object</span></dt><dd><p>Fitted estimator.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amica.AMICA.fit_transform">
+<span class="sig-name descname"><span class="pre">fit_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA.fit_transform" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the model to the data and transform it.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>X</strong><span class="classifier">array-like of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Training data, where n_samples is the number of samples
+and <code class="docutils literal notranslate"><span class="pre">n_features</span></code> is the number of features.</p>
+</dd>
+<dt><strong>y</strong><span class="classifier">Ignored</span></dt><dd><p>Not used, present here for API consistency by convention.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl>
+<dt><strong>X_new</strong><span class="classifier">ndarray of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>Estimated sources obtained by transforming the data with the estimated
+unmixing matrix.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amica.AMICA.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA.transform" title="Link to this definition">¶</a></dt>
+<dd><p>Recover the sources from X (apply the unmixing matrix).</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>X</strong><span class="classifier">array-like of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Data to transform, where <code class="docutils literal notranslate"><span class="pre">n_samples</span></code> is the number of samples
+and <code class="docutils literal notranslate"><span class="pre">n_features</span></code> is the number of features.</p>
+</dd>
+<dt><strong>copy</strong><span class="classifier">bool, default=True</span></dt><dd><p>If False, data passed to fit can be overwritten. Defaults to True.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl>
+<dt><strong>X_new</strong><span class="classifier">ndarray of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>Estimated sources obtained by transforming the data with the estimated
+unmixing matrix.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">API Reference</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="functions.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Functional API</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2025, Scott Huberty</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials"></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/shibuya.js?v=9b0e4dde"></script></body>
+</html>
