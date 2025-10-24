@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/github/scott-huberty/amica-python/branch/main/graph/badge.svg?token=SVAD8HTJNG)](https://codecov.io/github/scott-huberty/amica-python)
+[![codecov](https://codecov.io/github/scott-huberty/amica-python/graph/badge.svg?token=Gt7dvyE9mL)](https://codecov.io/github/scott-huberty/amica-python)
 
 ```text
  ░▒▓██████▓▒░░▒▓██████████████▓▒░░▒▓█▓▒░░▒▓██████▓▒░ ░▒▓██████▓▒░  
