@@ -6,12 +6,9 @@ A Python implementation of the [AMICA](https://sccn.ucsd.edu/~jason/amica_a.pdf)
 
 AMICA-Python is pre-alpha but is tested and ready for test driving.
 
-## Python
-![amica-python in action](https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-python.gif)
-
-## Fortran
-
-![amica-fortran comparison](https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-fortran.gif)
+| Python | Fortran |
+|--------|---------|
+| <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-python.gif" width=400px /> | <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-fortran.gif" width=400px /> |
 
 ## What is AMICA?
 
