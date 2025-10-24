@@ -86,5 +86,10 @@ jobs:
           source .venv/${ACTIVATE_DIR}/activate
           pytest src/amica/tests/test_amica.py
       
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Minimize uv cache
         run: uv cache prune --ci

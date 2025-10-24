@@ -19,7 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 torch-cpu = ["torch"]
 torch-cuda = ["torch"]
-dev = ["pytest", "pytest-timeout", "matplotlib", "mne", "ruff"]
+dev = ["pytest", "pytest-cov", "pytest-timeout", "matplotlib", "mne", "ruff"]
 doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc"]
 
 [tool.setuptools]
@@ -50,3 +50,28 @@ explicit = true # only fetch from this index if we explicitly map a package ther
 [tool.uv.sources]
 torch = { index = "pytorch_cpu" }
 markupsafe = { index = "pytorch_cpu" }
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov-branch",
+    "--cov-report=",
+]
+testpaths = [
+  "src/amica",
+]
+
+[tool.coverage.run]
+# Source files to measure.
+source = ["src/amica"]
+# Add branch coverage to the analysis.
+branch = true
+# Specify which files to omit from the coverage report.
+omit = [
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
