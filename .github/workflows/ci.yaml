@@ -84,8 +84,7 @@ jobs:
       - name: Run tests
         run: |
           source .venv/${ACTIVATE_DIR}/activate
-          pytest src/amica/tests/test_amica.py
-      
+          pytest
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

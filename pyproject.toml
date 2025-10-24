@@ -53,17 +53,15 @@ markupsafe = { index = "pytorch_cpu" }
 
 [tool.pytest.ini_options]
 addopts = [
+    "--cov=amica",
     "--cov-branch",
     "--cov-report=xml",
     "--cov-report=term",
 ]
 
 [tool.coverage.run]
-# Source files to measure.
-source = ["amica"]
-# Add branch coverage to the analysis.
-branch = true
-# Specify which files to omit from the coverage report.
+source = ["amica"] # Source files to measure.
+branch = true # Add branch coverage to the analysis.
 omit = [
     "*/tests/*",
     ".venv/*",
@@ -74,3 +72,8 @@ exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
 ]
+show_missing = true
+skip_covered = true
+
+[tool.coverage.xml]
+output = "coverage.xml"
