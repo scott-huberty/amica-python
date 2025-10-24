@@ -67,6 +67,7 @@ from amica.state import (
 
 from .utils._logging import logger, set_log_level
 
+
 def get_component_slice(h: int, n_components: int) -> slice:
     """Return slice for components of model h.
 
