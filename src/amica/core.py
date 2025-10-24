@@ -1,7 +1,6 @@
 """Module containing amica funciton entry point."""
 
 import time
-import warnings
 
 import torch
 from numpy.testing import assert_allclose
