@@ -1,6 +1,9 @@
 """
 Run AMICA on EEG Data
 =====================
+
+And compare results to Fortran AMICA.
+
 """
 # %%
 import amica
@@ -8,13 +11,32 @@ from amica import AMICA
 import matplotlib.pyplot as plt
 import mne
 
+
+# %%
+# Download sample data
+# ^^^^^^^^^^^^^^^^^^^^
+#
+
 # %%
 data_path = amica.datasets.data_path()
+
+# %%
+# Load Fortran AMICA initial weights and results
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#
+# This is not necessary to run AMICA in Python, but we are going to compare amica-python
+# results to those obtained from the original Fortran implementation.
+#
 
 # %%
 initial_weights, initial_scales, initial_locations = amica.utils.load_initial_weights(
     data_path / "eeglab_sample_data" / "amicaout_test", n_components=32, n_mixtures=3
     )
+
+# %%
+# Load EEG data
+# ^^^^^^^^^^^^^
+#
 
 # %%
 amica_outdir = data_path / "eeglab_sample_data" / "amicaout_test"
@@ -29,6 +51,12 @@ raw = mne.io.read_raw_eeglab(
 data = raw.get_data().T  # Shape (n_samples, n_channels)
 data *= 1e6  # Convert from Volts to microVolts
 
+
+# %%
+# Run AMICA-Python
+# ^^^^^^^^^^^^^^^^^^^^^
+#
+
 # %%
 transformer = AMICA(
         max_iter=200,
@@ -37,6 +65,11 @@ transformer = AMICA(
         mu_init=initial_locations,
 )
 transformer.fit(data)
+
+# %%
+# Compare results
+# ^^^^^^^^^^^^^^^
+#
 
 # %%
 A_fortran = fortran_results['A']

@@ -1,7 +1,6 @@
 """Module containing amica funciton entry point."""
 
 import time
-import warnings
 
 import torch
 from numpy.testing import assert_allclose
@@ -67,8 +66,6 @@ from amica.state import (
 )
 
 from .utils._logging import logger, set_log_level
-
-warnings.filterwarnings("error")
 
 
 def get_component_slice(h: int, n_components: int) -> slice:
