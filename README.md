@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/github/scott-huberty/amica-python/branch/main/graph/badge.svg?token=SVAD8HTJNG)](https://codecov.io/github/scott-huberty/amica-python)
+
 ```text
  ░▒▓██████▓▒░░▒▓██████████████▓▒░░▒▓█▓▒░░▒▓██████▓▒░ ░▒▓██████▓▒░  
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
