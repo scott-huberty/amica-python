@@ -12,3 +12,7 @@ wheels/
 # Sphinx Gallery
 docs/source/auto_examples/
 docs/source/sg_execution_times.rst
+
+# Coverage reports
+.coverage
+coverage.xml
