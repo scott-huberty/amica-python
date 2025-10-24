@@ -29,7 +29,7 @@ def fetch_datasets() -> Path:
     return CACHE_DIR
 
 
-def fetch_test_data() -> Path:
+def fetch_test_data() -> Path:  # pragma: no cover
     """
     Download the EEGLAB sample dataset (.set + .fdt).
 
