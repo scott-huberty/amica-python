@@ -8,7 +8,7 @@ AMICA-Python is pre-alpha but is tested and ready for test driving.
 
 | Python | Fortran |
 |--------|---------|
-| <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-python.gif" width=400px /> | <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/readme/docs/source/_static/amica-fortran.gif" width=400px /> |
+| <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/main/docs/source/_static/amica-python.gif" width=400px /> | <img src="https://raw.githubusercontent.com/scott-huberty/amica-python/main/docs/source/_static/amica-fortran.gif" width=400px /> |
 
 ## What is AMICA?
 
