@@ -57,9 +57,7 @@ addopts = [
     "--cov-branch",
     "--cov-report=xml",
     "--cov-report=term",
-]
-norecursedirs = [
-    "src/amica/tests/test_kernels.py", # Test data isn't on VCS
+    "--ignore=src/amica/tests/test_kernels.py",
 ]
 
 [tool.coverage.run]
