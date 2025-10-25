@@ -184,8 +184,8 @@ to download the full example code.</p>
 <section id="whitening-with-different-options">
 <h2>Whitening with different options<a class="headerlink" href="#whitening-with-different-options" title="Link to this heading">¶</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">title</span> <span class="ow">in</span> <span class="p">[</span>
-</span><span data-line="2">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="s2">&quot;Approximate Sphere&quot;</span><span class="p">),</span>
-</span><span data-line="3">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="s2">&quot;Exact Sphere&quot;</span><span class="p">),</span>
+</span><span data-line="2">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="s2">&quot;ZCA&quot;</span><span class="p">),</span>
+</span><span data-line="3">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="s2">&quot;PCA&quot;</span><span class="p">),</span>
 </span><span data-line="4">    <span class="p">({</span><span class="s2">&quot;do_sphere&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="s2">&quot;Normalize by Variance&quot;</span><span class="p">),</span>
 </span><span data-line="5"><span class="p">]:</span>
 </span><span data-line="6">    <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">Z</span></a><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">pre_whiten</span><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span></a><span class="o">=</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span><span class="o">.</span><span class="n">T</span></a><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">mode</span><span class="p">)</span>
@@ -193,11 +193,11 @@ to download the full example code.</p>
 </span></pre></div>
 </div>
 <ul class="sphx-glr-horizontal">
-<li><img src="../_images/sphx_glr_plot_sphere_002.png" srcset="../_images/sphx_glr_plot_sphere_002.png" alt="Approximate Sphere" class = "sphx-glr-multi-img"/></li>
-<li><img src="../_images/sphx_glr_plot_sphere_003.png" srcset="../_images/sphx_glr_plot_sphere_003.png" alt="Exact Sphere" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_sphere_002.png" srcset="../_images/sphx_glr_plot_sphere_002.png" alt="ZCA" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_sphere_003.png" srcset="../_images/sphx_glr_plot_sphere_003.png" alt="PCA" class = "sphx-glr-multi-img"/></li>
 <li><img src="../_images/sphx_glr_plot_sphere_004.png" srcset="../_images/sphx_glr_plot_sphere_004.png" alt="Normalize by Variance" class = "sphx-glr-multi-img"/></li>
 </ul>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.342 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.327 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-sphere-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b4ff29590b33d137aede532cb16b3b6f/plot_sphere.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_sphere.ipynb</span></code></a></p>

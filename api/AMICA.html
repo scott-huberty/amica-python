@@ -163,7 +163,7 @@ set to the data rank.</p>
 <dt><strong>n_mixtures</strong><span class="classifier">int, default=3</span></dt><dd><p>Number of mixtures components to use in the Gaussian Mixture Model (GMM) for
 each component’s source density. default is <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p>
 </dd>
-<dt><strong>n_models</strong><span class="classifier">int, default=1</span></dt><dd><p>Number of models to learn, only <code class="docutils literal notranslate"><span class="pre">1</span></code> is supported currently.</p>
+<dt><strong>n_models</strong><span class="classifier">int, default=1</span></dt><dd><p>Number of ICA decompositions to run. Only <code class="docutils literal notranslate"><span class="pre">1</span></code> is supported currently.</p>
 </dd>
 <dt><strong>batch_size</strong><span class="classifier">int, optional</span></dt><dd><p>Batch size for processing data in chunks along the samples axis. If <code class="docutils literal notranslate"><span class="pre">None</span></code>,
 batching is chosen automatically to keep peak memory under ~1.5 GB, and
@@ -173,25 +173,31 @@ even when the data is very large, set <code class="docutils literal notranslate"
 to process all samples at once, but note that this may lead to
 high memory usage for large datasets.</p>
 </dd>
-<dt><strong>mean_center</strong><span class="classifier">bool, default=True</span></dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the data is mean-centered before whitening and fitting.</p>
+<dt><strong>mean_center</strong><span class="classifier">bool, default=True</span></dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the data is mean-centered before whitening and fitting. This is
+equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=1</span></code> in the Fortran AMICA program.</p>
 </dd>
 <dt><strong>whiten</strong><span class="classifier">str {“zca”, “pca”, “variance”}, default=”zca”</span></dt><dd><p>whitening strategy.</p>
 <ul class="simple">
 <li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">&quot;zca&quot;</span></code>: Data is whitened and rotated back to original axes. This is</dt><dd><p>equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> +
-<code class="docutils literal notranslate"><span class="pre">do_approx_sphere=False</span></code> in the Fortran AMICA program.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;zca&quot;</span></code>: Data is whitened with the inverse of the symmetric square</dt><dd><p>root of the covariance matrix. if <code class="docutils literal notranslate"><span class="pre">n_components</span></code> &lt; <code class="docutils literal notranslate"><span class="pre">n_features</span></code>, then
+approximate sphering is done by multiplying by the eigenvectors of a reduced
+dimensional subset of the principle component (eigenvector) subspace. This
+is equivalent to <code class="docutils literal notranslate"><span class="pre">do_sphere=1</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=1</span></code> in the
+Fortran AMICA program. In EEBLAB’s AMICA GUI, this is called
+“Symmetric sphering”.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">&quot;pca&quot;</span></code>: Data is whitened and left in the PCA basis. This is equivalent to</dt><dd><p><code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=True</span></code> in the
-Fortran AMICA program.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;pca&quot;</span></code>: Data is whitened using only eigenvector projection and scaling to</dt><dd><p>do sphering (not symmetric or approximately symmetric). This is equivalent
+to <code class="docutils literal notranslate"><span class="pre">do_sphere=1</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=0</span></code> in the Fortran AMICA program.
+In EEBLAB’s AMICA GUI, this is called “Principle Components (Eigenvectors)”.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">&quot;variance&quot;</span></code>: Diagonal Normalization. Each feature is scaled by the variance</dt><dd><p>across features. This is equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> +
-<code class="docutils literal notranslate"><span class="pre">do_sphere=False</span></code> + in the Fortran AMICA program.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;variance&quot;</span></code>: Diagonal Normalization. Each feature is scaled by the variance</dt><dd><p>across features. This is equivalent to <code class="docutils literal notranslate"><span class="pre">do_sphere=0</span></code> in the Fortran AMICA
+program. In EEBLAB’s AMICA GUI, this is called “No sphering transformation”.</p>
 </dd>
 </dl>
 </li>

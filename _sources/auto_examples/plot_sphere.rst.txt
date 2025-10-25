@@ -146,8 +146,8 @@ Whitening with different options
 .. code-block:: Python
 
     for mode, title in [
-        ({"do_approx_sphere": True}, "Approximate Sphere"),
-        ({"do_approx_sphere": False}, "Exact Sphere"),
+        ({"do_approx_sphere": True}, "ZCA"),
+        ({"do_approx_sphere": False}, "PCA"),
         ({"do_sphere": False}, "Normalize by Variance"),
     ]:
         Z, *_ = pre_whiten(X=X.T, inplace=False, **mode)
@@ -160,14 +160,14 @@ Whitening with different options
     *
 
       .. image-sg:: /auto_examples/images/sphx_glr_plot_sphere_002.png
-         :alt: Approximate Sphere
+         :alt: ZCA
          :srcset: /auto_examples/images/sphx_glr_plot_sphere_002.png
          :class: sphx-glr-multi-img
 
     *
 
       .. image-sg:: /auto_examples/images/sphx_glr_plot_sphere_003.png
-         :alt: Exact Sphere
+         :alt: PCA
          :srcset: /auto_examples/images/sphx_glr_plot_sphere_003.png
          :class: sphx-glr-multi-img
 
@@ -185,7 +185,7 @@ Whitening with different options
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.342 seconds)
+   **Total running time of the script:** (0 minutes 0.327 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_sphere.py:
