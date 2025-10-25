@@ -51,7 +51,8 @@ html_theme_options = {
         {"title": "Install", "url": "install"},
         {"title": "API", "url": "api/index"},
         {"title": "Examples", "url": "auto_examples/index"},
-    ]
+    ],
+    "github_url": "https://github.com/scott-huberty/amica-python"
 }
 
 # Sphinx Gallery configuration ----------------------------------------------
