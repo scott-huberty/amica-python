@@ -1,6 +1,7 @@
 
 
 def test_fetch_photos():
+    """Test fetching photo dataset, since we depend on it in examples."""
     from amica.utils.fetch import fetch_photos
 
     photo_fpath = fetch_photos()
