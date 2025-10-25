@@ -126,48 +126,46 @@ def fit_amica(
 
     Parameters
     ----------
-    X : array-like, shape (n_samples, n_features)
-        Training data, where n_samples is the number of samples and
-        n_features is the number of features.
+    X : array-like, shape (``n_samples``, ``n_features``)
+        Training data, where ``n_samples`` is the number of samples and
+        ``n_features`` is the number of features.
     n_components : int, optional
-        Number of components to extract. If None, all components are used.
-    n_mixtures: int, optional
-        Number of mixtures to use in the AMICA algorithm.
+        Number of components to extract. If ``None`` (default), set to ``n_features``.
+        Note that the number of components may be reduced during whitening if the data
+        are rank-deficient.
+    n_mixtures: int, optional, default=3
+         Number of mixtures components to use in the Gaussian Mixture Model (GMM) for
+         each component's source density. default is ``3``.
     batch_size : int, optional
-        Chunk size for processing data in chunks along the samples axis. If ``None``,
-        chunking is chosen automatically to keep peak memory under ~1.5 GB, and
-        warns if the chunk size is below ~8k samples (If the input data is small enough
-        to process in one shot, no chunking is used). If you want to enforce no
-        chunking, you can override this memory cap by setting batch_size explicitly,
-        e.g. to  `X.shape[0]` to process all samples at once.", but note that this may
+        Batch size for processing data in chunks along the samples axis. If ``None``,
+        the batch size is chosen automatically to keep peak memory under ~1.5 GB, and
+        warns if the batch size is below ~8k samples. If the input data is small enough
+        to process in one shot, no batching is used. If you want to enforce no
+        batching, you can override this memory cap by setting batch_size explicitly,
+        e.g. to  `X.shape[0]` to process all samples at once. but note that this may
         lead to high memory usage for large datasets.
     whiten : boolean, optional
-        If True perform an initial whitening of the data.
-        If False, the data is assumed to have already been
+        If ``True`` perform an initial whitening of the data.
+        If ``False``, the data is assumed to have already been
         preprocessed: it should be centered, normed and white,
         otherwise you will get incorrect results.
         In this case the parameter n_components will be ignored.
     mean_center : bool, optional
-        If True, X is mean corrected.
-    n_mixtures : int, optional
-        Number of mixtures to use in the AMICA algorithm.
-        Default is 1.
+        If ``True``, X is mean corrected.
     max_iter : int, optional
-        Maximum number of iterations to perform. Default is 500.
-    random_state : int, RandomState instance or None, optional (default=None)
+        Maximum number of iterations to perform. Default is ``500``.
+    random_state : int or None, optional (default=None)
         Used to perform a random initialization when w_init is not provided.
-        If int, random_state is the seed used by the random number generator;
-        If RandomState instance, random_state is the random number generator;
-        If None, the random number generator is the RandomState instance used
-        by `np.random`.
-    w_init : array-like, shape (n_components, n_components), optional
+        If int, random_state is the seed used by the random number generator during
+        whitening, and is used to set the seed during optimization initialization.
+    w_init : array-like, shape (``n_components``, ``n_components``), optional
         Initial weights for the mixture components. If None, weights are initialized
         randomly. This is meant to be used for testing and debugging purposes only.
-    sbeta_init : array-like, shape (n_components, n_mixtures), optional
+    sbeta_init : array-like, shape (``n_components``, ``n_mixtures``), optional
         Initial scales (sbeta) for the mixture components. If None, scales are
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
-    mu_init : array-like, shape (n_components, n_mixtures), optional
+    mu_init : array-like, shape (``n_components``, ``n_mixtures``), optional
         Initial locations (mu) for the mixture components. If None, locations are
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.

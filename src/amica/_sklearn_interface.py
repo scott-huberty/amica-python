@@ -19,31 +19,38 @@ class AMICA(TransformerMixin, BaseEstimator):
     Parameters
     ----------
     n_components : int, default=None
-        Number of components to use. If None is passed, all are used.
+        Number of components to use. If ``None``, then ``n_components == n_features``.
+
+        .. note::
+            If the data are rank deficient, then the effective number of components
+            will be lower than ``n_components``, as the number of components will be
+            set to the data rank.
+
     n_mixtures : int, default=3
-        Number of mixtures components to use in the source model. default is 3.
+        Number of mixtures components to use in the Gaussian Mixture Model (GMM) for
+        each component's source density. default is ``3``.
     n_models : int, default=1
-        Number of models to learn, only 1 is supported currently.
+        Number of models to learn, only ``1`` is supported currently.
     batch_size : int, optional
         Batch size for processing data in chunks along the samples axis. If ``None``,
         batching is chosen automatically to keep peak memory under ~1.5 GB, and
         warns if the batch size is below ~8k samples. If the input data is small enough
-        to process in one shot, no batching is used. If you want to enforce no batching,
-        you can override this memory cap by setting batch_size explicitly, e.g. to
-        ``X.shape[0]`` to process all samples at once.", but note that this may lead to
+        to process in one shot, no batching is used. If you want to enforce no batching
+        even when the data is very large, set ``batch_size`` to ``X.shape[0]``
+        to process all samples at once, but note that this may lead to
         high memory usage for large datasets.
     mean_center : bool, default=True
-        If True, the data is mean-centered before whitening and fitting.
+        If ``True``, the data is mean-centered before whitening and fitting.
     whiten : str {"zca", "pca", "variance"}, default="zca"
         whitening strategy.
 
-        - 'zca': Data is whitened and rotated back to original axes. This is equivalent
-            to ``do_mean=True`` + ``do_sphere=True`` + ``do_approx_sphere=False`` in the
-            Fortran AMICA program.
-        - 'pca': Data is whitened and left in the PCA basis. This is equivalent to
+        - ``"zca"``: Data is whitened and rotated back to original axes. This is
+            equivalent to ``do_mean=True`` + ``do_sphere=True`` +
+            ``do_approx_sphere=False`` in the Fortran AMICA program.
+        - ``"pca"``: Data is whitened and left in the PCA basis. This is equivalent to
             ``do_mean=True`` + ``do_sphere=True`` + ``do_approx_sphere=True`` in the
             Fortran AMICA program.
-        - 'variance': Diagonal Normalization. Each feature is scaled by the variance
+        - ``"variance"``: Diagonal Normalization. Each feature is scaled by the variance
             across features. This is equivalent to ``do_mean=True`` +
             ``do_sphere=False`` + in the Fortran AMICA program.
 
@@ -51,8 +58,8 @@ class AMICA(TransformerMixin, BaseEstimator):
         Maximum number of iterations during fit.
     tol : float, default=1e-7
         Tolerance for stopping criteria. A positive scalar giving the tolerance at which
-        the un-mixing matrix is considered to have converged. The default is 1e-7.
-        Whereas the Fortran AMICA program contained tunable tolerance parameters for two
+        the un-mixing matrix is considered to have converged. The default is ``1e-7``.
+        Fortran AMICA program contained tunable tolerance parameters for two
         different stopping criteria ``min_dll`` and ``min_grad_norm``. We only expose
         one parameter, which is applied to both criteria.
     lrate : float, default=0.05
@@ -63,42 +70,44 @@ class AMICA(TransformerMixin, BaseEstimator):
         Type of source density model to use. Currently only ``0`` is supported,
         which corresponds to the Gaussian Mixture Model (GMM) density.
     do_newton : bool, default=True
-        If True, the optimization method will switch to newton updates after
-        ``newt_start`` iterations. If ``False``, only SGD updates are used.
+        If ``True``, the optimization method will switch from Stochastic Gradient
+        Descent (SGD) to newton updates after ``newt_start`` iterations. If ``False``,
+        only SGD updates are used.
     newt_start : int, default=50
         Number of iterations before switching to Newton updates if ``do_newton`` is
-        True.
-    w_init : ndarray of shape (``n_components``, ``n_components``), default=None
+        ``True``.
+    w_init : ndarray of shape (``n_components``, ``n_components``), default=``None``
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.
-    sbeta_init : ndarray of shape (``n_components``, n_mixtures), default=None
+    sbeta_init : ndarray of shape (``n_components``, ``n_mixtures``), default=None
         Initial scale parameters for the mixture components. If ``None``, then an array
         of values drawn from a uniform distribution is used.
-    mu_init : ndarray of shape (``n_components``, n_mixtures), default=None
+    mu_init : ndarray of shape (``n_components``, ``n_mixtures``), default=None
         Initial location parameters for the mixture components. If ``None``, then an
         array of values drawn from a normal distribution is used.
-    random_state : int, RandomState instance or None, default=None
+    random_state : int or None, default=None
         Used to initialize ``w_init`` when not specified, with a
-        normal distribution. Pass an int, for reproducible results
-        across multiple function calls.
+        normal distribution. Pass an int for reproducible results
+        across multiple function calls. Note that unlike scikit-learn's FastICA, you
+        **cannot** pass a :class:`~numpy.random.BitGenerator` instance via
+        :func:`~numpy.random.default_rng`.
 
     Attributes
     ----------
     components_ : ndarray of shape (``n_components``, ``n_features``)
         The linear operator to apply to the data to get the independent
-        sources. This is equal to the unmixing matrix when ``whiten`` is
-        False, and equal to ``np.dot(unmixing_matrix, self.whitening_)`` when
-        ``whiten`` is True.
+        sources. This is equal to ``np.matmul(unmixing_matrix, self.whitening_)`` when
+        ``whiten`` is ``"zca"`` or ``"pca"``.
     mixing_ : ndarray of shape (``n_features``, ``n_components``)
         The pseudo-inverse of ``components_``. It is the linear operator
         that maps independent sources to the data.
     mean_ : ndarray of shape(``n_features``,)
-        The mean over features. Only set if `self.whiten` is True.
+        The mean over features. Only set if `self.whiten` is ``True``.
     whitening_ : ndarray of shape (``n_components``, ``n_features``)
-        Only set if whiten is 'True'. This is the pre-whitening matrix
-        that projects data onto the first ```n_components``` principal components.
+        Only set if whiten is ``True``. This is the pre-whitening matrix
+        that projects data onto the first ``n_components`` principal components.
     n_features_in_ : int
-        Number of features seen during `fit`.
+        Number of features seen during :meth:`~AMICA.fit`.
     n_iter_ : int
         Number of iterations taken to converge during fit.
 
