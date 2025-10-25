@@ -95,6 +95,7 @@ plot_gallery("Faces from dataset", faces_centered[:n_components])
 # subcomponents that are maximally independent.
 
 # %%
+# We instantiate amica.AMICA and call fit.
 ica_estimator = decomposition.FastICA(
     n_components=n_components, max_iter=400, whiten="arbitrary-variance", tol=15e-5
 )

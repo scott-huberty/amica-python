@@ -181,40 +181,41 @@ def pre_whiten(
 
     Parameters
     ----------
-    X : array, shape (n_samples, n_features)
-        Input data matrix to be whitened. If inplace is True, X will be mutated and
-        returned as the whitened data. Otherwise a copy will be made and returned.
+    X : array, shape (``n_samples``, ``n_features``)
+        Input data matrix to be whitened. If ``inplace`` is ``True``, X will be
+        mutated and returned as the whitened data. Otherwise a copy will be made and
+        returned.
     n_components : int or None
-        Number of components to keep. If None, all components are kept.
+        Number of components to keep. If ``None``, all components are kept.
     mineig : float
         Minimum eigenvalue threshold for keeping components. Eigenvalues below this will
         be discarded.
     do_mean : bool
-        If True, mean-center the data before whitening.
+        If ``True``, mean-center the data before whitening.
     do_sphere : bool
-        If True, perform sphering (whitening). If False, only variance normalization
-        is performed (not implemented)
+        If ``True``, perform sphering (whitening). If ``False``, only variance
+        normalization is performed.
     do_approx_sphere : bool
-        If True, use approximate sphering.
+        If ``True``, use approximate sphering.
     inplace : bool
-        If True, modify X in place. If False, make a copy of X and modify that.
+        If ``True``, modify X in place. If ``False``, make a copy of X and modify that.
 
     Returns
     -------
-    X : array, shape (n_samples, n_features)
+    X : array, shape (``n_samples``, ``n_features``)
         The whitened data matrix. This is a copy of the input data if inplace is False,
         otherwise it is the mutated input data itself.
-    whitening_matrix : array, shape (n_features, n_features)
+    whitening_matrix : array, shape (``n_features``, ``n_features``)
         The whitening/sphering matrix applied to the data. If do_sphere is False, then
         this is the variance normalization matrix.
     sldet : float
         The log-determinant of the whitening matrix.
-    whitening_inverse : array, shape (n_features, n_features)
+    whitening_inverse : array, shape (``n_features``, ``n_features``)
         The pseudoinverse of the whitening matrix. Only returned if do_sphere is True.
         otherwise None.
-    mean : array, shape (n_features,)
-        The mean of each feature that was subtracted if do_mean is True. Only returned
-        if do_mean is True, otherwise None.
+    mean : array, shape (``n_features``,)
+        The mean of each feature that was subtracted if ``do_mean`` is ``True``. Only
+        returned if ``do_mean`` is ``True``, otherwise ``None``.
     """
     dataseg = X if inplace else X.copy()
     assert dataseg.ndim == 2, f"X must be 2D, got {dataseg.ndim}D"

@@ -20,7 +20,7 @@ dependencies = [
 torch-cpu = ["torch"]
 torch-cuda = ["torch"]
 dev = ["pytest", "pytest-cov", "pytest-timeout", "matplotlib", "mne", "ruff"]
-doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc"]
+doc = ["sphinx<8.2", "shibuya", "sphinx-gallery", "numpydoc", "sphinx-design"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -24,12 +24,19 @@ extensions = [
     "sphinx.ext.autodoc", # For automatic API documentation generation
     "sphinx.ext.autosummary", # For generating summary tables
     "sphinx.ext.intersphinx", # For linking to other projects' docs
+    "sphinx_design",  # e.g. for tabs
         ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
 
+# -- Intersphinx configuration -----------------------------------------------
+
+intersphinx_mapping = {
+    "sklearn": ("https://scikit-learn.org/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -37,6 +44,15 @@ exclude_patterns = []
 html_theme = 'shibuya'
 html_static_path = ['_static']
 
+# html theme options
+html_theme_options = {
+    "nav_links": [
+        {"title": "About", "url": "about"},
+        {"title": "Install", "url": "install"},
+        {"title": "API", "url": "api/index"},
+        {"title": "Examples", "url": "auto_examples/index"},
+    ]
+}
 
 # Sphinx Gallery configuration ----------------------------------------------
 sphinx_gallery_conf = {
@@ -45,6 +61,8 @@ sphinx_gallery_conf = {
     'filename_pattern': r'.*',          # include all example files
     'download_all_examples': False,
     'remove_config_comments': True,
+    'backreferences_dir': 'gen_modules/backreferences',
+    "doc_module": ("amica",),
 }
 
 
@@ -59,6 +77,8 @@ numpydoc_show_class_members = True # # show table of methods inline
 numpydoc_class_members_toctree = False # do NOT generate a toctree/stubs for methods
 numpydoc_show_inherited_class_members = False
 # numpydoc_validate = True
+
+# Tell numpydoc to create cross-references for parameter types
 numpydoc_xref_aliases = {
     'BaseEstimator': 'sklearn.base.BaseEstimator',
     'TransformerMixin': 'sklearn.base.TransformerMixin',
@@ -71,15 +91,4 @@ autodoc_default_options = {
     "undoc-members": False,
     "inherited-members": False,
     "show-inheritance": True,
-}
-
-'''suppress_warnings = [
-    "ref.term",
-    "ref.ref",
-]'''
-
-# -- Intersphinx configuration -----------------------------------------------
-
-intersphinx_mapping = {
-    "sklearn": ("https://scikit-learn.org/stable/", None),
 }
