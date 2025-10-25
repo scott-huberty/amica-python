@@ -7,7 +7,7 @@ from amica import AMICA
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Numerical Failures on Windows")
-@parametrize_with_checks([AMICA()])
+@parametrize_with_checks([AMICA(random_state=0)])
 def test_check_estimator(estimator, check):
     """Test Scikit-Learn API Compatibility."""
     check(estimator)

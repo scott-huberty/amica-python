@@ -196,7 +196,9 @@ def pre_whiten(
         If ``True``, perform sphering (whitening). If ``False``, only variance
         normalization is performed.
     do_approx_sphere : bool
-        If ``True``, use approximate sphering.
+        If ``True``, Data is whitened with the inverse of the symmetric square root of
+        the covariance matrix (ZCA whitening). If ``False``, PCA whitening is
+        performed. Only used if ``do_sphere`` is ``True``.
     inplace : bool
         If ``True``, modify X in place. If ``False``, make a copy of X and modify that.
 

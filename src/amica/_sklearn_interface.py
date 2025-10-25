@@ -9,7 +9,7 @@ from .core import fit_amica
 
 CHECK_ARRAY_KWARGS = {
     "dtype": [np.float64, np.float32],
-    "ensure_min_samples": 2,
+    "ensure_min_samples": 2,  # safeguard accidental (n_features, n_samples) inputs
     "ensure_min_features": 2,
 }
 
@@ -30,7 +30,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of mixtures components to use in the Gaussian Mixture Model (GMM) for
         each component's source density. default is ``3``.
     n_models : int, default=1
-        Number of models to learn, only ``1`` is supported currently.
+        Number of ICA decompositions to run. Only ``1`` is supported currently.
     batch_size : int, optional
         Batch size for processing data in chunks along the samples axis. If ``None``,
         batching is chosen automatically to keep peak memory under ~1.5 GB, and
@@ -40,19 +40,25 @@ class AMICA(TransformerMixin, BaseEstimator):
         to process all samples at once, but note that this may lead to
         high memory usage for large datasets.
     mean_center : bool, default=True
-        If ``True``, the data is mean-centered before whitening and fitting.
+        If ``True``, the data is mean-centered before whitening and fitting. This is
+        equivalent to ``do_mean=1`` in the Fortran AMICA program.
     whiten : str {"zca", "pca", "variance"}, default="zca"
         whitening strategy.
 
-        - ``"zca"``: Data is whitened and rotated back to original axes. This is
-            equivalent to ``do_mean=True`` + ``do_sphere=True`` +
-            ``do_approx_sphere=False`` in the Fortran AMICA program.
-        - ``"pca"``: Data is whitened and left in the PCA basis. This is equivalent to
-            ``do_mean=True`` + ``do_sphere=True`` + ``do_approx_sphere=True`` in the
-            Fortran AMICA program.
+        - ``"zca"``: Data is whitened with the inverse of the symmetric square
+            root of the covariance matrix. if ``n_components`` < ``n_features``, then
+            approximate sphering is done by multiplying by the eigenvectors of a reduced
+            dimensional subset of the principle component (eigenvector) subspace. This
+            is equivalent to ``do_sphere=1`` + ``do_approx_sphere=1`` in the
+            Fortran AMICA program. In EEBLAB's AMICA GUI, this is called
+            "Symmetric sphering".
+        - ``"pca"``: Data is whitened using only eigenvector projection and scaling to
+            do sphering (not symmetric or approximately symmetric). This is equivalent
+            to ``do_sphere=1`` + ``do_approx_sphere=0`` in the Fortran AMICA program.
+            In EEBLAB's AMICA GUI, this is called "Principle Components (Eigenvectors)".
         - ``"variance"``: Diagonal Normalization. Each feature is scaled by the variance
-            across features. This is equivalent to ``do_mean=True`` +
-            ``do_sphere=False`` + in the Fortran AMICA program.
+            across features. This is equivalent to ``do_sphere=0`` in the Fortran AMICA
+            program. In EEBLAB's AMICA GUI, this is called "No sphering transformation".
 
     max_iter : int, default=500
         Maximum number of iterations during fit.

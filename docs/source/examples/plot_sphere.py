@@ -56,8 +56,8 @@ plot_data(X, "Original")
 
 # %%
 for mode, title in [
-    ({"do_approx_sphere": True}, "Approximate Sphere"),
-    ({"do_approx_sphere": False}, "Exact Sphere"),
+    ({"do_approx_sphere": True}, "ZCA"),
+    ({"do_approx_sphere": False}, "PCA"),
     ({"do_sphere": False}, "Normalize by Variance"),
 ]:
     Z, *_ = pre_whiten(X=X.T, inplace=False, **mode)
