@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.autosummary", # For generating summary tables
     "sphinx.ext.intersphinx", # For linking to other projects' docs
     "sphinx_design",  # e.g. for tabs
+    "sphinx_copybutton",  # So users can easily copy code blocks
         ]
 
 templates_path = ['_templates']
