@@ -28,6 +28,7 @@ To install PyTorch, please follow the instructions at `pytorch.org <https://pyto
 .. tab-set::
 
    .. tab-item:: Pip
+
       .. code-block:: bash
 
          pip install torch

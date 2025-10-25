@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.autosummary", # For generating summary tables
     "sphinx.ext.intersphinx", # For linking to other projects' docs
     "sphinx_design",  # e.g. for tabs
+    "sphinx_copybutton",  # So users can easily copy code blocks
         ]
 
 templates_path = ['_templates']
@@ -51,7 +52,8 @@ html_theme_options = {
         {"title": "Install", "url": "install"},
         {"title": "API", "url": "api/index"},
         {"title": "Examples", "url": "auto_examples/index"},
-    ]
+    ],
+    "github_url": "https://github.com/scott-huberty/amica-python"
 }
 
 # Sphinx Gallery configuration ----------------------------------------------
