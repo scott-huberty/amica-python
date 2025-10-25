@@ -100,7 +100,7 @@ def get_component_slice(h: int, n_components: int) -> slice:
 def fit_amica(
         X,
         *,
-        whiten=True,
+        whiten="zca",
         mean_center=True,
         n_components=None,
         n_models=1,
@@ -144,12 +144,11 @@ def fit_amica(
         batching, you can override this memory cap by setting batch_size explicitly,
         e.g. to  `X.shape[0]` to process all samples at once. but note that this may
         lead to high memory usage for large datasets.
-    whiten : boolean, optional
-        If ``True`` perform an initial whitening of the data.
-        If ``False``, the data is assumed to have already been
-        preprocessed: it should be centered, normed and white,
-        otherwise you will get incorrect results.
-        In this case the parameter n_components will be ignored.
+    whiten : str {"zca", "pca", "variance"}
+        Whitening method to apply to the data before fitting AMICA. Options are:
+        - "zca": Zero-phase component analysis (ZCA) whitening.
+        - "pca": Principal component analysis (PCA) whitening.
+        - "variance": Only variance normalization of the features is done (no sphering).
     mean_center : bool, optional
         If ``True``, X is mean corrected.
     max_iter : int, optional
@@ -177,6 +176,13 @@ def fit_amica(
         ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
     """
     set_log_level(verbose)
+    # If data are transposed, memory can explode. Safeguard against this.
+    if X.shape[1] > X.shape[0]:
+        raise ValueError(
+            "It looks like the input data X  has more features than samples "
+            f"(n_features > n_samples): Got X.shape {X.shape}. Please ensure that the "
+            "input data is shaped as (n_samples, n_features)."
+        )  # pragma no cover
 
     if batch_size is None:
         batch_size = choose_batch_size(
@@ -209,26 +215,29 @@ def fit_amica(
 
     # Init
     if n_models > 1:
-        raise NotImplementedError("n_models > 1 not yet supported")
+        raise NotImplementedError("n_models > 1 not yet supported")  # pragma no cover
     if config.do_reject:
         raise NotImplementedError(
             "Sample rejection by log likelihood is not yet supported." # pragma no cover
-            )
+        )
     dataseg = X.copy()
 
+    # Whitening
+    do_sphere = True if whiten in {"zca", "pca"} else False
+    do_approx_sphere = True if whiten == "zca" else False
     do_mean = True if mean_center else False
-    do_sphere = True if whiten else False
     dataseg, whitening_matrix, sldet, whitening_inverse, mean = pre_whiten(
         X=dataseg,
         n_components=n_components,
         mineig=mineig,
         do_mean=do_mean,
         do_sphere=do_sphere,
-        do_approx_sphere=True,
+        do_approx_sphere=do_approx_sphere,
         inplace=True,
         )
 
-    state_dict, LL = _core_amica(
+    # Run AMICA
+    state_dict, LL = solve(
         X=dataseg,
         config=config,
         state=state,
@@ -253,7 +262,7 @@ def fit_amica(
         LL=LL,
     )
 
-def _core_amica(
+def solve(
         X,
         *,
         config,
