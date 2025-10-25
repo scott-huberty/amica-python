@@ -176,13 +176,6 @@ def fit_amica(
         ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
     """
     set_log_level(verbose)
-    # If data are transposed, memory can explode. Safeguard against this.
-    if X.shape[1] > X.shape[0]:
-        raise ValueError(
-            "It looks like the input data X  has more features than samples "
-            f"(n_features > n_samples): Got X.shape {X.shape}. Please ensure that the "
-            "input data is shaped as (n_samples, n_features)."
-        )  # pragma no cover
 
     if batch_size is None:
         batch_size = choose_batch_size(
