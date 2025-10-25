@@ -1,7 +1,7 @@
 """
-========================================
-Blind Source Separation with AMICA & ICA
-========================================
+============================================
+Blind Source Separation with AMICA & FastICA
+============================================
 
 An example of estimating sources from noisy mixtures.
 
@@ -53,6 +53,7 @@ models = {}
 labels = {}
 
 # AMICA
+# We instantiate amica.AMICA and call fit..
 ica = AMICA(n_components=3, whiten="zca", random_state=0)
 models["AMICA"] = ica.fit_transform(X)
 labels["AMICA"] = "AMICA recovered signals"

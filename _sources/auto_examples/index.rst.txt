@@ -78,7 +78,7 @@ Example AMICA usage.
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & ICA</div>
+      <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
     </div>
 
 

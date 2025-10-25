@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="./">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Computation times - AMICA-Python documentation</title><link rel="author" title="About these documents" href="about.html" /><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Installation - AMICA-Python documentation</title><link rel="author" title="About these documents" href="about.html" /><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="API Reference" href="api/index.html" /><link rel="prev" title="About" href="about.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=e1a1ceaf" />
@@ -22,7 +22,7 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Computation times"/>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Installation"/>
 <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -34,7 +34,7 @@
       <strong>AMICA-Python</strong>
     </a>
     <div class="sy-head-nav" id="head-nav">
-      <nav class="sy-head-links"><ul><li class="link"><a href="about.html">About</a></li><li class="link"><a href="install.html">Install</a></li><li class="link"><a href="api/index.html">API</a></li><li class="link"><a href="auto_examples/index.html">Examples</a></li></ul></nav>
+      <nav class="sy-head-links"><ul><li class="link"><a href="about.html">About</a></li><li class="link"><a href="#">Install</a></li><li class="link"><a href="api/index.html">API</a></li><li class="link"><a href="auto_examples/index.html">Examples</a></li></ul></nav>
       <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="search.html" method="get">
   <input type="text" name="q" placeholder="Search" />
   <kbd>/</kbd>
@@ -60,9 +60,9 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-lside-inner md:sticky">
       <div class="sy-scrollbar p-6">
         <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/AMICA.html">AMICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/functions.html">Functional API</a></li>
@@ -90,7 +90,10 @@ data-aria-dark="Switch to auto color mode">
     <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
       <i class="i-lucide close"></i>
     </button>
-    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#installing-pytorch">Installing PyTorch</a></li>
+</ul>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
   </aside>
   <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
   <main class="sy-main w-full max-sm:max-w-full print:pt-6">
@@ -106,7 +109,7 @@ data-aria-dark="Switch to auto color mode">
         <span>/</span>
         <meta itemprop="position" content="1" />
       </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
-        <strong itemprop="name">Computation times</strong>
+        <strong itemprop="name">Installation</strong>
         <meta itemprop="position" content="2" />
       </li></ol>
     <div class="xl:hidden ml-1">
@@ -119,58 +122,77 @@ data-aria-dark="Switch to auto color mode">
 </div><div class="flex flex-col break-words justify-between">
       <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
         <article class="yue" role="main">
-          <section id="computation-times">
-<span id="sphx-glr-sg-execution-times"></span><h1>Computation times<a class="headerlink" href="#computation-times" title="Link to this heading">¶</a></h1>
-<p><strong>08:08.991</strong> total execution time for 6 files <strong>from all galleries</strong>:</p>
-<div class="docutils container">
-<style scoped>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
-</style>
-<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script type="text/javascript" class="init">
-$(document).ready( function () {
-    $('table.sg-datatable').DataTable({order: [[1, 'desc']]});
-} );
-</script><div class="table-wrapper table table-striped sg-datatable docutils container">
-<table class="table table-striped sg-datatable docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Example</p></th>
-<th class="head"><p>Time</p></th>
-<th class="head"><p>Mem (MB)</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><a class="reference internal" href="auto_examples/plot_faces_decomposition.html#sphx-glr-auto-examples-plot-faces-decomposition-py"><span class="std std-ref">Faces dataset decompositions</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_faces_decomposition.py</span></code>)</p></td>
-<td><p>06:12.029</p></td>
-<td><p>0.0</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="auto_examples/plot_amica.html#sphx-glr-auto-examples-plot-amica-py"><span class="std std-ref">Run AMICA on EEG Data</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_amica.py</span></code>)</p></td>
-<td><p>01:21.306</p></td>
-<td><p>0.0</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="auto_examples/plot_ica_vs_pca.html#sphx-glr-auto-examples-plot-ica-vs-pca-py"><span class="std std-ref">ICA on 2D point clouds</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_ica_vs_pca.py</span></code>)</p></td>
-<td><p>00:19.949</p></td>
-<td><p>0.0</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="auto_examples/plot_toy.html#sphx-glr-auto-examples-plot-toy-py"><span class="std std-ref">Run ICA On Toy Data</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_toy.py</span></code>)</p></td>
-<td><p>00:10.124</p></td>
-<td><p>0.0</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="auto_examples/plot_ica_blind_source_separation.html#sphx-glr-auto-examples-plot-ica-blind-source-separation-py"><span class="std std-ref">Blind Source Separation with AMICA &amp; FastICA</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_ica_blind_source_separation.py</span></code>)</p></td>
-<td><p>00:05.225</p></td>
-<td><p>0.0</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="auto_examples/plot_sphere.html#sphx-glr-auto-examples-plot-sphere-py"><span class="std std-ref">Sphering (whitening) data</span></a> (<code class="docutils literal notranslate"><span class="pre">examples/plot_sphere.py</span></code>)</p></td>
-<td><p>00:00.358</p></td>
-<td><p>0.0</p></td>
-</tr>
-</tbody>
-</table>
+          <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h1>
+<p>For now, AMICA-Python should be installed from source, and you will have to manually install
+PyTorch (see below) yourself.</p>
+<p>Clone the repository, and install it using pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/scott-huberty/amica-python.git
+</span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>amica-python
+</span><span data-line="3">pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span></pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>AMICA-Python requires PyTorch. Please install PyTorch
+by following the instructions at <a class="reference external" href="https://pytorch.org/get-started/locally/">pytorch.org</a>
+before using AMICA-Python.</p>
+</div>
+<section id="installing-pytorch">
+<h2>Installing PyTorch<a class="headerlink" href="#installing-pytorch" title="Link to this heading">¶</a></h2>
+<p>To install PyTorch, please follow the instructions at <a class="reference external" href="https://pytorch.org/get-started/locally/">pytorch.org</a>:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-0">
+Pip
+.. code-block:: bash</label><div class="sd-tab-content docutils">
+<blockquote>
+<div><p>pip install torch</p>
+</div></blockquote>
+</div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-1">
+Conda</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>pytorch
+</span></pre></div>
 </div>
 </div>
+</div>
+<p>If you wish, you can install the CPU-only version of PyTorch:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-2" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-2">
+Pip</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cpu
+</span></pre></div>
+</div>
+</div>
+<input id="sd-tab-item-3" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-3">
+Conda</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>pytorch<span class="w"> </span>cpuonly
+</span></pre></div>
+</div>
+</div>
+</div>
+<p>If you use UV, you can install Pytorch at the same time as AMICA-Python:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-4" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-4">
+Torch with GPU support</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-cuda]&quot;</span>
+</span></pre></div>
+</div>
+</div>
+<input id="sd-tab-item-5" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-5">
+CPU-only Torch</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-cpu]&quot;</span>
+</span></pre></div>
+</div>
+</div>
+</div>
+</section>
 </section>
 
         </article><button class="back-to-top" type="button">
@@ -178,7 +200,21 @@ $(document).ready( function () {
     <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
   </svg>
   <span>Back to top</span>
-</button><div class="navigation flex print:hidden"></div></div>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="about.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">About</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="api/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">API Reference</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
     </div>
   </main>
 </div>

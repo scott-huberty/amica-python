@@ -1,26 +1,33 @@
-.. AMICA-Python documentation master file, created by
-   sphinx-quickstart on Sun Sep 28 13:05:11 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+:layout: landing
 
-AMICA-Python documentation
-==========================
+AMICA-Python
+============
 
-AMICA (Adaptive Mixture ICA) is a blind source separation algorithm for separating
-multivariate signals. It is in the same family of algorithms as the Infomax algorithm,
-such that like Infomax, AMICA can identify sources with sub and super gaussian
-distributions. It is an extension of Infomax in that AMICA models sources as a linear
-mixture of multiple data distributions. This design decision is owed to the fact that
-AMICA was first proposed by neuroimaging researchers. It is widely assumed that brain
-waves recorded by MEG and EEG devices are a mixture of multiple neuronal sources in the
-brain. AMICA allows this to be explicitly modeled. However AMICA is not limited to
-neuroimaging data, and can be generally used for many BSS problems. See the examples
-below for a few use cases.
+.. raw:: html
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Contents:
+   <table>
+     <tr>
+       <th>Python</th>
+       <th>Fortran</th>
+     </tr>
+     <tr>
+       <td><img src="_static/amica-python.gif" width="500px"></td>
+       <td><img src="_static/amica-fortran.gif" width="500px"></td>
+     </tr>
+   </table>
 
-   api/index
-   auto_examples/index
+.. container:: buttons
 
+    `Install <install.html>`_
+    `Examples <auto_examples/index.html>`_
+   
+
+   .. toctree::
+      :maxdepth: 1
+      :caption: Contents:
+      :hidden:
+
+      about
+      install
+      api/index
+      auto_examples/index

@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**08:06.926** total execution time for 6 files **from auto_examples**:
+**08:08.991** total execution time for 6 files **from auto_examples**:
 
 .. container::
 
@@ -33,20 +33,20 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_examples_plot_faces_decomposition.py` (``plot_faces_decomposition.py``)
-     - 05:47.465
+     - 06:12.029
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_amica.py` (``plot_amica.py``)
-     - 01:38.845
+     - 01:21.306
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_vs_pca.py` (``plot_ica_vs_pca.py``)
-     - 00:21.998
+     - 00:19.949
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_toy.py` (``plot_toy.py``)
-     - 00:12.990
+     - 00:10.124
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_blind_source_separation.py` (``plot_ica_blind_source_separation.py``)
-     - 00:05.267
+     - 00:05.225
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_sphere.py` (``plot_sphere.py``)
-     - 00:00.361
+     - 00:00.358
      - 0.0

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AMICA - AMICA-Python documentation</title><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Functional API" href="functions.html" /><link rel="prev" title="API Reference" href="index.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AMICA - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Functional API" href="functions.html" /><link rel="prev" title="API Reference" href="index.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
@@ -11,6 +11,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +34,7 @@
       <strong>AMICA-Python</strong>
     </a>
     <div class="sy-head-nav" id="head-nav">
-      <nav class="sy-head-links"></nav>
+      <nav class="sy-head-links"><ul><li class="link"><a href="../about.html">About</a></li><li class="link"><a href="../install.html">Install</a></li><li class="link"><a href="index.html">API</a></li><li class="link"><a href="../auto_examples/index.html">Examples</a></li></ul></nav>
       <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
   <input type="text" name="q" placeholder="Search" />
   <kbd>/</kbd>
@@ -60,6 +61,8 @@ data-aria-dark="Switch to auto color mode">
       <div class="sy-scrollbar p-6">
         <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents:</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">AMICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="functions.html">Functional API</a></li>
@@ -71,7 +74,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_amica.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; ICA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_faces_decomposition.html">Faces dataset decompositions</a></li>
 </ul>
@@ -144,38 +147,45 @@ data-aria-dark="Switch to auto color mode">
 <dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl>
-<dt><strong>n_components</strong><span class="classifier">int, default=None</span></dt><dd><p>Number of components to use. If None is passed, all are used.</p>
+<dt><strong>n_components</strong><span class="classifier">int, default=None</span></dt><dd><p>Number of components to use. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then <code class="docutils literal notranslate"><span class="pre">n_components</span> <span class="pre">==</span> <span class="pre">n_features</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the data are rank deficient, then the effective number of components
+will be lower than <code class="docutils literal notranslate"><span class="pre">n_components</span></code>, as the number of components will be
+set to the data rank.</p>
+</div>
 </dd>
-<dt><strong>n_mixtures</strong><span class="classifier">int, default=3</span></dt><dd><p>Number of mixtures components to use in the source model. default is 3.</p>
+<dt><strong>n_mixtures</strong><span class="classifier">int, default=3</span></dt><dd><p>Number of mixtures components to use in the Gaussian Mixture Model (GMM) for
+each component’s source density. default is <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p>
 </dd>
-<dt><strong>n_models</strong><span class="classifier">int, default=1</span></dt><dd><p>Number of models to learn, only 1 is supported currently.</p>
+<dt><strong>n_models</strong><span class="classifier">int, default=1</span></dt><dd><p>Number of models to learn, only <code class="docutils literal notranslate"><span class="pre">1</span></code> is supported currently.</p>
 </dd>
 <dt><strong>batch_size</strong><span class="classifier">int, optional</span></dt><dd><p>Batch size for processing data in chunks along the samples axis. If <code class="docutils literal notranslate"><span class="pre">None</span></code>,
 batching is chosen automatically to keep peak memory under ~1.5 GB, and
 warns if the batch size is below ~8k samples. If the input data is small enough
-to process in one shot, no batching is used. If you want to enforce no batching,
-you can override this memory cap by setting batch_size explicitly, e.g. to
-<code class="docutils literal notranslate"><span class="pre">X.shape[0]</span></code> to process all samples at once.”, but note that this may lead to
+to process in one shot, no batching is used. If you want to enforce no batching
+even when the data is very large, set <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> to <code class="docutils literal notranslate"><span class="pre">X.shape[0]</span></code>
+to process all samples at once, but note that this may lead to
 high memory usage for large datasets.</p>
 </dd>
-<dt><strong>mean_center</strong><span class="classifier">bool, default=True</span></dt><dd><p>If True, the data is mean-centered before whitening and fitting.</p>
+<dt><strong>mean_center</strong><span class="classifier">bool, default=True</span></dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the data is mean-centered before whitening and fitting.</p>
 </dd>
 <dt><strong>whiten</strong><span class="classifier">str {“zca”, “pca”, “variance”}, default=”zca”</span></dt><dd><p>whitening strategy.</p>
 <ul class="simple">
 <li><dl class="simple">
-<dt>‘zca’: Data is whitened and rotated back to original axes. This is equivalent</dt><dd><p>to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=False</span></code> in the
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;zca&quot;</span></code>: Data is whitened and rotated back to original axes. This is</dt><dd><p>equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> +
+<code class="docutils literal notranslate"><span class="pre">do_approx_sphere=False</span></code> in the Fortran AMICA program.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;pca&quot;</span></code>: Data is whitened and left in the PCA basis. This is equivalent to</dt><dd><p><code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=True</span></code> in the
 Fortran AMICA program.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>‘pca’: Data is whitened and left in the PCA basis. This is equivalent to</dt><dd><p><code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_sphere=True</span></code> + <code class="docutils literal notranslate"><span class="pre">do_approx_sphere=True</span></code> in the
-Fortran AMICA program.</p>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>‘variance’: Diagonal Normalization. Each feature is scaled by the variance</dt><dd><p>across features. This is equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> +
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;variance&quot;</span></code>: Diagonal Normalization. Each feature is scaled by the variance</dt><dd><p>across features. This is equivalent to <code class="docutils literal notranslate"><span class="pre">do_mean=True</span></code> +
 <code class="docutils literal notranslate"><span class="pre">do_sphere=False</span></code> + in the Fortran AMICA program.</p>
 </dd>
 </dl>
@@ -185,8 +195,8 @@ Fortran AMICA program.</p>
 <dt><strong>max_iter</strong><span class="classifier">int, default=500</span></dt><dd><p>Maximum number of iterations during fit.</p>
 </dd>
 <dt><strong>tol</strong><span class="classifier">float, default=1e-7</span></dt><dd><p>Tolerance for stopping criteria. A positive scalar giving the tolerance at which
-the un-mixing matrix is considered to have converged. The default is 1e-7.
-Whereas the Fortran AMICA program contained tunable tolerance parameters for two
+the un-mixing matrix is considered to have converged. The default is <code class="docutils literal notranslate"><span class="pre">1e-7</span></code>.
+Fortran AMICA program contained tunable tolerance parameters for two
 different stopping criteria <code class="docutils literal notranslate"><span class="pre">min_dll</span></code> and <code class="docutils literal notranslate"><span class="pre">min_grad_norm</span></code>. We only expose
 one parameter, which is applied to both criteria.</p>
 </dd>
@@ -197,43 +207,45 @@ expose only one for simplicity, which is applied to both.</p>
 <dt><strong>pdftype</strong><span class="classifier">int, default=0</span></dt><dd><p>Type of source density model to use. Currently only <code class="docutils literal notranslate"><span class="pre">0</span></code> is supported,
 which corresponds to the Gaussian Mixture Model (GMM) density.</p>
 </dd>
-<dt><strong>do_newton</strong><span class="classifier">bool, default=True</span></dt><dd><p>If True, the optimization method will switch to newton updates after
-<code class="docutils literal notranslate"><span class="pre">newt_start</span></code> iterations. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, only SGD updates are used.</p>
+<dt><strong>do_newton</strong><span class="classifier">bool, default=True</span></dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the optimization method will switch from Stochastic Gradient
+Descent (SGD) to newton updates after <code class="docutils literal notranslate"><span class="pre">newt_start</span></code> iterations. If <code class="docutils literal notranslate"><span class="pre">False</span></code>,
+only SGD updates are used.</p>
 </dd>
 <dt><strong>newt_start</strong><span class="classifier">int, default=50</span></dt><dd><p>Number of iterations before switching to Newton updates if <code class="docutils literal notranslate"><span class="pre">do_newton</span></code> is
-True.</p>
+<code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
 </dd>
-<dt><strong>w_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>), default=None</span></dt><dd><p>Initial un-mixing array. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array of values drawn from a
+<dt><strong>w_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>), default=``None``</span></dt><dd><p>Initial un-mixing array. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array of values drawn from a
 normal distribution is used.</p>
 </dd>
-<dt><strong>sbeta_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, n_mixtures), default=None</span></dt><dd><p>Initial scale parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array
+<dt><strong>sbeta_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>), default=None</span></dt><dd><p>Initial scale parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an array
 of values drawn from a uniform distribution is used.</p>
 </dd>
-<dt><strong>mu_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, n_mixtures), default=None</span></dt><dd><p>Initial location parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an
+<dt><strong>mu_init</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>), default=None</span></dt><dd><p>Initial location parameters for the mixture components. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, then an
 array of values drawn from a normal distribution is used.</p>
 </dd>
-<dt><strong>random_state</strong><span class="classifier">int, RandomState instance or None, default=None</span></dt><dd><p>Used to initialize <code class="docutils literal notranslate"><span class="pre">w_init</span></code> when not specified, with a
-normal distribution. Pass an int, for reproducible results
-across multiple function calls.</p>
+<dt><strong>random_state</strong><span class="classifier">int or None, default=None</span></dt><dd><p>Used to initialize <code class="docutils literal notranslate"><span class="pre">w_init</span></code> when not specified, with a
+normal distribution. Pass an int for reproducible results
+across multiple function calls. Note that unlike scikit-learn’s FastICA, you
+<strong>cannot</strong> pass a <a class="reference external" href="https://numpy.org/doc/stable/reference/random/bit_generators/generated/numpy.random.BitGenerator.html#numpy.random.BitGenerator" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">BitGenerator</span></code></a> instance via
+<a class="reference external" href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.default_rng" title="(in NumPy v2.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">default_rng()</span></code></a>.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Attributes<span class="colon">:</span></dt>
 <dd class="field-even"><dl>
 <dt><strong>components_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>The linear operator to apply to the data to get the independent
-sources. This is equal to the unmixing matrix when <code class="docutils literal notranslate"><span class="pre">whiten</span></code> is
-False, and equal to <code class="docutils literal notranslate"><span class="pre">np.dot(unmixing_matrix,</span> <span class="pre">self.whitening_)</span></code> when
-<code class="docutils literal notranslate"><span class="pre">whiten</span></code> is True.</p>
+sources. This is equal to <code class="docutils literal notranslate"><span class="pre">np.matmul(unmixing_matrix,</span> <span class="pre">self.whitening_)</span></code> when
+<code class="docutils literal notranslate"><span class="pre">whiten</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;zca&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;pca&quot;</span></code>.</p>
 </dd>
 <dt><strong>mixing_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_features</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>The pseudo-inverse of <code class="docutils literal notranslate"><span class="pre">components_</span></code>. It is the linear operator
 that maps independent sources to the data.</p>
 </dd>
-<dt><strong>mean_</strong><span class="classifier">ndarray of shape(<code class="docutils literal notranslate"><span class="pre">n_features</span></code>,)</span></dt><dd><p>The mean over features. Only set if <cite>self.whiten</cite> is True.</p>
+<dt><strong>mean_</strong><span class="classifier">ndarray of shape(<code class="docutils literal notranslate"><span class="pre">n_features</span></code>,)</span></dt><dd><p>The mean over features. Only set if <cite>self.whiten</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
 </dd>
-<dt><strong>whitening_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Only set if whiten is ‘True’. This is the pre-whitening matrix
-that projects data onto the first <code class="docutils literal notranslate"><span class="pre">`n_components`</span></code> principal components.</p>
+<dt><strong>whitening_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Only set if whiten is <code class="docutils literal notranslate"><span class="pre">True</span></code>. This is the pre-whitening matrix
+that projects data onto the first <code class="docutils literal notranslate"><span class="pre">n_components</span></code> principal components.</p>
 </dd>
-<dt><strong>n_features_in_</strong><span class="classifier">int</span></dt><dd><p>Number of features seen during <cite>fit</cite>.</p>
+<dt><strong>n_features_in_</strong><span class="classifier">int</span></dt><dd><p>Number of features seen during <a class="reference internal" href="#amica.AMICA.fit" title="amica.AMICA.fit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fit()</span></code></a>.</p>
 </dd>
 <dt><strong>n_iter_</strong><span class="classifier">int</span></dt><dd><p>Number of iterations taken to converge during fit.</p>
 </dd>
@@ -390,5 +402,6 @@ unmixing matrix.</p>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
       <script src="../_static/shibuya.js?v=9b0e4dde"></script></body>
 </html>
