@@ -66,6 +66,10 @@ addopts = [
     "--cov-report=term",
     "--ignore=src/amica/tests/test_kernels.py",
 ]
+markers = [
+    "sklearn_api: Tests that validate Scikit-Learn API conformance",
+    "slow: Marks tests as slow (deselect with `pytest -m not slow`)"
+]
 
 [tool.coverage.run]
 source = ["amica"] # Source files to measure.
