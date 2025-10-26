@@ -246,8 +246,6 @@ class AMICA(TransformerMixin, BaseEstimator):
         X = validate_data(
             self, X=X, reset=False, copy=copy, dtype=[np.float64, np.float32]
             )
-        assert self.mixing_.shape == (self.n_features_in_, self.n_components)
-        assert X.shape[1] == self.n_components
 
         Xc = X - self.mean_ if hasattr(self, "mean_") and self.mean_ is not None else X
         return Xc @ self.components_.T
