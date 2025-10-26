@@ -5,8 +5,7 @@ from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from amica import AMICA
 
-
-@pytest.mark.skipif(sys.platform == "win32", reason="Numerical Failures on Windows")
+@pytest.mark.sklearn_api
 @parametrize_with_checks([AMICA(random_state=0)])
 def test_check_estimator(estimator, check):
     """Test Scikit-Learn API Compatibility."""
