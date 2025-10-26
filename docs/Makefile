@@ -21,3 +21,12 @@ help:
 
 html-noplot:
 	$(SPHINXBUILD) -D plot_gallery=0 -b html $(SOURCEDIR) $(BUILDDIR) $(O)
+
+clean:
+	@echo "Removing all files from $(BUILDDIR)..."
+	rm -rf $(BUILDDIR)
+	@echo "Removing Sphinx Gallery Files..."
+	rm -rf $(SOURCEDIR)/auto_examples
+	rm -rf $(SOURCEDIR)/gen_modules
+	rm -f $(SOURCEDIR)/sg_execution_times.rst
+

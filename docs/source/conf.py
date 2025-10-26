@@ -65,6 +65,8 @@ sphinx_gallery_conf = {
     'remove_config_comments': True,
     'backreferences_dir': 'gen_modules/backreferences',
     "doc_module": ("amica",),
+    # Run examples in parallel to speed up generation
+    "parallel": True,
 }
 
 

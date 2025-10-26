@@ -27,6 +27,7 @@ doc = [
     "numpydoc",
     "sphinx-design",
     "sphinx-copybutton",
+    "pandas",  # Needed to load the MNIST dataset example
     ]
 
 [tool.setuptools]
