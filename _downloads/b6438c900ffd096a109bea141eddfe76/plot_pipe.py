@@ -83,7 +83,7 @@ print(f"Accuracy: {pipe.score(X_test, y_test):.4f}")
 def imshow_row(images, titles=None, figsize=(20, 4), suptitle=None, cmap="gray"):
     fig, axes = plt.subplots(1, len(images), figsize=figsize, constrained_layout=True)
     if suptitle:
-        fig.suptitle(suptitle, fontsize=18, fontweight="bold", y=1.15, va="top")
+        fig.suptitle(suptitle, fontsize=18, fontweight="bold")
     for i, ax in enumerate(axes):
         ax.imshow(images[i].reshape(28, 28), cmap=cmap)
         ax.axis("off")
