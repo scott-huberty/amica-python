@@ -247,11 +247,11 @@ def fit_amica(
 
     # Init
     if n_models > 1:
-        raise NotImplementedError("n_models > 1 not yet supported")  # pragma no cover
+        raise NotImplementedError("n_models > 1 not yet supported")  # pragma: no cover
     if config.do_reject:
         raise NotImplementedError(
-            "Sample rejection by log likelihood is not yet supported." # pragma no cover
-        )
+            "Sample rejection by log likelihood is not yet supported."
+        )  # pragma: no cover
     dataseg = X.copy()
 
     # Whitening
@@ -466,7 +466,7 @@ def optimize(
             Dsign[h_index] = sign
 
         if config.do_reject:
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
         # !--------- loop over the blocks ----------
         '''
         # In Fortran, the OMP parallel region would start before the lines below.
@@ -541,7 +541,7 @@ def optimize(
             )
 
             if config.do_reject:
-                raise NotImplementedError()
+                raise NotImplementedError()  # pragma: no cover
             else:
                 # 6. --- Responsibilities for each model ---
                 v = compute_model_responsibilities(
@@ -783,7 +783,7 @@ def optimize(
                 else:
                     numincs = 0
             else:
-                raise NotImplementedError() # pragma no cover
+                raise NotImplementedError()  # pragma: no cover
             if use_grad_norm:
                 if ndtmpsum < min_nd:
                     leave = True
@@ -826,7 +826,7 @@ def optimize(
 
         # !----- reject data
         if config.do_reject:
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
 
         metrics.iter += 1
         # end if/else
@@ -927,7 +927,7 @@ def accum_updates_and_likelihood(
         # dA(i,i,h) = dA(i,i,h) + dble(1.0)
         #---------------------------------------------------------------
         if config.do_reject:
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
         else:
             accumulators.dA[:, :, h - 1] *= -1.0 / accumulators.dgm_numer[h - 1]
 
@@ -1029,7 +1029,7 @@ def accum_updates_and_likelihood(
 
     # if (seg_rank == 0) then
     if config.do_reject:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
     else:
         # LL(iter) = LLtmp2 / dble(all_blks*nw)
         # XXX: In the Fortran code LLtmp2 is the summed LLtmps across processes.
@@ -1057,7 +1057,7 @@ def update_params(
     # if (seg_rank == 0) then
     # if update_gm:
     if config.do_reject:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
         # gm = dgm_numer / dble(numgoodsum)
     else:
         state.gm[:] = accumulators.dgm_numer / X.shape[0]
@@ -1134,11 +1134,11 @@ def update_params(
             state.mu[positive_mask, :] *= Anrmk[positive_mask, None]
             state.sbeta[positive_mask, :] /= Anrmk[positive_mask, None]
         else:
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
     # end if (doscaling)
 
     if share_comps:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     state.W, wc = get_unmixing_matrices(
         c=state.c,

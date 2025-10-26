@@ -314,7 +314,6 @@ def pre_whiten(
             else:
                 # I think this is PCA whitening
                 S = Stmp2.copy()
-            # raise NotImplementedError()
     else:
         # !--- just normalize by the channel variances (don't sphere)
         # -------------------- FORTRAN CODE ---------------------------------------
