@@ -112,7 +112,7 @@ jobs:
       - name: Install dev extras
         run: |
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[torch-cpu,dev]"
       - name: Run Scikit-Learn API tests
         run: |
           source .venv/bin/activate
