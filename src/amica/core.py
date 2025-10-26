@@ -174,6 +174,45 @@ def fit_amica(
         Note that these are for convenience and are equivalent to passing in
         ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
         ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
+
+    Returns
+    -------
+    results : dict
+        Dictionary containing the following entries:
+
+        - mean : array, shape (``n_features``,) | ``None``
+            The mean over features. if ``do_mean=False``, this is ``None``.
+        - S : array, shape (``n_components``, ``n_features``)
+            The sphering (whitening) matrix applied to the data.
+        - W : array, shape (``n_components``, ``n_components``, ``n_models``)
+            The unmixing matrices for each model. Since only one model is supported,
+            the third dimension will always be of size 1.
+        - A : array, shape (``n_components``, ``n_components``)
+            The mixing matrix in the space of sphered data. To get the mixing matrix
+            in the original data space, use ``np.linalg.pinv(S) @ A``.
+        - LL : array, shape (``max_iter``,)
+            The log-likelihood values at each iteration. If the algorithm converged
+            before reaching ``max_iter``, the remaining entries will be zero.
+        - gm : array, shape (``n_models``,)
+            The Gaussian mixture model weights. Since only one model is supported,
+            this will be of shape (1,).
+        - mu : array, shape (``n_components``, ``n_mixtures``)
+            The location parameters for the mixture components, i.e. the means of the
+            mixture components.
+        - rho : array, shape (``n_components``, ``n_mixtures``)
+            The shape parameters for the mixture components.
+        - sbeta : array, shape (``n_components``, ``n_mixtures``)
+            The scale (precision) parameters for the mixture components.
+        - alpha : array, shape (``n_components``, ``n_mixtures``)
+            The mixture weights for the mixture components.
+        - c : array, shape (``n_components``, ``n_models``)
+            The model bias terms.
+
+    Notes
+    -----
+    In Fortran AMICA, ``alpha``, ``sbeta``, ``mu``, and ``rho`` are of shape
+    (``n_mixtures``, ``n_components``) (transposed compared to here).
+
     """
     set_log_level(verbose)
 
