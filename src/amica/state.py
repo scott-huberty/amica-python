@@ -8,7 +8,6 @@ updates. It keeps allocations explicit and allows reuse of large buffers.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
