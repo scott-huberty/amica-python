@@ -99,6 +99,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#amica.AMICA"><code class="docutils literal notranslate"><span class="pre">AMICA</span></code></a><ul>
 <li><a class="reference internal" href="#amica.AMICA.fit"><code class="docutils literal notranslate">fit()</span></code></a></li>
 <li><a class="reference internal" href="#amica.AMICA.fit_transform"><code class="docutils literal notranslate">fit_transform()</span></code></a></li>
+<li><a class="reference internal" href="#amica.AMICA.inverse_transform"><code class="docutils literal notranslate">inverse_transform()</span></code></a></li>
 <li><a class="reference internal" href="#amica.AMICA.transform"><code class="docutils literal notranslate">transform()</span></code></a></li>
 </ul>
 </li>
@@ -249,7 +250,7 @@ sources. This is equal to <code class="docutils literal notranslate"><span class
 <code class="docutils literal notranslate"><span class="pre">whiten</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;zca&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;pca&quot;</span></code>.</p>
 </dd>
 <dt><strong>mixing_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_features</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>The pseudo-inverse of <code class="docutils literal notranslate"><span class="pre">components_</span></code>. It is the linear operator
-that maps independent sources to the data.</p>
+that maps independent sources to the data (in feature space).</p>
 </dd>
 <dt><strong>mean_</strong><span class="classifier">ndarray of shape(<code class="docutils literal notranslate"><span class="pre">n_features</span></code>,)</span></dt><dd><p>The mean over features. Only set if <cite>self.whiten</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
 </dd>
@@ -273,7 +274,10 @@ that projects data onto the first <code class="docutils literal notranslate"><sp
 <tr class="row-even"><td><p><a class="reference internal" href="#amica.AMICA.fit_transform" title="amica.AMICA.fit_transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit_transform</span></code></a>(X[, y])</p></td>
 <td><p>Fit the model to the data and transform it.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.transform" title="amica.AMICA.transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform</span></code></a>(X[, copy])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.inverse_transform" title="amica.AMICA.inverse_transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">inverse_transform</span></code></a>(X)</p></td>
+<td><p>Reconstruct data from its independent components.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#amica.AMICA.transform" title="amica.AMICA.transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform</span></code></a>(X[, copy])</p></td>
 <td><p>Recover the sources from X (apply the unmixing matrix).</p></td>
 </tr>
 </tbody>
@@ -340,6 +344,37 @@ unmixing matrix.</p>
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amica.AMICA.inverse_transform">
+<span class="sig-name descname"><span class="pre">inverse_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA.inverse_transform" title="Link to this definition">¶</a></dt>
+<dd><p>Reconstruct data from its independent components.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl>
+<dt><strong>X</strong><span class="classifier">array-like of shape (<code class="docutils literal notranslate"><span class="pre">n_samples</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>Independent components to invert.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl>
+<dt><strong>X_reconstructed</strong><span class="classifier">ndarray of shape (n_samples, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>Reconstructed data.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_digits</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">amica</span><span class="w"> </span><span class="kn">import</span> <span class="n">AMICA</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">load_digits</span><span class="p">(</span><span class="n">return_X_y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">&gt;&gt;&gt; </span><span class="n">transformer</span> <span class="o">=</span> <span class="n">AMICA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</span><span data-line="5"><span class="gp">&gt;&gt;&gt; </span><span class="n">X_transformed</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span data-line="6"><span class="gp">&gt;&gt;&gt; </span><span class="n">X_reconstructed</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">X_transformed</span><span class="p">)</span>
+</span><span data-line="7"><span class="gp">&gt;&gt;&gt; </span><span class="n">X_reconstructed</span><span class="o">.</span><span class="n">shape</span>
+</span><span data-line="8"><span class="go">(1797, 64)</span>
+</span></pre></div>
+</div>
 </dd></dl>
 
 <dl class="py method">

@@ -199,7 +199,78 @@ Note that these are for convenience and are equivalent to passing in
 </dd>
 </dl>
 </dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl>
+<dt><strong>results</strong><span class="classifier">dict</span></dt><dd><p>Dictionary containing the following entries:</p>
+<ul>
+<li><dl>
+<dt>mean<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_features</span></code>,) | <code class="docutils literal notranslate"><span class="pre">None</span></code></span></dt><dd><p>The mean over features. if <code class="docutils literal notranslate"><span class="pre">do_mean=False</span></code>, this is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
 </dl>
+</li>
+<li><dl>
+<dt>S<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_features</span></code>)</span></dt><dd><p>The sphering (whitening) matrix applied to the data.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>W<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_models</span></code>)</span></dt><dd><p>The unmixing matrices for each model. Since only one model is supported,
+the third dimension will always be of size 1.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>A<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>)</span></dt><dd><p>The mixing matrix in the space of sphered data. To get the mixing matrix
+in the original data space, use <code class="docutils literal notranslate"><span class="pre">np.linalg.pinv(S)</span> <span class="pre">&#64;</span> <span class="pre">A</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>LL<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">max_iter</span></code>,)</span></dt><dd><p>The log-likelihood values at each iteration. If the algorithm converged
+before reaching <code class="docutils literal notranslate"><span class="pre">max_iter</span></code>, the remaining entries will be zero.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>gm<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_models</span></code>,)</span></dt><dd><p>The Gaussian mixture model weights. Since only one model is supported,
+this will be of shape (1,).</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>mu<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>The location parameters for the mixture components, i.e. the means of the
+mixture components.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>rho<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>The shape parameters for the mixture components.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>sbeta<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>The scale (precision) parameters for the mixture components.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>alpha<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>The mixture weights for the mixture components.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>c<span class="classifier">array, shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_models</span></code>)</span></dt><dd><p>The model bias terms.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>In Fortran AMICA, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, <code class="docutils literal notranslate"><span class="pre">sbeta</span></code>, <code class="docutils literal notranslate"><span class="pre">mu</span></code>, and <code class="docutils literal notranslate"><span class="pre">rho</span></code> are of shape
+(<code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>) (transposed compared to here).</p>
 </dd></dl>
 
 </section>

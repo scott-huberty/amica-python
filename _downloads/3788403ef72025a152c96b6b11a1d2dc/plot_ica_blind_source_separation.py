@@ -57,7 +57,11 @@ labels = {}
 ica = AMICA(n_components=3, whiten="zca", random_state=0)
 models["AMICA"] = ica.fit_transform(X)
 labels["AMICA"] = "AMICA recovered signals"
-A_amica = ica.mixing_
+
+# %%
+# We can prove that the ICA model applies by reverting the unmixing.
+X_rec = models["AMICA"] @ ica.mixing_.T + ica.mean_
+np.testing.assert_allclose(X, X_rec)
 
 # FastICA
 fastica = FastICA(n_components=3, whiten="arbitrary-variance", random_state=0)
