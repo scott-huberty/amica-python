@@ -11,6 +11,7 @@ from amica import AMICA
 import matplotlib.pyplot as plt
 import mne
 
+import numpy as np
 
 # %%
 # Download sample data
@@ -72,8 +73,6 @@ transformer.fit(data)
 #
 
 # %%
-A_fortran = fortran_results['A']
-
 def plot_topomaps(A, output="python"):
     fig, ax = plt.subplots(
         nrows=8,
@@ -97,4 +96,6 @@ fig1, ax1 = plot_topomaps(transformer.mixing_, output="python")
 
 
 # %%
+# The Fortran mixing matrix is in sphered space. We need to unwhiten it first.
+A_fortran = np.linalg.pinv(fortran_results['S']) @ fortran_results['A']
 fig2, ax2 = plot_topomaps(A_fortran, output="fortran")
