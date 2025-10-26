@@ -94,7 +94,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
         transformer.fit(dataseg)
         mean = transformer.mean_
         S = transformer.whitening_
-        A = transformer.mixing_
+        A = S @ transformer.mixing_  # mixing_ is in feature space.
         W = transformer._unmixing[:, :, None] # Expand dims to match Fortran shape
 
     LL_f = fortran_results["LL"]        # Log-likelihood
@@ -294,14 +294,14 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
             sbeta_init=scales,
             mu_init=locations,
         )
-        S = results["S"]
-        mu = results["mu"]
-        rho = results["rho"]
-        sbeta = results["sbeta"]
-        W = results["W"]
-        A = results["A"]
-        alpha = results["alpha"]
-        LL = results["LL"]
+        S = results["S"]                # Sphering matrix
+        mu = results["mu"]              # Location parameters
+        rho = results["rho"]            # Shape parameters
+        sbeta = results["sbeta"]        # Scale parameters
+        W = results["W"]                # Unmixing matrix
+        A = results["A"]                # Mixing matrix in space of sphered data
+        alpha = results["alpha"]        # Mixture weights
+        LL = results["LL"]              # Log-likelihood
         # Compare to Fortran results
         S_f = fortran_results["S"]
         assert_allclose(S, S_f)
@@ -317,7 +317,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
             )
         transformer.fit(x)
         S = transformer.whitening_
-        A = transformer.mixing_
+        A = S @ transformer.mixing_  # put mixing_ from feature space to sphered space
         W = transformer._unmixing[:, :, None]  # Expand dims to match Fortran shape
 
     assert_allclose(A, A_f, rtol=0.1)
@@ -366,7 +366,6 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
             # AFAICT this is because of compounding numerical differences in the updates
 
 
-@pytest.mark.xfail(reason="TODO: Investigate why reconstructed data does not match")
 def test_reconstruction():
     """Check that the data can be reconstructed from the sources and mixing matrix."""
     # Generate toy data
@@ -385,13 +384,27 @@ def test_reconstruction():
     A = np.array([[1, 1, 1], [0.5, 2, 1.0], [1.5, 1.0, 2.0]])  # Mixing matrix
     X = np.dot(S, A.T)  # Generate observations
 
-    # Compute ICA
-    ica = AMICA(n_components=3, random_state=0)
-    S_ = ica.fit_transform(X)  # Reconstruct signals
-    A_ = ica.mixing_  # Get estimated mixing matrix
+    # Compute ICA using both function and class entrypoints
+    modout = fit_amica(X, n_components=3, random_state=0)
+    S = modout["S"] # whitening matrix shape (3, 3)
+    A = modout["A"] # mixing matrix (3, 3)
+    W = modout["W"][:, :, 0] # unmixing matrix (3, 3)
+    mean = modout["mean"] # feature means (3,)
+
     # We can prove that the ICA model applies by reverting the unmixing.
-    X_ = np.matmul(S_, A_.T) + ica.mean_
-    np.testing.assert_allclose(X, X_)
+    # First, using function output directly
+    components = W @ S
+    stcs = (X - mean) @ components.T
+    X_sph_rec = stcs @ A.T
+    S_inv_T = np.linalg.pinv(S).T           # or np.linalg.inv(S).T when full-rank
+    X_rec = X_sph_rec @ S_inv_T + mean
+    np.testing.assert_allclose(X, X_rec)
+
+    # Second, using the class interface
+    transformer = AMICA(n_components=3, random_state=0)
+    X_new = transformer.fit_transform(X)
+    X_rec = transformer.inverse_transform(X_new)
+    np.testing.assert_allclose(X, X_rec)
 
 
 @pytest.mark.parametrize(

@@ -106,7 +106,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         ``whiten`` is ``"zca"`` or ``"pca"``.
     mixing_ : ndarray of shape (``n_features``, ``n_components``)
         The pseudo-inverse of ``components_``. It is the linear operator
-        that maps independent sources to the data.
+        that maps independent sources to the data (in feature space).
     mean_ : ndarray of shape(``n_features``,)
         The mean over features. Only set if `self.whiten` is ``True``.
     whitening_ : ndarray of shape (``n_components``, ``n_features``)
@@ -220,9 +220,9 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.n_features_in_ = X.shape[1]
         self.n_iter_ = np.count_nonzero(fit_dict['LL'])
         self.whitening_ = fit_dict["S"][:self.n_components, :]
-        self.mixing_ = fit_dict['A']
         self._unmixing = fit_dict['W'][:, :, 0]
-        self.components_ = self._unmixing @ fit_dict['S'][:self.n_components, :]
+        self.components_ = self._unmixing @ self.whitening_
+        self.mixing_ = np.linalg.pinv(self.whitening_) @ fit_dict["A"]
         return self
 
     def transform(self, X, copy=True):
@@ -246,7 +246,9 @@ class AMICA(TransformerMixin, BaseEstimator):
         X = validate_data(
             self, X=X, reset=False, copy=copy, dtype=[np.float64, np.float32]
             )
-        return X @ self.components_.T
+
+        Xc = X - self.mean_ if hasattr(self, "mean_") and self.mean_ is not None else X
+        return Xc @ self.components_.T
 
     def fit_transform(self, X, y=None):
         """Fit the model to the data and transform it.
@@ -274,3 +276,36 @@ class AMICA(TransformerMixin, BaseEstimator):
         # For now, we just call the parent class's method
         self.fit(X)
         return self.transform(X)
+
+    def inverse_transform(self, X):
+        """Reconstruct data from its independent components.
+
+        Parameters
+        ----------
+        X : array-like of shape (``n_samples``, ``n_components``)
+            Independent components to invert.
+
+        Returns
+        -------
+        X_reconstructed : ndarray of shape (n_samples, ``n_features``)
+            Reconstructed data.
+
+        Examples
+        --------
+        >>> from sklearn.datasets import load_digits
+        >>> from amica import AMICA
+        >>> X, _ = load_digits(return_X_y=True)
+        >>> transformer = AMICA(n_components=7, random_state=0)
+        >>> X_transformed = transformer.fit_transform(X)
+        >>> X_reconstructed = transformer.inverse_transform(X_transformed)
+        >>> X_reconstructed.shape
+        (1797, 64)
+        """
+        check_is_fitted(self)
+        X = validate_data(
+            self, X=X, reset=False, dtype=[np.float64, np.float32]
+            )
+        X_rec = X @ self.mixing_.T
+        if hasattr(self, "mean_") and self.mean_ is not None:
+            X_rec += self.mean_
+        return X_rec
