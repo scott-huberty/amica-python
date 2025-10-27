@@ -1,6 +1,8 @@
 [![codecov](https://codecov.io/github/scott-huberty/amica-python/graph/badge.svg?token=Gt7dvyE9mL)](https://codecov.io/github/scott-huberty/amica-python)
 [![tests](https://github.com/scott-huberty/amica-python/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/scott-huberty/amica-python/actions/workflows/ci.yaml)
+[![docs](https://img.shields.io/github/actions/workflow/status/scott-huberty/amica-python/circleci_redirect.yml?label=Docs)](https://dl.circleci.com/status-badge/redirect/gh/scott-huberty/amica-python/tree/main)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 # AMICA-Python
 
 A Python implementation of the [AMICA](https://sccn.ucsd.edu/~jason/amica_a.pdf) (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation, that was originally [developed in FORTRAN](https://github.com/sccn/amica) by Jason Palmer at the Swartz Center for Computational Neuroscience (SCCN).
