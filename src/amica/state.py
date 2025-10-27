@@ -8,7 +8,6 @@ updates. It keeps allocations explicit and allows reuse of large buffers.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -253,31 +252,19 @@ class AmicaHistory:
 # TODO: consider making this a class method of AmicaState
 def get_initial_state(
     cfg: AmicaConfig,
-    *,
-    seeds: Mapping[str, NDArray] | None = None,
 ) -> AmicaState:
     """Create an initial AmicaState.
 
     Initialize arrays following the same patterns as amica.py.
-    If `seeds` provides 'W', 'sbeta', or 'mu', they are used to initialize
-    the corresponding fields.
     """
     num_comps = cfg.n_components  # Match amica.py variable names
     num_models = cfg.n_models
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
 
-    seeds = {} if seeds is None else dict(seeds)
-
     # W - match amica.py: W = np.zeros((num_comps, num_comps, num_models))
-    if "W" in seeds:
-        W = torch.tensor(seeds["W"], dtype=dtype)
-        assert W.shape == (num_comps, num_comps, num_models), (
-            f"W seed shape {W.shape} != {(num_comps, num_comps, num_models)}"
-        )
-    else:
-        # Weights for each model
-        W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)
+    # Weights for each model
+    W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)
     assert W.dtype == torch.float64
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))
@@ -285,17 +272,8 @@ def get_initial_state(
 
     c = torch.zeros((num_comps, num_models), dtype=dtype)  # Bias terms per component
     # sbeta, mu, rho - match amica.py patterns
-    if "sbeta" in seeds:
-        sbeta = torch.tensor(seeds["sbeta"], dtype=dtype)
-        assert sbeta.shape == (num_comps, num_mix)
-    else:
-        sbeta = torch.empty((num_comps, num_mix), dtype=dtype)
-
-    if "mu" in seeds:
-        mu = torch.tensor(seeds["mu"], dtype=dtype)
-        assert mu.shape == (num_comps, num_mix)
-    else:
-        mu = torch.zeros((num_comps, num_mix), dtype=dtype)
+    sbeta = torch.empty((num_comps, num_mix), dtype=dtype)
+    mu = torch.zeros((num_comps, num_mix), dtype=dtype)
 
     # Shape parameters
     rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype)
@@ -387,51 +365,10 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
         newton=newton,
     )
 
-
-def reset_accumulators(u: AmicaAccumulators) -> None:
-    """Zero all per-iteration accumulators in-place.
-
-    This avoids reallocations by reusing the same AmicaAccumulators instance across
-    iterations. It resets numerators/denominators, the weight gradients, the
-    mixture numerators, and Newton accumulators if present.
-    """
-    # Core accumulators
-
-    u.dmu_numer.fill_(0.0)
-    u.dmu_denom.fill_(0.0)
-
-    u.dbeta_numer.fill_(0.0)
-    u.dbeta_denom.fill_(0.0)
-
-    u.dalpha_numer.fill_(0.0)
-    u.dalpha_denom.fill_(0.0)
-
-    u.drho_numer.fill_(0.0)
-    u.drho_denom.fill_(0.0)
-
-    u.dgm_numer.fill_(0.0)
-
-    # Scalar diagnostics
-    u.loglik_sum = 0.0
-
-    # Optional Newton accumulators
-    if u.newton is not None:
-        n = u.newton
-        n.dbaralpha_numer.fill_(0.0)
-        n.dbaralpha_denom.fill_(0.0)
-        n.dkappa_numer.fill_(0.0)
-        n.dkappa_denom.fill_(0.0)
-        n.dlambda_numer.fill_(0.0)
-        n.dlambda_denom.fill_(0.0)
-        n.dsigma2_numer.fill_(0.0)
-        n.dsigma2_denom.fill_(0.0)
-
-
 __all__ = [
     "AmicaConfig",
     "AmicaState",
     "AmicaAccumulators",
     "get_initial_state",
     "initialize_accumulators",
-    "reset_accumulators",
 ]
