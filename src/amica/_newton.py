@@ -6,7 +6,7 @@ from ._batching import get_component_slice
 
 def compute_newton_terms(*, config, accumulators, mu):
     """Compute second-order curvature or scaling terms for Hessian approximation.
-    
+
     Parameters
     ----------
     config : amica.state.Config
