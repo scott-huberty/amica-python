@@ -5,7 +5,6 @@ import time
 import torch
 from numpy.testing import assert_allclose
 
-from amica._batching import BatchLoader, choose_batch_size
 from amica._types import (
     DataTensor2D,
     ParamsModelTensor,
@@ -65,36 +64,9 @@ from amica.state import (
     initialize_accumulators,
 )
 
+from ._batching import BatchLoader, choose_batch_size, get_component_slice
+from ._newton import compute_newton_terms
 from .utils._logging import logger, set_log_level
-
-
-def get_component_slice(h: int, n_components: int) -> slice:
-    """Return slice for components of model h.
-
-    Parameters
-    ----------
-    - h: model number (1-based)
-    - n_components: number of components per model (nw)
-
-    Returns
-    -------
-    - slice object for components of model h
-
-    Notes
-    -----
-    - Creating a slice ensures that we get a view when indexing arrays.
-    - The fortran code pre-computes comp_list(num_components, num_models). We avoid this
-        by computing the slice on-the-fly and thus avoiding fancy indexing.
-
-    Fortran reference:
-        do h = 1,num_models
-            do i = 1,nw
-                comp_list(i,h) = (h-1) * nw + i
-    """
-    h_index = h - 1  # Convert to 0-based index
-    start = h_index * n_components
-    end = start + n_components
-    return slice(start, end)
 
 
 def fit_amica(
@@ -863,57 +835,13 @@ def accum_updates_and_likelihood(
     Wtmp_working = torch.zeros((config.n_components, config.n_components))
     # if (seg_rank == 0) then
     if config.do_newton and iteration >= config.newt_start:
-        #--------------------------FORTRAN CODE-------------------------
-        # baralpha = dbaralpha_numer / dbaralpha_denom
-        # sigma2 = dsigma2_numer / dsigma2_denom
-        # kappa = dble(0.0)
-        # lambda = dble(0.0)
-        #---------------------------------------------------------------
-        # shape (num_mix, num_comps, num_models)
-        baralpha = (
-            accumulators.newton.dbaralpha_numer / accumulators.newton.dbaralpha_denom
-            )
-        sigma2 = (
-            accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
-            )
-        kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
-        lambda_ = torch.zeros(
-            (config.n_components, config.n_models), dtype=config.dtype
+        newton_terms = compute_newton_terms(
+            accumulators=accumulators, config=config, mu=state.mu
             )
 
-        for h, _ in enumerate(range(config.n_models), start=1):
-            comp_slice = get_component_slice(h, config.n_components)
-            h_idx = h - 1
-
-            # These 6 variables don't exist in Fortran.
-            baralpha_h = baralpha[:, :, h_idx]
-            dkappa_numer_h = accumulators.newton.dkappa_numer[:, :, h_idx]
-            dkappa_denom_h = accumulators.newton.dkappa_denom[:, :, h_idx]
-            dlambda_numer_h = accumulators.newton.dlambda_numer[:, :, h_idx]
-            dlambda_denom_h = accumulators.newton.dlambda_denom[:, :, h_idx]
-
-            # Calculate dkap for all mixtures
-            # dkap = dkappa_numer(j,i,h) / dkappa_denom(j,i,h)
-            # kappa(i,h) = kappa(i,h) + baralpha(j,i,h) * dkap
-            # --- Update kappa ---
-            dkap = dkappa_numer_h / dkappa_denom_h
-            kappa[:, h_idx] += torch.sum(baralpha_h * dkap, dim=1)
-
-            # --- Update lambda_ ---
-            #--------------------------FORTRAN CODE-------------------------
-            # lambda(i,h) = lambda(i,h) + ...
-            #       baralpha(j,i,h) * ( dlambda_numer(j,i,h)/dlambda_denom(j,i,h) + ...
-            #---------------------------------------------------------------
-            mu_selected = state.mu[comp_slice, :]
-            # Calculate the full lambda update term
-            lambda_inner_term = (
-                (dlambda_numer_h / dlambda_denom_h) + (dkap * mu_selected**2)
-                )
-            lambda_update = torch.sum(baralpha_h * lambda_inner_term, dim=1)
-            lambda_[:, h_idx] += lambda_update
-            # end do (j)
-            # end do (i)
-        # end do (h)
+        sigma2 = newton_terms["sigma2"]
+        kappa = newton_terms["kappa"]
+        lambda_ = newton_terms["lambda_"]
         # if (print_debug) then
     # end if (do_newton .and. iter >= newt_start)
 
