@@ -188,3 +188,32 @@ def choose_batch_size(
             f"samples, which is below the recommended minimum of {min_batch_size}."
         )
     return batch_size
+
+
+def get_component_slice(h: int, n_components: int) -> slice:
+    """Return slice for components of model h.
+
+    Parameters
+    ----------
+    - h: model number (1-based)
+    - n_components: number of components per model (nw)
+
+    Returns
+    -------
+    - slice object for components of model h
+
+    Notes
+    -----
+    - Creating a slice ensures that we get a view when indexing arrays.
+    - The fortran code pre-computes comp_list(num_components, num_models). We avoid this
+        by computing the slice on-the-fly and thus avoiding fancy indexing.
+
+    Fortran reference:
+        do h = 1,num_models
+            do i = 1,nw
+                comp_list(i,h) = (h-1) * nw + i
+    """
+    h_index = h - 1  # Convert to 0-based index
+    start = h_index * n_components
+    end = start + n_components
+    return slice(start, end)
