@@ -24,7 +24,7 @@
 }
 </style>
     <meta property="og:type" content="website"/><meta property="og:title" content="Functional API"/>
-<meta name="twitter:card" content="summary"/>
+    <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
   <div class="sy-head-blur"></div>
@@ -147,6 +147,8 @@ data-aria-dark="Switch to auto color mode">
 <dt class="sig sig-object py" id="amica.fit_amica">
 <span class="sig-prename descclassname"><span class="pre">amica.</span></span><span class="sig-name descname"><span class="pre">fit_amica</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">whiten</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zca'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_models</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mixtures</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lrate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rholrate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdftype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_newton</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newt_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newtrate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newt_ramp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sbeta_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_reject</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.fit_amica" title="Link to this definition">¶</a></dt>
 <dd><p>Perform Adaptive Mixture Independent Component Analysis (AMICA).</p>
+<p>Implements the AMICA algorithm as described in Palmer <em>et al.</em><a class="footnote-reference brackets" href="#footcite-palmer2012" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> and
+Palmer <em>et al.</em><a class="footnote-reference brackets" href="#footcite-palmer2008" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>, and originally implemented in Palmer<a class="footnote-reference brackets" href="#footcite-amica" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a>.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl>
@@ -272,6 +274,23 @@ mixture components.</p>
 <p class="rubric">Notes</p>
 <p>In Fortran AMICA, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, <code class="docutils literal notranslate"><span class="pre">sbeta</span></code>, <code class="docutils literal notranslate"><span class="pre">mu</span></code>, and <code class="docutils literal notranslate"><span class="pre">rho</span></code> are of shape
 (<code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>, <code class="docutils literal notranslate"><span class="pre">n_components</span></code>) (transposed compared to here).</p>
+<p class="rubric">References</p>
+<div class="docutils container" id="id4">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="footcite-palmer2012" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
+<p>Jason A Palmer, Kenneth Kreutz-Delgado, and Scott Makeig. Amica: an adaptive mixture of independent component analyzers with shared components. <em>Swartz Center for Computational Neuroscience, University of California San Diego, Tech. Rep</em>, 2012. URL: <a class="reference external" href="https://sccn.ucsd.edu/~jason/amica_a.pdf">https://sccn.ucsd.edu/~jason/amica_a.pdf</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-palmer2008" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">2</a><span class="fn-bracket">]</span></span>
+<p>Jason A Palmer, Kenneth Kreutz-Delgado, and Scott Makeig. Newton method for the ica mixture model. In <em>2008 IEEE International Conference on Acoustics, Speech and Signal Processing</em>, 1805–1808. IEEE, 2008. <a class="reference external" href="https://doi.org/10.1109/ICASSP.2008.4517982">doi:10.1109/ICASSP.2008.4517982</a>.</p>
+</aside>
+<aside class="footnote brackets" id="footcite-amica" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id3">3</a><span class="fn-bracket">]</span></span>
+<p>J. Palmer. Code for amica: adaptive mixture ica with shared components. <a class="reference external" href="https://github.com/sccn/amica">https://github.com/sccn/amica</a>, 2025. Accessed: November 4, 2025.</p>
+</aside>
+</aside>
+</div>
 </dd></dl>
 
 </section>
