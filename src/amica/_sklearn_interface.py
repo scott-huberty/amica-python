@@ -119,7 +119,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of features seen during :meth:`~AMICA.fit`.
     n_iter_ : int
         Number of iterations taken to converge during fit.
-    
+
     References
     ----------
     .. footbibliography::
