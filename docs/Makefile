@@ -20,7 +20,7 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 html-noplot:
-	$(SPHINXBUILD) -D plot_gallery=0 -b html $(SOURCEDIR) $(BUILDDIR) $(O)
+	@$(SPHINXBUILD) -D plot_gallery=0 -b html $(SOURCEDIR) $(BUILDDIR) $(O)
 
 clean:
 	@echo "Removing all files from $(BUILDDIR)..."
@@ -29,4 +29,14 @@ clean:
 	rm -rf $(SOURCEDIR)/auto_examples
 	rm -rf $(SOURCEDIR)/gen_modules
 	rm -f $(SOURCEDIR)/sg_execution_times.rst
+
+# If we build the example gallery, the index file is in build/html/index.html
+# Otherwise, it's in build/index.html
+view:
+	@if [ -f "$(BUILDDIR)/html/index.html" ]; then \
+	    python -c "import webbrowser; webbrowser.open_new_tab('file://$(PWD)/$(BUILDDIR)/html/index.html')"; \
+	elif [ -f "$(BUILDDIR)/index.html" ]; then \
+	    python -c "import webbrowser; webbrowser.open_new_tab('file://$(PWD)/$(BUILDDIR)/index.html')"; \
+	else echo "No index.html file found to open. Did you build the docs?"; \
+	fi
 
