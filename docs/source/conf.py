@@ -26,11 +26,14 @@ extensions = [
     "sphinx.ext.intersphinx", # For linking to other projects' docs
     "sphinx_design",  # e.g. for tabs
     "sphinx_copybutton",  # So users can easily copy code blocks
+    "sphinxcontrib.bibtex",  # For citations
         ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
+# -- Sphinxcontrib-bibtex configuration ---------------------------------------
+bibtex_bibfiles = ['references.bib']
 
 # -- Intersphinx configuration -----------------------------------------------
 

@@ -26,6 +26,7 @@ doc = [
     "sphinx-gallery",
     "numpydoc",
     "sphinx-design",
+    "sphinxcontrib-bibtex",
     "sphinx-copybutton",
     "pandas",  # Needed to load the MNIST dataset example
     ]

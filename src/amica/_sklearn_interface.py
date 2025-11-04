@@ -16,6 +16,9 @@ CHECK_ARRAY_KWARGS = {
 class AMICA(TransformerMixin, BaseEstimator):
     """AMICA: adaptive Mixture algorithm for Independent Component Analysis.
 
+    Implements the AMICA algorithm as described in :footcite:t:`palmer2012` and
+    :footcite:t:`palmer2008`, and originally implemented in :footcite:t:`amica`.
+
     Parameters
     ----------
     n_components : int, default=None
@@ -116,6 +119,11 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of features seen during :meth:`~AMICA.fit`.
     n_iter_ : int
         Number of iterations taken to converge during fit.
+
+    References
+    ----------
+    .. footbibliography::
+
 
     Examples
     --------

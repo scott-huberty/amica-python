@@ -96,6 +96,9 @@ def fit_amica(
 ):
     """Perform Adaptive Mixture Independent Component Analysis (AMICA).
 
+    Implements the AMICA algorithm as described in :footcite:t:`palmer2012` and
+    :footcite:t:`palmer2008`, and originally implemented in :footcite:t:`amica`.
+
     Parameters
     ----------
     X : array-like, shape (``n_samples``, ``n_features``)
@@ -184,6 +187,10 @@ def fit_amica(
     -----
     In Fortran AMICA, ``alpha``, ``sbeta``, ``mu``, and ``rho`` are of shape
     (``n_mixtures``, ``n_components``) (transposed compared to here).
+
+    References
+    ----------
+    .. footbibliography::
 
     """
     set_log_level(verbose)
