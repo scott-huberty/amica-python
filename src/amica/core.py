@@ -592,7 +592,6 @@ def optimize(
                     out_denom=accumulators.dalpha_denom[comp_slice, :],
                 )
                 # Mu (location)
-                # if metrics.iter == 203:
                 accumulate_mu_stats(
                     ufp=ufp,
                     y=y,
@@ -622,9 +621,6 @@ def optimize(
                 )
                 # --- Newton-Raphson accumulators ---
                 if do_newton and metrics.iter >= config.newt_start:
-                    if metrics.iter == 50 and batch_indices.start == 0:
-                        assert torch.all(accumulators.newton.dkappa_numer == 0.0)
-                        assert torch.all(accumulators.newton.dkappa_denom == 0.0)
                     # NOTE: Fortran computes dsigma_* for all iters, but its unnecessary
                     # Sigma^2 accumulators (noise variance)
                     accumulate_sigma2_stats(
