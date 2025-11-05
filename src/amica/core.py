@@ -66,7 +66,7 @@ from amica.state import (
 
 from ._batching import BatchLoader, choose_batch_size, get_component_slice
 from ._newton import compute_newton_terms
-from .utils._logging import logger, set_log_level
+from .utils._logging import log, set_log_level
 
 
 def fit_amica(
@@ -371,12 +371,15 @@ def solve(
 
 
     # !-------------------- Determine optimal block size -------------------
-    logger.info(f"1: block size = {config.batch_size}")
+    log(f"1: block size = {config.batch_size}", level="info", color=None)
 
     # !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX main loop XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    logger.opt(colors=True).info(
-        "<lvl><blue>Solving. (please be patient, this may take a while)...</blue></lvl>"
-        )
+    log(
+        "Solving. (please be patient, this may take a while)...",
+        level="info",
+        color="blue",
+        weight="bold"
+    )
     with torch.no_grad():
         state, LL = optimize(
             X=X,
@@ -703,13 +706,14 @@ def optimize(
         #  if (mod(iter,outstep) == 0) then
 
         if (metrics.iter % outstep) == 0:
-            logger.info(
+            report = (
                 f"Iteration {metrics.iter}, "
                 f"lrate = {metrics.lrate:.5f}, "
                 f"LL = {LL[metrics.iter - 1]:.7f}, "
                 f"nd = {ndtmpsum:.7f}, D = {Dsum.max():.5f} {Dsum.min():.5f} "
                 f"took {t0:.2f} seconds"
-                )
+            )
+            log(msg=report, level="info", color=None)
             c1 = time.time()
 
         # !----- check whether likelihood is increasing
@@ -721,11 +725,14 @@ def optimize(
         if metrics.iter > 1:
             if (LL[metrics.iter - 1] < LL[metrics.iter - 2]):
                 # assert 1 == 0
-                logger.opt(colors=True).info("<green>Likelihood decreasing!</green>")
+                log("Likelihood decreasing!", level="warning", color="yellow")
                 if (metrics.lrate < minlrate) or (ndtmpsum <= min_nd):
                     leave = True
-                    logger.opt(colors=True).info(
-                        "<green>minimum change threshold met, exiting loop</green>"
+                    log(
+                        "minimum change threshold met, exiting loop",
+                        level="info",
+                        color="green",
+                        weight="bold"
                         )
                 else:
                     metrics.lrate *= lratefact
@@ -736,8 +743,10 @@ def optimize(
                         if metrics.iter > config.newt_start:
                             metrics.rholrate0 *= rholratefact
                         if config.do_newton and metrics.iter > config.newt_start:
-                            logger.opt(colors=True).info(
-                                "<blue>Reducing maximum Newton lrate</blue>"
+                            log(
+                                "Reducing maximum Newton lrate",
+                                level="info",
+                                color="blue"
                                 )
                             metrics.newtrate *= lratefact
                         numdecs = 0
@@ -749,11 +758,12 @@ def optimize(
                     numincs += 1
                     if numincs > maxincs:
                         leave = True
-                        logger.opt(colors=True).info(
-                            "<lvl><green>"
+                        log(
                             "Exiting because likelihood increasing by less than "
-                            f"{min_dll} for more than {maxincs} iterations ..."
-                            "</green></lvl>"
+                            f"{min_dll} for more than {maxincs} iterations ...",
+                            level="info",
+                            color="green",
+                            weight="bold"
                             )
                 else:
                     numincs = 0
@@ -762,25 +772,22 @@ def optimize(
             if use_grad_norm:
                 if ndtmpsum < min_nd:
                     leave = True
-                    logger.opt(colors=True).info(
-                        "<lvl><green>"
+                    log(
                         "Exiting because norm of weight gradient less than "
-                        f"{min_nd:.12f}"
-                        "</green></lvl>"
-                    )
+                        f"{min_nd:.12f}",
+                        level="info",
+                        color="green",
+                        weight="bold",
+                        )
         # end if (iter > 1)
         if config.do_newton and (metrics.iter == config.newt_start):
-            logger.opt(colors=True).info(
-                "<blue>"
-                "Starting Newton ... setting numdecs to 0"
-                "</blue>"
-                )
+            log("Starting Newton ... setting numdecs to 0", level="info", color="blue")
             numdecs = 0
         # call MPI_BCAST(leave,1,MPI_LOGICAL,0,seg_comm,ierr)
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
         if leave:
             c_end = time.time()
-            logger.info(f"Finished in {c_end - c_start:.2f} seconds")
+            log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
             return state, LL
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
@@ -806,14 +813,15 @@ def optimize(
         metrics.iter += 1
         # end if/else
     # end while
-    logger.opt(colors=True).warning(
-        "<lvl><yellow>"
+    log(
         "Maximum number of iterations reached before convergence."
-        " Consider increasing max_iter or relaxing tol."
-        "</yellow></lvl>"
-        )
+        " Consider increasing max_iter or relaxing tol.",
+        level="warning",
+        color="yellow",
+        weight="bold",
+    )
     c_end = time.time()
-    logger.info(f"Finished in {c_end - c_start:.2f} seconds")
+    log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
     return state, LL
 
 
