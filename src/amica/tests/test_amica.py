@@ -514,10 +514,12 @@ def test_sklearn_tutorial_data(do_newton):
                 [1.5, 1.0, 2.0]])           # Mixing matrix
 
     X = S @ A.T                               # Observed mixtures
+
     # Run AMICA
+    # Purposely picking a batch size that is not a divisor of n_samples
     modout = fit_amica(
         X, n_components=3, random_state=0, do_newton=do_newton, batch_size=499
-        )
+    )
     mean_py = modout["mean"] # feature means (3,)
     S_py = modout["S"] # whitening matrix shape (3, 3)
     A_py = modout["A"] # mixing matrix (3, 3)

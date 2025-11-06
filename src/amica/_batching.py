@@ -28,11 +28,14 @@ class BatchLoader:
     """
 
     def __init__(self, X: ArrayLike2D, axis: int, batch_size: int | None = None):
+        # Validate inputs
         cls_name = self.__class__.__name__
         if not isinstance(X, torch.Tensor):
-            raise TypeError(f"{cls_name} expects a torch.Tensor")
+            raise TypeError(f"{cls_name} expects a torch.Tensor")  # pragma: no cover
         if X.ndim < 1:
-            raise ValueError(f"{cls_name} expects an array with at least 1 dimension")
+            raise ValueError(
+                f"{cls_name} expects an array with at least 1 dimension"
+            )  # pragma: no cover
         self.X = X
         self.axis = axis
 
@@ -42,26 +45,31 @@ class BatchLoader:
             raise ValueError(
                 f"axis {self.axis} out of bounds for array with ndim={X.ndim}"
                 )
-
+        
+        # Determine batching parameters
         n = X.shape[self.axis]
         start = 0
         stop = n
-        if not (0 <= start <= n):
-            raise ValueError(f"start {start} out of range [0, {n}]")
-        if not (0 <= stop <= n):
-            raise ValueError(f"stop {stop} out of range [0, {n}]")
-        if start > stop:
-            raise ValueError(f"start {start} must be <= stop {stop}")
-        if batch_size < 0:
-            raise ValueError(f"batch_size {batch_size} must be positive")
-        self.start = start
-        self.stop = stop
-
         if batch_size is None:
             # Treat as single chunk spanning [start:stop]
-            self.batch_size = stop
-        else:
-            self.batch_size = int(batch_size)
+            batch_size = stop
+
+        # Validate parameters
+        assert (0 <= start <= n), f"start {start} out of range [0, {n}]"
+        assert (0 <= stop <= n), f"stop {stop} out of range [0, {n}]"
+        assert start <= stop, f"start {start} must be <= stop {stop}"        
+        if batch_size < 0:
+            raise ValueError(f"batch_size must be positive. Got {batch_size}.")
+        if batch_size > X.shape[self.axis]:
+            raise ValueError(
+                f"batch_size {batch_size} exceeds data size {X.shape[self.axis]} "
+                f"along axis {self.axis}."
+            )
+
+        # Store parameters
+        self.start = start
+        self.stop = stop
+        self.batch_size = int(batch_size)
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         start = self.start + idx * self.batch_size
@@ -77,10 +85,6 @@ class BatchLoader:
         start = self.start
         stop = self.stop
         step = self.batch_size
-
-        # Handle empty span quickly
-        if start == stop:
-            return iter(())
 
         idx = [slice(None)] * self.X.ndim
         assert -((stop - start) // -step) == len(self)  # sanity check

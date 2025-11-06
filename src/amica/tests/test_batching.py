@@ -1,3 +1,5 @@
+import pytest
+
 import torch
 
 from amica._batching import BatchLoader
@@ -28,3 +30,15 @@ def test_batch_loader():
     assert "Batched axis: 0" in repr_str
     assert "batch_size: 1000" in repr_str
     assert "n_batches: 3" in repr_str
+
+    # Test batch size None
+    foo = BatchLoader(X, axis=0, batch_size=None)
+    assert len(foo) == 1
+    assert foo[0].shape == X.shape
+
+    # Test failures
+    with pytest.raises(ValueError, match="batch_size must be positive"):
+        BatchLoader(X, axis=0, batch_size=-10)
+    with pytest.raises(ValueError, match="batch_size 4000 exceeds data size 3000"):
+        BatchLoader(X, axis=0, batch_size=4000)
+
