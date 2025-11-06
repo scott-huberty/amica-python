@@ -141,6 +141,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             n_components=None,
             *,
             n_mixtures=3,
+            batch_size=None,
             n_models=1,
             mean_center=True,
             whiten="zca",
@@ -172,6 +173,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.sbeta_init = sbeta_init
         self.mu_init = mu_init
         self.random_state = random_state
+        self.batch_size = batch_size
 
     def fit(self, X, y=None, verbose=None):
         """Fit the AMICA model to the data X.
@@ -206,6 +208,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             X,
             n_components=self.n_components,
             n_mixtures=self.n_mixtures,
+            batch_size=self.batch_size,
             n_models=self.n_models,
             mean_center=self.mean_center,
             whiten=self.whiten,
