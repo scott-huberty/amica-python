@@ -1,5 +1,4 @@
 import pytest
-
 import torch
 
 from amica._batching import BatchLoader

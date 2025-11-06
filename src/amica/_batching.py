@@ -45,7 +45,7 @@ class BatchLoader:
             raise ValueError(
                 f"axis {self.axis} out of bounds for array with ndim={X.ndim}"
                 )
-        
+
         # Determine batching parameters
         n = X.shape[self.axis]
         start = 0
@@ -57,7 +57,7 @@ class BatchLoader:
         # Validate parameters
         assert (0 <= start <= n), f"start {start} out of range [0, {n}]"
         assert (0 <= stop <= n), f"stop {stop} out of range [0, {n}]"
-        assert start <= stop, f"start {start} must be <= stop {stop}"        
+        assert start <= stop, f"start {start} must be <= stop {stop}"
         if batch_size < 0:
             raise ValueError(f"batch_size must be positive. Got {batch_size}.")
         if batch_size > X.shape[self.axis]:
