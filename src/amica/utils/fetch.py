@@ -59,12 +59,12 @@ def fetch_test_data() -> Path:  # pragma: no cover
 # -------------------------------
 # Fortran golden outputs
 # -------------------------------
-version = "v0.5.0"
+version = "v0.6.0"
 FORTRAN_URL = (
     "https://github.com/scott-huberty/amica/"
     f"releases/download/{version}/test_output.tar.gz"
 )
-FORTRAN_HASH = "sha256:615db0bb08affc64356cc360f73f55422ea120e90213e8c1db82b6cfe289c33b"
+FORTRAN_HASH = "sha256:46ec71a0f66565a43480825f85611ea0126e1aa05eaa52ceaf7b628631d753c1"
 
 
 def fetch_fortran_outputs() -> Path:

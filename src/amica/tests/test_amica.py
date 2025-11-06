@@ -491,3 +491,51 @@ def test_pre_whiten(n_components, do_approx_sphere):
             f"and do_approx_sphere={do_approx_sphere}"
         )
 
+@pytest.mark.parametrize("do_newton", [True, False])
+def test_sklearn_tutorial_data(do_newton):
+    """Test the AMICA implementation on data from the sklearn FastICA tutorial."""
+    import numpy as np
+    from scipy import signal
+
+    rng = np.random.default_rng(0)
+    n_samples = 2000
+    time = np.linspace(0, 8, n_samples)
+
+    s1 = np.sin(2 * time)                     # Sinusoidal
+    s2 = np.sign(np.sin(3 * time))            # Square wave
+    s3 = signal.sawtooth(2 * np.pi * time)    # Sawtooth
+
+    S = np.c_[s1, s2, s3]
+    S += 0.2 * rng.standard_normal(S.shape)   # Add noise
+    S /= S.std(axis=0)                        # Standardize
+
+    A = np.array([[1, 1, 1],
+                [0.5, 2, 1.0],
+                [1.5, 1.0, 2.0]])           # Mixing matrix
+
+    X = S @ A.T                               # Observed mixtures
+    # Run AMICA
+    modout = fit_amica(
+        X, n_components=3, random_state=0, do_newton=do_newton, batch_size=499
+        )
+    mean_py = modout["mean"] # feature means (3,)
+    S_py = modout["S"] # whitening matrix shape (3, 3)
+    A_py = modout["A"] # mixing matrix (3, 3)
+    W_py = modout["W"][:, :, 0] # unmixing matrix (3, 3)
+
+    # Load Fortran results
+    sub_dir = "newton" if do_newton else "SGD"
+    fortran = load_fortran_results(
+        data_path() / f"sklearn_tutorial_data/{sub_dir}/amicaout",
+        n_components=3,
+        n_mixtures=3,
+    )
+    A_f = fortran["A"]
+    W_f = fortran["W"][:, :, 0]
+    S_f = fortran["S"]
+    mean_f = fortran["mean"]
+
+    assert_allclose(mean_py, mean_f)
+    assert_allclose(S_py, S_f)
+    assert_allclose(A_py, A_f, rtol=.001)
+    assert_allclose(W_py, W_f, rtol=.001)
