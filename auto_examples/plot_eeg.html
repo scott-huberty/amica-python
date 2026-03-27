@@ -6,7 +6,7 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=d140fbf8" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
@@ -134,8 +134,8 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </div><div class="flex flex-col break-words justify-between">
-      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
-        <article class="yue" role="main">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
           <div class="sphx-glr-download-link-note admonition note">
 <p class="admonition-title">Note</p>
 <p><a class="reference internal" href="#sphx-glr-download-auto-examples-plot-eeg-py"><span class="std std-ref">Go to the end</span></a>
@@ -209,209 +209,209 @@ results to those obtained from the original Fortran implementation.</p>
 </span><span data-line="8">INFO     | numeigs = 32, nw = 32 - amica.linalg:pre_whiten
 </span><span data-line="9">INFO     | 1: block size = 30504 - amica.core:solve
 </span><span data-line="10">INFO     | Solving. (please be patient, this may take a while)... - amica.core:solve
-</span><span data-line="11">INFO     | Iteration 1, lrate = 0.05000, LL = -3.5136812, nd = 0.0578126, D = 0.00446 0.00446 took 0.43 seconds - amica.core:optimize
-</span><span data-line="12">INFO     | Iteration 2, lrate = 0.05000, LL = -3.4687938, nd = 0.0254382, D = 0.00391 0.00391 took 0.30 seconds - amica.core:optimize
+</span><span data-line="11">INFO     | Iteration 1, lrate = 0.05000, LL = -3.5136812, nd = 0.0578126, D = 0.00446 0.00446 took 0.35 seconds - amica.core:optimize
+</span><span data-line="12">INFO     | Iteration 2, lrate = 0.05000, LL = -3.4687938, nd = 0.0254382, D = 0.00391 0.00391 took 0.39 seconds - amica.core:optimize
 </span><span data-line="13">INFO     | Iteration 3, lrate = 0.05000, LL = -3.4616091, nd = 0.0243398, D = 0.00376 0.00376 took 0.30 seconds - amica.core:optimize
-</span><span data-line="14">INFO     | Iteration 4, lrate = 0.05000, LL = -3.4589193, nd = 0.0270364, D = 0.00554 0.00554 took 0.29 seconds - amica.core:optimize
-</span><span data-line="15">INFO     | Iteration 5, lrate = 0.05000, LL = -3.4569812, nd = 0.0277558, D = 0.00994 0.00994 took 0.21 seconds - amica.core:optimize
+</span><span data-line="14">INFO     | Iteration 4, lrate = 0.05000, LL = -3.4589193, nd = 0.0270364, D = 0.00554 0.00554 took 0.31 seconds - amica.core:optimize
+</span><span data-line="15">INFO     | Iteration 5, lrate = 0.05000, LL = -3.4569812, nd = 0.0277558, D = 0.00994 0.00994 took 0.31 seconds - amica.core:optimize
 </span><span data-line="16">INFO     | Iteration 6, lrate = 0.05000, LL = -3.4553322, nd = 0.0273357, D = 0.01680 0.01680 took 0.30 seconds - amica.core:optimize
-</span><span data-line="17">INFO     | Iteration 7, lrate = 0.05000, LL = -3.4538623, nd = 0.0264404, D = 0.02561 0.02561 took 0.20 seconds - amica.core:optimize
-</span><span data-line="18">INFO     | Iteration 8, lrate = 0.05000, LL = -3.4525343, nd = 0.0253345, D = 0.03580 0.03580 took 0.30 seconds - amica.core:optimize
-</span><span data-line="19">INFO     | Iteration 9, lrate = 0.05000, LL = -3.4513419, nd = 0.0240417, D = 0.04681 0.04681 took 0.24 seconds - amica.core:optimize
-</span><span data-line="20">INFO     | Iteration 10, lrate = 0.05000, LL = -3.4502908, nd = 0.0225440, D = 0.05812 0.05812 took 0.30 seconds - amica.core:optimize
-</span><span data-line="21">INFO     | Iteration 11, lrate = 0.05000, LL = -3.4493812, nd = 0.0208842, D = 0.06919 0.06919 took 0.30 seconds - amica.core:optimize
-</span><span data-line="22">INFO     | Iteration 12, lrate = 0.05000, LL = -3.4486110, nd = 0.0191358, D = 0.07957 0.07957 took 0.37 seconds - amica.core:optimize
-</span><span data-line="23">INFO     | Iteration 13, lrate = 0.05000, LL = -3.4479766, nd = 0.0173017, D = 0.08886 0.08886 took 0.32 seconds - amica.core:optimize
-</span><span data-line="24">INFO     | Iteration 14, lrate = 0.05000, LL = -3.4474541, nd = 0.0157049, D = 0.09674 0.09674 took 0.30 seconds - amica.core:optimize
-</span><span data-line="25">INFO     | Iteration 15, lrate = 0.05000, LL = -3.4470230, nd = 0.0143406, D = 0.10318 0.10318 took 0.30 seconds - amica.core:optimize
-</span><span data-line="26">INFO     | Iteration 16, lrate = 0.05000, LL = -3.4466620, nd = 0.0132093, D = 0.10822 0.10822 took 0.31 seconds - amica.core:optimize
-</span><span data-line="27">INFO     | Iteration 17, lrate = 0.05000, LL = -3.4463566, nd = 0.0123128, D = 0.11195 0.11195 took 0.30 seconds - amica.core:optimize
-</span><span data-line="28">INFO     | Iteration 18, lrate = 0.05000, LL = -3.4460886, nd = 0.0116321, D = 0.11453 0.11453 took 0.30 seconds - amica.core:optimize
-</span><span data-line="29">INFO     | Iteration 19, lrate = 0.05000, LL = -3.4458483, nd = 0.0111260, D = 0.11613 0.11613 took 0.21 seconds - amica.core:optimize
-</span><span data-line="30">INFO     | Iteration 20, lrate = 0.05000, LL = -3.4456281, nd = 0.0107474, D = 0.11691 0.11691 took 0.39 seconds - amica.core:optimize
-</span><span data-line="31">INFO     | Iteration 21, lrate = 0.05000, LL = -3.4454248, nd = 0.0104621, D = 0.11705 0.11705 took 0.29 seconds - amica.core:optimize
-</span><span data-line="32">INFO     | Iteration 22, lrate = 0.05000, LL = -3.4452315, nd = 0.0102427, D = 0.11668 0.11668 took 0.22 seconds - amica.core:optimize
-</span><span data-line="33">INFO     | Iteration 23, lrate = 0.05000, LL = -3.4450469, nd = 0.0100642, D = 0.11591 0.11591 took 0.30 seconds - amica.core:optimize
-</span><span data-line="34">INFO     | Iteration 24, lrate = 0.05000, LL = -3.4448684, nd = 0.0099194, D = 0.11485 0.11485 took 0.21 seconds - amica.core:optimize
-</span><span data-line="35">INFO     | Iteration 25, lrate = 0.05000, LL = -3.4446946, nd = 0.0097942, D = 0.11356 0.11356 took 0.30 seconds - amica.core:optimize
-</span><span data-line="36">INFO     | Iteration 26, lrate = 0.05000, LL = -3.4445274, nd = 0.0096848, D = 0.11212 0.11212 took 0.29 seconds - amica.core:optimize
-</span><span data-line="37">INFO     | Iteration 27, lrate = 0.05000, LL = -3.4443640, nd = 0.0095878, D = 0.11055 0.11055 took 0.30 seconds - amica.core:optimize
-</span><span data-line="38">INFO     | Iteration 28, lrate = 0.05000, LL = -3.4442042, nd = 0.0094994, D = 0.10891 0.10891 took 0.30 seconds - amica.core:optimize
-</span><span data-line="39">INFO     | Iteration 29, lrate = 0.05000, LL = -3.4440468, nd = 0.0094174, D = 0.10722 0.10722 took 0.30 seconds - amica.core:optimize
-</span><span data-line="40">INFO     | Iteration 30, lrate = 0.05000, LL = -3.4438931, nd = 0.0093397, D = 0.10550 0.10550 took 0.29 seconds - amica.core:optimize
-</span><span data-line="41">INFO     | Iteration 31, lrate = 0.05000, LL = -3.4437427, nd = 0.0092648, D = 0.10377 0.10377 took 0.21 seconds - amica.core:optimize
-</span><span data-line="42">INFO     | Iteration 32, lrate = 0.05000, LL = -3.4435953, nd = 0.0091963, D = 0.10203 0.10203 took 0.30 seconds - amica.core:optimize
-</span><span data-line="43">INFO     | Iteration 33, lrate = 0.05000, LL = -3.4434508, nd = 0.0091354, D = 0.10031 0.10031 took 0.29 seconds - amica.core:optimize
-</span><span data-line="44">INFO     | Iteration 34, lrate = 0.05000, LL = -3.4433075, nd = 0.0090772, D = 0.09860 0.09860 took 0.22 seconds - amica.core:optimize
-</span><span data-line="45">INFO     | Iteration 35, lrate = 0.05000, LL = -3.4431664, nd = 0.0090246, D = 0.09690 0.09690 took 0.39 seconds - amica.core:optimize
-</span><span data-line="46">INFO     | Iteration 36, lrate = 0.05000, LL = -3.4430270, nd = 0.0089755, D = 0.09524 0.09524 took 0.31 seconds - amica.core:optimize
-</span><span data-line="47">INFO     | Iteration 37, lrate = 0.05000, LL = -3.4428892, nd = 0.0089301, D = 0.09360 0.09360 took 0.39 seconds - amica.core:optimize
-</span><span data-line="48">INFO     | Iteration 38, lrate = 0.05000, LL = -3.4427538, nd = 0.0088823, D = 0.09199 0.09199 took 0.30 seconds - amica.core:optimize
-</span><span data-line="49">INFO     | Iteration 39, lrate = 0.05000, LL = -3.4426197, nd = 0.0088381, D = 0.09042 0.09042 took 0.31 seconds - amica.core:optimize
-</span><span data-line="50">INFO     | Iteration 40, lrate = 0.05000, LL = -3.4424862, nd = 0.0087970, D = 0.08887 0.08887 took 0.30 seconds - amica.core:optimize
-</span><span data-line="51">INFO     | Iteration 41, lrate = 0.05000, LL = -3.4423540, nd = 0.0087556, D = 0.08736 0.08736 took 0.29 seconds - amica.core:optimize
-</span><span data-line="52">INFO     | Iteration 42, lrate = 0.05000, LL = -3.4422232, nd = 0.0087197, D = 0.08588 0.08588 took 0.30 seconds - amica.core:optimize
-</span><span data-line="53">INFO     | Iteration 43, lrate = 0.05000, LL = -3.4420933, nd = 0.0086862, D = 0.08444 0.08444 took 0.30 seconds - amica.core:optimize
-</span><span data-line="54">INFO     | Iteration 44, lrate = 0.05000, LL = -3.4419646, nd = 0.0086524, D = 0.08303 0.08303 took 0.30 seconds - amica.core:optimize
-</span><span data-line="55">INFO     | Iteration 45, lrate = 0.05000, LL = -3.4418373, nd = 0.0086199, D = 0.08166 0.08166 took 0.31 seconds - amica.core:optimize
-</span><span data-line="56">INFO     | Iteration 46, lrate = 0.05000, LL = -3.4417108, nd = 0.0085875, D = 0.08031 0.08031 took 0.30 seconds - amica.core:optimize
-</span><span data-line="57">INFO     | Iteration 47, lrate = 0.05000, LL = -3.4415852, nd = 0.0085546, D = 0.07900 0.07900 took 0.30 seconds - amica.core:optimize
-</span><span data-line="58">INFO     | Iteration 48, lrate = 0.05000, LL = -3.4414605, nd = 0.0085204, D = 0.07772 0.07772 took 0.29 seconds - amica.core:optimize
-</span><span data-line="59">INFO     | Iteration 49, lrate = 0.05000, LL = -3.4413368, nd = 0.0084880, D = 0.07648 0.07648 took 0.31 seconds - amica.core:optimize
-</span><span data-line="60">INFO     | Iteration 50, lrate = 0.05000, LL = -3.4412141, nd = 0.0073543, D = 0.07526 0.07526 took 0.41 seconds - amica.core:optimize
+</span><span data-line="17">INFO     | Iteration 7, lrate = 0.05000, LL = -3.4538623, nd = 0.0264404, D = 0.02561 0.02561 took 0.37 seconds - amica.core:optimize
+</span><span data-line="18">INFO     | Iteration 8, lrate = 0.05000, LL = -3.4525343, nd = 0.0253345, D = 0.03580 0.03580 took 0.32 seconds - amica.core:optimize
+</span><span data-line="19">INFO     | Iteration 9, lrate = 0.05000, LL = -3.4513420, nd = 0.0240416, D = 0.04681 0.04681 took 0.31 seconds - amica.core:optimize
+</span><span data-line="20">INFO     | Iteration 10, lrate = 0.05000, LL = -3.4502899, nd = 0.0225474, D = 0.05812 0.05812 took 0.39 seconds - amica.core:optimize
+</span><span data-line="21">INFO     | Iteration 11, lrate = 0.05000, LL = -3.4493808, nd = 0.0208839, D = 0.06920 0.06920 took 0.31 seconds - amica.core:optimize
+</span><span data-line="22">INFO     | Iteration 12, lrate = 0.05000, LL = -3.4486104, nd = 0.0191346, D = 0.07957 0.07957 took 0.30 seconds - amica.core:optimize
+</span><span data-line="23">INFO     | Iteration 13, lrate = 0.05000, LL = -3.4479753, nd = 0.0173030, D = 0.08886 0.08886 took 0.39 seconds - amica.core:optimize
+</span><span data-line="24">INFO     | Iteration 14, lrate = 0.05000, LL = -3.4474542, nd = 0.0157035, D = 0.09674 0.09674 took 0.30 seconds - amica.core:optimize
+</span><span data-line="25">INFO     | Iteration 15, lrate = 0.05000, LL = -3.4470249, nd = 0.0143385, D = 0.10318 0.10318 took 0.31 seconds - amica.core:optimize
+</span><span data-line="26">INFO     | Iteration 16, lrate = 0.05000, LL = -3.4466649, nd = 0.0132064, D = 0.10822 0.10822 took 0.31 seconds - amica.core:optimize
+</span><span data-line="27">INFO     | Iteration 17, lrate = 0.05000, LL = -3.4463600, nd = 0.0123116, D = 0.11195 0.11195 took 0.39 seconds - amica.core:optimize
+</span><span data-line="28">INFO     | Iteration 18, lrate = 0.05000, LL = -3.4460919, nd = 0.0116319, D = 0.11453 0.11453 took 0.30 seconds - amica.core:optimize
+</span><span data-line="29">INFO     | Iteration 19, lrate = 0.05000, LL = -3.4458499, nd = 0.0111276, D = 0.11612 0.11612 took 0.30 seconds - amica.core:optimize
+</span><span data-line="30">INFO     | Iteration 20, lrate = 0.05000, LL = -3.4456295, nd = 0.0107475, D = 0.11690 0.11690 took 0.30 seconds - amica.core:optimize
+</span><span data-line="31">INFO     | Iteration 21, lrate = 0.05000, LL = -3.4454234, nd = 0.0104643, D = 0.11704 0.11704 took 0.30 seconds - amica.core:optimize
+</span><span data-line="32">INFO     | Iteration 22, lrate = 0.05000, LL = -3.4452293, nd = 0.0102432, D = 0.11667 0.11667 took 0.38 seconds - amica.core:optimize
+</span><span data-line="33">INFO     | Iteration 23, lrate = 0.05000, LL = -3.4450445, nd = 0.0100656, D = 0.11591 0.11591 took 0.32 seconds - amica.core:optimize
+</span><span data-line="34">INFO     | Iteration 24, lrate = 0.05000, LL = -3.4448657, nd = 0.0099188, D = 0.11485 0.11485 took 0.30 seconds - amica.core:optimize
+</span><span data-line="35">INFO     | Iteration 25, lrate = 0.05000, LL = -3.4446937, nd = 0.0097926, D = 0.11356 0.11356 took 0.31 seconds - amica.core:optimize
+</span><span data-line="36">INFO     | Iteration 26, lrate = 0.05000, LL = -3.4445265, nd = 0.0096849, D = 0.11212 0.11212 took 0.38 seconds - amica.core:optimize
+</span><span data-line="37">INFO     | Iteration 27, lrate = 0.05000, LL = -3.4443632, nd = 0.0095877, D = 0.11055 0.11055 took 0.30 seconds - amica.core:optimize
+</span><span data-line="38">INFO     | Iteration 28, lrate = 0.05000, LL = -3.4442048, nd = 0.0094986, D = 0.10891 0.10891 took 0.31 seconds - amica.core:optimize
+</span><span data-line="39">INFO     | Iteration 29, lrate = 0.05000, LL = -3.4440489, nd = 0.0094179, D = 0.10722 0.10722 took 0.30 seconds - amica.core:optimize
+</span><span data-line="40">INFO     | Iteration 30, lrate = 0.05000, LL = -3.4438959, nd = 0.0093394, D = 0.10550 0.10550 took 0.30 seconds - amica.core:optimize
+</span><span data-line="41">INFO     | Iteration 31, lrate = 0.05000, LL = -3.4437453, nd = 0.0092646, D = 0.10377 0.10377 took 0.38 seconds - amica.core:optimize
+</span><span data-line="42">INFO     | Iteration 32, lrate = 0.05000, LL = -3.4435975, nd = 0.0091968, D = 0.10203 0.10203 took 0.31 seconds - amica.core:optimize
+</span><span data-line="43">INFO     | Iteration 33, lrate = 0.05000, LL = -3.4434514, nd = 0.0091354, D = 0.10031 0.10031 took 0.30 seconds - amica.core:optimize
+</span><span data-line="44">INFO     | Iteration 34, lrate = 0.05000, LL = -3.4433079, nd = 0.0090763, D = 0.09860 0.09860 took 0.30 seconds - amica.core:optimize
+</span><span data-line="45">INFO     | Iteration 35, lrate = 0.05000, LL = -3.4431670, nd = 0.0090245, D = 0.09691 0.09691 took 0.39 seconds - amica.core:optimize
+</span><span data-line="46">INFO     | Iteration 36, lrate = 0.05000, LL = -3.4430282, nd = 0.0089752, D = 0.09524 0.09524 took 0.31 seconds - amica.core:optimize
+</span><span data-line="47">INFO     | Iteration 37, lrate = 0.05000, LL = -3.4428901, nd = 0.0089295, D = 0.09360 0.09360 took 0.39 seconds - amica.core:optimize
+</span><span data-line="48">INFO     | Iteration 38, lrate = 0.05000, LL = -3.4427538, nd = 0.0088829, D = 0.09199 0.09199 took 0.30 seconds - amica.core:optimize
+</span><span data-line="49">INFO     | Iteration 39, lrate = 0.05000, LL = -3.4426194, nd = 0.0088388, D = 0.09042 0.09042 took 0.31 seconds - amica.core:optimize
+</span><span data-line="50">INFO     | Iteration 40, lrate = 0.05000, LL = -3.4424860, nd = 0.0087975, D = 0.08887 0.08887 took 0.39 seconds - amica.core:optimize
+</span><span data-line="51">INFO     | Iteration 41, lrate = 0.05000, LL = -3.4423547, nd = 0.0087559, D = 0.08736 0.08736 took 0.31 seconds - amica.core:optimize
+</span><span data-line="52">INFO     | Iteration 42, lrate = 0.05000, LL = -3.4422239, nd = 0.0087198, D = 0.08588 0.08588 took 0.39 seconds - amica.core:optimize
+</span><span data-line="53">INFO     | Iteration 43, lrate = 0.05000, LL = -3.4420943, nd = 0.0086848, D = 0.08444 0.08444 took 0.30 seconds - amica.core:optimize
+</span><span data-line="54">INFO     | Iteration 44, lrate = 0.05000, LL = -3.4419655, nd = 0.0086506, D = 0.08303 0.08303 took 0.38 seconds - amica.core:optimize
+</span><span data-line="55">INFO     | Iteration 45, lrate = 0.05000, LL = -3.4418378, nd = 0.0086188, D = 0.08165 0.08165 took 0.23 seconds - amica.core:optimize
+</span><span data-line="56">INFO     | Iteration 46, lrate = 0.05000, LL = -3.4417113, nd = 0.0085873, D = 0.08031 0.08031 took 0.31 seconds - amica.core:optimize
+</span><span data-line="57">INFO     | Iteration 47, lrate = 0.05000, LL = -3.4415855, nd = 0.0085544, D = 0.07900 0.07900 took 0.30 seconds - amica.core:optimize
+</span><span data-line="58">INFO     | Iteration 48, lrate = 0.05000, LL = -3.4414606, nd = 0.0085211, D = 0.07772 0.07772 took 0.30 seconds - amica.core:optimize
+</span><span data-line="59">INFO     | Iteration 49, lrate = 0.05000, LL = -3.4413366, nd = 0.0084888, D = 0.07648 0.07648 took 0.31 seconds - amica.core:optimize
+</span><span data-line="60">INFO     | Iteration 50, lrate = 0.05000, LL = -3.4412137, nd = 0.0073552, D = 0.07526 0.07526 took 0.40 seconds - amica.core:optimize
 </span><span data-line="61">INFO     | Starting Newton ... setting numdecs to 0 - amica.core:optimize
-</span><span data-line="62">INFO     | Iteration 51, lrate = 0.10000, LL = -3.4410153, nd = 0.0073382, D = 0.07393 0.07393 took 0.40 seconds - amica.core:optimize
-</span><span data-line="63">INFO     | Iteration 52, lrate = 0.20000, LL = -3.4406297, nd = 0.0072815, D = 0.07138 0.07138 took 0.40 seconds - amica.core:optimize
-</span><span data-line="64">INFO     | Iteration 53, lrate = 0.30000, LL = -3.4400645, nd = 0.0072103, D = 0.06776 0.06776 took 0.40 seconds - amica.core:optimize
-</span><span data-line="65">INFO     | Iteration 54, lrate = 0.40000, LL = -3.4393286, nd = 0.0071177, D = 0.06335 0.06335 took 0.48 seconds - amica.core:optimize
-</span><span data-line="66">INFO     | Iteration 55, lrate = 0.50000, LL = -3.4384318, nd = 0.0070106, D = 0.05841 0.05841 took 0.31 seconds - amica.core:optimize
-</span><span data-line="67">INFO     | Iteration 56, lrate = 0.60000, LL = -3.4373848, nd = 0.0068971, D = 0.05329 0.05329 took 0.40 seconds - amica.core:optimize
-</span><span data-line="68">INFO     | Iteration 57, lrate = 0.70000, LL = -3.4361987, nd = 0.0067655, D = 0.04824 0.04824 took 0.48 seconds - amica.core:optimize
-</span><span data-line="69">INFO     | Iteration 58, lrate = 0.80000, LL = -3.4348913, nd = 0.0065746, D = 0.04351 0.04351 took 0.31 seconds - amica.core:optimize
-</span><span data-line="70">INFO     | Iteration 59, lrate = 0.90000, LL = -3.4334897, nd = 0.0063575, D = 0.03915 0.03915 took 0.49 seconds - amica.core:optimize
-</span><span data-line="71">INFO     | Iteration 60, lrate = 1.00000, LL = -3.4320188, nd = 0.0061067, D = 0.03526 0.03526 took 0.41 seconds - amica.core:optimize
-</span><span data-line="72">INFO     | Iteration 61, lrate = 1.00000, LL = -3.4306358, nd = 0.0058437, D = 0.03208 0.03208 took 0.48 seconds - amica.core:optimize
-</span><span data-line="73">INFO     | Iteration 62, lrate = 1.00000, LL = -3.4293480, nd = 0.0055608, D = 0.02950 0.02950 took 0.32 seconds - amica.core:optimize
-</span><span data-line="74">INFO     | Iteration 63, lrate = 1.00000, LL = -3.4281674, nd = 0.0052852, D = 0.02744 0.02744 took 0.47 seconds - amica.core:optimize
-</span><span data-line="75">INFO     | Iteration 64, lrate = 1.00000, LL = -3.4270908, nd = 0.0050457, D = 0.02596 0.02596 took 0.32 seconds - amica.core:optimize
-</span><span data-line="76">INFO     | Iteration 65, lrate = 1.00000, LL = -3.4261086, nd = 0.0048192, D = 0.02501 0.02501 took 0.48 seconds - amica.core:optimize
-</span><span data-line="77">INFO     | Iteration 66, lrate = 1.00000, LL = -3.4252134, nd = 0.0046352, D = 0.02453 0.02453 took 0.48 seconds - amica.core:optimize
-</span><span data-line="78">INFO     | Iteration 67, lrate = 1.00000, LL = -3.4243906, nd = 0.0044602, D = 0.02436 0.02436 took 0.33 seconds - amica.core:optimize
-</span><span data-line="79">INFO     | Iteration 68, lrate = 1.00000, LL = -3.4236320, nd = 0.0042983, D = 0.02438 0.02438 took 0.40 seconds - amica.core:optimize
-</span><span data-line="80">INFO     | Iteration 69, lrate = 1.00000, LL = -3.4229292, nd = 0.0041607, D = 0.02452 0.02452 took 0.40 seconds - amica.core:optimize
-</span><span data-line="81">INFO     | Iteration 70, lrate = 1.00000, LL = -3.4222697, nd = 0.0040357, D = 0.02469 0.02469 took 0.40 seconds - amica.core:optimize
-</span><span data-line="82">INFO     | Iteration 71, lrate = 1.00000, LL = -3.4216493, nd = 0.0039241, D = 0.02491 0.02491 took 0.49 seconds - amica.core:optimize
-</span><span data-line="83">INFO     | Iteration 72, lrate = 1.00000, LL = -3.4210611, nd = 0.0038298, D = 0.02513 0.02513 took 0.40 seconds - amica.core:optimize
-</span><span data-line="84">INFO     | Iteration 73, lrate = 1.00000, LL = -3.4205009, nd = 0.0037453, D = 0.02540 0.02540 took 0.42 seconds - amica.core:optimize
-</span><span data-line="85">INFO     | Iteration 74, lrate = 1.00000, LL = -3.4199619, nd = 0.0036837, D = 0.02570 0.02570 took 0.49 seconds - amica.core:optimize
-</span><span data-line="86">INFO     | Iteration 75, lrate = 1.00000, LL = -3.4194385, nd = 0.0036249, D = 0.02600 0.02600 took 0.38 seconds - amica.core:optimize
-</span><span data-line="87">INFO     | Iteration 76, lrate = 1.00000, LL = -3.4189275, nd = 0.0035612, D = 0.02632 0.02632 took 0.41 seconds - amica.core:optimize
-</span><span data-line="88">INFO     | Iteration 77, lrate = 1.00000, LL = -3.4184312, nd = 0.0035074, D = 0.02664 0.02664 took 0.31 seconds - amica.core:optimize
-</span><span data-line="89">INFO     | Iteration 78, lrate = 1.00000, LL = -3.4179484, nd = 0.0034497, D = 0.02700 0.02700 took 0.40 seconds - amica.core:optimize
-</span><span data-line="90">INFO     | Iteration 79, lrate = 1.00000, LL = -3.4174800, nd = 0.0033848, D = 0.02735 0.02735 took 0.39 seconds - amica.core:optimize
-</span><span data-line="91">INFO     | Iteration 80, lrate = 1.00000, LL = -3.4170287, nd = 0.0033195, D = 0.02772 0.02772 took 0.39 seconds - amica.core:optimize
-</span><span data-line="92">INFO     | Iteration 81, lrate = 1.00000, LL = -3.4165952, nd = 0.0032325, D = 0.02812 0.02812 took 0.40 seconds - amica.core:optimize
-</span><span data-line="93">INFO     | Iteration 82, lrate = 1.00000, LL = -3.4161830, nd = 0.0031517, D = 0.02853 0.02853 took 0.31 seconds - amica.core:optimize
-</span><span data-line="94">INFO     | Iteration 83, lrate = 1.00000, LL = -3.4157913, nd = 0.0030529, D = 0.02897 0.02897 took 0.39 seconds - amica.core:optimize
-</span><span data-line="95">INFO     | Iteration 84, lrate = 1.00000, LL = -3.4154220, nd = 0.0029687, D = 0.02942 0.02942 took 0.39 seconds - amica.core:optimize
-</span><span data-line="96">INFO     | Iteration 85, lrate = 1.00000, LL = -3.4150726, nd = 0.0028891, D = 0.02989 0.02989 took 0.40 seconds - amica.core:optimize
-</span><span data-line="97">INFO     | Iteration 86, lrate = 1.00000, LL = -3.4147410, nd = 0.0028211, D = 0.03037 0.03037 took 0.40 seconds - amica.core:optimize
-</span><span data-line="98">INFO     | Iteration 87, lrate = 1.00000, LL = -3.4144238, nd = 0.0027517, D = 0.03084 0.03084 took 0.41 seconds - amica.core:optimize
-</span><span data-line="99">INFO     | Iteration 88, lrate = 1.00000, LL = -3.4141223, nd = 0.0026898, D = 0.03132 0.03132 took 0.40 seconds - amica.core:optimize
-</span><span data-line="100">INFO     | Iteration 89, lrate = 1.00000, LL = -3.4138336, nd = 0.0026323, D = 0.03177 0.03177 took 0.48 seconds - amica.core:optimize
-</span><span data-line="101">INFO     | Iteration 90, lrate = 1.00000, LL = -3.4135576, nd = 0.0025806, D = 0.03223 0.03223 took 0.40 seconds - amica.core:optimize
-</span><span data-line="102">INFO     | Iteration 91, lrate = 1.00000, LL = -3.4132922, nd = 0.0025343, D = 0.03268 0.03268 took 0.41 seconds - amica.core:optimize
-</span><span data-line="103">INFO     | Iteration 92, lrate = 1.00000, LL = -3.4130358, nd = 0.0024917, D = 0.03309 0.03309 took 0.40 seconds - amica.core:optimize
-</span><span data-line="104">INFO     | Iteration 93, lrate = 1.00000, LL = -3.4127897, nd = 0.0024397, D = 0.03351 0.03351 took 0.50 seconds - amica.core:optimize
-</span><span data-line="105">INFO     | Iteration 94, lrate = 1.00000, LL = -3.4125521, nd = 0.0023930, D = 0.03393 0.03393 took 0.49 seconds - amica.core:optimize
-</span><span data-line="106">INFO     | Iteration 95, lrate = 1.00000, LL = -3.4123238, nd = 0.0023509, D = 0.03434 0.03434 took 0.41 seconds - amica.core:optimize
-</span><span data-line="107">INFO     | Iteration 96, lrate = 1.00000, LL = -3.4121040, nd = 0.0023114, D = 0.03475 0.03475 took 0.49 seconds - amica.core:optimize
-</span><span data-line="108">INFO     | Iteration 97, lrate = 1.00000, LL = -3.4118909, nd = 0.0022850, D = 0.03514 0.03514 took 0.49 seconds - amica.core:optimize
-</span><span data-line="109">INFO     | Iteration 98, lrate = 1.00000, LL = -3.4116837, nd = 0.0022638, D = 0.03552 0.03552 took 0.42 seconds - amica.core:optimize
-</span><span data-line="110">INFO     | Iteration 99, lrate = 1.00000, LL = -3.4114808, nd = 0.0022458, D = 0.03588 0.03588 took 0.50 seconds - amica.core:optimize
-</span><span data-line="111">INFO     | Iteration 100, lrate = 1.00000, LL = -3.4112805, nd = 0.0022392, D = 0.03622 0.03622 took 0.48 seconds - amica.core:optimize
-</span><span data-line="112">INFO     | Iteration 101, lrate = 1.00000, LL = -3.4112473, nd = 0.0022956, D = 0.03622 0.03622 took 0.42 seconds - amica.core:optimize
-</span><span data-line="113">INFO     | Iteration 102, lrate = 1.00000, LL = -3.4112207, nd = 0.0023272, D = 0.03622 0.03622 took 0.49 seconds - amica.core:optimize
-</span><span data-line="114">INFO     | Iteration 103, lrate = 1.00000, LL = -3.4111964, nd = 0.0023483, D = 0.03622 0.03622 took 0.41 seconds - amica.core:optimize
-</span><span data-line="115">INFO     | Iteration 104, lrate = 1.00000, LL = -3.4111729, nd = 0.0023640, D = 0.03622 0.03622 took 0.50 seconds - amica.core:optimize
-</span><span data-line="116">INFO     | Iteration 105, lrate = 1.00000, LL = -3.4111506, nd = 0.0023764, D = 0.03622 0.03622 took 0.49 seconds - amica.core:optimize
-</span><span data-line="117">INFO     | Iteration 106, lrate = 1.00000, LL = -3.4111301, nd = 0.0023884, D = 0.03622 0.03622 took 0.41 seconds - amica.core:optimize
-</span><span data-line="118">INFO     | Iteration 107, lrate = 1.00000, LL = -3.4109266, nd = 0.0023276, D = 0.03690 0.03690 took 0.40 seconds - amica.core:optimize
-</span><span data-line="119">INFO     | Iteration 108, lrate = 1.00000, LL = -3.4107273, nd = 0.0022918, D = 0.03720 0.03720 took 0.50 seconds - amica.core:optimize
-</span><span data-line="120">INFO     | Iteration 109, lrate = 1.00000, LL = -3.4105313, nd = 0.0022727, D = 0.03744 0.03744 took 0.41 seconds - amica.core:optimize
-</span><span data-line="121">INFO     | Iteration 110, lrate = 1.00000, LL = -3.4103368, nd = 0.0022643, D = 0.03767 0.03767 took 0.49 seconds - amica.core:optimize
-</span><span data-line="122">INFO     | Iteration 111, lrate = 1.00000, LL = -3.4101409, nd = 0.0022601, D = 0.03790 0.03790 took 0.41 seconds - amica.core:optimize
-</span><span data-line="123">INFO     | Iteration 112, lrate = 1.00000, LL = -3.4099455, nd = 0.0022440, D = 0.03812 0.03812 took 0.41 seconds - amica.core:optimize
-</span><span data-line="124">INFO     | Iteration 113, lrate = 1.00000, LL = -3.4097521, nd = 0.0022293, D = 0.03832 0.03832 took 0.49 seconds - amica.core:optimize
-</span><span data-line="125">INFO     | Iteration 114, lrate = 1.00000, LL = -3.4095607, nd = 0.0022083, D = 0.03851 0.03851 took 0.40 seconds - amica.core:optimize
-</span><span data-line="126">INFO     | Iteration 115, lrate = 1.00000, LL = -3.4093716, nd = 0.0021900, D = 0.03868 0.03868 took 0.51 seconds - amica.core:optimize
-</span><span data-line="127">INFO     | Iteration 116, lrate = 1.00000, LL = -3.4091845, nd = 0.0021744, D = 0.03887 0.03887 took 0.49 seconds - amica.core:optimize
-</span><span data-line="128">INFO     | Iteration 117, lrate = 1.00000, LL = -3.4089971, nd = 0.0021577, D = 0.03907 0.03907 took 0.41 seconds - amica.core:optimize
-</span><span data-line="129">INFO     | Iteration 118, lrate = 1.00000, LL = -3.4088128, nd = 0.0021364, D = 0.03925 0.03925 took 0.49 seconds - amica.core:optimize
-</span><span data-line="130">INFO     | Iteration 119, lrate = 1.00000, LL = -3.4086308, nd = 0.0021171, D = 0.03944 0.03944 took 0.41 seconds - amica.core:optimize
-</span><span data-line="131">INFO     | Iteration 120, lrate = 1.00000, LL = -3.4084515, nd = 0.0020959, D = 0.03963 0.03963 took 0.49 seconds - amica.core:optimize
-</span><span data-line="132">INFO     | Iteration 121, lrate = 1.00000, LL = -3.4082753, nd = 0.0020711, D = 0.03983 0.03983 took 0.40 seconds - amica.core:optimize
-</span><span data-line="133">INFO     | Iteration 122, lrate = 1.00000, LL = -3.4081029, nd = 0.0020386, D = 0.04005 0.04005 took 0.49 seconds - amica.core:optimize
-</span><span data-line="134">INFO     | Iteration 123, lrate = 1.00000, LL = -3.4079340, nd = 0.0020013, D = 0.04026 0.04026 took 0.50 seconds - amica.core:optimize
-</span><span data-line="135">INFO     | Iteration 124, lrate = 1.00000, LL = -3.4077711, nd = 0.0019667, D = 0.04047 0.04047 took 0.41 seconds - amica.core:optimize
-</span><span data-line="136">INFO     | Iteration 125, lrate = 1.00000, LL = -3.4076131, nd = 0.0019212, D = 0.04069 0.04069 took 0.49 seconds - amica.core:optimize
-</span><span data-line="137">INFO     | Iteration 126, lrate = 1.00000, LL = -3.4074624, nd = 0.0018728, D = 0.04090 0.04090 took 0.41 seconds - amica.core:optimize
-</span><span data-line="138">INFO     | Iteration 127, lrate = 1.00000, LL = -3.4073182, nd = 0.0018270, D = 0.04111 0.04111 took 0.40 seconds - amica.core:optimize
-</span><span data-line="139">INFO     | Iteration 128, lrate = 1.00000, LL = -3.4071802, nd = 0.0017890, D = 0.04130 0.04130 took 0.50 seconds - amica.core:optimize
-</span><span data-line="140">INFO     | Iteration 129, lrate = 1.00000, LL = -3.4070460, nd = 0.0017514, D = 0.04150 0.04150 took 0.49 seconds - amica.core:optimize
-</span><span data-line="141">INFO     | Iteration 130, lrate = 1.00000, LL = -3.4069168, nd = 0.0017227, D = 0.04167 0.04167 took 0.41 seconds - amica.core:optimize
-</span><span data-line="142">INFO     | Iteration 131, lrate = 1.00000, LL = -3.4067888, nd = 0.0016955, D = 0.04183 0.04183 took 0.49 seconds - amica.core:optimize
-</span><span data-line="143">INFO     | Iteration 132, lrate = 1.00000, LL = -3.4066631, nd = 0.0016813, D = 0.04198 0.04198 took 0.42 seconds - amica.core:optimize
-</span><span data-line="144">INFO     | Iteration 133, lrate = 1.00000, LL = -3.4065376, nd = 0.0016737, D = 0.04212 0.04212 took 0.50 seconds - amica.core:optimize
-</span><span data-line="145">INFO     | Iteration 134, lrate = 1.00000, LL = -3.4064114, nd = 0.0016767, D = 0.04226 0.04226 took 0.49 seconds - amica.core:optimize
-</span><span data-line="146">INFO     | Iteration 135, lrate = 1.00000, LL = -3.4062835, nd = 0.0016900, D = 0.04241 0.04241 took 0.49 seconds - amica.core:optimize
-</span><span data-line="147">INFO     | Iteration 136, lrate = 1.00000, LL = -3.4061521, nd = 0.0017107, D = 0.04255 0.04255 took 0.51 seconds - amica.core:optimize
-</span><span data-line="148">INFO     | Iteration 137, lrate = 1.00000, LL = -3.4060158, nd = 0.0017305, D = 0.04268 0.04268 took 0.50 seconds - amica.core:optimize
-</span><span data-line="149">INFO     | Iteration 138, lrate = 1.00000, LL = -3.4058767, nd = 0.0017373, D = 0.04282 0.04282 took 0.50 seconds - amica.core:optimize
-</span><span data-line="150">INFO     | Iteration 139, lrate = 1.00000, LL = -3.4057356, nd = 0.0017294, D = 0.04298 0.04298 took 0.50 seconds - amica.core:optimize
-</span><span data-line="151">INFO     | Iteration 140, lrate = 1.00000, LL = -3.4055959, nd = 0.0017091, D = 0.04314 0.04314 took 0.42 seconds - amica.core:optimize
-</span><span data-line="152">INFO     | Iteration 141, lrate = 1.00000, LL = -3.4054587, nd = 0.0016871, D = 0.04328 0.04328 took 0.49 seconds - amica.core:optimize
-</span><span data-line="153">INFO     | Iteration 142, lrate = 1.00000, LL = -3.4053235, nd = 0.0016625, D = 0.04344 0.04344 took 0.41 seconds - amica.core:optimize
-</span><span data-line="154">INFO     | Iteration 143, lrate = 1.00000, LL = -3.4051911, nd = 0.0016314, D = 0.04359 0.04359 took 0.50 seconds - amica.core:optimize
-</span><span data-line="155">INFO     | Iteration 144, lrate = 1.00000, LL = -3.4050635, nd = 0.0016046, D = 0.04374 0.04374 took 0.50 seconds - amica.core:optimize
-</span><span data-line="156">INFO     | Iteration 145, lrate = 1.00000, LL = -3.4049404, nd = 0.0015785, D = 0.04387 0.04387 took 0.50 seconds - amica.core:optimize
-</span><span data-line="157">INFO     | Iteration 146, lrate = 1.00000, LL = -3.4048190, nd = 0.0015519, D = 0.04402 0.04402 took 0.49 seconds - amica.core:optimize
-</span><span data-line="158">INFO     | Iteration 147, lrate = 1.00000, LL = -3.4047005, nd = 0.0015254, D = 0.04415 0.04415 took 0.49 seconds - amica.core:optimize
-</span><span data-line="159">INFO     | Iteration 148, lrate = 1.00000, LL = -3.4045854, nd = 0.0014940, D = 0.04431 0.04431 took 0.42 seconds - amica.core:optimize
-</span><span data-line="160">INFO     | Iteration 149, lrate = 1.00000, LL = -3.4044787, nd = 0.0014649, D = 0.04445 0.04445 took 0.50 seconds - amica.core:optimize
-</span><span data-line="161">INFO     | Iteration 150, lrate = 1.00000, LL = -3.4043793, nd = 0.0014381, D = 0.04461 0.04461 took 0.49 seconds - amica.core:optimize
-</span><span data-line="162">INFO     | Iteration 151, lrate = 1.00000, LL = -3.4042844, nd = 0.0014067, D = 0.04477 0.04477 took 0.50 seconds - amica.core:optimize
-</span><span data-line="163">INFO     | Iteration 152, lrate = 1.00000, LL = -3.4041924, nd = 0.0013688, D = 0.04491 0.04491 took 0.49 seconds - amica.core:optimize
-</span><span data-line="164">INFO     | Iteration 153, lrate = 1.00000, LL = -3.4041046, nd = 0.0013324, D = 0.04506 0.04506 took 0.41 seconds - amica.core:optimize
-</span><span data-line="165">INFO     | Iteration 154, lrate = 1.00000, LL = -3.4040210, nd = 0.0012956, D = 0.04521 0.04521 took 0.50 seconds - amica.core:optimize
-</span><span data-line="166">INFO     | Iteration 155, lrate = 1.00000, LL = -3.4039410, nd = 0.0012585, D = 0.04536 0.04536 took 0.49 seconds - amica.core:optimize
-</span><span data-line="167">INFO     | Iteration 156, lrate = 1.00000, LL = -3.4038642, nd = 0.0012230, D = 0.04550 0.04550 took 0.50 seconds - amica.core:optimize
-</span><span data-line="168">INFO     | Iteration 157, lrate = 1.00000, LL = -3.4037904, nd = 0.0011900, D = 0.04564 0.04564 took 0.41 seconds - amica.core:optimize
-</span><span data-line="169">INFO     | Iteration 158, lrate = 1.00000, LL = -3.4037199, nd = 0.0011554, D = 0.04578 0.04578 took 0.49 seconds - amica.core:optimize
-</span><span data-line="170">INFO     | Iteration 159, lrate = 1.00000, LL = -3.4036526, nd = 0.0011232, D = 0.04592 0.04592 took 0.49 seconds - amica.core:optimize
-</span><span data-line="171">INFO     | Iteration 160, lrate = 1.00000, LL = -3.4035876, nd = 0.0010950, D = 0.04606 0.04606 took 0.42 seconds - amica.core:optimize
-</span><span data-line="172">INFO     | Iteration 161, lrate = 1.00000, LL = -3.4035248, nd = 0.0010694, D = 0.04621 0.04621 took 0.49 seconds - amica.core:optimize
-</span><span data-line="173">INFO     | Iteration 162, lrate = 1.00000, LL = -3.4034637, nd = 0.0010420, D = 0.04635 0.04635 took 0.50 seconds - amica.core:optimize
-</span><span data-line="174">INFO     | Iteration 163, lrate = 1.00000, LL = -3.4034039, nd = 0.0010184, D = 0.04650 0.04650 took 0.50 seconds - amica.core:optimize
-</span><span data-line="175">INFO     | Iteration 164, lrate = 1.00000, LL = -3.4033463, nd = 0.0009986, D = 0.04665 0.04665 took 0.49 seconds - amica.core:optimize
-</span><span data-line="176">INFO     | Iteration 165, lrate = 1.00000, LL = -3.4032956, nd = 0.0009742, D = 0.04678 0.04678 took 0.42 seconds - amica.core:optimize
-</span><span data-line="177">INFO     | Iteration 166, lrate = 1.00000, LL = -3.4032469, nd = 0.0009559, D = 0.04693 0.04693 took 0.50 seconds - amica.core:optimize
-</span><span data-line="178">INFO     | Iteration 167, lrate = 1.00000, LL = -3.4031996, nd = 0.0009387, D = 0.04706 0.04706 took 0.58 seconds - amica.core:optimize
-</span><span data-line="179">INFO     | Iteration 168, lrate = 1.00000, LL = -3.4031538, nd = 0.0009253, D = 0.04719 0.04719 took 0.42 seconds - amica.core:optimize
-</span><span data-line="180">INFO     | Iteration 169, lrate = 1.00000, LL = -3.4031082, nd = 0.0009094, D = 0.04732 0.04732 took 0.48 seconds - amica.core:optimize
-</span><span data-line="181">INFO     | Iteration 170, lrate = 1.00000, LL = -3.4030638, nd = 0.0008968, D = 0.04744 0.04744 took 0.41 seconds - amica.core:optimize
-</span><span data-line="182">INFO     | Iteration 171, lrate = 1.00000, LL = -3.4030200, nd = 0.0008858, D = 0.04756 0.04756 took 0.49 seconds - amica.core:optimize
-</span><span data-line="183">INFO     | Iteration 172, lrate = 1.00000, LL = -3.4029771, nd = 0.0008753, D = 0.04768 0.04768 took 0.41 seconds - amica.core:optimize
-</span><span data-line="184">INFO     | Iteration 173, lrate = 1.00000, LL = -3.4029344, nd = 0.0008618, D = 0.04781 0.04781 took 0.50 seconds - amica.core:optimize
-</span><span data-line="185">INFO     | Iteration 174, lrate = 1.00000, LL = -3.4028925, nd = 0.0008517, D = 0.04792 0.04792 took 0.49 seconds - amica.core:optimize
-</span><span data-line="186">INFO     | Iteration 175, lrate = 1.00000, LL = -3.4028507, nd = 0.0008431, D = 0.04804 0.04804 took 0.40 seconds - amica.core:optimize
-</span><span data-line="187">INFO     | Iteration 176, lrate = 1.00000, LL = -3.4028095, nd = 0.0008378, D = 0.04816 0.04816 took 0.49 seconds - amica.core:optimize
-</span><span data-line="188">INFO     | Iteration 177, lrate = 1.00000, LL = -3.4027687, nd = 0.0008311, D = 0.04828 0.04828 took 0.41 seconds - amica.core:optimize
-</span><span data-line="189">INFO     | Iteration 178, lrate = 1.00000, LL = -3.4027280, nd = 0.0008214, D = 0.04840 0.04840 took 0.50 seconds - amica.core:optimize
-</span><span data-line="190">INFO     | Iteration 179, lrate = 1.00000, LL = -3.4026880, nd = 0.0008159, D = 0.04852 0.04852 took 0.50 seconds - amica.core:optimize
-</span><span data-line="191">INFO     | Iteration 180, lrate = 1.00000, LL = -3.4026476, nd = 0.0008090, D = 0.04864 0.04864 took 0.50 seconds - amica.core:optimize
-</span><span data-line="192">INFO     | Iteration 181, lrate = 1.00000, LL = -3.4026074, nd = 0.0008017, D = 0.04876 0.04876 took 0.40 seconds - amica.core:optimize
-</span><span data-line="193">INFO     | Iteration 182, lrate = 1.00000, LL = -3.4025672, nd = 0.0007963, D = 0.04887 0.04887 took 0.41 seconds - amica.core:optimize
-</span><span data-line="194">INFO     | Iteration 183, lrate = 1.00000, LL = -3.4025265, nd = 0.0007885, D = 0.04899 0.04899 took 0.49 seconds - amica.core:optimize
-</span><span data-line="195">INFO     | Iteration 184, lrate = 1.00000, LL = -3.4024864, nd = 0.0007815, D = 0.04911 0.04911 took 0.49 seconds - amica.core:optimize
-</span><span data-line="196">INFO     | Iteration 185, lrate = 1.00000, LL = -3.4024484, nd = 0.0007764, D = 0.04923 0.04923 took 0.41 seconds - amica.core:optimize
-</span><span data-line="197">INFO     | Iteration 186, lrate = 1.00000, LL = -3.4024102, nd = 0.0007709, D = 0.04936 0.04936 took 0.50 seconds - amica.core:optimize
-</span><span data-line="198">INFO     | Iteration 187, lrate = 1.00000, LL = -3.4023717, nd = 0.0007643, D = 0.04947 0.04947 took 0.50 seconds - amica.core:optimize
-</span><span data-line="199">INFO     | Iteration 188, lrate = 1.00000, LL = -3.4023323, nd = 0.0007572, D = 0.04959 0.04959 took 0.50 seconds - amica.core:optimize
-</span><span data-line="200">INFO     | Iteration 189, lrate = 1.00000, LL = -3.4022922, nd = 0.0007562, D = 0.04970 0.04970 took 0.41 seconds - amica.core:optimize
-</span><span data-line="201">INFO     | Iteration 190, lrate = 1.00000, LL = -3.4022503, nd = 0.0007578, D = 0.04982 0.04982 took 0.50 seconds - amica.core:optimize
-</span><span data-line="202">INFO     | Iteration 191, lrate = 1.00000, LL = -3.4022061, nd = 0.0007576, D = 0.04994 0.04994 took 0.49 seconds - amica.core:optimize
-</span><span data-line="203">INFO     | Iteration 192, lrate = 1.00000, LL = -3.4021596, nd = 0.0007588, D = 0.05006 0.05006 took 0.49 seconds - amica.core:optimize
-</span><span data-line="204">INFO     | Iteration 193, lrate = 1.00000, LL = -3.4021103, nd = 0.0007577, D = 0.05019 0.05019 took 0.41 seconds - amica.core:optimize
-</span><span data-line="205">INFO     | Iteration 194, lrate = 1.00000, LL = -3.4020682, nd = 0.0007565, D = 0.05032 0.05032 took 0.50 seconds - amica.core:optimize
-</span><span data-line="206">INFO     | Iteration 195, lrate = 1.00000, LL = -3.4020311, nd = 0.0007537, D = 0.05046 0.05046 took 0.49 seconds - amica.core:optimize
-</span><span data-line="207">INFO     | Iteration 196, lrate = 1.00000, LL = -3.4019946, nd = 0.0007490, D = 0.05059 0.05059 took 0.50 seconds - amica.core:optimize
-</span><span data-line="208">INFO     | Iteration 197, lrate = 1.00000, LL = -3.4019579, nd = 0.0007465, D = 0.05073 0.05073 took 0.41 seconds - amica.core:optimize
-</span><span data-line="209">INFO     | Iteration 198, lrate = 1.00000, LL = -3.4019210, nd = 0.0007458, D = 0.05088 0.05088 took 0.49 seconds - amica.core:optimize
-</span><span data-line="210">INFO     | Iteration 199, lrate = 1.00000, LL = -3.4018832, nd = 0.0007426, D = 0.05102 0.05102 took 0.50 seconds - amica.core:optimize
-</span><span data-line="211">INFO     | Iteration 200, lrate = 1.00000, LL = -3.4018445, nd = 0.0007407, D = 0.05115 0.05115 took 0.50 seconds - amica.core:optimize
+</span><span data-line="62">INFO     | Iteration 51, lrate = 0.10000, LL = -3.4410148, nd = 0.0073394, D = 0.07393 0.07393 took 0.40 seconds - amica.core:optimize
+</span><span data-line="63">INFO     | Iteration 52, lrate = 0.20000, LL = -3.4406292, nd = 0.0072835, D = 0.07137 0.07137 took 0.48 seconds - amica.core:optimize
+</span><span data-line="64">INFO     | Iteration 53, lrate = 0.30000, LL = -3.4400637, nd = 0.0072115, D = 0.06776 0.06776 took 0.39 seconds - amica.core:optimize
+</span><span data-line="65">INFO     | Iteration 54, lrate = 0.40000, LL = -3.4393283, nd = 0.0071184, D = 0.06333 0.06333 took 0.32 seconds - amica.core:optimize
+</span><span data-line="66">INFO     | Iteration 55, lrate = 0.50000, LL = -3.4384312, nd = 0.0070108, D = 0.05839 0.05839 took 0.48 seconds - amica.core:optimize
+</span><span data-line="67">INFO     | Iteration 56, lrate = 0.60000, LL = -3.4373842, nd = 0.0068979, D = 0.05327 0.05327 took 0.32 seconds - amica.core:optimize
+</span><span data-line="68">INFO     | Iteration 57, lrate = 0.70000, LL = -3.4361985, nd = 0.0067652, D = 0.04822 0.04822 took 0.32 seconds - amica.core:optimize
+</span><span data-line="69">INFO     | Iteration 58, lrate = 0.80000, LL = -3.4348911, nd = 0.0065756, D = 0.04348 0.04348 took 0.40 seconds - amica.core:optimize
+</span><span data-line="70">INFO     | Iteration 59, lrate = 0.90000, LL = -3.4334900, nd = 0.0063576, D = 0.03913 0.03913 took 0.48 seconds - amica.core:optimize
+</span><span data-line="71">INFO     | Iteration 60, lrate = 1.00000, LL = -3.4320193, nd = 0.0061072, D = 0.03525 0.03525 took 0.32 seconds - amica.core:optimize
+</span><span data-line="72">INFO     | Iteration 61, lrate = 1.00000, LL = -3.4306365, nd = 0.0058443, D = 0.03208 0.03208 took 0.40 seconds - amica.core:optimize
+</span><span data-line="73">INFO     | Iteration 62, lrate = 1.00000, LL = -3.4293493, nd = 0.0055605, D = 0.02950 0.02950 took 0.40 seconds - amica.core:optimize
+</span><span data-line="74">INFO     | Iteration 63, lrate = 1.00000, LL = -3.4281693, nd = 0.0052842, D = 0.02745 0.02745 took 0.48 seconds - amica.core:optimize
+</span><span data-line="75">INFO     | Iteration 64, lrate = 1.00000, LL = -3.4270925, nd = 0.0050450, D = 0.02597 0.02597 took 0.40 seconds - amica.core:optimize
+</span><span data-line="76">INFO     | Iteration 65, lrate = 1.00000, LL = -3.4261108, nd = 0.0048195, D = 0.02502 0.02502 took 0.40 seconds - amica.core:optimize
+</span><span data-line="77">INFO     | Iteration 66, lrate = 1.00000, LL = -3.4252153, nd = 0.0046346, D = 0.02454 0.02454 took 0.40 seconds - amica.core:optimize
+</span><span data-line="78">INFO     | Iteration 67, lrate = 1.00000, LL = -3.4243916, nd = 0.0044608, D = 0.02437 0.02437 took 0.40 seconds - amica.core:optimize
+</span><span data-line="79">INFO     | Iteration 68, lrate = 1.00000, LL = -3.4236341, nd = 0.0042997, D = 0.02439 0.02439 took 0.40 seconds - amica.core:optimize
+</span><span data-line="80">INFO     | Iteration 69, lrate = 1.00000, LL = -3.4229293, nd = 0.0041611, D = 0.02453 0.02453 took 0.40 seconds - amica.core:optimize
+</span><span data-line="81">INFO     | Iteration 70, lrate = 1.00000, LL = -3.4222690, nd = 0.0040368, D = 0.02470 0.02470 took 0.41 seconds - amica.core:optimize
+</span><span data-line="82">INFO     | Iteration 71, lrate = 1.00000, LL = -3.4216481, nd = 0.0039236, D = 0.02492 0.02492 took 0.41 seconds - amica.core:optimize
+</span><span data-line="83">INFO     | Iteration 72, lrate = 1.00000, LL = -3.4210605, nd = 0.0038293, D = 0.02514 0.02514 took 0.48 seconds - amica.core:optimize
+</span><span data-line="84">INFO     | Iteration 73, lrate = 1.00000, LL = -3.4205003, nd = 0.0037451, D = 0.02541 0.02541 took 0.41 seconds - amica.core:optimize
+</span><span data-line="85">INFO     | Iteration 74, lrate = 1.00000, LL = -3.4199601, nd = 0.0036840, D = 0.02571 0.02571 took 0.41 seconds - amica.core:optimize
+</span><span data-line="86">INFO     | Iteration 75, lrate = 1.00000, LL = -3.4194357, nd = 0.0036248, D = 0.02601 0.02601 took 0.40 seconds - amica.core:optimize
+</span><span data-line="87">INFO     | Iteration 76, lrate = 1.00000, LL = -3.4189283, nd = 0.0035608, D = 0.02632 0.02632 took 0.49 seconds - amica.core:optimize
+</span><span data-line="88">INFO     | Iteration 77, lrate = 1.00000, LL = -3.4184328, nd = 0.0035077, D = 0.02665 0.02665 took 0.40 seconds - amica.core:optimize
+</span><span data-line="89">INFO     | Iteration 78, lrate = 1.00000, LL = -3.4179502, nd = 0.0034498, D = 0.02700 0.02700 took 0.40 seconds - amica.core:optimize
+</span><span data-line="90">INFO     | Iteration 79, lrate = 1.00000, LL = -3.4174823, nd = 0.0033849, D = 0.02735 0.02735 took 0.48 seconds - amica.core:optimize
+</span><span data-line="91">INFO     | Iteration 80, lrate = 1.00000, LL = -3.4170301, nd = 0.0033202, D = 0.02772 0.02772 took 0.40 seconds - amica.core:optimize
+</span><span data-line="92">INFO     | Iteration 81, lrate = 1.00000, LL = -3.4165961, nd = 0.0032324, D = 0.02812 0.02812 took 0.41 seconds - amica.core:optimize
+</span><span data-line="93">INFO     | Iteration 82, lrate = 1.00000, LL = -3.4161830, nd = 0.0031522, D = 0.02853 0.02853 took 0.32 seconds - amica.core:optimize
+</span><span data-line="94">INFO     | Iteration 83, lrate = 1.00000, LL = -3.4157921, nd = 0.0030533, D = 0.02897 0.02897 took 0.47 seconds - amica.core:optimize
+</span><span data-line="95">INFO     | Iteration 84, lrate = 1.00000, LL = -3.4154224, nd = 0.0029692, D = 0.02942 0.02942 took 0.33 seconds - amica.core:optimize
+</span><span data-line="96">INFO     | Iteration 85, lrate = 1.00000, LL = -3.4150725, nd = 0.0028897, D = 0.02989 0.02989 took 0.48 seconds - amica.core:optimize
+</span><span data-line="97">INFO     | Iteration 86, lrate = 1.00000, LL = -3.4147412, nd = 0.0028215, D = 0.03038 0.03038 took 0.41 seconds - amica.core:optimize
+</span><span data-line="98">INFO     | Iteration 87, lrate = 1.00000, LL = -3.4144243, nd = 0.0027518, D = 0.03085 0.03085 took 0.41 seconds - amica.core:optimize
+</span><span data-line="99">INFO     | Iteration 88, lrate = 1.00000, LL = -3.4141217, nd = 0.0026904, D = 0.03132 0.03132 took 0.48 seconds - amica.core:optimize
+</span><span data-line="100">INFO     | Iteration 89, lrate = 1.00000, LL = -3.4138322, nd = 0.0026328, D = 0.03178 0.03178 took 0.41 seconds - amica.core:optimize
+</span><span data-line="101">INFO     | Iteration 90, lrate = 1.00000, LL = -3.4135558, nd = 0.0025808, D = 0.03224 0.03224 took 0.49 seconds - amica.core:optimize
+</span><span data-line="102">INFO     | Iteration 91, lrate = 1.00000, LL = -3.4132903, nd = 0.0025351, D = 0.03268 0.03268 took 0.41 seconds - amica.core:optimize
+</span><span data-line="103">INFO     | Iteration 92, lrate = 1.00000, LL = -3.4130349, nd = 0.0024919, D = 0.03310 0.03310 took 0.48 seconds - amica.core:optimize
+</span><span data-line="104">INFO     | Iteration 93, lrate = 1.00000, LL = -3.4127878, nd = 0.0024396, D = 0.03352 0.03352 took 0.41 seconds - amica.core:optimize
+</span><span data-line="105">INFO     | Iteration 94, lrate = 1.00000, LL = -3.4125515, nd = 0.0023929, D = 0.03395 0.03395 took 0.41 seconds - amica.core:optimize
+</span><span data-line="106">INFO     | Iteration 95, lrate = 1.00000, LL = -3.4123236, nd = 0.0023507, D = 0.03436 0.03436 took 0.49 seconds - amica.core:optimize
+</span><span data-line="107">INFO     | Iteration 96, lrate = 1.00000, LL = -3.4121046, nd = 0.0023118, D = 0.03476 0.03476 took 0.41 seconds - amica.core:optimize
+</span><span data-line="108">INFO     | Iteration 97, lrate = 1.00000, LL = -3.4118917, nd = 0.0022843, D = 0.03515 0.03515 took 0.48 seconds - amica.core:optimize
+</span><span data-line="109">INFO     | Iteration 98, lrate = 1.00000, LL = -3.4116854, nd = 0.0022630, D = 0.03554 0.03554 took 0.41 seconds - amica.core:optimize
+</span><span data-line="110">INFO     | Iteration 99, lrate = 1.00000, LL = -3.4114822, nd = 0.0022459, D = 0.03589 0.03589 took 0.49 seconds - amica.core:optimize
+</span><span data-line="111">INFO     | Iteration 100, lrate = 1.00000, LL = -3.4112831, nd = 0.0022394, D = 0.03623 0.03623 took 0.41 seconds - amica.core:optimize
+</span><span data-line="112">INFO     | Iteration 101, lrate = 1.00000, LL = -3.4112498, nd = 0.0022958, D = 0.03623 0.03623 took 0.50 seconds - amica.core:optimize
+</span><span data-line="113">INFO     | Iteration 102, lrate = 1.00000, LL = -3.4112233, nd = 0.0023264, D = 0.03623 0.03623 took 0.41 seconds - amica.core:optimize
+</span><span data-line="114">INFO     | Iteration 103, lrate = 1.00000, LL = -3.4111987, nd = 0.0023474, D = 0.03623 0.03623 took 0.49 seconds - amica.core:optimize
+</span><span data-line="115">INFO     | Iteration 104, lrate = 1.00000, LL = -3.4111754, nd = 0.0023640, D = 0.03623 0.03623 took 0.49 seconds - amica.core:optimize
+</span><span data-line="116">INFO     | Iteration 105, lrate = 1.00000, LL = -3.4111530, nd = 0.0023774, D = 0.03623 0.03623 took 0.49 seconds - amica.core:optimize
+</span><span data-line="117">INFO     | Iteration 106, lrate = 1.00000, LL = -3.4111324, nd = 0.0023891, D = 0.03623 0.03623 took 0.42 seconds - amica.core:optimize
+</span><span data-line="118">INFO     | Iteration 107, lrate = 1.00000, LL = -3.4109271, nd = 0.0023282, D = 0.03689 0.03689 took 0.49 seconds - amica.core:optimize
+</span><span data-line="119">INFO     | Iteration 108, lrate = 1.00000, LL = -3.4107273, nd = 0.0022918, D = 0.03719 0.03719 took 0.49 seconds - amica.core:optimize
+</span><span data-line="120">INFO     | Iteration 109, lrate = 1.00000, LL = -3.4105318, nd = 0.0022727, D = 0.03743 0.03743 took 0.43 seconds - amica.core:optimize
+</span><span data-line="121">INFO     | Iteration 110, lrate = 1.00000, LL = -3.4103369, nd = 0.0022641, D = 0.03766 0.03766 took 0.49 seconds - amica.core:optimize
+</span><span data-line="122">INFO     | Iteration 111, lrate = 1.00000, LL = -3.4101420, nd = 0.0022599, D = 0.03790 0.03790 took 0.49 seconds - amica.core:optimize
+</span><span data-line="123">INFO     | Iteration 112, lrate = 1.00000, LL = -3.4099467, nd = 0.0022437, D = 0.03812 0.03812 took 0.41 seconds - amica.core:optimize
+</span><span data-line="124">INFO     | Iteration 113, lrate = 1.00000, LL = -3.4097545, nd = 0.0022286, D = 0.03832 0.03832 took 0.49 seconds - amica.core:optimize
+</span><span data-line="125">INFO     | Iteration 114, lrate = 1.00000, LL = -3.4095622, nd = 0.0022082, D = 0.03851 0.03851 took 0.49 seconds - amica.core:optimize
+</span><span data-line="126">INFO     | Iteration 115, lrate = 1.00000, LL = -3.4093724, nd = 0.0021893, D = 0.03869 0.03869 took 0.41 seconds - amica.core:optimize
+</span><span data-line="127">INFO     | Iteration 116, lrate = 1.00000, LL = -3.4091839, nd = 0.0021746, D = 0.03888 0.03888 took 0.41 seconds - amica.core:optimize
+</span><span data-line="128">INFO     | Iteration 117, lrate = 1.00000, LL = -3.4089963, nd = 0.0021577, D = 0.03907 0.03907 took 0.49 seconds - amica.core:optimize
+</span><span data-line="129">INFO     | Iteration 118, lrate = 1.00000, LL = -3.4088109, nd = 0.0021374, D = 0.03925 0.03925 took 0.50 seconds - amica.core:optimize
+</span><span data-line="130">INFO     | Iteration 119, lrate = 1.00000, LL = -3.4086289, nd = 0.0021174, D = 0.03945 0.03945 took 0.41 seconds - amica.core:optimize
+</span><span data-line="131">INFO     | Iteration 120, lrate = 1.00000, LL = -3.4084500, nd = 0.0020963, D = 0.03963 0.03963 took 0.49 seconds - amica.core:optimize
+</span><span data-line="132">INFO     | Iteration 121, lrate = 1.00000, LL = -3.4082740, nd = 0.0020709, D = 0.03984 0.03984 took 0.41 seconds - amica.core:optimize
+</span><span data-line="133">INFO     | Iteration 122, lrate = 1.00000, LL = -3.4081012, nd = 0.0020386, D = 0.04005 0.04005 took 0.48 seconds - amica.core:optimize
+</span><span data-line="134">INFO     | Iteration 123, lrate = 1.00000, LL = -3.4079335, nd = 0.0020010, D = 0.04026 0.04026 took 0.41 seconds - amica.core:optimize
+</span><span data-line="135">INFO     | Iteration 124, lrate = 1.00000, LL = -3.4077697, nd = 0.0019664, D = 0.04047 0.04047 took 0.49 seconds - amica.core:optimize
+</span><span data-line="136">INFO     | Iteration 125, lrate = 1.00000, LL = -3.4076116, nd = 0.0019212, D = 0.04069 0.04069 took 0.41 seconds - amica.core:optimize
+</span><span data-line="137">INFO     | Iteration 126, lrate = 1.00000, LL = -3.4074604, nd = 0.0018721, D = 0.04090 0.04090 took 0.49 seconds - amica.core:optimize
+</span><span data-line="138">INFO     | Iteration 127, lrate = 1.00000, LL = -3.4073149, nd = 0.0018282, D = 0.04110 0.04110 took 0.50 seconds - amica.core:optimize
+</span><span data-line="139">INFO     | Iteration 128, lrate = 1.00000, LL = -3.4071761, nd = 0.0017893, D = 0.04130 0.04130 took 0.41 seconds - amica.core:optimize
+</span><span data-line="140">INFO     | Iteration 129, lrate = 1.00000, LL = -3.4070432, nd = 0.0017520, D = 0.04149 0.04149 took 0.50 seconds - amica.core:optimize
+</span><span data-line="141">INFO     | Iteration 130, lrate = 1.00000, LL = -3.4069132, nd = 0.0017223, D = 0.04166 0.04166 took 0.48 seconds - amica.core:optimize
+</span><span data-line="142">INFO     | Iteration 131, lrate = 1.00000, LL = -3.4067873, nd = 0.0016955, D = 0.04183 0.04183 took 0.42 seconds - amica.core:optimize
+</span><span data-line="143">INFO     | Iteration 132, lrate = 1.00000, LL = -3.4066614, nd = 0.0016805, D = 0.04198 0.04198 took 0.49 seconds - amica.core:optimize
+</span><span data-line="144">INFO     | Iteration 133, lrate = 1.00000, LL = -3.4065355, nd = 0.0016748, D = 0.04212 0.04212 took 0.49 seconds - amica.core:optimize
+</span><span data-line="145">INFO     | Iteration 134, lrate = 1.00000, LL = -3.4064093, nd = 0.0016768, D = 0.04227 0.04227 took 0.42 seconds - amica.core:optimize
+</span><span data-line="146">INFO     | Iteration 135, lrate = 1.00000, LL = -3.4062816, nd = 0.0016918, D = 0.04241 0.04241 took 0.49 seconds - amica.core:optimize
+</span><span data-line="147">INFO     | Iteration 136, lrate = 1.00000, LL = -3.4061507, nd = 0.0017111, D = 0.04255 0.04255 took 0.41 seconds - amica.core:optimize
+</span><span data-line="148">INFO     | Iteration 137, lrate = 1.00000, LL = -3.4060147, nd = 0.0017316, D = 0.04267 0.04267 took 0.49 seconds - amica.core:optimize
+</span><span data-line="149">INFO     | Iteration 138, lrate = 1.00000, LL = -3.4058754, nd = 0.0017380, D = 0.04282 0.04282 took 0.50 seconds - amica.core:optimize
+</span><span data-line="150">INFO     | Iteration 139, lrate = 1.00000, LL = -3.4057353, nd = 0.0017304, D = 0.04298 0.04298 took 0.49 seconds - amica.core:optimize
+</span><span data-line="151">INFO     | Iteration 140, lrate = 1.00000, LL = -3.4055960, nd = 0.0017083, D = 0.04313 0.04313 took 0.41 seconds - amica.core:optimize
+</span><span data-line="152">INFO     | Iteration 141, lrate = 1.00000, LL = -3.4054582, nd = 0.0016882, D = 0.04328 0.04328 took 0.49 seconds - amica.core:optimize
+</span><span data-line="153">INFO     | Iteration 142, lrate = 1.00000, LL = -3.4053247, nd = 0.0016611, D = 0.04344 0.04344 took 0.49 seconds - amica.core:optimize
+</span><span data-line="154">INFO     | Iteration 143, lrate = 1.00000, LL = -3.4051935, nd = 0.0016307, D = 0.04359 0.04359 took 0.41 seconds - amica.core:optimize
+</span><span data-line="155">INFO     | Iteration 144, lrate = 1.00000, LL = -3.4050661, nd = 0.0016045, D = 0.04373 0.04373 took 0.50 seconds - amica.core:optimize
+</span><span data-line="156">INFO     | Iteration 145, lrate = 1.00000, LL = -3.4049427, nd = 0.0015778, D = 0.04387 0.04387 took 0.49 seconds - amica.core:optimize
+</span><span data-line="157">INFO     | Iteration 146, lrate = 1.00000, LL = -3.4048225, nd = 0.0015514, D = 0.04401 0.04401 took 0.42 seconds - amica.core:optimize
+</span><span data-line="158">INFO     | Iteration 147, lrate = 1.00000, LL = -3.4047046, nd = 0.0015245, D = 0.04415 0.04415 took 0.49 seconds - amica.core:optimize
+</span><span data-line="159">INFO     | Iteration 148, lrate = 1.00000, LL = -3.4045883, nd = 0.0014937, D = 0.04430 0.04430 took 0.49 seconds - amica.core:optimize
+</span><span data-line="160">INFO     | Iteration 149, lrate = 1.00000, LL = -3.4044803, nd = 0.0014655, D = 0.04445 0.04445 took 0.49 seconds - amica.core:optimize
+</span><span data-line="161">INFO     | Iteration 150, lrate = 1.00000, LL = -3.4043806, nd = 0.0014378, D = 0.04461 0.04461 took 0.42 seconds - amica.core:optimize
+</span><span data-line="162">INFO     | Iteration 151, lrate = 1.00000, LL = -3.4042855, nd = 0.0014054, D = 0.04476 0.04476 took 0.49 seconds - amica.core:optimize
+</span><span data-line="163">INFO     | Iteration 152, lrate = 1.00000, LL = -3.4041939, nd = 0.0013679, D = 0.04492 0.04492 took 0.42 seconds - amica.core:optimize
+</span><span data-line="164">INFO     | Iteration 153, lrate = 1.00000, LL = -3.4041070, nd = 0.0013300, D = 0.04506 0.04506 took 0.57 seconds - amica.core:optimize
+</span><span data-line="165">INFO     | Iteration 154, lrate = 1.00000, LL = -3.4040245, nd = 0.0012945, D = 0.04521 0.04521 took 0.42 seconds - amica.core:optimize
+</span><span data-line="166">INFO     | Iteration 155, lrate = 1.00000, LL = -3.4039453, nd = 0.0012577, D = 0.04535 0.04535 took 0.51 seconds - amica.core:optimize
+</span><span data-line="167">INFO     | Iteration 156, lrate = 1.00000, LL = -3.4038690, nd = 0.0012225, D = 0.04550 0.04550 took 0.50 seconds - amica.core:optimize
+</span><span data-line="168">INFO     | Iteration 157, lrate = 1.00000, LL = -3.4037953, nd = 0.0011889, D = 0.04564 0.04564 took 0.49 seconds - amica.core:optimize
+</span><span data-line="169">INFO     | Iteration 158, lrate = 1.00000, LL = -3.4037255, nd = 0.0011548, D = 0.04578 0.04578 took 0.49 seconds - amica.core:optimize
+</span><span data-line="170">INFO     | Iteration 159, lrate = 1.00000, LL = -3.4036581, nd = 0.0011226, D = 0.04592 0.04592 took 0.41 seconds - amica.core:optimize
+</span><span data-line="171">INFO     | Iteration 160, lrate = 1.00000, LL = -3.4035933, nd = 0.0010944, D = 0.04606 0.04606 took 0.50 seconds - amica.core:optimize
+</span><span data-line="172">INFO     | Iteration 161, lrate = 1.00000, LL = -3.4035302, nd = 0.0010692, D = 0.04621 0.04621 took 0.49 seconds - amica.core:optimize
+</span><span data-line="173">INFO     | Iteration 162, lrate = 1.00000, LL = -3.4034694, nd = 0.0010422, D = 0.04636 0.04636 took 0.50 seconds - amica.core:optimize
+</span><span data-line="174">INFO     | Iteration 163, lrate = 1.00000, LL = -3.4034098, nd = 0.0010182, D = 0.04649 0.04649 took 0.41 seconds - amica.core:optimize
+</span><span data-line="175">INFO     | Iteration 164, lrate = 1.00000, LL = -3.4033514, nd = 0.0009982, D = 0.04664 0.04664 took 0.42 seconds - amica.core:optimize
+</span><span data-line="176">INFO     | Iteration 165, lrate = 1.00000, LL = -3.4032967, nd = 0.0009739, D = 0.04678 0.04678 took 0.50 seconds - amica.core:optimize
+</span><span data-line="177">INFO     | Iteration 166, lrate = 1.00000, LL = -3.4032475, nd = 0.0009558, D = 0.04693 0.04693 took 0.50 seconds - amica.core:optimize
+</span><span data-line="178">INFO     | Iteration 167, lrate = 1.00000, LL = -3.4032000, nd = 0.0009387, D = 0.04706 0.04706 took 0.58 seconds - amica.core:optimize
+</span><span data-line="179">INFO     | Iteration 168, lrate = 1.00000, LL = -3.4031536, nd = 0.0009255, D = 0.04720 0.04720 took 0.42 seconds - amica.core:optimize
+</span><span data-line="180">INFO     | Iteration 169, lrate = 1.00000, LL = -3.4031080, nd = 0.0009100, D = 0.04733 0.04733 took 0.51 seconds - amica.core:optimize
+</span><span data-line="181">INFO     | Iteration 170, lrate = 1.00000, LL = -3.4030636, nd = 0.0008974, D = 0.04745 0.04745 took 0.50 seconds - amica.core:optimize
+</span><span data-line="182">INFO     | Iteration 171, lrate = 1.00000, LL = -3.4030199, nd = 0.0008862, D = 0.04757 0.04757 took 0.50 seconds - amica.core:optimize
+</span><span data-line="183">INFO     | Iteration 172, lrate = 1.00000, LL = -3.4029767, nd = 0.0008749, D = 0.04769 0.04769 took 0.58 seconds - amica.core:optimize
+</span><span data-line="184">INFO     | Iteration 173, lrate = 1.00000, LL = -3.4029340, nd = 0.0008627, D = 0.04781 0.04781 took 0.50 seconds - amica.core:optimize
+</span><span data-line="185">INFO     | Iteration 174, lrate = 1.00000, LL = -3.4028920, nd = 0.0008521, D = 0.04793 0.04793 took 0.51 seconds - amica.core:optimize
+</span><span data-line="186">INFO     | Iteration 175, lrate = 1.00000, LL = -3.4028504, nd = 0.0008435, D = 0.04805 0.04805 took 0.50 seconds - amica.core:optimize
+</span><span data-line="187">INFO     | Iteration 176, lrate = 1.00000, LL = -3.4028090, nd = 0.0008381, D = 0.04817 0.04817 took 0.50 seconds - amica.core:optimize
+</span><span data-line="188">INFO     | Iteration 177, lrate = 1.00000, LL = -3.4027686, nd = 0.0008318, D = 0.04829 0.04829 took 0.50 seconds - amica.core:optimize
+</span><span data-line="189">INFO     | Iteration 178, lrate = 1.00000, LL = -3.4027279, nd = 0.0008218, D = 0.04841 0.04841 took 0.49 seconds - amica.core:optimize
+</span><span data-line="190">INFO     | Iteration 179, lrate = 1.00000, LL = -3.4026881, nd = 0.0008168, D = 0.04854 0.04854 took 0.42 seconds - amica.core:optimize
+</span><span data-line="191">INFO     | Iteration 180, lrate = 1.00000, LL = -3.4026476, nd = 0.0008093, D = 0.04865 0.04865 took 0.50 seconds - amica.core:optimize
+</span><span data-line="192">INFO     | Iteration 181, lrate = 1.00000, LL = -3.4026071, nd = 0.0008022, D = 0.04877 0.04877 took 0.50 seconds - amica.core:optimize
+</span><span data-line="193">INFO     | Iteration 182, lrate = 1.00000, LL = -3.4025668, nd = 0.0007969, D = 0.04889 0.04889 took 0.58 seconds - amica.core:optimize
+</span><span data-line="194">INFO     | Iteration 183, lrate = 1.00000, LL = -3.4025265, nd = 0.0007888, D = 0.04900 0.04900 took 0.41 seconds - amica.core:optimize
+</span><span data-line="195">INFO     | Iteration 184, lrate = 1.00000, LL = -3.4024863, nd = 0.0007816, D = 0.04912 0.04912 took 0.59 seconds - amica.core:optimize
+</span><span data-line="196">INFO     | Iteration 185, lrate = 1.00000, LL = -3.4024490, nd = 0.0007768, D = 0.04925 0.04925 took 0.50 seconds - amica.core:optimize
+</span><span data-line="197">INFO     | Iteration 186, lrate = 1.00000, LL = -3.4024112, nd = 0.0007712, D = 0.04937 0.04937 took 0.50 seconds - amica.core:optimize
+</span><span data-line="198">INFO     | Iteration 187, lrate = 1.00000, LL = -3.4023730, nd = 0.0007647, D = 0.04949 0.04949 took 0.50 seconds - amica.core:optimize
+</span><span data-line="199">INFO     | Iteration 188, lrate = 1.00000, LL = -3.4023342, nd = 0.0007579, D = 0.04961 0.04961 took 0.49 seconds - amica.core:optimize
+</span><span data-line="200">INFO     | Iteration 189, lrate = 1.00000, LL = -3.4022947, nd = 0.0007573, D = 0.04972 0.04972 took 0.50 seconds - amica.core:optimize
+</span><span data-line="201">INFO     | Iteration 190, lrate = 1.00000, LL = -3.4022533, nd = 0.0007581, D = 0.04984 0.04984 took 0.51 seconds - amica.core:optimize
+</span><span data-line="202">INFO     | Iteration 191, lrate = 1.00000, LL = -3.4022101, nd = 0.0007578, D = 0.04996 0.04996 took 0.41 seconds - amica.core:optimize
+</span><span data-line="203">INFO     | Iteration 192, lrate = 1.00000, LL = -3.4021649, nd = 0.0007592, D = 0.05008 0.05008 took 0.50 seconds - amica.core:optimize
+</span><span data-line="204">INFO     | Iteration 193, lrate = 1.00000, LL = -3.4021169, nd = 0.0007580, D = 0.05020 0.05020 took 0.50 seconds - amica.core:optimize
+</span><span data-line="205">INFO     | Iteration 194, lrate = 1.00000, LL = -3.4020689, nd = 0.0007561, D = 0.05033 0.05033 took 0.50 seconds - amica.core:optimize
+</span><span data-line="206">INFO     | Iteration 195, lrate = 1.00000, LL = -3.4020312, nd = 0.0007540, D = 0.05047 0.05047 took 0.50 seconds - amica.core:optimize
+</span><span data-line="207">INFO     | Iteration 196, lrate = 1.00000, LL = -3.4019944, nd = 0.0007498, D = 0.05061 0.05061 took 0.50 seconds - amica.core:optimize
+</span><span data-line="208">INFO     | Iteration 197, lrate = 1.00000, LL = -3.4019574, nd = 0.0007469, D = 0.05075 0.05075 took 0.50 seconds - amica.core:optimize
+</span><span data-line="209">INFO     | Iteration 198, lrate = 1.00000, LL = -3.4019203, nd = 0.0007458, D = 0.05089 0.05089 took 0.50 seconds - amica.core:optimize
+</span><span data-line="210">INFO     | Iteration 199, lrate = 1.00000, LL = -3.4018827, nd = 0.0007426, D = 0.05103 0.05103 took 0.59 seconds - amica.core:optimize
+</span><span data-line="211">INFO     | Iteration 200, lrate = 1.00000, LL = -3.4018446, nd = 0.0007414, D = 0.05116 0.05116 took 0.49 seconds - amica.core:optimize
 </span><span data-line="212">WARNING  | Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol. - amica.core:optimize
-</span><span data-line="213">INFO     | Finished in 82.63 seconds - amica.core:optimize
+</span><span data-line="213">INFO     | Finished in 85.44 seconds - amica.core:optimize
 </span></pre></div>
 </div>
 <div class="output_subarea output_html rendered_html output_result">
@@ -430,20 +430,21 @@ results to those obtained from the original Fortran implementation.</p>
   --sklearn-color-fitted-level-1: #d4ebff;
   --sklearn-color-fitted-level-2: #b3dbfd;
   --sklearn-color-fitted-level-3: cornflowerblue;
+}
 
+#sk-container-id-2.light {
   /* Specific color for light theme */
-  --sklearn-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
-  --sklearn-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, white)));
-  --sklearn-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
+  --sklearn-color-text-on-default-background: black;
+  --sklearn-color-background: white;
+  --sklearn-color-border-box: black;
   --sklearn-color-icon: #696969;
+}
 
-  @media (prefers-color-scheme: dark) {
-    /* Redefinition of color scheme for dark theme */
-    --sklearn-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
-    --sklearn-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, #111)));
-    --sklearn-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
-    --sklearn-color-icon: #878787;
-  }
+#sk-container-id-2.dark {
+  --sklearn-color-text-on-default-background: white;
+  --sklearn-color-background: #111;
+  --sklearn-color-border-box: white;
+  --sklearn-color-icon: #878787;
 }
 
 #sk-container-id-2 {
@@ -569,8 +570,8 @@ clickable and can be expanded/collapsed.
   padding: 0.5em;
   box-sizing: border-box;
   text-align: center;
-  align-items: start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
   gap: 0.5em;
 }
 
@@ -677,7 +678,6 @@ clickable and can be expanded/collapsed.
 #sk-container-id-2 div.sk-label label {
   font-family: monospace;
   font-weight: bold;
-  display: inline-block;
   line-height: 1.2em;
 }
 
@@ -723,7 +723,7 @@ a:visited.sk-estimator-doc-link {
   font-size: smaller;
   line-height: 1em;
   font-family: monospace;
-  background-color: var(--sklearn-color-background);
+  background-color: var(--sklearn-color-unfitted-level-0);
   border-radius: 1em;
   height: 1em;
   width: 1em;
@@ -731,16 +731,17 @@ a:visited.sk-estimator-doc-link {
   margin-left: 0.5em;
   text-align: center;
   /* unfitted */
-  border: var(--sklearn-color-unfitted-level-1) 1pt solid;
-  color: var(--sklearn-color-unfitted-level-1);
+  border: var(--sklearn-color-unfitted-level-3) 1pt solid;
+  color: var(--sklearn-color-unfitted-level-3);
 }
 
 .sk-estimator-doc-link.fitted,
 a:link.sk-estimator-doc-link.fitted,
 a:visited.sk-estimator-doc-link.fitted {
   /* fitted */
-  border: var(--sklearn-color-fitted-level-1) 1pt solid;
-  color: var(--sklearn-color-fitted-level-1);
+  background-color: var(--sklearn-color-fitted-level-0);
+  border: var(--sklearn-color-fitted-level-3) 1pt solid;
+  color: var(--sklearn-color-fitted-level-3);
 }
 
 /* On hover */
@@ -750,7 +751,8 @@ div.sk-label-container:hover .sk-estimator-doc-link:hover,
 .sk-estimator-doc-link:hover {
   /* unfitted */
   background-color: var(--sklearn-color-unfitted-level-3);
-  color: var(--sklearn-color-background);
+  border: var(--sklearn-color-fitted-level-0) 1pt solid;
+  color: var(--sklearn-color-unfitted-level-0);
   text-decoration: none;
 }
 
@@ -760,7 +762,8 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
 .sk-estimator-doc-link.fitted:hover {
   /* fitted */
   background-color: var(--sklearn-color-fitted-level-3);
-  color: var(--sklearn-color-background);
+  border: var(--sklearn-color-fitted-level-0) 1pt solid;
+  color: var(--sklearn-color-fitted-level-0);
   text-decoration: none;
 }
 
@@ -800,7 +803,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
   font-size: 1rem;
   line-height: 1em;
   font-family: monospace;
-  background-color: var(--sklearn-color-background);
+  background-color: var(--sklearn-color-unfitted-level-0);
   border-radius: 1rem;
   height: 1rem;
   width: 1rem;
@@ -812,6 +815,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
 
 #sk-container-id-2 a.estimator_doc_link.fitted {
   /* fitted */
+  background-color: var(--sklearn-color-fitted-level-0);
   border: var(--sklearn-color-fitted-level-1) 1pt solid;
   color: var(--sklearn-color-fitted-level-1);
 }
@@ -829,10 +833,17 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
   background-color: var(--sklearn-color-fitted-level-3);
 }
 
+.estimator-table {
+    font-family: monospace;
+}
+
 .estimator-table summary {
     padding: .5rem;
-    font-family: monospace;
     cursor: pointer;
+}
+
+.estimator-table summary::marker {
+    font-size: 0.7rem;
 }
 
 .estimator-table details[open] {
@@ -844,6 +855,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
 .estimator-table .parameters-table {
     margin-left: auto !important;
     margin-right: auto !important;
+    margin-top: 0;
 }
 
 .estimator-table .parameters-table tr:nth-child(odd) {
@@ -862,24 +874,85 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
     border: 1px solid rgba(106, 105, 104, 0.232);
 }
 
-.user-set td {
-    color:rgb(255, 94, 0);
+/*
+    `table td`is set in notebook with right text-align.
+    We need to overwrite it.
+*/
+.estimator-table table td.param {
     text-align: left;
+    position: relative;
+    padding: 0;
 }
 
-.user-set td.value pre {
-    color:rgb(255, 94, 0) !important;
-    background-color: transparent !important;
+.user-set td {
+    color:rgb(255, 94, 0);
+    text-align: left !important;
+}
+
+.user-set td.value {
+    color:rgb(255, 94, 0);
+    background-color: transparent;
 }
 
 .default td {
     color: black;
-    text-align: left;
+    text-align: left !important;
 }
 
 .user-set td i,
 .default td i {
     color: black;
+}
+
+/*
+    Styles for parameter documentation links
+    We need styling for visited so jupyter doesn't overwrite it
+*/
+a.param-doc-link,
+a.param-doc-link:link,
+a.param-doc-link:visited {
+    text-decoration: underline dashed;
+    text-underline-offset: .3em;
+    color: inherit;
+    display: block;
+    padding: .5em;
+}
+
+/* "hack" to make the entire area of the cell containing the link clickable */
+a.param-doc-link::before {
+    position: absolute;
+    content: "";
+    inset: 0;
+}
+
+.param-doc-description {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    left: 0;
+    padding: .5ex;
+    margin-left: 1.5em;
+    color: var(--sklearn-color-text);
+    box-shadow: .3em .3em .4em #999;
+    width: max-content;
+    text-align: left;
+    max-height: 10em;
+    overflow-y: auto;
+
+    /* unfitted */
+    background: var(--sklearn-color-unfitted-level-0);
+    border: thin solid var(--sklearn-color-unfitted-level-3);
+}
+
+/* Fitted state for parameter tooltips */
+.fitted .param-doc-description {
+    /* fitted */
+    background: var(--sklearn-color-fitted-level-0);
+    border: thin solid var(--sklearn-color-fitted-level-3);
+}
+
+.param-doc-link:hover .param-doc-description {
+    display: block;
 }
 
 .copy-paste-icon {
@@ -925,7 +998,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('n_components',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">n_components&nbsp;</td>
+            <td class="param">n_components</td>
             <td class="value">None</td>
         </tr>
 
@@ -935,7 +1008,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('n_mixtures',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">n_mixtures&nbsp;</td>
+            <td class="param">n_mixtures</td>
             <td class="value">3</td>
         </tr>
 
@@ -945,8 +1018,18 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('batch_size',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">batch_size&nbsp;</td>
+            <td class="param">batch_size</td>
             <td class="value">None</td>
+        </tr>
+
+
+        <tr class="default">
+            <td><i class="copy-paste-icon"
+                 onclick="copyToClipboard('device',
+                          this.parentElement.nextElementSibling)"
+            ></i></td>
+            <td class="param">device</td>
+            <td class="value">&#x27;cpu&#x27;</td>
         </tr>
 
 
@@ -955,7 +1038,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('n_models',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">n_models&nbsp;</td>
+            <td class="param">n_models</td>
             <td class="value">1</td>
         </tr>
 
@@ -965,7 +1048,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('mean_center',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">mean_center&nbsp;</td>
+            <td class="param">mean_center</td>
             <td class="value">True</td>
         </tr>
 
@@ -975,7 +1058,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('whiten',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">whiten&nbsp;</td>
+            <td class="param">whiten</td>
             <td class="value">&#x27;zca&#x27;</td>
         </tr>
 
@@ -985,7 +1068,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('max_iter',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">max_iter&nbsp;</td>
+            <td class="param">max_iter</td>
             <td class="value">200</td>
         </tr>
 
@@ -995,7 +1078,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('tol',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">tol&nbsp;</td>
+            <td class="param">tol</td>
             <td class="value">1e-07</td>
         </tr>
 
@@ -1005,7 +1088,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('lrate',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">lrate&nbsp;</td>
+            <td class="param">lrate</td>
             <td class="value">0.05</td>
         </tr>
 
@@ -1015,7 +1098,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('pdftype',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">pdftype&nbsp;</td>
+            <td class="param">pdftype</td>
             <td class="value">0</td>
         </tr>
 
@@ -1025,7 +1108,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('do_newton',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">do_newton&nbsp;</td>
+            <td class="param">do_newton</td>
             <td class="value">True</td>
         </tr>
 
@@ -1035,7 +1118,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('newt_start',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">newt_start&nbsp;</td>
+            <td class="param">newt_start</td>
             <td class="value">50</td>
         </tr>
 
@@ -1045,7 +1128,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('w_init',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">w_init&nbsp;</td>
+            <td class="param">w_init</td>
             <td class="value">array([[0.089...hape=(32, 32))</td>
         </tr>
 
@@ -1055,7 +1138,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('sbeta_init',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">sbeta_init&nbsp;</td>
+            <td class="param">sbeta_init</td>
             <td class="value">array([[0.846... 0.3616952 ]])</td>
         </tr>
 
@@ -1065,7 +1148,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('mu_init',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">mu_init&nbsp;</td>
+            <td class="param">mu_init</td>
             <td class="value">array([[0.509... 0.51339233]])</td>
         </tr>
 
@@ -1075,7 +1158,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
                  onclick="copyToClipboard('random_state',
                           this.parentElement.nextElementSibling)"
             ></i></td>
-            <td class="param">random_state&nbsp;</td>
+            <td class="param">random_state</td>
             <td class="value">None</td>
         </tr>
 
@@ -1117,15 +1200,88 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
     return false;
 }
 
-document.querySelectorAll('.fa-regular.fa-copy').forEach(function(element) {
+document.querySelectorAll('.copy-paste-icon').forEach(function(element) {
     const toggleableContent = element.closest('.sk-toggleable__content');
     const paramPrefix = toggleableContent ? toggleableContent.dataset.paramPrefix : '';
-    const paramName = element.parentElement.nextElementSibling.textContent.trim();
+    const paramName = element.parentElement.nextElementSibling
+        .textContent.trim().split(' ')[0];
     const fullParamName = paramPrefix ? `${paramPrefix}${paramName}` : paramName;
 
     element.setAttribute('title', fullParamName);
 });
-</script></body>
+
+
+/**
+ * Adapted from Skrub
+ * https://github.com/skrub-data/skrub/blob/403466d1d5d4dc76a7ef569b3f8228db59a31dc3/skrub/_reporting/_data/templates/report.js#L789
+ * @returns "light" or "dark"
+ */
+function detectTheme(element) {
+    const body = document.querySelector('body');
+
+    // Check VSCode theme
+    const themeKindAttr = body.getAttribute('data-vscode-theme-kind');
+    const themeNameAttr = body.getAttribute('data-vscode-theme-name');
+
+    if (themeKindAttr && themeNameAttr) {
+        const themeKind = themeKindAttr.toLowerCase();
+        const themeName = themeNameAttr.toLowerCase();
+
+        if (themeKind.includes("dark") || themeName.includes("dark")) {
+            return "dark";
+        }
+        if (themeKind.includes("light") || themeName.includes("light")) {
+            return "light";
+        }
+    }
+
+    // Check Jupyter theme
+    if (body.getAttribute('data-jp-theme-light') === 'false') {
+        return 'dark';
+    } else if (body.getAttribute('data-jp-theme-light') === 'true') {
+        return 'light';
+    }
+
+    // Guess based on a parent element's color
+    const color = window.getComputedStyle(element.parentNode, null).getPropertyValue('color');
+    const match = color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\s*$/i);
+    if (match) {
+        const [r, g, b] = [
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+        ];
+
+        // https://en.wikipedia.org/wiki/HSL_and_HSV#Lightness
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        if (luma > 180) {
+            // If the text is very bright we have a dark theme
+            return 'dark';
+        }
+        if (luma < 75) {
+            // If the text is very dark we have a light theme
+            return 'light';
+        }
+        // Otherwise fall back to the next heuristic.
+    }
+
+    // Fallback to system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+
+function forceTheme(elementId) {
+    const estimatorElement = document.querySelector(`#${elementId}`);
+    if (estimatorElement === null) {
+        console.error(`Element with id ${elementId} not found.`);
+    } else {
+        const theme = detectTheme(estimatorElement);
+        estimatorElement.classList.add(theme);
+    }
+}
+
+forceTheme('sk-container-id-2');</script></body>
 </div>
 <br />
 <br /></section>
@@ -1158,7 +1314,7 @@ document.querySelectorAll('.fa-regular.fa-copy').forEach(function(element) {
 </span><span data-line="2"><span class="n">fig2</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">ax2</span></a> <span class="o">=</span> <span class="n">plot_topomaps</span><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">A_fortran</span></a><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;fortran&quot;</span><span class="p">)</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_eeg_002.png" srcset="../_images/sphx_glr_plot_eeg_002.png" alt="AMICA Component Topomaps (fortran), Component 0, Component 1, Component 2, Component 3, Component 4, Component 5, Component 6, Component 7, Component 8, Component 9, Component 10, Component 11, Component 12, Component 13, Component 14, Component 15, Component 16, Component 17, Component 18, Component 19, Component 20, Component 21, Component 22, Component 23, Component 24, Component 25, Component 26, Component 27, Component 28, Component 29, Component 30, Component 31" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 27.012 seconds)</p>
+<img src="../_images/sphx_glr_plot_eeg_002.png" srcset="../_images/sphx_glr_plot_eeg_002.png" alt="AMICA Component Topomaps (fortran), Component 0, Component 1, Component 2, Component 3, Component 4, Component 5, Component 6, Component 7, Component 8, Component 9, Component 10, Component 11, Component 12, Component 13, Component 14, Component 15, Component 16, Component 17, Component 18, Component 19, Component 20, Component 21, Component 22, Component 23, Component 24, Component 25, Component 26, Component 27, Component 28, Component 29, Component 30, Component 31" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 29.831 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-eeg-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/ec1406a8590becaade016dbafc59c2c2/plot_eeg.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_eeg.ipynb</span></code></a></p>
@@ -1223,5 +1379,5 @@ document.querySelectorAll('.fa-regular.fa-copy').forEach(function(element) {
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=9b0e4dde"></script></body>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
 </html>

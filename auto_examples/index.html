@@ -6,7 +6,7 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=d140fbf8" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
@@ -123,34 +123,34 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </div><div class="flex flex-col break-words justify-between">
-      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
-        <article class="yue" role="main">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
           <section id="amica-tutorials">
 <h1>AMICA Tutorials<a class="headerlink" href="#amica-tutorials" title="Link to this heading">¶</a></h1>
 <p>Example AMICA usage.</p>
 <div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="Run ICA On Toy Data"><img alt="" src="../_images/sphx_glr_plot_toy_thumb.png" />
-<p><a class="reference internal" href="plot_toy.html#sphx-glr-auto-examples-plot-toy-py"><span class="std std-ref">Run ICA On Toy Data</span></a></p>
+<p><a class="reference internal" href="plot_toy.html"><span class="doc">Run ICA On Toy Data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Run ICA On Toy Data</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="Sphering (whitening) data"><img alt="" src="../_images/sphx_glr_plot_sphere_thumb.png" />
-<p><a class="reference internal" href="plot_sphere.html#sphx-glr-auto-examples-plot-sphere-py"><span class="std std-ref">Sphering (whitening) data</span></a></p>
+<p><a class="reference internal" href="plot_sphere.html"><span class="doc">Sphering (whitening) data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Sphering (whitening) data</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="And compare results to Fortran AMICA."><img alt="" src="../_images/sphx_glr_plot_eeg_thumb.png" />
-<p><a class="reference internal" href="plot_eeg.html#sphx-glr-auto-examples-plot-eeg-py"><span class="std std-ref">Run AMICA on EEG Data</span></a></p>
+<p><a class="reference internal" href="plot_eeg.html"><span class="doc">Run AMICA on EEG Data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Run AMICA on EEG Data</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="An example of estimating sources from noisy mixtures."><img alt="" src="../_images/sphx_glr_plot_ica_blind_source_separation_thumb.png" />
-<p><a class="reference internal" href="plot_ica_blind_source_separation.html#sphx-glr-auto-examples-plot-ica-blind-source-separation-py"><span class="std std-ref">Blind Source Separation with AMICA &amp; FastICA</span></a></p>
+<p><a class="reference internal" href="plot_ica_blind_source_separation.html"><span class="doc">Blind Source Separation with AMICA &amp; FastICA</span></a></p>
   <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="This example illustrates visually in the feature space a comparison by results using two different component analysis techniques."><img alt="" src="../_images/sphx_glr_plot_ica_vs_pca_thumb.png" />
-<p><a class="reference internal" href="plot_ica_vs_pca.html#sphx-glr-auto-examples-plot-ica-vs-pca-py"><span class="std std-ref">ICA on 2D point clouds</span></a></p>
+<p><a class="reference internal" href="plot_ica_vs_pca.html"><span class="doc">ICA on 2D point clouds</span></a></p>
   <div class="sphx-glr-thumbnail-title">ICA on 2D point clouds</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="We blend 5 grayscale photographs using a random mixing matrix and attempt to recover them using AMICA and FastICA."><img alt="" src="../_images/sphx_glr_plot_photos_thumb.png" />
-<p><a class="reference internal" href="plot_photos.html#sphx-glr-auto-examples-plot-photos-py"><span class="std std-ref">Blind source separation (BSS) on blended photographs</span></a></p>
+<p><a class="reference internal" href="plot_photos.html"><span class="doc">Blind source separation (BSS) on blended photographs</span></a></p>
   <div class="sphx-glr-thumbnail-title">Blind source separation (BSS) on blended photographs</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="Faces dataset decompositions"><img alt="" src="../_images/sphx_glr_plot_faces_decomposition_thumb.png" />
-<p><a class="reference internal" href="plot_faces_decomposition.html#sphx-glr-auto-examples-plot-faces-decomposition-py"><span class="std std-ref">Faces dataset decompositions</span></a></p>
+<p><a class="reference internal" href="plot_faces_decomposition.html"><span class="doc">Faces dataset decompositions</span></a></p>
   <div class="sphx-glr-thumbnail-title">Faces dataset decompositions</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="We&#x27;ll use AMICA as a preprocessing step in a scikit-learn pipeline to perform digit classification on the MNIST dataset."><img alt="" src="../_images/sphx_glr_plot_pipe_thumb.png" />
-<p><a class="reference internal" href="plot_pipe.html#sphx-glr-auto-examples-plot-pipe-py"><span class="std std-ref">Use AMICA in a Scikit-Learn Pipeline</span></a></p>
+<p><a class="reference internal" href="plot_pipe.html"><span class="doc">Use AMICA in a Scikit-Learn Pipeline</span></a></p>
   <div class="sphx-glr-thumbnail-title">Use AMICA in a Scikit-Learn Pipeline</div>
 </div></div><div class="toctree-wrapper compound">
 </div>
@@ -206,6 +206,6 @@ data-aria-dark="Switch to auto color mode">
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=9b0e4dde"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script>
       <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></body>
 </html>
