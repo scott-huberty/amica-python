@@ -492,36 +492,10 @@ def test_pre_whiten(n_components, do_approx_sphere):
             f"and do_approx_sphere={do_approx_sphere}"
         )
 
-
-
-def generate_data():
-    """Generate synthetic data taken from an Sklearn example."""
-    import numpy as np
-    from scipy import signal
-
-    rng = np.random.default_rng(0)
-    n_samples = 2000
-    time = np.linspace(0, 8, n_samples)
-
-    s1 = np.sin(2 * time)                     # Sinusoidal
-    s2 = np.sign(np.sin(3 * time))            # Square wave
-    s3 = signal.sawtooth(2 * np.pi * time)    # Sawtooth
-
-    S = np.c_[s1, s2, s3]
-    S += 0.2 * rng.standard_normal(S.shape)   # Add noise
-    S /= S.std(axis=0)                        # Standardize
-
-    A = np.array([[1, 1, 1],
-                [0.5, 2, 1.0],
-                [1.5, 1.0, 2.0]])           # Mixing matrix
-
-    X = S @ A.T                               # Observed mixtures
-    return X
-
 @pytest.mark.parametrize("do_newton", [True, False])
-def test_sklearn_tutorial_data(do_newton):
+def test_sklearn_tutorial_data(do_newton, sklearn_example_data):
     """Test the AMICA implementation on data from the sklearn FastICA tutorial."""
-    X = generate_data()
+    X = sklearn_example_data
     # Run AMICA
     # Purposely picking a batch size that is not a divisor of n_samples
     modout = fit_amica(
@@ -551,8 +525,8 @@ def test_sklearn_tutorial_data(do_newton):
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU not available")
-def test_gpu():
+def test_gpu(sklearn_example_data):
     """Run AMICA on GPU."""
-    X = generate_data()
+    X = sklearn_example_data
     transofrmer = AMICA(device='cuda', random_state=0)
     transofrmer.fit(X)

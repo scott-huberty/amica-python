@@ -40,6 +40,7 @@ bibtex_bibfiles = ['references.bib']
 intersphinx_mapping = {
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "mne": ("https://mne.tools/dev", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

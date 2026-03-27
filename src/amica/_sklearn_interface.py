@@ -327,3 +327,20 @@ class AMICA(TransformerMixin, BaseEstimator):
         if hasattr(self, "mean_") and self.mean_ is not None:
             X_rec += self.mean_
         return X_rec
+
+    def to_mne(self, info):
+        """Convert a fitted AMICA instance to an MNE-Python ICA instance.
+
+        Parameters
+        ----------
+        info : instance of mne.Info
+            Channel metadata to attach to the ICA object.
+
+        Returns
+        -------
+        ica : instance of mne.preprocessing.ICA
+            ICA object compatible with MNE-Python tooling.
+        """
+        from .utils.mne import to_mne
+
+        return to_mne(self, info)
