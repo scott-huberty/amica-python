@@ -42,6 +42,10 @@ class AMICA(TransformerMixin, BaseEstimator):
         even when the data is very large, set ``batch_size`` to ``X.shape[0]``
         to process all samples at once, but note that this may lead to
         high memory usage for large datasets.
+    device : str, default='cpu'
+        Device to run the computations on. Can be either 'cpu' or 'cuda' for GPU
+        acceleration. Note that using 'cuda' requires a compatible NVIDIA GPU and
+        the appropriate CUDA drivers installed.
     mean_center : bool, default=True
         If ``True``, the data is mean-centered before whitening and fitting. This is
         equivalent to ``do_mean=1`` in the Fortran AMICA program.
@@ -142,6 +146,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             *,
             n_mixtures=3,
             batch_size=None,
+            device='cpu',
             n_models=1,
             mean_center=True,
             whiten="zca",
@@ -174,6 +179,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.mu_init = mu_init
         self.random_state = random_state
         self.batch_size = batch_size
+        self.device = device
 
     def fit(self, X, y=None, verbose=None):
         """Fit the AMICA model to the data X.
@@ -209,6 +215,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             n_components=self.n_components,
             n_mixtures=self.n_mixtures,
             batch_size=self.batch_size,
+            device=self.device,
             n_models=self.n_models,
             mean_center=self.mean_center,
             whiten=self.whiten,

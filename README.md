@@ -86,8 +86,7 @@ pip install -e .
 
 ### Installing PyTorch
 
-Depending on your system and preferences, you can install PyTorch with or without GPU support. AMICA-Python actually does not yet support GPU acceleration, so you won't gain anything by installing the GPU version of PyTorch.
-
+Depending on your system and preferences, you can install PyTorch with or without GPU support.
 
 To install the standard version of PyTorch, run:
 
@@ -154,6 +153,14 @@ X = S @ A.T                               # Observed mixtures
 
 ica = AMICA(random_state=0)
 X_new = ica.fit_transform(X)
+```
+
+### GPU acceleration
+
+If PyTorch was installed with CUDA support, you can fit AMICA on GPU:
+
+```python
+ica = AMICA(device='cuda', random_state=0)
 ```
 
 <img src="https://scott-huberty.github.io/amica-python/_images/sphx_glr_plot_ica_blind_source_separation_001.png" alt="AMICA-Python vs FastICA outputs" width="50%" style="display: block; margin: 0 auto;"/>
