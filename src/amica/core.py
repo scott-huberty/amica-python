@@ -309,7 +309,8 @@ def solve(
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
     """
-    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype, device=config.device) # No-copy (if on CPU)
+    # No-copy (if on CPU)
+    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype, device=config.device)
     rng = torch.Generator()
     if random_state is not None:
         rng.manual_seed(random_state)
@@ -435,8 +436,10 @@ def optimize(
     # We allocate these separately.
     Dsum = torch.zeros(config.n_models, dtype=torch.float64, device=config.device)
     Dsign = torch.zeros(config.n_models, dtype=torch.float64, device=config.device)
-    loglik = torch.zeros((X.shape[0],), dtype=torch.float64, device=config.device)  # per sample loglik
-    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64, device=config.device)  # likelihood history
+    # per sample loglik
+    loglik = torch.zeros((X.shape[0],), dtype=torch.float64, device=config.device)
+    # likelihood history
+    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64, device=config.device)
 
     c_start = time.time()
     c1 = time.time()
@@ -488,7 +491,11 @@ def optimize(
 
                 # 1. --- Compute source pre-activations
                 # !--- get b
-                assert state.W.device.type == data_batch.device.type, f"Mismatch between state.W device ({state.W.device}) and data_batch device ({data_batch.device})"
+                if not state.W.device.type == data_batch.device.type:
+                    raise ValueError(
+                        f"Mismatch between state.W device ({state.W.device}) "
+                        "and data_batch device ({data_batch.device})"
+                    )
                 b = compute_preactivations(
                     X=data_batch,
                     unmixing_matrix=state.W[:, :, h_index],
@@ -854,7 +861,10 @@ def accum_updates_and_likelihood(
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_co...
     nw = config.n_components
-    Wtmp_working = torch.zeros((config.n_components, config.n_components), dtype=config.dtype, device=config.device)
+    Wtmp_working = torch.zeros(
+        (config.n_components, config.n_components),
+        dtype=config.dtype, device=config.device
+        )
     # if (seg_rank == 0) then
     if config.do_newton and iteration >= config.newt_start:
         newton_terms = compute_newton_terms(

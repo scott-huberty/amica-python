@@ -91,7 +91,7 @@ class AmicaState:
     def to_numpy(self) -> dict[str, np.ndarray]:
         """Return a lightweight serialization of array fields as numpy arrays."""
         return {k: v.cpu().numpy() for k, v in self.to_dict().items()}
-    
+
     def to_device(self, device: torch.device | str) -> None:
         """Move all arrays to the specified device in-place."""
         self.W = self.W.to(device)
@@ -327,8 +327,9 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     dc_numer = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
     dc_denom = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
 
-    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype, device=device)  # Derivative of A
-    dAK = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)  # Derivative of A
+    # Derivative of A
+    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype, device=device)
+    dAK = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)
 
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
