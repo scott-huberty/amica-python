@@ -28,4 +28,6 @@ from .fortran import (
 from .fortran import (
     write_param_file as write_param_file,
 )
+from .imports import import_optional_dependency as import_optional_dependency
+from .mne import to_mne as to_mne
 from .simulation import generate_toy_data as generate_toy_data
