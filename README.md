@@ -86,8 +86,7 @@ pip install -e .
 
 ### Installing PyTorch
 
-Depending on your system and preferences, you can install PyTorch with or without GPU support. AMICA-Python actually does not yet support GPU acceleration, so you won't gain anything by installing the GPU version of PyTorch.
-
+Depending on your system and preferences, you can install PyTorch with or without GPU support.
 
 To install the standard version of PyTorch, run:
 
