@@ -50,8 +50,8 @@ def compute_newton_terms(*, config, accumulators, mu):
     # variance estimate for source i in model h
     sigma2 = accumulators.newton.dsigma2_numer / accumulators.newton.dsigma2_denom
     # curvature terms
-    kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
-    lambda_ = torch.zeros((config.n_components, config.n_models), dtype=config.dtype)
+    kappa = torch.zeros((config.n_components, config.n_models), dtype=config.dtype, device=config.device)
+    lambda_ = torch.zeros((config.n_components, config.n_models), dtype=config.dtype, device=config.device)
 
     # Compute Kappa and Lambda curvature terms
     for h, _ in enumerate(range(config.n_models), start=1):

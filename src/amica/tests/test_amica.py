@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal
 from scipy import signal
+import torch
 
 from amica import AMICA, fit_amica
 from amica.datasets import data_path
@@ -491,9 +492,9 @@ def test_pre_whiten(n_components, do_approx_sphere):
             f"and do_approx_sphere={do_approx_sphere}"
         )
 
-@pytest.mark.parametrize("do_newton", [True, False])
-def test_sklearn_tutorial_data(do_newton):
-    """Test the AMICA implementation on data from the sklearn FastICA tutorial."""
+
+
+def generate_data():
     import numpy as np
     from scipy import signal
 
@@ -514,7 +515,13 @@ def test_sklearn_tutorial_data(do_newton):
                 [1.5, 1.0, 2.0]])           # Mixing matrix
 
     X = S @ A.T                               # Observed mixtures
+    return X
 
+@pytest.mark.parametrize("do_newton", [True, False])
+def test_sklearn_tutorial_data(do_newton):
+    """Test the AMICA implementation on data from the sklearn FastICA tutorial."""
+
+    X = generate_data()
     # Run AMICA
     # Purposely picking a batch size that is not a divisor of n_samples
     modout = fit_amica(
@@ -541,3 +548,11 @@ def test_sklearn_tutorial_data(do_newton):
     assert_allclose(S_py, S_f)
     assert_allclose(A_py, A_f, rtol=.001)
     assert_allclose(W_py, W_f, rtol=.001)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU not available")
+def test_gpu():
+    """Run AMICA on GPU"""
+    X = generate_data()
+    transofrmer = AMICA(device='cuda', random_state=0)
+    transofrmer.fit(X)

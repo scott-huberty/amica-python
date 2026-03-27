@@ -93,9 +93,9 @@ def compute_sign_log_determinant(
     # ------------------------------------------------------------------------
     # Alias for clarity with Fortran code
     W = unmixing_matrix
-    sign, logabsdet = np.linalg.slogdet(W)
+    sign, logabsdet = torch.linalg.slogdet(W)
     # TODO: slogdet requires a square unmixing matrix. Does AMICA gaurantee this?
-    if logabsdet == -np.inf or sign == 0:  # Model fit has collapsed.
+    if logabsdet == -torch.inf or sign == 0:  # Model fit has collapsed.
         msg = (
                 "Unmixing matrix (W) is singular (determinant = 0)\n\n"
                 "Details:\n"

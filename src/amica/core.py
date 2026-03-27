@@ -75,6 +75,7 @@ def fit_amica(
         whiten="zca",
         mean_center=True,
         n_components=None,
+        device="cpu",
         n_models=1,
         n_mixtures=3,
         max_iter=500,
@@ -119,6 +120,10 @@ def fit_amica(
         batching, you can override this memory cap by setting batch_size explicitly,
         e.g. to  `X.shape[0]` to process all samples at once. but note that this may
         lead to high memory usage for large datasets.
+    device : str, optional
+        Device to run the computations on. Can be either 'cpu' or 'cuda' for GPU
+        acceleration. Note that using 'cuda' requires a compatible NVIDIA GPU and
+        the appropriate CUDA drivers installed.
     whiten : str {"zca", "pca", "variance"}
         Whitening method to apply to the data before fitting AMICA. Options are:
         - "zca": Zero-phase component analysis (ZCA) whitening.
@@ -209,6 +214,7 @@ def fit_amica(
         n_mixtures=n_mixtures,
         max_iter=max_iter,
         batch_size=batch_size,
+        device=torch.device(device),
         pdftype=pdftype,
         tol=tol,
         lrate=lrate,
@@ -303,7 +309,7 @@ def solve(
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
     """
-    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype) # No-copy (if on CPU)
+    X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype, device=config.device) # No-copy (if on CPU)
     rng = torch.Generator()
     if random_state is not None:
         rng.manual_seed(random_state)
@@ -390,7 +396,7 @@ def solve(
         )
     # Convert Tensors to numpy arrays for output
     state_dict = state.to_numpy()
-    LL = LL.numpy()
+    LL = LL.cpu().numpy()
     return state_dict, LL
 
 
@@ -423,11 +429,14 @@ def optimize(
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
+    if config.device.type != "cpu":
+        state.to_device(device=config.device)
+        wc = wc.to(device=config.device)
     # We allocate these separately.
-    Dsum = torch.zeros(config.n_models, dtype=torch.float64)
-    Dsign = torch.zeros(config.n_models, dtype=torch.float64)
-    loglik = torch.zeros((X.shape[0],), dtype=torch.float64)  # per sample loglik
-    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64)  # likelihood history
+    Dsum = torch.zeros(config.n_models, dtype=torch.float64, device=config.device)
+    Dsign = torch.zeros(config.n_models, dtype=torch.float64, device=config.device)
+    loglik = torch.zeros((X.shape[0],), dtype=torch.float64, device=config.device)  # per sample loglik
+    LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64, device=config.device)  # likelihood history
 
     c_start = time.time()
     c1 = time.time()
@@ -479,6 +488,7 @@ def optimize(
 
                 # 1. --- Compute source pre-activations
                 # !--- get b
+                assert state.W.device.type == data_batch.device.type, f"Mismatch between state.W device ({state.W.device}) and data_batch device ({data_batch.device})"
                 b = compute_preactivations(
                     X=data_batch,
                     unmixing_matrix=state.W[:, :, h_index],
@@ -503,6 +513,7 @@ def optimize(
                     size=(data_batch.shape[0], config.n_models),
                     fill_value=initial,
                     dtype=config.dtype,
+                    device=config.device,
                     )
                 compute_model_loglikelihood_per_sample(
                     log_densities=z0,
@@ -843,7 +854,7 @@ def accum_updates_and_likelihood(
     # if update_A:
     # call MPI_REDUCE(dWtmp,dA,nw*nw*num_models,MPI_DOUBLE_PRECISION,MPI_SUM,0,seg_co...
     nw = config.n_components
-    Wtmp_working = torch.zeros((config.n_components, config.n_components))
+    Wtmp_working = torch.zeros((config.n_components, config.n_components), dtype=config.dtype, device=config.device)
     # if (seg_rank == 0) then
     if config.do_newton and iteration >= config.newt_start:
         newton_terms = compute_newton_terms(
@@ -893,8 +904,8 @@ def accum_updates_and_likelihood(
 
             # off-diagonal elements
             i_indices, k_indices = torch.meshgrid(
-                torch.arange(config.n_components),
-                torch.arange(config.n_components), indexing='ij'
+                torch.arange(config.n_components, device=config.device),
+                torch.arange(config.n_components, device=config.device), indexing='ij',
                 )
             off_diag_mask = i_indices != k_indices
             sk1 = sigma2[i_indices, h-1] * kappa[k_indices, h-1]
@@ -934,7 +945,7 @@ def accum_updates_and_likelihood(
             )
     # end do (h)
 
-    zeta = torch.zeros(config.n_components, dtype=config.dtype)
+    zeta = torch.zeros(config.n_components, dtype=config.dtype, device=config.device)
     for h, _ in enumerate(range(config.n_models), start=1):
         comp_slice = get_component_slice(h, config.n_components)
         h_index = h - 1
