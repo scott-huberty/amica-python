@@ -4,11 +4,9 @@ from numpy.testing import assert_allclose
 from amica import AMICA
 
 
-def test_to_mne():
+def test_to_mne(sklearn_example_data):
     """Test migrating AMICA outputs to an MNE-Python ICA instance."""
-    from ...tests.test_amica import generate_data
-
-    X = generate_data()
+    X = sklearn_example_data
     transformer = AMICA(random_state=0)
     transformer.fit(X)
     info = mne.create_info(
