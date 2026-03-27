@@ -101,6 +101,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#amica.AMICA.fit"><code class="docutils literal notranslate">fit()</span></code></a></li>
 <li><a class="reference internal" href="#amica.AMICA.fit_transform"><code class="docutils literal notranslate">fit_transform()</span></code></a></li>
 <li><a class="reference internal" href="#amica.AMICA.inverse_transform"><code class="docutils literal notranslate">inverse_transform()</span></code></a></li>
+<li><a class="reference internal" href="#amica.AMICA.to_mne"><code class="docutils literal notranslate">to_mne()</span></code></a></li>
 <li><a class="reference internal" href="#amica.AMICA.transform"><code class="docutils literal notranslate">transform()</span></code></a></li>
 </ul>
 </li>
@@ -284,7 +285,10 @@ that projects data onto the first <code class="docutils literal notranslate"><sp
 <tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.inverse_transform" title="amica.AMICA.inverse_transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">inverse_transform</span></code></a>(X)</p></td>
 <td><p>Reconstruct data from its independent components.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#amica.AMICA.transform" title="amica.AMICA.transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform</span></code></a>(X[, copy])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#amica.AMICA.to_mne" title="amica.AMICA.to_mne"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_mne</span></code></a>(info)</p></td>
+<td><p>Convert a fitted AMICA instance to an MNE-Python ICA instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#amica.AMICA.transform" title="amica.AMICA.transform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform</span></code></a>(X[, copy])</p></td>
 <td><p>Recover the sources from X (apply the unmixing matrix).</p></td>
 </tr>
 </tbody>
@@ -399,6 +403,26 @@ unmixing matrix.</p>
 </span><span data-line="8"><span class="go">(1797, 64)</span>
 </span></pre></div>
 </div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="amica.AMICA.to_mne">
+<span class="sig-name descname"><span class="pre">to_mne</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#amica.AMICA.to_mne" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a fitted AMICA instance to an MNE-Python ICA instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>info</strong><span class="classifier">instance of mne.Info</span></dt><dd><p>Channel metadata to attach to the ICA object.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>ica</strong><span class="classifier">instance of mne.preprocessing.ICA</span></dt><dd><p>ICA object compatible with MNE-Python tooling.</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">

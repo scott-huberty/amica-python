@@ -2,7 +2,11 @@
 Run AMICA on EEG Data
 =====================
 
-And compare results to Fortran AMICA.
+In this tutorial we will:
+
+1. Run AMICA on EEG data
+2. Compare our results to Fortran AMICA.
+3. Export our AMICA instance to an :class:`mne.preprocessing.ICA` object.
 
 """
 # %%
@@ -99,3 +103,13 @@ fig1, ax1 = plot_topomaps(transformer.mixing_, output="python")
 # The Fortran mixing matrix is in sphered space. We need to unwhiten it first.
 A_fortran = np.linalg.pinv(fortran_results['S']) @ fortran_results['A']
 fig2, ax2 = plot_topomaps(A_fortran, output="fortran")
+
+
+# %%
+# Export to MNE
+# ^^^^^^^^^^^^^
+#
+
+# %%
+ica = transformer.to_mne(info=raw.info)
+ica.plot_components(nrows=8, ncols=4)

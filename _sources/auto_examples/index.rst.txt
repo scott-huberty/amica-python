@@ -50,7 +50,7 @@ Example AMICA usage.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="And compare results to Fortran AMICA.">
+    <div class="sphx-glr-thumbcontainer" tooltip="In this tutorial we will:">
 
 .. only:: html
 
