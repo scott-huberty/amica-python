@@ -48,7 +48,7 @@ python -m pip install torch --index-url https://download.pytorch.org/whl/cu113
 Or for Conda users:
 
 ```bash
-conda install -c conda-forge pytorch cpuonly
+conda install -c conda-forge pytorch-cpu
 ```
 
 >[!WARNING]
