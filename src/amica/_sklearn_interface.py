@@ -104,6 +104,12 @@ class AMICA(TransformerMixin, BaseEstimator):
         across multiple function calls. Note that unlike scikit-learn's FastICA, you
         **cannot** pass a :class:`~numpy.random.BitGenerator` instance via
         :func:`~numpy.random.default_rng`.
+    verbose : int, default=1
+        Output mode during optimization:
+
+        - ``0``: silent
+        - ``1``: compact Rich progress bar only
+        - ``2``: per-iteration FORTRAN-style logs only
 
     Attributes
     ----------
@@ -160,6 +166,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             sbeta_init=None,
             mu_init=None,
             random_state=None,
+            verbose=1,
             ):
         super().__init__()
         self.n_components = n_components
@@ -178,6 +185,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.sbeta_init = sbeta_init
         self.mu_init = mu_init
         self.random_state = random_state
+        self.verbose = verbose
         self.batch_size = batch_size
         self.device = device
 
@@ -191,12 +199,9 @@ class AMICA(TransformerMixin, BaseEstimator):
             and ``n_features`` is the number of features.
         y : Ignored
             Not used, present here for API consistency by convention.
-        verbose : bool or str or int or None, default=None
-            Control verbosity of the logging output. If a str, it can be either
-            ``"DEBUG"``, ``"INFO"``, ``"WARNING"``, ``"ERROR"``, or ``"CRITICAL"``.
-            Note that these are for convenience and are equivalent to passing in
-            ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
-            ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
+        verbose : int or None, default=None
+            Per-call override for estimator verbosity.
+            If ``None``, uses the estimator's ``self.verbose`` setting.
 
         Returns
         -------
@@ -229,7 +234,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             sbeta_init=self.sbeta_init,
             mu_init=self.mu_init,
             random_state=self.random_state,
-            verbose=verbose,
+            verbose=self.verbose if verbose is None else verbose,
         )
 
         # Set attributes

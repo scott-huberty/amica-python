@@ -6,7 +6,6 @@ expected outputs, serving as a regression test during refactoring.
 """
 import sys
 
-import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pytest
@@ -147,31 +146,6 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
     if n_components == 16 or entrypoint == "class":
         return
 
-    out_dir = data_path() / "figs"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    for output in ["python", "fortran"]:
-        fig, ax = plt.subplots(
-            nrows=8,
-            ncols=4,
-            figsize=(12, 16),
-            constrained_layout=True
-            )
-        for i, this_ax in zip(range(32), ax.flat):
-            mne.viz.plot_topomap(
-                results["A"][:, i] if output == "python" else A_f[:, i],
-                pos=raw.info,
-                axes=this_ax,
-                show=False,
-            )
-            this_ax.set_title(f"Component {i}")
-        weights_str = "Using Fortran seed" if load_weights else "Using random seed"
-        seed_match = ("_fortran_init" if load_weights else "_random_init")
-        if output == "fortran":
-            weights_str, seed_match = "", ""
-        fig.suptitle(f"AMICA Component Topomaps ({output}) {weights_str}", fontsize=16)
-        fig.savefig(out_dir / f"amica_topos_{output}{seed_match}.png")
-        plt.close(fig)
-
 
     def get_amica_sources(X, W, S, mean):
         """
@@ -226,23 +200,6 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
 
     if not load_weights:
         return
-
-    info = mne.create_info(
-        ch_names=[f"IC{i}" for i in range(sources_python.shape[1])],
-        sfreq=raw.info['sfreq'],
-        ch_types='eeg'
-    )
-
-    raw_src_python = mne.io.RawArray(sources_python.T, info)
-    raw_src_fortran = mne.io.RawArray(sources_fortran.T, info)
-
-    mne.viz.set_browser_backend("matplotlib")
-    fig = raw_src_python.plot(scalings=dict(eeg=1))
-    fig.savefig(out_dir / f"amica_sources_python_{seed_match}.png")
-    plt.close(fig)
-    fig = raw_src_fortran.plot(scalings=dict(eeg=1))
-    fig.savefig(out_dir / "amica_sources_fortran.png")
-    plt.close(fig)
 
 
 @pytest.mark.parametrize(
@@ -499,7 +456,12 @@ def test_sklearn_tutorial_data(do_newton, sklearn_example_data):
     # Run AMICA
     # Purposely picking a batch size that is not a divisor of n_samples
     modout = fit_amica(
-        X, n_components=3, random_state=0, do_newton=do_newton, batch_size=499
+        X,
+        n_components=3,
+        random_state=0,
+        do_newton=do_newton,
+        batch_size=499,
+        verbose=2,
     )
     mean_py = modout["mean"] # feature means (3,)
     S_py = modout["S"] # whitening matrix shape (3, 3)
