@@ -67,6 +67,8 @@ from amica.state import (
 from ._batching import BatchLoader, choose_batch_size, get_component_slice
 from ._newton import compute_newton_terms
 from .utils._logging import log, set_log_level
+from .utils._progress import make_progress_bar
+from .utils._verbose import _validate_verbose
 
 
 def fit_amica(
@@ -93,7 +95,7 @@ def fit_amica(
         mu_init=None,
         do_reject=False,
         random_state=None,
-        verbose=None,
+        verbose=1,
 ):
     """Perform Adaptive Mixture Independent Component Analysis (AMICA).
 
@@ -148,12 +150,12 @@ def fit_amica(
         Initial locations (mu) for the mixture components. If None, locations are
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
-    verbose : bool or str or int or None, default=None
-        Control verbosity of the logging output. If a str, it can be either
-        ``"DEBUG"``, ``"INFO"``, ``"WARNING"``, ``"ERROR"``, or ``"CRITICAL"``.
-        Note that these are for convenience and are equivalent to passing in
-        ``logging.DEBUG``, etc. For ``bool``, ``True`` is the same as ``"INFO"``,
-        ``False`` is the same as ``"WARNING"``. If ``None``, defaults to ``"INFO"``.
+    verbose : int, default=1
+        Output mode during optimization:
+
+        - ``0``: silent
+        - ``1``: compact Rich progress bar only
+        - ``2``: per-iteration FORTRAN-style logs only
 
     Returns
     -------
@@ -198,7 +200,8 @@ def fit_amica(
     .. footbibliography::
 
     """
-    set_log_level(verbose)
+    verbose = _validate_verbose(verbose)
+    set_log_level("INFO" if verbose == 2 else "ERROR")
 
     if batch_size is None:
         batch_size = choose_batch_size(
@@ -224,6 +227,7 @@ def fit_amica(
         newtrate=newtrate,
         newt_ramp=newt_ramp,
         do_reject=do_reject,
+        verbose=verbose,
     )
 
     # Step 2: Create initial state (this will eventually replace manual initialization)
@@ -443,6 +447,13 @@ def optimize(
 
     c_start = time.time()
     c1 = time.time()
+    progress = None
+    task_id = None
+    if config.verbose == 1:
+        progress, task_id = make_progress_bar(
+            total=config.max_iter,
+            lrate=metrics.lrate,
+        )
     while metrics.iter <= config.max_iter:
         accumulators.reset()
         loglik.fill_(0.0)
@@ -723,7 +734,16 @@ def optimize(
         t0 = c2 - c1
         #  if (mod(iter,outstep) == 0) then
 
-        if (metrics.iter % outstep) == 0:
+        if progress is not None and task_id is not None:
+            progress.update(
+                task_id,
+                completed=metrics.iter,
+                ll=f"{float(LL[metrics.iter - 1]):.4f}",
+                nd=f"{float(ndtmpsum):.4f}",
+                lrate=f"{metrics.lrate:.5f}",
+            )
+
+        if config.verbose == 2 and (metrics.iter % outstep) == 0:
             report = (
                 f"Iteration {metrics.iter}, "
                 f"lrate = {metrics.lrate:.5f}, "
@@ -806,6 +826,8 @@ def optimize(
         if leave:
             c_end = time.time()
             log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
+            if progress is not None:
+                progress.stop()
             return state, LL
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
@@ -840,6 +862,8 @@ def optimize(
     )
     c_end = time.time()
     log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
+    if progress is not None:
+        progress.stop()
     return state, LL
 
 

@@ -32,6 +32,7 @@ class AmicaConfig:
 
     # Execution
     max_iter: int = 200
+    verbose: int = 1
 
 
     # Algorithmic flags
