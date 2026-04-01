@@ -12,7 +12,7 @@ doscaling = True        # rescale unmixing matrix rows to unit norm
 dorho = True
 rho0 = 1.5              # initial shape parameter value
 minrho = 1.0            # minimum shape parameter value, def=1.0
-maxrho = 2.0            # maximum shape parameter value, def=2.0 
+maxrho = 2.0            # maximum shape parameter value, def=2.0
 rholratefact = 0.5      # multiplicative factor by which to dec rholrate, def=0.5
 invsigmin = 1.0e-08     # minimum value of inverse scale parameters
 invsigmax = 100.0       # maximum value of inverse scale parameters
