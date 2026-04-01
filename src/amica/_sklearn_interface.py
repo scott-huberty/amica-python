@@ -80,8 +80,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         exposed 2 tunable learning rate parameters, ``lrate`` and ``rholrate``, but we
         expose only one for simplicity, which is applied to both.
     pdftype : int, default=0
-        Type of source density model to use. Currently only ``0`` is supported,
-        which corresponds to the Gaussian Mixture Model (GMM) density.
+        Type of source density model to use.
     do_newton : bool, default=True
         If ``True``, the optimization method will switch from Stochastic Gradient
         Descent (SGD) to newton updates after ``newt_start`` iterations. If ``False``,
@@ -89,6 +88,8 @@ class AMICA(TransformerMixin, BaseEstimator):
     newt_start : int, default=50
         Number of iterations before switching to Newton updates if ``do_newton`` is
         ``True``.
+    newtrate : float, default=1.0
+        Maximum Newton learning rate.
     w_init : ndarray of shape (``n_components``, ``n_components``), default=``None``
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.
@@ -162,6 +163,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             pdftype=0,
             do_newton=True,
             newt_start=50,
+            newtrate=1.0,
             w_init=None,
             sbeta_init=None,
             mu_init=None,
@@ -181,6 +183,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.pdftype = pdftype
         self.do_newton = do_newton
         self.newt_start = newt_start
+        self.newtrate = newtrate
         self.w_init = w_init
         self.sbeta_init = sbeta_init
         self.mu_init = mu_init
@@ -230,6 +233,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             pdftype=self.pdftype,
             do_newton=self.do_newton,
             newt_start=self.newt_start,
+            newtrate=self.newtrate,
             w_init=self.w_init,
             sbeta_init=self.sbeta_init,
             mu_init=self.mu_init,
