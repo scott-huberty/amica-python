@@ -150,12 +150,28 @@ def fit_amica(
         Initial locations (mu) for the mixture components. If None, locations are
         initialized randomly. This is meant to be used for testing and debugging
         purposes only.
+    lrate : float, default=0.05
+        Initial learning rate for the natural gradient.
+    rholrate : float = default=0.05
+        initial learning rate for shape parameters.
+    pdftype : int, default=0
+        Type of source density model to use. Currently only ``0`` is supported,
+        which corresponds to the Gaussian Mixture Model (GMM) density.
+    do_newton : bool, default=True
+        If ``True``, the optimization method will switch from Stochastic Gradient
+        Descent (SGD) to newton updates after ``newt_start`` iterations. If ``False``,
+        only SGD updates are used.
+    newt_start : int, default=50
+        Number of iterations before switching to Newton updates if ``do_newton`` is
+        ``True``.
+    newtrate : float, default=1.0
+        learning rate for newton iterations.
     verbose : int, default=1
         Output mode during optimization:
 
         - ``0``: silent
-        - ``1``: compact Rich progress bar only
-        - ``2``: per-iteration FORTRAN-style logs only
+        - ``1``: progress bar
+        - ``2``: per-iteration FORTRAN-style logs
 
     Returns
     -------

@@ -76,11 +76,13 @@ class AMICA(TransformerMixin, BaseEstimator):
         different stopping criteria ``min_dll`` and ``min_grad_norm``. We only expose
         one parameter, which is applied to both criteria.
     lrate : float, default=0.05
-        Initial learning rate for the optimization algorithm. The Fortran AMICA program
-        exposed 2 tunable learning rate parameters, ``lrate`` and ``rholrate``, but we
-        expose only one for simplicity, which is applied to both.
+        Initial learning rate for the natural gradient. The Fortran AMICA program
+        exposed 2 tunable learning rate parameters, ``lrate`` and ``rholrate`` (initial
+        lrate for shape parameters) but we expose only one for simplicity, which is
+        applied to both.
     pdftype : int, default=0
-        Type of source density model to use.
+        Type of source density model to use. Currently only ``0`` is supported,
+        which corresponds to the Gaussian Mixture Model (GMM) density.
     do_newton : bool, default=True
         If ``True``, the optimization method will switch from Stochastic Gradient
         Descent (SGD) to newton updates after ``newt_start`` iterations. If ``False``,
@@ -89,7 +91,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of iterations before switching to Newton updates if ``do_newton`` is
         ``True``.
     newtrate : float, default=1.0
-        Maximum Newton learning rate.
+        lrate for newton iterations.
     w_init : ndarray of shape (``n_components``, ``n_components``), default=``None``
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.
@@ -109,8 +111,8 @@ class AMICA(TransformerMixin, BaseEstimator):
         Output mode during optimization:
 
         - ``0``: silent
-        - ``1``: compact Rich progress bar only
-        - ``2``: per-iteration FORTRAN-style logs only
+        - ``1``: progress bar
+        - ``2``: per-iteration FORTRAN-style
 
     Attributes
     ----------
