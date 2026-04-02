@@ -57,6 +57,7 @@ from amica.linalg import (
     pre_whiten,
 )
 from amica.state import (
+    AmicaAccumulators,
     AmicaConfig,
     AmicaState,
     IterationMetrics,
@@ -470,6 +471,60 @@ def optimize(
             total=config.max_iter,
             lrate=metrics.lrate,
         )
+    try:
+        return _optimize_loop(
+            X=X,
+            sldet=sldet,
+            wc=wc,
+            config=config,
+            state=state,
+            do_newton=do_newton,
+            leave=leave,
+            numdecs=numdecs,
+            numincs=numincs,
+            metrics=metrics,
+            accumulators=accumulators,
+            Dsum=Dsum,
+            Dsign=Dsign,
+            loglik=loglik,
+            LL=LL,
+            c_start=c_start,
+            c1=c1,
+            progress=progress,
+            task_id=task_id,
+            min_dll=min_dll,
+            min_nd=min_nd,
+        )
+    finally:
+        if progress is not None:
+            progress.stop()
+
+
+def _optimize_loop(
+        *,
+        X: DataTensor2D,
+        sldet: float,
+        wc: ParamsModelTensor,
+        config: AmicaConfig,
+        state: AmicaState,
+        do_newton: bool,
+        leave: bool,
+        numdecs: int,
+        numincs: int,
+        metrics: IterationMetrics,
+        accumulators: AmicaAccumulators,
+        Dsum: torch.Tensor,
+        Dsign: torch.Tensor,
+        loglik: torch.Tensor,
+        LL: torch.Tensor,
+        c_start: float,
+        c1: float,
+        progress,
+        task_id,
+        min_dll: float,
+        min_nd: float,
+):
+    """Run the AMICA optimization loop and return updated state and LL history."""
     while metrics.iter <= config.max_iter:
         accumulators.reset()
         loglik.fill_(0.0)
@@ -842,8 +897,6 @@ def optimize(
         if leave:
             c_end = time.time()
             log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
-            if progress is not None:
-                progress.stop()
             return state, LL
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
@@ -878,8 +931,6 @@ def optimize(
     )
     c_end = time.time()
     log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
-    if progress is not None:
-        progress.stop()
     return state, LL
 
 
