@@ -61,18 +61,18 @@ Generate Data and Load AMICA Results for Comparison
  .. code-block:: none
 
     Downloading data from 'https://github.com/scott-huberty/amica/releases/download/v0.6.0/test_output.tar.gz' to file '/home/circleci/amica_test_data/74cd649d03dc20d7b938945e84c7c5cd-test_output.tar.gz'.
-      0%|                                              | 0.00/4.82M [00:00<?, ?B/s]     71%|██████████████████████████▎          | 3.42M/4.82M [00:00<00:00, 34.0MB/s]      0%|                                              | 0.00/4.82M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.82M/4.82M [00:00<00:00, 15.8GB/s]
+      0%|                                              | 0.00/4.82M [00:00<?, ?B/s]      0%|                                              | 0.00/4.82M [00:00<?, ?B/s]    100%|█████████████████████████████████████| 4.82M/4.82M [00:00<00:00, 19.6GB/s]
     Untarring contents of '/home/circleci/amica_test_data/74cd649d03dc20d7b938945e84c7c5cd-test_output.tar.gz' to '/home/circleci/amica_test_data/.'
     Downloading data from 'https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_baboon' to file '/home/circleci/amica_test_data/photos/example2_baboon'.
-      0%|                                              | 0.00/66.1k [00:00<?, ?B/s]      0%|                                              | 0.00/66.1k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 66.1k/66.1k [00:00<00:00, 239MB/s]
+      0%|                                              | 0.00/66.1k [00:00<?, ?B/s]      0%|                                              | 0.00/66.1k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 66.1k/66.1k [00:00<00:00, 325MB/s]
     Downloading data from 'https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_cameraman' to file '/home/circleci/amica_test_data/photos/example2_cameraman'.
-      0%|                                              | 0.00/37.6k [00:00<?, ?B/s]      0%|                                              | 0.00/37.6k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 37.6k/37.6k [00:00<00:00, 106MB/s]
+      0%|                                              | 0.00/37.6k [00:00<?, ?B/s]      0%|                                              | 0.00/37.6k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 37.6k/37.6k [00:00<00:00, 184MB/s]
     Downloading data from 'https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_lena' to file '/home/circleci/amica_test_data/photos/example2_lena'.
-      0%|                                              | 0.00/67.4k [00:00<?, ?B/s]      0%|                                              | 0.00/67.4k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 67.4k/67.4k [00:00<00:00, 176MB/s]
+      0%|                                              | 0.00/67.4k [00:00<?, ?B/s]      0%|                                              | 0.00/67.4k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 67.4k/67.4k [00:00<00:00, 349MB/s]
     Downloading data from 'https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_mona' to file '/home/circleci/amica_test_data/photos/example2_mona'.
-      0%|                                              | 0.00/33.6k [00:00<?, ?B/s]      0%|                                              | 0.00/33.6k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 33.6k/33.6k [00:00<00:00, 124MB/s]
+      0%|                                              | 0.00/33.6k [00:00<?, ?B/s]      0%|                                              | 0.00/33.6k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 33.6k/33.6k [00:00<00:00, 205MB/s]
     Downloading data from 'https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_texture' to file '/home/circleci/amica_test_data/photos/example2_texture'.
-      0%|                                              | 0.00/17.9k [00:00<?, ?B/s]      0%|                                              | 0.00/17.9k [00:00<?, ?B/s]    100%|█████████████████████████████████████| 17.9k/17.9k [00:00<00:00, 64.0MB/s]
+      0%|                                              | 0.00/17.9k [00:00<?, ?B/s]      0%|                                              | 0.00/17.9k [00:00<?, ?B/s]    100%|██████████████████████████████████████| 17.9k/17.9k [00:00<00:00, 114MB/s]
 
 
 
@@ -813,6 +813,16 @@ Run AMICA and FastICA for comparison
 
             <tr class="default">
                 <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('newtrate',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">newtrate</td>
+                <td class="value">1.0</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
                      onclick="copyToClipboard('w_init',
                               this.parentElement.nextElementSibling)"
                 ></i></td>
@@ -1052,7 +1062,7 @@ Plot Results
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 23.505 seconds)
+   **Total running time of the script:** (0 minutes 14.311 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_toy.py:

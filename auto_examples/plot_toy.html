@@ -35,7 +35,7 @@
       <strong>AMICA-Python</strong>
     </a>
     <div class="sy-head-nav" id="head-nav">
-      <nav class="sy-head-links"><ul><li class="link"><a href="../about.html">About</a></li><li class="link"><a href="../install.html">Install</a></li><li class="link"><a href="../api/index.html">API</a></li><li class="link"><a href="index.html">Examples</a></li></ul></nav>
+      <nav class="sy-head-links"><ul><li class="link"><a href="../about.html">About</a></li><li class="link"><a href="../install.html">Install</a></li><li class="link"><a href="../api/index.html">API</a></li><li class="link"><a href="index.html">Examples</a></li><li class="link"><a href="../FAQ.html">FAQ</a></li></ul></nav>
       <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
   <input type="text" name="q" placeholder="Search" />
   <kbd>/</kbd>
@@ -67,6 +67,7 @@ data-aria-dark="Switch to auto color mode">
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../about.html">About</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../FAQ.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/AMICA.html">AMICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/functions.html">Functional API</a></li>
@@ -159,35 +160,34 @@ to download the full example code.</p>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Downloading data from &#39;https://github.com/scott-huberty/amica/releases/download/v0.6.0/test_output.tar.gz&#39; to file &#39;/home/circleci/amica_test_data/74cd649d03dc20d7b938945e84c7c5cd-test_output.tar.gz&#39;.
 </span><span data-line="2">
 </span><span data-line="3">  0%|                                              | 0.00/4.82M [00:00&lt;?, ?B/s]
-</span><span data-line="4"> 71%|██████████████████████████▎          | 3.42M/4.82M [00:00&lt;00:00, 34.0MB/s]
-</span><span data-line="5">  0%|                                              | 0.00/4.82M [00:00&lt;?, ?B/s]
-</span><span data-line="6">100%|█████████████████████████████████████| 4.82M/4.82M [00:00&lt;00:00, 15.8GB/s]
-</span><span data-line="7">Untarring contents of &#39;/home/circleci/amica_test_data/74cd649d03dc20d7b938945e84c7c5cd-test_output.tar.gz&#39; to &#39;/home/circleci/amica_test_data/.&#39;
-</span><span data-line="8">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_baboon&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_baboon&#39;.
-</span><span data-line="9">
+</span><span data-line="4">  0%|                                              | 0.00/4.82M [00:00&lt;?, ?B/s]
+</span><span data-line="5">100%|█████████████████████████████████████| 4.82M/4.82M [00:00&lt;00:00, 19.6GB/s]
+</span><span data-line="6">Untarring contents of &#39;/home/circleci/amica_test_data/74cd649d03dc20d7b938945e84c7c5cd-test_output.tar.gz&#39; to &#39;/home/circleci/amica_test_data/.&#39;
+</span><span data-line="7">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_baboon&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_baboon&#39;.
+</span><span data-line="8">
+</span><span data-line="9">  0%|                                              | 0.00/66.1k [00:00&lt;?, ?B/s]
 </span><span data-line="10">  0%|                                              | 0.00/66.1k [00:00&lt;?, ?B/s]
-</span><span data-line="11">  0%|                                              | 0.00/66.1k [00:00&lt;?, ?B/s]
-</span><span data-line="12">100%|██████████████████████████████████████| 66.1k/66.1k [00:00&lt;00:00, 239MB/s]
-</span><span data-line="13">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_cameraman&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_cameraman&#39;.
-</span><span data-line="14">
+</span><span data-line="11">100%|██████████████████████████████████████| 66.1k/66.1k [00:00&lt;00:00, 325MB/s]
+</span><span data-line="12">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_cameraman&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_cameraman&#39;.
+</span><span data-line="13">
+</span><span data-line="14">  0%|                                              | 0.00/37.6k [00:00&lt;?, ?B/s]
 </span><span data-line="15">  0%|                                              | 0.00/37.6k [00:00&lt;?, ?B/s]
-</span><span data-line="16">  0%|                                              | 0.00/37.6k [00:00&lt;?, ?B/s]
-</span><span data-line="17">100%|██████████████████████████████████████| 37.6k/37.6k [00:00&lt;00:00, 106MB/s]
-</span><span data-line="18">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_lena&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_lena&#39;.
-</span><span data-line="19">
+</span><span data-line="16">100%|██████████████████████████████████████| 37.6k/37.6k [00:00&lt;00:00, 184MB/s]
+</span><span data-line="17">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_lena&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_lena&#39;.
+</span><span data-line="18">
+</span><span data-line="19">  0%|                                              | 0.00/67.4k [00:00&lt;?, ?B/s]
 </span><span data-line="20">  0%|                                              | 0.00/67.4k [00:00&lt;?, ?B/s]
-</span><span data-line="21">  0%|                                              | 0.00/67.4k [00:00&lt;?, ?B/s]
-</span><span data-line="22">100%|██████████████████████████████████████| 67.4k/67.4k [00:00&lt;00:00, 176MB/s]
-</span><span data-line="23">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_mona&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_mona&#39;.
-</span><span data-line="24">
+</span><span data-line="21">100%|██████████████████████████████████████| 67.4k/67.4k [00:00&lt;00:00, 349MB/s]
+</span><span data-line="22">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_mona&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_mona&#39;.
+</span><span data-line="23">
+</span><span data-line="24">  0%|                                              | 0.00/33.6k [00:00&lt;?, ?B/s]
 </span><span data-line="25">  0%|                                              | 0.00/33.6k [00:00&lt;?, ?B/s]
-</span><span data-line="26">  0%|                                              | 0.00/33.6k [00:00&lt;?, ?B/s]
-</span><span data-line="27">100%|██████████████████████████████████████| 33.6k/33.6k [00:00&lt;00:00, 124MB/s]
-</span><span data-line="28">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_texture&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_texture&#39;.
-</span><span data-line="29">
+</span><span data-line="26">100%|██████████████████████████████████████| 33.6k/33.6k [00:00&lt;00:00, 205MB/s]
+</span><span data-line="27">Downloading data from &#39;https://github.com/marcromani/cocktail/raw/refs/heads/master/examples/data/example2_texture&#39; to file &#39;/home/circleci/amica_test_data/photos/example2_texture&#39;.
+</span><span data-line="28">
+</span><span data-line="29">  0%|                                              | 0.00/17.9k [00:00&lt;?, ?B/s]
 </span><span data-line="30">  0%|                                              | 0.00/17.9k [00:00&lt;?, ?B/s]
-</span><span data-line="31">  0%|                                              | 0.00/17.9k [00:00&lt;?, ?B/s]
-</span><span data-line="32">100%|█████████████████████████████████████| 17.9k/17.9k [00:00&lt;00:00, 64.0MB/s]
+</span><span data-line="31">100%|██████████████████████████████████████| 17.9k/17.9k [00:00&lt;00:00, 114MB/s]
 </span></pre></div>
 </div>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">x</span></a> <span class="o">=</span> <span class="n">amica</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">generate_toy_data</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span> <span class="n">noise_factor</span><span class="o">=</span><span class="mf">.05</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
@@ -894,6 +894,16 @@ a.param-doc-link::before {
 
         <tr class="default">
             <td><i class="copy-paste-icon"
+                 onclick="copyToClipboard('newtrate',
+                          this.parentElement.nextElementSibling)"
+            ></i></td>
+            <td class="param">newtrate</td>
+            <td class="value">1.0</td>
+        </tr>
+
+
+        <tr class="default">
+            <td><i class="copy-paste-icon"
                  onclick="copyToClipboard('w_init',
                           this.parentElement.nextElementSibling)"
             ></i></td>
@@ -1087,7 +1097,7 @@ forceTheme('sk-container-id-1');</script></body>
 </span><span data-line="8">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">1.1</span> <span class="o">*</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.max.html#numpy.max" title="numpy.max" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">max</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">v</span></a><span class="p">),</span> <span class="mf">1.1</span> <span class="o">*</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.max.html#numpy.max" title="numpy.max" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">max</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">v</span></a><span class="p">)])</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_toy_001.png" srcset="../_images/sphx_glr_plot_toy_001.png" alt="plot toy" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 23.505 seconds)</p>
+<img src="../_images/sphx_glr_plot_toy_001.png" srcset="../_images/sphx_glr_plot_toy_001.png" alt="plot toy" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 14.311 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-toy-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/58943cfe223a5fea72a0b5d6e65a335e/plot_toy.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_toy.ipynb</span></code></a></p>

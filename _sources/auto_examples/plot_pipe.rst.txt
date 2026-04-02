@@ -961,6 +961,16 @@ Fit
 
             <tr class="default">
                 <td><i class="copy-paste-icon"
+                     onclick="copyToClipboard('newtrate',
+                              this.parentElement.nextElementSibling)"
+                ></i></td>
+                <td class="param">newtrate</td>
+                <td class="value">1.0</td>
+            </tr>
+    
+
+            <tr class="default">
+                <td><i class="copy-paste-icon"
                      onclick="copyToClipboard('w_init',
                               this.parentElement.nextElementSibling)"
                 ></i></td>
@@ -1594,7 +1604,7 @@ Top positive / negative logistic weights
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (2 minutes 17.397 seconds)
+   **Total running time of the script:** (2 minutes 40.802 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_pipe.py:

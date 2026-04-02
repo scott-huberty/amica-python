@@ -29,5 +29,6 @@ AMICA-Python
 
       about
       install
+      FAQ
       api/index
       auto_examples/index
