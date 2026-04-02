@@ -3,7 +3,7 @@ outdir ./tests/eeglab_sample_data/amicaout_test/
 block_size 512
 data_dim 32
 field_dim 30504
-max_iter 200
+max_iter 500
 blk_min 256
 blk_step 256
 blk_max 1024
@@ -17,7 +17,7 @@ max_threads 1
 do_newton 1
 newt_start 50
 newt_ramp 10
-newtrate 1.0
+newtrate 1
 lrate 0.05
 rholrate 0.05
 lratefact 0.5
@@ -63,7 +63,7 @@ update_alpha 1
 update_mu 1
 update_beta 1
 invsigmax 100.0
-invsigmin 0.0
+invsigmin 1e-08
 do_rho 1
 load_rej 0
 load_W 0

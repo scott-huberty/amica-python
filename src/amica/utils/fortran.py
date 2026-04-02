@@ -1,5 +1,7 @@
 """Utilities for interfacing with Fortran AMICA outputs."""
-from dataclasses import asdict, dataclass, fields
+import inspect
+from dataclasses import MISSING, asdict, dataclass, fields
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -162,8 +164,74 @@ def load_data(filename, *, dtype=np.float32, shape=None):
     return data
 
 
+@lru_cache(maxsize=1)
+def _get_fortran_param_defaults():
+    """Collect Fortran parameter defaults aligned with AMICA-Python."""
+    defaults = {}
+    for field in fields(FortranParams):
+        if field.default is not MISSING:
+            defaults[field.name] = field.default
 
-def write_param_file(fpath, *, files, outdir, data, **kwargs):
+    # Public API defaults from fit_amica.
+    from amica.core import fit_amica
+
+    fit_defaults = {
+        name: param.default
+        for name, param in inspect.signature(fit_amica).parameters.items()
+        if param.default is not inspect.Signature.empty
+    }
+    fit_to_fortran = {
+        "max_iter": "max_iter",
+        "n_models": "num_models",
+        "n_mixtures": "num_mix_comps",
+        "lrate": "lrate",
+        "rholrate": "rholrate",
+        "pdftype": "pdftype",
+        "do_newton": "do_newton",
+        "newt_start": "newt_start",
+        "newtrate": "newtrate",
+        "newt_ramp": "newt_ramp",
+        "do_reject": "do_reject",
+    }
+    for fit_key, fortran_key in fit_to_fortran.items():
+        if fit_key in fit_defaults:
+            defaults[fortran_key] = fit_defaults[fit_key]
+
+    # Internal defaults from constants.py.
+    from amica import constants as c
+
+    const_to_fortran = {
+        "lratefact": "lratefact",
+        "rholratefact": "rholratefact",
+        "use_min_dll": "use_min_dll",
+        "use_grad_norm": "use_grad_norm",
+        "min_dll": "min_dll",
+        "min_nd": "min_grad_norm",
+        "do_opt_block": "do_opt_block",
+        "mineig": "mineig",
+        "minlrate": "minlrate",
+        "rho0": "rho0",
+        "minrho": "minrho",
+        "maxrho": "maxrho",
+        "invsigmax": "invsigmax",
+        "invsigmin": "invsigmin",
+        "dorho": "do_rho",
+        "doscaling": "doscaling",
+        "maxdecs": "max_decs",
+        "share_comps": "share_comps",
+        "share_start": "share_start",
+        "share_iter": "share_iter",
+        "outstep": "writestep",
+        "fix_init": "fix_init",
+    }
+    for const_key, fortran_key in const_to_fortran.items():
+        if hasattr(c, const_key):
+            defaults[fortran_key] = getattr(c, const_key)
+
+    return defaults
+
+
+def write_param_file(fpath, data, **kwargs):
     """Write a Fortran AMICA parameter file.
 
     Parameters
@@ -173,7 +241,8 @@ def write_param_file(fpath, *, files, outdir, data, **kwargs):
     data : np.ndarray
         The data array to write to the file.
     **kwargs : dict
-        Additional parameters to write to the file.
+        Additional parameters to write to the file. ``files`` and ``outdir`` are
+        required and should be passed via kwargs.
 
     Returns
     -------
@@ -181,25 +250,25 @@ def write_param_file(fpath, *, files, outdir, data, **kwargs):
         The path to the saved parameter file.
     """
     fpath = Path(fpath).expanduser().resolve()
+    missing = [key for key in ("files", "outdir") if key not in kwargs]
+    if missing:
+        missing_joined = ", ".join(missing)
+        raise ValueError(
+            f"Missing required parameter(s): {missing_joined}. Pass them via kwargs."
+        )
 
-    kwargs["files"] = files
-    kwargs["outdir"] = outdir
-    if "data_dim" not in kwargs:
-        kwargs["data_dim"] = data.shape[1]
-    if "field_dim" not in kwargs:
-        kwargs["field_dim"] = data.shape[0]
-    if "block_size" not in kwargs:
-        kwargs["block_size"] = data.shape[0]
-    if "pcakeep" not in kwargs:
-        kwargs["pcakeep"] = data.shape[1]
+    merged = {**_get_fortran_param_defaults(), **kwargs}
+    merged.setdefault("data_dim", data.shape[1])
+    merged.setdefault("field_dim", data.shape[0])
+    merged.setdefault("block_size", data.shape[0])
+    merged.setdefault("pcakeep", data.shape[1])
 
-    params = FortranParams(**kwargs)
+    params = FortranParams(**merged)
     params_dict = params.to_param_dict()
 
-    with open(fpath, "w") as f:
-        for key, value in params_dict.items():
-            f.write(f"{key} {value}\n")
+    fpath.write_text("".join(f"{key} {value}\n" for key, value in params_dict.items()))
     return fpath, params
+
 
 @dataclass
 class FortranParams:
@@ -212,7 +281,7 @@ class FortranParams:
     block_size:     int
     data_dim:       int  # n_features
     field_dim:      int # n_samples
-    max_iter:       int = 200
+    max_iter:       int = 500
     blk_min:        int | None = None
     blk_step:       int | None = None
     blk_max:        int | None = None
@@ -238,7 +307,7 @@ class FortranParams:
     rholratefact:   float = 0.500000
     # Convergence
     use_min_dll:    int | bool = 1
-    min_dll:        int = 1.000000e-09
+    min_dll:        float = 1.000000e-09
     use_grad_norm:  int = 1
     min_grad_norm:  float = 1.000000e-07
     # Misc.
@@ -280,8 +349,8 @@ class FortranParams:
     update_alpha:   int = 1
     update_mu:      int = 1
     update_beta:    int = 1
-    invsigmax:      float =100.000000
-    invsigmin:      float =0.000000
+    invsigmax:      float = 100.000000
+    invsigmin:      float = 1.0e-08
     do_rho:         int = 1
     # Debugging
     load_rej:       int = 0
