@@ -472,7 +472,7 @@ def optimize(
             lrate=metrics.lrate,
         )
     try:
-        return _optimize_loop(
+        return _main_loop(
             X=X,
             sldet=sldet,
             wc=wc,
@@ -500,7 +500,7 @@ def optimize(
             progress.stop()
 
 
-def _optimize_loop(
+def _main_loop(
         *,
         X: DataTensor2D,
         sldet: float,
