@@ -520,12 +520,10 @@ def _main_loop(
         # !----- get determinants
         # The Fortran code computed log|det(W)| indirectly via QR factorization
         # We use slogdet on the original unmixing matrix to get sign and log|det|
-        sign, logabsdet = compute_sign_log_determinant(
+        _, Dsum = compute_sign_log_determinant(
             unmixing_matrix=state.W,
             minlog=minlog,
         )
-        Dsum = logabsdet
-        Dsign = sign
 
         if config.do_reject:
             raise NotImplementedError()  # pragma: no cover
@@ -1070,8 +1068,6 @@ def update_params(
         wc,
 ):
     """Update learnable ICA Parameters, and learning rates."""
-    nw = config.n_components
-
     # if (seg_rank == 0) then
     # if update_gm:
     if config.do_reject:
