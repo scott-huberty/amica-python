@@ -98,15 +98,15 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
         mean = transformer.mean_
         S = transformer.whitening_
         A = S @ transformer.mixing_  # mixing_ is in feature space.
-        W = transformer._unmixing[:, :, None] # Expand dims to match Fortran shape
+        W = transformer._unmixing
 
     LL_f = fortran_results["LL"]        # Log-likelihood
     mean_f = fortran_results["mean"]    # Channel means
     S_f = fortran_results["S"]          # Sphering matrix
     A_f = fortran_results["A"]          # Mixing matrix
-    W_f = fortran_results["W"]          # Unmixing matrix
+    W_f = fortran_results["W"][:, :, 0] # Unmixing matrix (single model)
     gm_f = fortran_results["gm"]        # Model weights
-    c_f = fortran_results["c"]          # Bias term
+    c_f = fortran_results["c"][:, 0]    # Bias term
     alpha_f = fortran_results["alpha"]  # Mixture model parameters
     sbeta_f = fortran_results["sbeta"]  # Scale parameters
     mu_f = fortran_results["mu"]        # Location parameters
@@ -177,7 +177,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
         X_sphered = X_centered @ S
 
         # 3. Apply ICA unmixing (this is the key step)
-        sources = X_sphered @ W[:, :, 0]  # For single model, use W[:,:,0]
+        sources = X_sphered @ W
 
         return sources
 
@@ -237,7 +237,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
     assert np.all(fortran_results["mean"] == 0)
     # Unpack Fortran results
     A_f = fortran_results["A"]
-    W_f = fortran_results["W"]
+    W_f = fortran_results["W"][:, :, 0]
     alpha_f = fortran_results["alpha"]
     sbeta_f = fortran_results["sbeta"]
     mu_f = fortran_results["mu"]
@@ -279,7 +279,7 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
         transformer.fit(x)
         S = transformer.whitening_
         A = S @ transformer.mixing_  # put mixing_ from feature space to sphered space
-        W = transformer._unmixing[:, :, None]  # Expand dims to match Fortran shape
+        W = transformer._unmixing
 
     assert_allclose(A, A_f, rtol=0.1)
     assert_allclose(W, W_f, rtol=0.1)
@@ -349,7 +349,7 @@ def test_reconstruction():
     modout = fit_amica(X, n_components=3, random_state=0)
     S = modout["S"] # whitening matrix shape (3, 3)
     A = modout["A"] # mixing matrix (3, 3)
-    W = modout["W"][:, :, 0] # unmixing matrix (3, 3)
+    W = modout["W"] # unmixing matrix (3, 3)
     mean = modout["mean"] # feature means (3,)
 
     # We can prove that the ICA model applies by reverting the unmixing.
@@ -469,7 +469,7 @@ def test_sklearn_tutorial_data(do_newton, sklearn_example_data):
     mean_py = modout["mean"] # feature means (3,)
     S_py = modout["S"] # whitening matrix shape (3, 3)
     A_py = modout["A"] # mixing matrix (3, 3)
-    W_py = modout["W"][:, :, 0] # unmixing matrix (3, 3)
+    W_py = modout["W"] # unmixing matrix (3, 3)
 
     # Load Fortran results
     sub_dir = "newton" if do_newton else "SGD"

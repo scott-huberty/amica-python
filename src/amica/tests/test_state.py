@@ -10,7 +10,7 @@ def state():
     cfg = AmicaConfig(
         n_features=3,
         n_components=3,
-        n_models=2,
+        n_models=1,
         n_mixtures=2,
         batch_size=4,
     )

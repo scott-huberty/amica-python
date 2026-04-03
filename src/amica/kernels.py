@@ -36,7 +36,7 @@ def compute_preactivations(
     unmixing_matrix : array, shape (n_components, n_features)
         Unmixing matrix weights (W) for a single model h, that maps data to sources.
     bias : array, shape (n_components,)
-        Weight correction (wc) vector for model h e.g. wc[:, h_index]
+        Weight correction vector (wc) for the active model.
     do_reject : bool
         Whether to perform rejection. Currently not implemented.
     n_weights : int, optional
@@ -99,7 +99,6 @@ def compute_source_densities(
         mu: ParamsArray,
         alpha: ParamsArray,
         rho: ParamsArray,
-        comp_slice: slice, # TODO: pass in the pre-indexed arrays instead
         ) -> tuple[SourceArray3D, SourceArray3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
@@ -123,8 +122,6 @@ def compute_source_densities(
         Mixture weights. Shape (n_components, n_mixtures). Not modified.
     rho : np.ndarray
         Shape parameters. Shape (n_components, n_mixtures). Not modified.
-    comp_slice : slice
-        slice containing component indices for the current model.
     out_sources : np.ndarray
         Buffer to write scaled sources into. Shape (n_samples, n_components,
         n_mixtures).
@@ -212,15 +209,9 @@ def compute_source_densities(
         #--------------------------FORTRAN CODE-------------------------
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,...
         #---------------------------------------------------------------
-        # 1. Select the components for this model.
-        alpha_h = alpha[comp_slice, :]
-        rho_h = rho[comp_slice, :] # All mixtures, components for this model
-        sbeta_h = sbeta[comp_slice, :]      # Shape: (nw, num_mix)
-        mu_h = mu[comp_slice, :]            # Shape: (nw, num_mix)
-
         # 1. Center and scale the source estimates (In-place)
-        out_sources = torch.subtract(b[:, :, None], mu_h[None, :, :])
-        torch.multiply(sbeta_h, out_sources, out=out_sources)
+        out_sources = torch.subtract(b[:, :, None], mu[None, :, :])
+        torch.multiply(sbeta, out_sources, out=out_sources)
 
         #------------------Mixture Log-Likelihood for each component----------------
 
@@ -230,8 +221,8 @@ def compute_source_densities(
         # z0(bstrt:bstp,j) = log(alpha(j,comp_list(i,h))) + ...
         #---------------------------------------------------------------
         # Precompute logs (reused in all 3 logprob functions)
-        log_mixture_weights = torch.log(alpha_h)  # shape: (nw, num_mix)
-        log_scales = torch.log(sbeta_h)           # shape: (nw, num_mix)
+        log_mixture_weights = torch.log(alpha)  # shape: (nw, num_mix)
+        log_scales = torch.log(sbeta)           # shape: (nw, num_mix)
         if torch.any(~torch.isfinite(log_mixture_weights)):
             raise RuntimeError("Non-finite log mixture weights encountered.")
         if torch.any(~torch.isfinite(log_scales)):
@@ -239,11 +230,13 @@ def compute_source_densities(
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
         lap_mask = torch.isclose(
-            rho_h, torch.tensor(1.0, dtype=torch.float64), atol=1e-12
+            rho, torch.tensor(1.0, dtype=torch.float64), atol=1e-12
             )
 
         gau_mask = (
-            torch.isclose(rho_h, torch.tensor(2.0, dtype=torch.float64), atol=1e-12)
+            torch.isclose(
+                rho, torch.tensor(2.0, dtype=torch.float64), atol=1e-12
+            )
             )
 
         # Default: generalized Gaussian log-prob + log mixture weight
@@ -253,7 +246,7 @@ def compute_source_densities(
             sources=out_sources,
             log_alpha=log_mixture_weights,
             log_sbeta=log_scales,
-            rho=rho_h,
+            rho=rho,
         )
         assert out_logits.shape == (N1, nw, num_mix)
         # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
@@ -519,20 +512,20 @@ def compute_weighted_responsibilities(
     """
     # Alias for clarity with Fortran code
     z = mixture_responsibilities
-    v_h = model_responsibilities
+    model_resps = model_responsibilities
 
 
     assert z.ndim == 3, f"z must be 3D, got {z.ndim}D"
-    assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
-    assert z.shape[0] == v_h.shape[0], (
-        f"z.shape[0]={z.shape[0]} != v_h.shape[0]={v_h.shape[0]}"
+    assert model_resps.ndim == 1, f"model_resps must be 1D, got {model_resps.ndim}D"
+    assert z.shape[0] == model_resps.shape[0], (
+        f"z.shape[0]={z.shape[0]} != model_resps.shape[0]={model_resps.shape[0]}"
     )
     # fast-path: for num_models == 1, v is all ones and thus u == z
     if single_model:
         return z  # NOTE: returns a view of z, no copy
     else:
         # Weight mixture responsibilities by model responsibility
-        u = v_h[:, None, None] * z  # shape: (n_samples, nw, num_mix)
+        u = model_resps[:, None, None] * z  # shape: (n_samples, nw, num_mix)
     return u
 
 
@@ -541,7 +534,6 @@ def compute_source_scores(
         pdftype: int,
         y: SourceArray3D,
         rho: ParamsArray,
-        comp_slice: slice,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
@@ -555,8 +547,6 @@ def compute_source_scores(
         n_mixtures). Not modified.
     rho : np.ndarray
         Shape parameters of shape (n_components, n_mixtures). Not modified.
-    comp_slice : slice
-        Slice object containing component indices for the current model.
 
     Returns
     -------
@@ -583,22 +573,19 @@ def compute_source_scores(
         # fp(bstrt:bstp) = rho(j,comp_list(i,h)) * sign(dble(1.0),y(bstrt:bstp,i,j,h)...
         #-------------------------------------------------------------------------------
 
-        # Get components for this model
-        rho_h = rho[comp_slice, :]
-
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = (torch.isclose(rho_h, torch.tensor(1.0), atol=1e-12))
-        gau_mask = (torch.isclose(rho_h, torch.tensor(2.0), atol=1e-12))
+        lap_mask = (torch.isclose(rho, torch.tensor(1.0), atol=1e-12))
+        gau_mask = (torch.isclose(rho, torch.tensor(2.0), atol=1e-12))
 
         # Default: generalized Gaussian score function
-        # Step 1. Compute |y|^(rho_h - 1) in-place
+        # Step 1. Compute |y|^(rho - 1) in-place
         out_scores = torch.abs(y)                  # out_scores = |y|
         torch.log(out_scores, out=out_scores)         # log(|y|)
-        torch.multiply(rho_h - 1.0, out_scores, out=out_scores)
-        torch.exp(out_scores, out=out_scores)         # |y|^(rho_h - 1)
+        torch.multiply(rho - 1.0, out_scores, out=out_scores)
+        torch.exp(out_scores, out=out_scores)         # |y|^(rho - 1)
 
-        # Step 2. Multiply by rho_h and sign(y) without np.sign allocation
-        out_scores *= rho_h * torch.where(y >= 0, 1.0, -1.0)
+        # Step 2. Multiply by rho and sign(y) without np.sign allocation
+        out_scores *= rho * torch.where(y >= 0, 1.0, -1.0)
 
         # Overwrite with Laplacian/Gaussian score function where needed
         # This is usually a small loop, and ensures we get a view of the arrays
@@ -1152,13 +1139,15 @@ def accumulate_sigma2_stats(
     not necessary.
     """
     # Alias for clarity with Fortran code
-    v_h = model_responsibilities
+    model_resps = model_responsibilities
     b = source_estimates
-    assert v_h.ndim == 1, f"v_h must be 1D, got {v_h.ndim}D"
+    assert model_resps.ndim == 1, (
+        f"model_resps must be 1D, got {model_resps.ndim}D"
+    )
     assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
-    assert b.shape[0] == v_h.shape[0], (
-        f"samples dimension mismatch {b.shape[0]} != {v_h.shape[0]}"
+    assert b.shape[0] == model_resps.shape[0], (
+        f"samples dimension mismatch {b.shape[0]} != {model_resps.shape[0]}"
     )
     #--------------------------FORTRAN CODE-------------------------
     # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
@@ -1167,8 +1156,8 @@ def accumulate_sigma2_stats(
     # dsigma2_denom_tmp(i,h) = dsigma2_denom_tmp(i,h) + vsum
     #---------------------------------------------------------------
     # weighted column-wise sum of squares: (s=n_samples, i=n_components)
-    # Same as torch.einsum('s,si,si->i', v_h, b, b)
-    out_numer += v_h @ (b**2)
+    # Same as torch.einsum('s,si,si->i', model_resps, b, b)
+    out_numer += model_resps @ (b**2)
     out_denom += vsum
     return out_numer, out_denom
 

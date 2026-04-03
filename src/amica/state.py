@@ -56,15 +56,15 @@ class AmicaConfig:
 class AmicaState:
     """Persistent model parameters/state.
 
-    Arrays follow shapes consistent with the Fortran port:
-    - W:  (ncomp, n_feature, nmix)   unmixing matrices per mixture
-    - A:  (n_feature, ncomp, nmix)   mixing matrices per mixture (often inv(W))
-    - c: (ncomp, n_models)       bias (offset) terms per component and model.
+    Arrays follow shapes for AMICA-Python's single-model path:
+    - W:  (ncomp, n_feature)      unmixing matrix
+    - A:  (n_feature, ncomp)      mixing matrix (often inv(W))
+    - c:  (ncomp,)                bias (offset) terms per component.
     - mu: (ncomp, nmix)          location parameters per component and mixture
     - sbeta: (ncomp, nmix)       scale parameters per component and mixture
     - rho: (ncomp, nmix)         shape parameters per component and mixture
     - alpha: (ncomp, nmix)       mixing coefficients per component and mixture
-    - gm: (n_models,)                mixture weights (prior over models)
+    - gm: (1,)                    mixture weights (prior over models)
     """
 
     W: NDArray
@@ -119,7 +119,7 @@ class AmicaAccumulators:
     - dbeta_numer/denom: (ncomp, nmix)
     - dalpha_numer/denom: (ncomp, nmix)
     - drho_numer/denom: (ncomp, nmix)
-    - dgm_numer:       (nmix,)
+    - dgm_numer:       (1,)
     - dsigma2_numer/denom, dc_numer/denom, etc. can be added as needed.
     """
 
@@ -190,10 +190,10 @@ class AmicaNewtonAccumulators:
     """Additional accumulators for Newton updates.
 
     Shapes:
-    - dbaralpha_numer/denom: (n_components, n_mixtures, n_models)
-    - dkappa_numer/denom: (n_components, n_mixtures, n_models)
-    - dlambda_numer/denom: (n_components, n_mixtures, n_models)
-    - dsigma2_numer/denom: (n_components, n_mixtures, n_models)
+    - dbaralpha_numer/denom: (n_components, n_mixtures)
+    - dkappa_numer/denom: (n_components, n_mixtures)
+    - dlambda_numer/denom: (n_components, n_mixtures)
+    - dsigma2_numer/denom: (n_components,)
     """
 
     dbaralpha_numer: NDArray
@@ -271,19 +271,17 @@ def get_initial_state(
     Initialize arrays following the same patterns as amica.py.
     """
     num_comps = cfg.n_components  # Match amica.py variable names
-    num_models = cfg.n_models
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
 
-    # W - match amica.py: W = np.zeros((num_comps, num_comps, num_models))
-    # Weights for each model
-    W = torch.empty((num_comps, num_comps, num_models), dtype=dtype)
+    # Single-model W
+    W = torch.empty((num_comps, num_comps), dtype=dtype)
     assert W.dtype == torch.float64
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))
     A = torch.zeros((num_comps, num_comps), dtype=dtype)
 
-    c = torch.zeros((num_comps, num_models), dtype=dtype)  # Bias terms per component
+    c = torch.zeros((num_comps,), dtype=dtype)  # Bias terms per component
     # sbeta, mu, rho - match amica.py patterns
     sbeta = torch.empty((num_comps, num_mix), dtype=dtype)
     mu = torch.zeros((num_comps, num_mix), dtype=dtype)
@@ -294,7 +292,7 @@ def get_initial_state(
     # Initialize alpha (mixing coefficients)
     alpha = torch.zeros((num_comps, num_mix), dtype=dtype)
 
-    gm = torch.full(fill_value=1.0 / num_models, size=(num_models,), dtype=dtype)
+    gm = torch.ones((1,), dtype=dtype)
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 
@@ -302,7 +300,6 @@ def get_initial_state(
 def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     """Allocate zeroed update accumulators with shapes from the config."""
     num_comps = cfg.n_components
-    num_models = cfg.n_models
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
     do_newton = cfg.do_newton
@@ -310,7 +307,7 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     device = cfg.device
 
     # Match amica.py initialization patterns
-    dgm_numer = torch.zeros(num_models, dtype=dtype, device=device)
+    dgm_numer = torch.zeros((1,), dtype=dtype, device=device)
 
     # Update accumulators - standardized: (num_comps, num_mix) shape
     dmu_numer = torch.zeros(shape_2, dtype=dtype, device=device)
@@ -325,29 +322,28 @@ def initialize_accumulators(cfg: AmicaConfig) -> AmicaAccumulators:
     drho_numer = torch.zeros(shape_2, dtype=dtype, device=device)
     drho_denom = torch.zeros(shape_2, dtype=dtype, device=device)
 
-    dc_numer = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
-    dc_denom = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
+    dc_numer = torch.zeros((num_comps,), dtype=dtype, device=device)
+    dc_denom = torch.zeros((num_comps,), dtype=dtype, device=device)
 
     # Derivative of A
-    dA = torch.zeros((num_comps, num_comps, num_models), dtype=dtype, device=device)
+    dA = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)
     dAK = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)
 
     if do_newton:
         # NOTE: Amica authors gave newton arrays 3 dims, but gradient descent 2 dims
-        shape_3 = (num_comps, num_mix, num_models)
+        shape_2 = (num_comps, num_mix)
 
-        dbaralpha_numer = torch.zeros(shape_3, dtype=dtype, device=device)
-        dbaralpha_denom = torch.zeros(shape_3, dtype=dtype, device=device)
+        dbaralpha_numer = torch.zeros(shape_2, dtype=dtype, device=device)
+        dbaralpha_denom = torch.zeros(shape_2, dtype=dtype, device=device)
 
-        dkappa_numer = torch.zeros(shape_3, dtype=dtype, device=device)
-        dkappa_denom = torch.zeros(shape_3, dtype=dtype, device=device)
+        dkappa_numer = torch.zeros(shape_2, dtype=dtype, device=device)
+        dkappa_denom = torch.zeros(shape_2, dtype=dtype, device=device)
 
-        dlambda_numer = torch.zeros(shape_3, dtype=dtype, device=device)
-        dlambda_denom = torch.zeros(shape_3, dtype=dtype, device=device)
+        dlambda_numer = torch.zeros(shape_2, dtype=dtype, device=device)
+        dlambda_denom = torch.zeros(shape_2, dtype=dtype, device=device)
 
-        # These are 2D in the Fortran code, which actually uses nw x num_models
-        dsigma2_numer = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
-        dsigma2_denom = torch.zeros((num_comps, num_models), dtype=dtype, device=device)
+        dsigma2_numer = torch.zeros((num_comps,), dtype=dtype, device=device)
+        dsigma2_denom = torch.zeros((num_comps,), dtype=dtype, device=device)
 
         newton = AmicaNewtonAccumulators(
             dbaralpha_numer=dbaralpha_numer,
