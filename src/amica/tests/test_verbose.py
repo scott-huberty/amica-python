@@ -58,3 +58,14 @@ def test_sklearn_verbose(monkeypatch):
     est.fit(X, verbose=0)
 
     assert captured == [2, 0]
+    assert est.n_iter_ == 1
+    assert np.array_equal(est.ll_, np.array([1.0]))
+    assert est.mu_.shape == (3, 3)
+    assert est.sbeta_.shape == (3, 3)
+    assert est.rho_.shape == (3, 3)
+    assert est.alpha_.shape == (3, 3)
+    assert est.c_.shape == (3,)
+    assert est.locations_ is est.mu_
+    assert est.scales_ is est.sbeta_
+    assert est.shapes_ is est.rho_
+    assert est.mixture_weights_ is est.alpha_
