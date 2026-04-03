@@ -68,6 +68,7 @@ transformer = AMICA(
         w_init=initial_weights,
         sbeta_init=initial_scales,
         mu_init=initial_locations,
+        verbose=2
 )
 transformer.fit(data)
 
