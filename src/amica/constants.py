@@ -3,7 +3,7 @@ import numpy as np
 
 fix_init = False
 do_approx_sphere = False
-mineig = 1.0e-12
+mineig = 1.0e-15
 minlog = -1500          # XXX: -np.inf ?
 epsdble = 1.0e-16
 lratefact = 0.5         # multiplicative factor by which to decrease lrate

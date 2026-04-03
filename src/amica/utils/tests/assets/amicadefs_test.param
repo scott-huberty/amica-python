@@ -38,7 +38,7 @@ share_start 100
 comp_thresh 0.99
 share_iter 100
 minlrate 1e-08
-mineig 1e-12
+mineig 1e-15
 rho0 1.5
 minrho 1.0
 maxrho 2.0
