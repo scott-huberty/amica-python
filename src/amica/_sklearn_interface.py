@@ -226,7 +226,6 @@ class AMICA(TransformerMixin, BaseEstimator):
             n_mixtures=self.n_mixtures,
             batch_size=self.batch_size,
             device=self.device,
-            n_models=self.n_models,
             mean_center=self.mean_center,
             whiten=self.whiten,
             max_iter=self.max_iter,
@@ -249,7 +248,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.n_features_in_ = X.shape[1]
         self.n_iter_ = np.count_nonzero(fit_dict['LL'])
         self.whitening_ = fit_dict["S"][:self.n_components, :]
-        self._unmixing = fit_dict['W'][:, :, 0]
+        self._unmixing = fit_dict['W']
         self.components_ = self._unmixing @ self.whitening_
         self.mixing_ = np.linalg.pinv(self.whitening_) @ fit_dict["A"]
         return self

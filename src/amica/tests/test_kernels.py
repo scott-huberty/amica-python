@@ -26,8 +26,8 @@ torch.set_default_dtype(torch.float64)
 # compute_preactivations
 data_dir = Path(__file__).parent / "data"
 data_batch = torch.from_numpy(np.load(data_dir / "data_batch.npy"))
-wc = torch.from_numpy(np.load(data_dir / "wc.npy"))
-W = torch.from_numpy(np.load(data_dir / "W.npy"))
+wc = torch.from_numpy(np.load(data_dir / "wc.npy"))[:, 0]
+W = torch.from_numpy(np.load(data_dir / "W.npy"))[:, :, 0]
 
 # compute_source_densities
 b = torch.from_numpy(np.load(data_dir / "b.npy"))
@@ -62,10 +62,10 @@ u = torch.from_numpy(np.load(data_dir / "u.npy"))
 def test_loaded_data(data_batch, wc, W):
     """Test that the loaded data is correct."""
     assert data_batch.size() == (93, 32)
-    assert wc.size() == (32, 1)
-    assert W.size() == (32, 32, 1)
+    assert wc.size() == (32,)
+    assert W.size() == (32, 32)
     assert_allclose(data_batch[:3, 0], [-0.18746214, -0.15889934, -0.05030178])
-    assert_allclose(W.numpy()[0, :2, 0], [1.0000898174008426, -0.0032845277326563212])
+    assert_allclose(W.numpy()[0, :2], [1.0000898174008426, -0.0032845277326563212])
     assert_allclose(wc, 0)
 
 
@@ -74,8 +74,8 @@ def test_compute_preactivations(data_batch, wc, W):
     """Test the compute_preactivations function."""
     b = compute_preactivations(
         X=data_batch,
-        unmixing_matrix=W[:, :, 0],
-        bias=wc[:, 0],
+        unmixing_matrix=W,
+        bias=wc,
     )
     assert b.size() == data_batch.size()
     assert_allclose(b[0, :2], [-0.18617958842145835,  0.43923809859505])
@@ -91,7 +91,6 @@ def test_compute_source_densities(b, alpha, sbeta, mu, rho):
         mu=mu,
         rho=rho,
         pdftype=0,
-        comp_slice=slice(None, None),
     )
     assert log_p.size() == (93, 32, 3)
     assert responsibilities.size() == (93, 32, 3)
@@ -154,7 +153,7 @@ def test_compute_weighted_responsibilities(z, v):
 def test_compute_source_scores(y, rho):
     """Test the compute_source_scores function."""
     fp = compute_source_scores(
-        y=y, rho=rho, pdftype=0, comp_slice=slice(None, None)
+        y=y, rho=rho, pdftype=0
         )
     assert fp.size() == (93, 32, 3)
     assert_allclose(fp[:2, 0, 0], [1.3303084860977532, 1.3471862364681724])

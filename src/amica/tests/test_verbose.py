@@ -39,14 +39,14 @@ def test_sklearn_verbose(monkeypatch):
         return {
             "mean": np.zeros(n_features),
             "S": np.eye(n_features),
-            "W": np.eye(n_components)[:, :, None],
+            "W": np.eye(n_components),
             "A": np.eye(n_components),
             "LL": np.array([1.0, 0.0]),
             "gm": np.array([1.0]),
             "mu": np.zeros((n_components, kwargs["n_mixtures"])),
             "rho": np.zeros((n_components, kwargs["n_mixtures"])),
             "sbeta": np.ones((n_components, kwargs["n_mixtures"])),
-            "c": np.zeros((n_components, kwargs["n_models"])),
+            "c": np.zeros((n_components,)),
             "alpha": np.ones((n_components, kwargs["n_mixtures"])),
         }
 

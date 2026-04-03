@@ -14,38 +14,29 @@ def get_unmixing_matrices(
         *,
         c,
         A,
-        comp_slice: slice,
         W,
-        num_models,
         ):
     """Get unmixing matrices for AMICA."""
     wc = torch.zeros_like(c)
-    for h, _ in enumerate(range(num_models), start=1):
+    #--------------------------FORTRAN CODE-------------------------
+    # call DCOPY(nw*nw,A(:,comp_list(:,h)),1,W(:,:,h),1)
+    #---------------------------------------------------------------
+    W[:, :] = A[:, :].clone()
 
-        #--------------------------FORTRAN CODE-------------------------
-        # call DCOPY(nw*nw,A(:,comp_list(:,h)),1,W(:,:,h),1)
-        #---------------------------------------------------------------
-        # TODO: assign on the fly without passing in W
-        W[:, :, h - 1] = A[:, comp_slice].clone()
+    #--------------------------FORTRAN CODE-------------------------
+    # call DGETRF(nw,nw,W(:,:,h),nw,ipivnw,info)
+    # call DGETRI(nw,W(:,:,h),nw,ipivnw,work,lwork,info)
+    #---------------------------------------------------------------
+    try:
+        W[:, :] = torch.linalg.inv(W[:, :])
+    except RuntimeError as e:
+        log("Matrix W is singular!")
+        raise e
 
-
-        #--------------------------FORTRAN CODE-------------------------
-        # call DGETRF(nw,nw,W(:,:,h),nw,ipivnw,info)
-        # call DGETRI(nw,W(:,:,h),nw,ipivnw,work,lwork,info)
-        #---------------------------------------------------------------
-        try:
-            W[:, :, h - 1] = torch.linalg.inv(W[:, :, h - 1])
-        except RuntimeError as e:
-            # This issue would originate with matrix A
-            # we should review the code and provide a more user friendly error message
-            # if A is singular. e.g. the "weights matrix is singular or something"
-            log(f"Matrix W[:,:,{h-1}] is singular!")
-            raise e
-
-        #--------------------------FORTRAN CODE-------------------------
-        # call DGEMV('N',nw,nw,dble(1.0),W(:,:,h),nw,c(:,h),1,dble(0.0),wc(:,h),1)
-        #---------------------------------------------------------------
-        wc[:, h - 1] = W[:, :, h - 1] @ c[:, h - 1]
+    #--------------------------FORTRAN CODE-------------------------
+    # call DGEMV('N',nw,nw,dble(1.0),W(:,:,h),nw,c(:,h),1,dble(0.0),wc(:,h),1)
+    #---------------------------------------------------------------
+    wc[:] = W[:, :] @ c[:]
 
     return W, wc
 

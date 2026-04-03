@@ -41,6 +41,7 @@ load_rho = False        # Unused
 load_c = False          # Unused
 load_alpha = False      # Unused
 do_opt_block = False    # Unused
+num_models = 1          # AMICA-Python currently supports one ICA model
 
 LOG_2 = np.log(2.0).item()
 LOG_SQRT_PI = np.log(np.sqrt(np.pi)).item()
