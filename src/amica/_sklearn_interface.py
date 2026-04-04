@@ -132,6 +132,26 @@ class AMICA(TransformerMixin, BaseEstimator):
         Number of features seen during :meth:`~AMICA.fit`.
     n_iter_ : int
         Number of iterations taken to converge during fit.
+    ll_ : ndarray of shape (``n_iter_``,)
+        The per-iteration Log-likelihood values of model fit.
+    mu_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Learned location parameters for each source-mixture component.
+    sbeta_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Learned scale parameters for each source-mixture component.
+    rho_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Learned shape parameters for each source-mixture component.
+    alpha_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Learned per-source mixture weights.
+    c_ : ndarray of shape (``n_components``,)
+        Learned source bias/offset terms.
+    locations_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Alias for ``mu_``.
+    scales_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Alias for ``sbeta_``.
+    shapes_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Alias for ``rho_``.
+    mixture_weights_ : ndarray of shape (``n_components``, ``n_mixtures``)
+        Alias for ``alpha_``.
 
     References
     ----------
@@ -246,11 +266,22 @@ class AMICA(TransformerMixin, BaseEstimator):
         if self.mean_center:
             self.mean_ = fit_dict['mean']
         self.n_features_in_ = X.shape[1]
-        self.n_iter_ = np.count_nonzero(fit_dict['LL'])
+        ll_full = np.asarray(fit_dict["LL"])
+        self.n_iter_ = int(np.count_nonzero(ll_full))
+        self.ll_ = ll_full[:self.n_iter_].copy()
         self.whitening_ = fit_dict["S"][:self.n_components, :]
         self._unmixing = fit_dict['W']
         self.components_ = self._unmixing @ self.whitening_
         self.mixing_ = np.linalg.pinv(self.whitening_) @ fit_dict["A"]
+        self.mu_ = np.asarray(fit_dict["mu"])
+        self.sbeta_ = np.asarray(fit_dict["sbeta"])
+        self.rho_ = np.asarray(fit_dict["rho"])
+        self.alpha_ = np.asarray(fit_dict["alpha"])
+        self.c_ = np.asarray(fit_dict["c"])
+        self.locations_ = self.mu_
+        self.scales_ = self.sbeta_
+        self.shapes_ = self.rho_
+        self.mixture_weights_ = self.alpha_
         return self
 
     def transform(self, X, copy=True):

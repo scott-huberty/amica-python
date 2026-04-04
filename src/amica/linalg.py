@@ -336,7 +336,8 @@ def pre_whiten(
         n_components = nw
     elif n_components > nw:
         raise ValueError(
-            f"n_components must be less than or equal to the rank of the data. Got {nw}"
+            f"n_components must be less than or equal to the rank of the data. "
+            f"Got a rank of {nw} but {n_components} requested components."
             )
 
     if not do_mean:
