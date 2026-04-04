@@ -280,6 +280,26 @@ that projects data onto the first <code class="docutils literal notranslate"><sp
 </dd>
 <dt><strong>n_iter_</strong><span class="classifier">int</span></dt><dd><p>Number of iterations taken to converge during fit.</p>
 </dd>
+<dt><strong>ll_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_iter_</span></code>,)</span></dt><dd><p>The per-iteration Log-likelihood values of model fit.</p>
+</dd>
+<dt><strong>mu_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Learned location parameters for each source-mixture component.</p>
+</dd>
+<dt><strong>sbeta_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Learned scale parameters for each source-mixture component.</p>
+</dd>
+<dt><strong>rho_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Learned shape parameters for each source-mixture component.</p>
+</dd>
+<dt><strong>alpha_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Learned per-source mixture weights.</p>
+</dd>
+<dt><strong>c_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>,)</span></dt><dd><p>Learned source bias/offset terms.</p>
+</dd>
+<dt><strong>locations_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Alias for <code class="docutils literal notranslate"><span class="pre">mu_</span></code>.</p>
+</dd>
+<dt><strong>scales_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Alias for <code class="docutils literal notranslate"><span class="pre">sbeta_</span></code>.</p>
+</dd>
+<dt><strong>shapes_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Alias for <code class="docutils literal notranslate"><span class="pre">rho_</span></code>.</p>
+</dd>
+<dt><strong>mixture_weights_</strong><span class="classifier">ndarray of shape (<code class="docutils literal notranslate"><span class="pre">n_components</span></code>, <code class="docutils literal notranslate"><span class="pre">n_mixtures</span></code>)</span></dt><dd><p>Alias for <code class="docutils literal notranslate"><span class="pre">alpha_</span></code>.</p>
+</dd>
 </dl>
 </dd>
 </dl>
