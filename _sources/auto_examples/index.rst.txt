@@ -133,6 +133,23 @@ Example AMICA usage.
     </div>
 
 
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In cosmological analyses, ICA is used to separate Cosmic Microwave Background (CMB) from foreground emissions (thermal dust, synchrotron radiation etc.). The CMB is the signal of interest, while Galactic foregrounds act as contaminants.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_astronomy_planck_cmb_separation_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_astronomy_planck_cmb_separation`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Isolate Cosmic Microwave Background with ICA</div>
+    </div>
+
+
 .. thumbnail-parent-div-close
 
 .. raw:: html
@@ -150,6 +167,7 @@ Example AMICA usage.
    /auto_examples/plot_ica_vs_pca
    /auto_examples/plot_photos
    /auto_examples/plot_pipe
+   /auto_examples/plot_astronomy_planck_cmb_separation
 
 
 
