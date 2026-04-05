@@ -27,6 +27,7 @@ extensions = [
     "sphinx_design",  # e.g. for tabs
     "sphinx_copybutton",  # So users can easily copy code blocks
     "sphinxcontrib.bibtex",  # For citations
+    "sphinx.ext.todo",      # a TODO directive
         ]
 
 templates_path = ['_templates']
@@ -72,6 +73,7 @@ sphinx_gallery_conf = {
     "doc_module": ("amica",),
     # Run examples in parallel to speed up generation
     "parallel": True,
+    'ignore_pattern': 'plot_faces_decomposition.py',
 }
 
 

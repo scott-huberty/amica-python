@@ -11,6 +11,12 @@ from .fetch import (
     fetch_fortran_outputs as fetch_fortran_outputs,
 )
 from .fetch import (
+    fetch_planck_temperature_map as fetch_planck_temperature_map,
+)
+from .fetch import (
+    fetch_planck_temperature_maps as fetch_planck_temperature_maps,
+)
+from .fetch import (
     fetch_test_data as fetch_test_data,
 )
 from .fortran import (
