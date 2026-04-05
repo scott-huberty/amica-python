@@ -27,6 +27,7 @@ extensions = [
     "sphinx_design",  # e.g. for tabs
     "sphinx_copybutton",  # So users can easily copy code blocks
     "sphinxcontrib.bibtex",  # For citations
+    "sphinx.ext.todo",      # a TODO directive
         ]
 
 templates_path = ['_templates']

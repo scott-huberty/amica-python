@@ -1,5 +1,7 @@
-"""Utilities for downloading and caching test datasets for AMICA Python comparisons."""
+"""Utilities for downloading and caching datasets for AMICA Python."""
 
+import os
+import tempfile
 from pathlib import Path
 
 # Cache directory for all test data
@@ -18,7 +20,12 @@ EEGLAB_FILES = {
 
 def fetch_datasets() -> Path:
     """
-    Download all test datasets.
+    Download the default AMICA test datasets.
+
+    Notes
+    -----
+    This intentionally excludes the optional Planck astronomy maps because they
+    are large and should not be fetched automatically for every user.
 
     Returns
     -------
@@ -125,3 +132,87 @@ def fetch_photos() -> Path:
             progressbar=True,
         )
     return photos_dir
+
+
+# -------------------------------
+# Optional Planck PR3 astronomy maps
+# -------------------------------
+PLANCK_BASE_URL = "https://irsa.ipac.caltech.edu/data/Planck/release_3/all-sky-maps/maps/"  # noqa: E501
+PLANCK_MAP_FILENAMES = {
+    30: "LFI_SkyMap_030-BPassCorrected-field-IQU_1024_R3.00_full.fits",
+    44: "LFI_SkyMap_044-BPassCorrected-field-IQU_1024_R3.00_full.fits",
+    70: "LFI_SkyMap_070-BPassCorrected-field-IQU_1024_R3.00_full.fits",
+    100: "HFI_SkyMap_100_2048_R3.01_full.fits",
+    143: "HFI_SkyMap_143_2048_R3.01_full.fits",
+    217: "HFI_SkyMap_217_2048_R3.01_full.fits",
+}
+
+
+def _prepare_cache_dir(root: Path, dataset_name: str) -> Path:
+    """Create a writable cache directory, falling back when needed."""
+    cache_dir = root / dataset_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    if not os.access(cache_dir, os.W_OK):
+        raise PermissionError(f"Cache directory is not writable: {cache_dir}")
+    return cache_dir
+
+
+def fetch_planck_temperature_map(filename: str) -> Path:
+    """Download one public Planck PR3 map and return the local path."""
+    import pooch
+
+    cache_root = Path(os.environ.get("AMICA_PLANCK_CACHE", CACHE_DIR))
+    fallback_cache_root = Path(tempfile.gettempdir()) / "amica-python"
+    url = f"{PLANCK_BASE_URL}{filename}"
+
+    try:
+        cache_dir = _prepare_cache_dir(cache_root, "planck_pr3")
+    except PermissionError:
+        cache_dir = _prepare_cache_dir(fallback_cache_root, "planck_pr3")
+
+    try:
+        return Path(
+            pooch.retrieve(
+                url=url,
+                known_hash=None,
+                path=cache_dir,
+                fname=filename,
+                progressbar=True,
+            )
+        )
+    except Exception as exc:  # pragma: no cover - depends on network/data host
+        raise RuntimeError(
+            f"Could not download the Planck map '{filename}' from {url}."
+        ) from exc
+
+
+def fetch_planck_temperature_maps(
+    frequencies_ghz: tuple[int, ...] | None = None,
+) -> dict[int, Path]:
+    """Download selected Planck PR3 temperature maps.
+
+    Parameters
+    ----------
+    frequencies_ghz : tuple of int | None
+        Requested Planck channel frequencies in GHz. If ``None``, downloads all
+        channels listed in ``PLANCK_MAP_FILENAMES``.
+
+    Returns
+    -------
+    dict of int to pathlib.Path
+        Mapping from channel frequency in GHz to the local cached file path.
+    """
+    if frequencies_ghz is None:
+        frequencies_ghz = tuple(PLANCK_MAP_FILENAMES)
+
+    missing = sorted(set(frequencies_ghz) - set(PLANCK_MAP_FILENAMES))
+    if missing:
+        raise ValueError(
+            f"Unsupported Planck frequencies requested: {missing}. "
+            f"Available channels are {sorted(PLANCK_MAP_FILENAMES)}."
+        )
+
+    return {
+        frequency_ghz: fetch_planck_temperature_map(PLANCK_MAP_FILENAMES[frequency_ghz])
+        for frequency_ghz in frequencies_ghz
+    }
