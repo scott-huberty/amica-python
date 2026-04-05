@@ -25,6 +25,7 @@ def fetch_datasets() -> Path:
     pathlib.Path
         Path to the directory containing all cached test datasets.
     """
+    fetch_test_data()
     fetch_fortran_outputs()
     fetch_photos()
     return CACHE_DIR

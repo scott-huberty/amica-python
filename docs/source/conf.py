@@ -72,6 +72,7 @@ sphinx_gallery_conf = {
     "doc_module": ("amica",),
     # Run examples in parallel to speed up generation
     "parallel": True,
+    'ignore_pattern': 'plot_faces_decomposition.py',
 }
 
 
