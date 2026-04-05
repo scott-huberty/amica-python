@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**07:43.220** total execution time for 8 files **from all galleries**:
+**05:03.366** total execution time for 7 files **from all galleries**:
 
 .. container::
 
@@ -32,27 +32,24 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_auto_examples_plot_faces_decomposition.py` (``examples/plot_faces_decomposition.py``)
-     - 03:37.612
-     - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_pipe.py` (``examples/plot_pipe.py``)
-     - 01:37.873
+     - 02:25.345
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_eeg.py` (``examples/plot_eeg.py``)
-     - 01:27.215
+     - 01:36.186
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_photos.py` (``examples/plot_photos.py``)
-     - 00:22.981
+     - 00:26.462
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_vs_pca.py` (``examples/plot_ica_vs_pca.py``)
-     - 00:16.822
+     - 00:20.501
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_toy.py` (``examples/plot_toy.py``)
-     - 00:14.335
+     - 00:09.196
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_blind_source_separation.py` (``examples/plot_ica_blind_source_separation.py``)
-     - 00:06.038
+     - 00:05.341
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_sphere.py` (``examples/plot_sphere.py``)
-     - 00:00.344
+     - 00:00.336
      - 0.0

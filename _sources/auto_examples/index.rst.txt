@@ -118,23 +118,6 @@ Example AMICA usage.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Faces dataset decompositions">
-
-.. only:: html
-
-  .. image:: /auto_examples/images/thumb/sphx_glr_plot_faces_decomposition_thumb.png
-    :alt:
-
-  :doc:`/auto_examples/plot_faces_decomposition`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">Faces dataset decompositions</div>
-    </div>
-
-
-.. raw:: html
-
     <div class="sphx-glr-thumbcontainer" tooltip="We&#x27;ll use AMICA as a preprocessing step in a scikit-learn pipeline to perform digit classification on the MNIST dataset.">
 
 .. only:: html
@@ -166,7 +149,6 @@ Example AMICA usage.
    /auto_examples/plot_ica_blind_source_separation
    /auto_examples/plot_ica_vs_pca
    /auto_examples/plot_photos
-   /auto_examples/plot_faces_decomposition
    /auto_examples/plot_pipe
 
 
