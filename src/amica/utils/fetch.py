@@ -148,6 +148,12 @@ PLANCK_MAP_FILENAMES = {
 }
 
 
+# -------------------------------
+# Optional MICA benchmark dataset
+# -------------------------------
+MICA_RELEASE_URL = "http://sccn.ucsd.edu/pub/mica_release.zip"
+
+
 def _prepare_cache_dir(root: Path, dataset_name: str) -> Path:
     """Create a writable cache directory, falling back when needed."""
     cache_dir = root / dataset_name
@@ -157,7 +163,7 @@ def _prepare_cache_dir(root: Path, dataset_name: str) -> Path:
     return cache_dir
 
 
-def fetch_planck_temperature_map(filename: str) -> Path:
+def fetch_planck_temperature_map(filename: str) -> Path:  # pragma: no cover
     """Download one public Planck PR3 map and return the local path."""
     import pooch
 
@@ -188,7 +194,7 @@ def fetch_planck_temperature_map(filename: str) -> Path:
 
 def fetch_planck_temperature_maps(
     frequencies_ghz: tuple[int, ...] | None = None,
-) -> dict[int, Path]:
+) -> dict[int, Path]:  # pragma: no cover
     """Download selected Planck PR3 temperature maps.
 
     Parameters
@@ -216,3 +222,53 @@ def fetch_planck_temperature_maps(
         frequency_ghz: fetch_planck_temperature_map(PLANCK_MAP_FILENAMES[frequency_ghz])
         for frequency_ghz in frequencies_ghz
     }
+
+
+def fetch_mica_release(output_dir: Path | None = None) -> Path:  # pragma: no cover
+    """Download and extract the optional EEGLAB MICA benchmark dataset.
+
+    This dataset is large, so it is intentionally excluded from
+    :func:`fetch_datasets` and must be requested explicitly.
+
+    Parameters
+    ----------
+    output_dir : pathlib.Path | None
+        Directory where the extracted ``mica_release`` folder should live.
+        Defaults to ``~/amica_test_data``.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the extracted ``mica_release`` directory.
+    """
+    import pooch
+
+    cache_root = Path(output_dir).expanduser() if output_dir is not None else CACHE_DIR
+    cache_root.mkdir(parents=True, exist_ok=True)
+
+    zip_path = Path(
+        pooch.retrieve(
+            url=MICA_RELEASE_URL,
+            known_hash=None,
+            path=cache_root,
+            fname="mica_release.zip",
+            progressbar=True,
+        )
+    )
+
+    release_dir = cache_root / "mica_release"
+    if release_dir.exists():
+        return release_dir
+
+    import zipfile
+
+    with zipfile.ZipFile(zip_path) as zf:
+        zf.extractall(cache_root)
+
+    if not release_dir.exists():
+        raise RuntimeError(
+            f"Expected extracted benchmark directory at {release_dir}, "
+            f"but it was not created from {zip_path}."
+        )
+
+    return release_dir

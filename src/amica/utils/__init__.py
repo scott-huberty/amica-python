@@ -2,6 +2,7 @@ from ._logging import logger, set_log_level
 from .fetch import (
     fetch_datasets,
     fetch_fortran_outputs,
+    fetch_mica_release,
     fetch_planck_temperature_maps,
     fetch_test_data,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "fetch_datasets",
     "fetch_planck_temperature_maps",
     "fetch_fortran_outputs",
+    "fetch_mica_release",
     "fetch_test_data",
     "generate_toy_data",
     "import_optional_dependency",
