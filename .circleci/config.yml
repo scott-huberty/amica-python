@@ -11,6 +11,10 @@ jobs:
     working_directory: ~/project/amica-python
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
+            - amica-data-
       - run:
           name: Install package with dev+doc extras
           command: |
@@ -18,11 +22,21 @@ jobs:
             source .venv/bin/activate
             uv pip install -e ".[torch-cpu,dev,doc]"
       - run:
+          name: Fetch AMICA datasets if needed
+          command: |
+            mkdir -p ~/amica_test_data
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py
+      - run:
           name: Build Sphinx docs
           command: |
             source .venv/bin/activate
             cd docs
             make html
+      - save_cache:
+          key: amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
+          paths:
+            - ~/amica_test_data
       - persist_to_workspace:
           root: docs/build
           # Must be relative to root
