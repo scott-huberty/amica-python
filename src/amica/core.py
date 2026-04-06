@@ -86,7 +86,7 @@ def fit_amica(
         pdftype=0,
         do_newton=True,
         newt_start=50,
-        newtrate=1,
+        newtrate=1.0,
         newt_ramp=10,
         batch_size=None,
         w_init=None,
