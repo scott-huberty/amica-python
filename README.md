@@ -4,11 +4,10 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 # AMICA-Python
-### Yes, it's fast.
 
 A Python implementation of the [AMICA](https://sccn.ucsd.edu/~jason/amica_a.pdf) (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation, that was originally [developed in FORTRAN](https://github.com/sccn/amica) by Jason Palmer at the Swartz Center for Computational Neuroscience (SCCN).
 
-AMICA-Python is pre-alpha but is tested against the Fortran implementation and is ready for test driving.
+AMICA-Python is alpha but is correctness tested against the Fortran implementation and is ready for test driving.
 
 | Python | Fortran |
 |--------|---------|
@@ -149,12 +148,3 @@ but does not implement point 2 (running multiple ICA models simultaneously).
 AMICA-Python is powered by [Torch](https://pytorch.org/) and wrapped in an easy-to-use [scikit-learn](https://scikit-learn.org/stable/) style interface.
 
 The outputs are numerically tested against the original FORTRAN implementation to ensure correctness and minimize bugs.
-
-# What wasn't implemented?
-
-  - The ability to model multiple ICA decompositions simultaneously.
-  - The ability to reject unlikely samples based on a thresholded log-likelihood (in the
-    FORTRAN implementation, this is a strategy to deal with artifacts in the data).
-  - AMICA-Python does not expose all the hyper-parameters available in the original FORTRAN implementation.
-    Instead I have tried to pick sensible defaults that should work well in most cases,
-    thus reducing the complexity of the interface.
