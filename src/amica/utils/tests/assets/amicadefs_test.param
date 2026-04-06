@@ -17,7 +17,7 @@ max_threads 1
 do_newton 1
 newt_start 50
 newt_ramp 10
-newtrate 1
+newtrate 1.0
 lrate 0.05
 rholrate 0.05
 lratefact 0.5
