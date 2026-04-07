@@ -18,8 +18,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torch-cpu = ["torch>=2"]
-torch-cuda = ["torch>=2"]
+torch-cpu = ["torch>=2.3"]
+torch-cuda = ["torch>=2.3"]
 dev = [
     "pytest>=7",
     "pytest-cov>=4",
