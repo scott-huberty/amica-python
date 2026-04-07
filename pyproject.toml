@@ -32,7 +32,6 @@ doc = [
     # For Tutorials
     "healpy",
     "pandas",  # Needed to load the MNIST dataset example
-    "smica @ git+https://github.com/scott-huberty/smica.git",
     ]
 
 [tool.setuptools]

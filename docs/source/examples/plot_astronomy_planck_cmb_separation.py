@@ -251,7 +251,9 @@ print(
 # %%
 # Visualize the recovered components on the sky
 # ---------------------------------------------
-
+# The CMB component is expected to be anisotropic, i.e. it has a fairly uniform
+# temperature across the sky. In the AMICA model, this looks like component 3. In
+# the SMICA model, this looks like component 4.
 
 component_maps = np.full((N_COMPONENTS, mask.size), hp.UNSEEN)
 component_maps[:, valid_pixels] = sources.T
@@ -432,6 +434,7 @@ fig.show()
 
 # %%
 # .. todo::
+#
 #   If you are up to the task, pass the entire X array into ICA (i.e., don't hide the
 #   galactic plane from ICA). How well does it do? You might be surprised at AMICA's
 #   ability to isolate the CMB even in the presence of the overpowering galactic plane.

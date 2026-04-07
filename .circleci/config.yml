@@ -21,6 +21,7 @@ jobs:
             uv venv
             source .venv/bin/activate
             uv pip install -e ".[torch-cpu,dev,doc]"
+            uv pip install "smica @ git+https://github.com/scott-huberty/smica.git"
       - run:
           name: Fetch AMICA datasets if needed
           command: |
