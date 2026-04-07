@@ -30,6 +30,8 @@ extensions = [
     "sphinx.ext.todo",      # a TODO directive
         ]
 
+todo_include_todos = True
+
 templates_path = ['_templates']
 exclude_patterns = []
 
