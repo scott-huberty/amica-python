@@ -87,7 +87,7 @@ jobs:
       - name: Install dev extras
         run: |
           source .venv/${ACTIVATE_DIR}/activate
-          uv pip install --resolution=${UV_RESOLUTION} -e ".[dev]"
+          uv pip install -e ".[dev]"
 
       - name: Run tests
         run: |
