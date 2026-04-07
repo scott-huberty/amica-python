@@ -40,19 +40,26 @@ jobs:
           # Ubuntu tests against all versions
           - os: [ubuntu-latest]
             python-version: '3.10'
+            resolution: 'lowest-direct'
           - os: [ubuntu-latest]
             python-version: '3.11'
+            resolution: 'highest'
           - os: [ubuntu-latest]
             python-version: '3.12'
+            resolution: 'highest'
           - os: [ubuntu-latest]
             python-version: '3.13'
+            resolution: 'highest'
           - os: [ubuntu-latest]
             python-version: '3.14'
+            resolution: 'highest'
           # On macOS & Windows just test against selected versions
           - os: [macos-latest]
             python-version: '3.12'
+            resolution: 'highest'
           - os: [windows-latest]
             python-version: '3.12'
+            resolution: 'highest'
 
     steps:
       - uses: actions/checkout@v5
@@ -69,11 +76,12 @@ jobs:
           else
             echo "ACTIVATE_DIR=bin" >> "$GITHUB_ENV"
           fi
+          echo "UV_RESOLUTION=${{ matrix.resolution }}" >> "$GITHUB_ENV"
       
       - name: Install Base Deps and check import
         run: |
           source .venv/${ACTIVATE_DIR}/activate
-          uv pip install -e ".[torch-cpu]"
+          uv pip install --resolution=${UV_RESOLUTION} -e ".[torch-cpu]"
           python -c "import amica"
 
       - name: Install dev extras

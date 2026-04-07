@@ -9,18 +9,25 @@ description = "Adaptive Mixture ICA in Python"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "loguru",
-    "rich",
-    "pooch >= 1.5", 
+    "loguru >= 0.6.0",
+    "rich >= 13.7",
+    "pooch >= 1.6", # Progress bar support for retrieve 
     "psutil",
-    "numpy>=2.2.6",
-    "scikit-learn>=1.7.0",
+    "numpy >=2.0",
+    "scikit-learn >=1.6", # sklearn.utils.validation.validate_data was added in 1.6.0
 ]
 
 [project.optional-dependencies]
-torch-cpu = ["torch"]
-torch-cuda = ["torch"]
-dev = ["pytest", "pytest-cov", "pytest-timeout", "matplotlib", "mne", "ruff"]
+torch-cpu = ["torch>=2.3"]
+torch-cuda = ["torch>=2.3"]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+    "pytest-timeout>=2",
+    "matplotlib>=3.6",
+    "mne>=1.4",
+    "ruff>=0.5",
+]
 doc = [
     "sphinx<8.2",
     "shibuya",
@@ -33,6 +40,9 @@ doc = [
     "healpy",
     "pandas",  # Needed to load the MNIST dataset example
     ]
+
+[project.urls]
+Homepage = "https://github.com/scott-huberty/amica-python"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -74,6 +84,9 @@ addopts = [
 markers = [
     "sklearn_api: Tests that validate Scikit-Learn API conformance",
     "slow: Marks tests as slow (deselect with `pytest -m not slow`)"
+]
+filterwarnings = [
+    'ignore:Estimated head radius:RuntimeWarning',
 ]
 
 [tool.coverage.run]
