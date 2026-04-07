@@ -25,7 +25,7 @@ dev = [
     "pytest-cov>=4",
     "pytest-timeout>=2",
     "matplotlib>=3.6",
-    "mne>=1.2",
+    "mne>=1.4",
     "ruff>=0.5",
 ]
 doc = [
