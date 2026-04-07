@@ -20,7 +20,14 @@ dependencies = [
 [project.optional-dependencies]
 torch-cpu = ["torch"]
 torch-cuda = ["torch"]
-dev = ["pytest", "pytest-cov", "pytest-timeout", "matplotlib", "mne", "ruff"]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+    "pytest-timeout>=2",
+    "matplotlib>=3.6",
+    "mne>=1.0",
+    "ruff>=0.5",
+]
 doc = [
     "sphinx<8.2",
     "shibuya",
