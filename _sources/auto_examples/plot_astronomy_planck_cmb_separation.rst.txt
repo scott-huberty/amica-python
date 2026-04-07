@@ -678,7 +678,7 @@ SMICA
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 46.598 seconds)
+   **Total running time of the script:** (0 minutes 37.247 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_astronomy_planck_cmb_separation.py:
