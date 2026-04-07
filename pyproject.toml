@@ -85,6 +85,9 @@ markers = [
     "sklearn_api: Tests that validate Scikit-Learn API conformance",
     "slow: Marks tests as slow (deselect with `pytest -m not slow`)"
 ]
+filterwarnings = [
+    'ignore:Estimated head radius:RuntimeWarning',
+]
 
 [tool.coverage.run]
 source = ["amica"] # Source files to measure.
