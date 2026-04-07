@@ -397,15 +397,17 @@ how the masked pixel sequence is partitioned in the frequency domain.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 252-254
+.. GENERATED FROM PYTHON SOURCE LINES 252-257
 
 Visualize the recovered components on the sky
 ---------------------------------------------
+The CMB component is expected to be anisotropic, i.e. it has a fairly uniform
+temperature across the sky. In the AMICA model, this looks like component 3. In
+the SMICA model, this looks like component 4.
 
-.. GENERATED FROM PYTHON SOURCE LINES 254-260
+.. GENERATED FROM PYTHON SOURCE LINES 257-262
 
 .. code-block:: Python
-
 
 
     component_maps = np.full((N_COMPONENTS, mask.size), hp.UNSEEN)
@@ -419,13 +421,13 @@ Visualize the recovered components on the sky
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 261-264
+.. GENERATED FROM PYTHON SOURCE LINES 263-266
 
 AMICA
 ^^^^^
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 264-298
+.. GENERATED FROM PYTHON SOURCE LINES 266-300
 
 .. code-block:: Python
 
@@ -475,12 +477,12 @@ AMICA
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 299-301
+.. GENERATED FROM PYTHON SOURCE LINES 301-303
 
 SMICA
 ^^^^^
 
-.. GENERATED FROM PYTHON SOURCE LINES 301-342
+.. GENERATED FROM PYTHON SOURCE LINES 303-344
 
 .. code-block:: Python
 
@@ -537,7 +539,7 @@ SMICA
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 343-349
+.. GENERATED FROM PYTHON SOURCE LINES 345-351
 
 Inspect the frequency mixing behavior
 -------------------------------------
@@ -546,13 +548,13 @@ across frequencies, while others tend to have a varying response across frequenc
 because they emphasize low-frequency Galactic emission or residual structure.
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 351-354
+.. GENERATED FROM PYTHON SOURCE LINES 353-356
 
 AMICA
 ^^^^^
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 354-394
+.. GENERATED FROM PYTHON SOURCE LINES 356-396
 
 .. code-block:: Python
 
@@ -608,12 +610,12 @@ AMICA
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 395-397
+.. GENERATED FROM PYTHON SOURCE LINES 397-399
 
 SMICA
 ^^^^^
 
-.. GENERATED FROM PYTHON SOURCE LINES 397-433
+.. GENERATED FROM PYTHON SOURCE LINES 399-435
 
 .. code-block:: Python
 
@@ -665,9 +667,10 @@ SMICA
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 434-438
+.. GENERATED FROM PYTHON SOURCE LINES 436-441
 
 .. todo::
+
   If you are up to the task, pass the entire X array into ICA (i.e., don't hide the
   galactic plane from ICA). How well does it do? You might be surprised at AMICA's
   ability to isolate the CMB even in the presence of the overpowering galactic plane.
@@ -675,7 +678,7 @@ SMICA
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 54.455 seconds)
+   **Total running time of the script:** (0 minutes 37.507 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_astronomy_planck_cmb_separation.py:

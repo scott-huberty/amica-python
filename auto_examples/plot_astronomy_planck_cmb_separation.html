@@ -404,6 +404,9 @@ how the masked pixel sequence is partitioned in the frequency domain.</p>
 </section>
 <section id="visualize-the-recovered-components-on-the-sky">
 <h2>Visualize the recovered components on the sky<a class="headerlink" href="#visualize-the-recovered-components-on-the-sky" title="Link to this heading">¶</a></h2>
+<p>The CMB component is expected to be anisotropic, i.e. it has a fairly uniform
+temperature across the sky. In the AMICA model, this looks like component 3. In
+the SMICA model, this looks like component 4.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">component_maps</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.full.html#numpy.full" title="numpy.full" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">full</span></a><span class="p">((</span><span class="n">N_COMPONENTS</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">mask</span></a><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">hp</span><span class="o">.</span><span class="n">UNSEEN</span><span class="p">)</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">component_maps</span></a><span class="p">[:,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">valid_pixels</span></a><span class="p">]</span> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">sources</span><span class="o">.</span><span class="n">T</span></a>
 </span></pre></div>
@@ -573,7 +576,13 @@ because they emphasize low-frequency Galactic emission or residual structure.</p
 </span><span data-line="34"><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_006.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_006.png" alt="SMICA normalized mixing matrix, SMICA channel response" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 54.455 seconds)</p>
+<img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_006.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_006.png" alt="SMICA normalized mixing matrix, SMICA channel response" class = "sphx-glr-single-img"/><div class="admonition-todo admonition" id="id5">
+<p class="admonition-title">Todo</p>
+<p>If you are up to the task, pass the entire X array into ICA (i.e., don’t hide the
+galactic plane from ICA). How well does it do? You might be surprised at AMICA’s
+ability to isolate the CMB even in the presence of the overpowering galactic plane.</p>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 37.507 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-astronomy-planck-cmb-separation-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b007a2bcd80e5f0796d6afccdaeb847b/plot_astronomy_planck_cmb_separation.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_astronomy_planck_cmb_separation.ipynb</span></code></a></p>
