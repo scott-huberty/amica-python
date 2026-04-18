@@ -205,8 +205,6 @@ def _get_fortran_param_defaults():
         "rholratefact": "rholratefact",
         "use_min_dll": "use_min_dll",
         "use_grad_norm": "use_grad_norm",
-        "min_dll": "min_dll",
-        "min_nd": "min_grad_norm",
         "do_opt_block": "do_opt_block",
         "mineig": "mineig",
         "minlrate": "minlrate",
@@ -227,6 +225,10 @@ def _get_fortran_param_defaults():
     for const_key, fortran_key in const_to_fortran.items():
         if hasattr(c, const_key):
             defaults[fortran_key] = getattr(c, const_key)
+
+    if "tol" in fit_defaults:
+        defaults["min_dll"] = fit_defaults["tol"]
+        defaults["min_grad_norm"] = fit_defaults["tol"]
 
     return defaults
 

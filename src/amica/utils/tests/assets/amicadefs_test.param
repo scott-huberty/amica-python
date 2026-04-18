@@ -23,7 +23,7 @@ rholrate 0.05
 lratefact 0.5
 rholratefact 0.5
 use_min_dll 1
-min_dll 1e-09
+min_dll 1e-07
 use_grad_norm 1
 min_grad_norm 1e-07
 do_opt_block 0
