@@ -1,9 +1,11 @@
 """Module containing amica funciton entry point."""
 
 import time
+from warnings import warn
 
 import torch
 from numpy.testing import assert_allclose
+from sklearn.exceptions import ConvergenceWarning
 
 from amica._types import (
     DataTensor2D,
@@ -66,7 +68,7 @@ from amica.state import (
 
 from ._batching import BatchLoader, choose_batch_size
 from ._newton import compute_newton_terms
-from .utils._logging import log, set_log_level
+from .utils._logging import _emit_status, log, set_log_level
 from .utils._progress import make_progress_bar
 from .utils._verbose import _validate_verbose
 
@@ -807,7 +809,6 @@ def _main_loop(
         # end if
         if metrics.iter > 1:
             if (LL[metrics.iter - 1] < LL[metrics.iter - 2]):
-                # assert 1 == 0
                 log("Likelihood decreasing!", level="warning", color="yellow")
                 if (metrics.lrate < minlrate) or (ndtmpsum <= min_nd):
                     leave = True
@@ -870,7 +871,7 @@ def _main_loop(
         # call MPI_BCAST(startover,1,MPI_LOGICAL,0,seg_comm,ierr)
         if leave:
             c_end = time.time()
-            log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
+            _emit_status(progress, f"Finished in {c_end - c_start:.2f} seconds")
             return state, LL
         # else:
         # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
@@ -896,15 +897,13 @@ def _main_loop(
         metrics.iter += 1
         # end if/else
     # end while
-    log(
+    warn(
         "Maximum number of iterations reached before convergence."
         " Consider increasing max_iter or relaxing tol.",
-        level="warning",
-        color="yellow",
-        weight="bold",
+        ConvergenceWarning,
     )
     c_end = time.time()
-    log(f"Finished in {c_end - c_start:.2f} seconds", level="info")
+    _emit_status(progress, f"Finished in {c_end - c_start:.2f} seconds")
     return state, LL
 
 

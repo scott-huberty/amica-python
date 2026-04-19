@@ -27,3 +27,11 @@ def test_set_log_level_coercion(verbose, expected, capsys):
         assert "INFO" in out
     elif verbose == logging.DEBUG:
         assert "DEBUG" in out
+
+
+def test_log_preserves_literal_brackets(capsys):
+    """Bracketed data should stay literal unless helper styling enables markup."""
+    _logging.set_log_level("INFO")
+    _logging.log("minimum eigenvalues: [1.0 2.0 3.0]")
+    out = capsys.readouterr().out
+    assert "minimum eigenvalues: [1.0 2.0 3.0]" in out

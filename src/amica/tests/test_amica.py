@@ -21,6 +21,7 @@ from amica.utils import generate_toy_data, load_fortran_results, load_initial_we
 pytestmark = pytest.mark.timeout(120)
 
 
+@pytest.mark.filterwarnings("ignore:Maximum number of iterations")
 @pytest.mark.slow
 @pytest.mark.parametrize(
         "load_weights, n_components, entrypoint",
