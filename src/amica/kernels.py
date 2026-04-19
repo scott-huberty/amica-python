@@ -7,7 +7,6 @@ import torch
 from amica._types import (
     ComponentsVector,
     DataArray2D,
-    LikelihoodArray,
     ParamsArray,
     ParamsModelArray,
     SamplesVector,
@@ -286,7 +285,7 @@ def compute_source_densities(
 def compute_model_loglikelihood_per_sample(
         *,
         log_densities: SourceArray3D,
-        out_modloglik: SamplesVector | None = None,
+        out_loglik: SamplesVector | None = None,
 ):
     """Compute the per-sample log-likelihood for a single model h.
 
@@ -297,7 +296,7 @@ def compute_model_loglikelihood_per_sample(
     ----------
     log_densities : array, shape (N1, nw, num_mix)
         Per-sample, per-component, per-mixture log-densities.
-    out_modloglik : array, shape (N1,)
+    out_loglik : array, shape (N1,)
         Output array for per-sample log-likelihood for this model, mutated in-place.
         If None, a new array is allocated, but note that AMICA expects this array
         to be pre-filled with an initial value. See get_initial_model_log_likelihood.
@@ -306,9 +305,9 @@ def compute_model_loglikelihood_per_sample(
         f"log_densities must be 3D, got {log_densities.ndim}D"
         )
     N1 = log_densities.shape[0]
-    if out_modloglik is None:
-        out_modloglik = torch.zeros((N1,), dtype=torch.float64)
-    assert out_modloglik.shape == (N1,)
+    if out_loglik is None:
+        out_loglik = torch.zeros((N1,), dtype=torch.float64)
+    assert out_loglik.shape == (N1,)
     # Alias for clarity with Fortran code
     z0 = log_densities
 
@@ -319,8 +318,8 @@ def compute_model_loglikelihood_per_sample(
     # NOTE that the scratch array that was pass in will also be used for the g update.
     # TODO: consider keeping g and z separate once chunking is implemented
     component_loglik = torch.logsumexp(z0, dim=-1) # across mixtures
-    out_modloglik += component_loglik.sum(dim=-1) # across components
-    return out_modloglik
+    out_loglik += component_loglik.sum(dim=-1) # across components
+    return out_loglik
 
 
 
@@ -363,112 +362,6 @@ def compute_mixture_responsibilities(
     else:
         z = torch.softmax(z, dim=-1) # across mixtures
     return z
-
-
-def compute_total_loglikelihood_per_sample(
-        *,
-        modloglik: LikelihoodArray,
-        out_loglik: SamplesVector | None = None,
-) -> SamplesVector:
-    """
-    Compute the total log-likelihood for each sample marginalized across models.
-
-    Implements a stable log-sum-exp across the model dim for each sample.
-
-    Parameters
-    ----------
-    modloglik : array, shape (n_samples, n_models)
-        Per-sample, per-model log-likelihoods.
-    out_loglik : array, shape (n_samples,)
-        Output buffer. If provided, results are written in-place and returned. Must be
-        float64 and length n_samples. If None, a new array is allocated.
-
-    Returns
-    -------
-    loglik : array, shape (n_samples,)
-        Total log-likelihood across models per sample.
-
-    Notes
-    -----
-    Fortran reference:
-        Pmax = maxval(Ptmp, 2)
-        vtmp = sum(exp(Ptmp - Pmax), axis=1)
-        P = Pmax + log(vtmp)
-        dataseg(seg)%loglik(xstrt:xstp) = P(bstrt:bstp)
-    """
-    assert modloglik.ndim == 2, (
-        f"modloglik must be 2D (n_samples, n_models), got {modloglik.ndim}D"
-    )
-    assert modloglik.dtype == torch.float64, (
-        f"modloglik must be torch.float64, got {modloglik.dtype}"
-    )
-    if out_loglik is not None:
-        assert out_loglik.ndim == 1, (
-            f"out_loglik must be 1D, got {out_loglik.shape.ndim}D"
-        )
-        assert out_loglik.dtype == torch.float64, (
-            f"out_loglik must be torch.float64, got {out_loglik.dtype}"
-        )
-        assert out_loglik.shape[0] == modloglik.shape[0], (
-            f"out_loglik length {out_loglik.shape[0]} != modloglik n_samples "
-            f"{modloglik.shape[0]}"
-        )
-    #--------------------------FORTRAN CODE-----------------------------------------
-    # !print *, myrank+1,':', thrdnum+1,': getting Pmax and v ...'; call flush(6)
-    # !--- get LL, v
-    # Pmax(bstrt:bstp) = maxval(Ptmp(bstrt:bstp,:),2)
-    # vtmp(bstrt:bstp) = dble(0.0)
-    # vtmp(bstrt:bstp) = vtmp(bstrt:bstp) + exp(Ptmp(bstrt:bstp,h) - Pmax(bstrt:bstp
-    # P(bstrt:bstp) = Pmax(bstrt:bstp) + log(vtmp(bstrt:bstp))
-    # LLinc = sum( P(bstrt:bstp) )
-    # LLtmp = LLtmp + LLinc
-    #-------------------------------------------------------------------------------
-    loglik = torch.logsumexp(modloglik, dim=1, out=out_loglik) # across models
-    return loglik
-
-
-def compute_model_responsibilities(
-        *, modloglik: LikelihoodArray, out: LikelihoodArray | None = None
-        ) -> LikelihoodArray:
-    """
-    Compute model responsibilities via softmax over models.
-
-    Parameters
-    ----------
-    modloglik : array, shape (n_samples, n_models)
-        Per-sample, per-model log-likelihoods.
-
-    Returns
-    -------
-    responsibilities : array, shape (n_samples, n_models)
-        Per-sample, per-model responsibilities (posterior probabilities).
-
-    Notes
-    -----
-    Fortran reference:
-        v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
-    """
-    assert modloglik.ndim == 2, (
-        f"Expected 2D array (n_samples, n_models) for modloglik, got {modloglik.shape}"
-    )
-    if out is not None:
-        assert out.size() == modloglik.size(), (
-            f"out shape {out.shape} != modloglik shape {modloglik.shape}"
-        )
-        v = out
-    else:
-        v = torch.empty_like(modloglik)
-    #--------------------------FORTRAN CODE-------------------------
-    # v(bstrt:bstp,h) = dble(1.0) / exp(P(bstrt:bstp) - Ptmp(bstrt:bstp,h))
-    #---------------------------------------------------------------
-
-    num_models = modloglik.shape[1]
-    # fast-path: if only one model, skip softmax and set responsibilities to 1
-    if num_models == 1:
-        v.fill_(1.0)
-    else:
-        v = torch.softmax(modloglik, dim=-1, out=out) # across models
-    return v
 
 
 def compute_weighted_responsibilities(

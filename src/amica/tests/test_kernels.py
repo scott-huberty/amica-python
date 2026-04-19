@@ -8,12 +8,10 @@ from numpy.testing import assert_allclose
 from amica.kernels import (
     compute_mixture_responsibilities,
     compute_model_loglikelihood_per_sample,
-    compute_model_responsibilities,
     compute_preactivations,
     compute_scaled_scores,
     compute_source_densities,
     compute_source_scores,
-    compute_total_loglikelihood_per_sample,
     compute_weighted_responsibilities,
     precompute_weighted_scores,
 )
@@ -37,15 +35,11 @@ mu = torch.from_numpy(np.load(data_dir / "mu.npy"))
 rho = torch.from_numpy(np.load(data_dir / "rho.npy"))
 
 # compute_model_loglikelihood_per_sample
-modloglik_init = torch.full((93, 1), -65.9306)
+loglik_init = torch.full((93,), -65.9306)
 z0 = torch.from_numpy(np.load(data_dir / "z0.npy"))
 
-# compute_total_loglikelihood_per_sample
-modloglik = torch.from_numpy(np.load(data_dir / "modloglik.npy"))
-loglik_init = torch.zeros(data_batch.shape[0])
-
 # compute_weighted_responsibilities
-v = torch.ones((93, 1))
+model_resps = torch.ones((93,))
 z = torch.from_numpy(np.load(data_dir / "z.npy"))
 
 # compute_source_scores
@@ -105,43 +99,23 @@ def test_compute_mixture_responsibilities():
     assert_allclose(z[:2, 0, 0], [0.29726705022373134, 0.2879118893720002])
 
 
-@pytest.mark.parametrize("z0, modloglik", [(z0, modloglik_init)])
-def test_compute_model_loglikelihood_per_sample(z0, modloglik):
+@pytest.mark.parametrize("z0, loglik_init", [(z0, loglik_init)])
+def test_compute_model_loglikelihood_per_sample(z0, loglik_init):
     """Test the compute_model_loglikelihood_per_sample function."""
-    mod_logits = compute_model_loglikelihood_per_sample(
+    loglik = compute_model_loglikelihood_per_sample(
         log_densities=z0,
-        out_modloglik=modloglik[:, 0].clone(),
-    )
-    assert mod_logits.size() == (93,)
-    assert_allclose(mod_logits[:2], [-117.4721353091377, -114.67331045267954])
-
-
-@pytest.mark.parametrize("modloglik, loglik_init", [(modloglik, loglik_init)])
-def test_compute_total_loglikelihood_per_sample(modloglik, loglik_init):
-    """Test the compute_total_loglikelihood_per_sample function."""
-    log_likelihood = compute_total_loglikelihood_per_sample(
-        modloglik=modloglik,
         out_loglik=loglik_init.clone(),
     )
-    assert log_likelihood.size() == (93,)
-    assert_allclose(log_likelihood[:2], [-117.4721353091377, -114.67331045267954])
+    assert loglik.size() == (93,)
+    assert_allclose(loglik[:2], [-117.4721353091377, -114.67331045267954])
 
 
-@pytest.mark.parametrize("modloglik", [(modloglik)])
-def test_compute_model_responsibilities(modloglik):
-    """Test the compute_model_responsibilities function."""
-    v = compute_model_responsibilities(modloglik=modloglik)
-    assert v.size() == (93, 1)
-    assert_allclose(v, 1)
-    assert_allclose(v[:, 0].sum(), 93)
-
-
-@pytest.mark.parametrize("z, v", [(z, v)])
-def test_compute_weighted_responsibilities(z, v):
+@pytest.mark.parametrize("z, model_resps", [(z, model_resps)])
+def test_compute_weighted_responsibilities(z, model_resps):
     """Test the compute_weighted_responsibilities function."""
     u = compute_weighted_responsibilities(
         mixture_responsibilities=z,
-        model_responsibilities=v[:, 0],
+        model_responsibilities=model_resps,
         single_model=True,
         )
     assert u.size() == (93, 32, 3)
