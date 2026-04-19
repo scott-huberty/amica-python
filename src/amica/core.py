@@ -42,12 +42,10 @@ from amica.kernels import (
     accumulate_sigma2_stats,
     compute_mixture_responsibilities,
     compute_model_loglikelihood_per_sample,
-    compute_model_responsibilities,
     compute_preactivations,
     compute_scaled_scores,
     compute_source_densities,
     compute_source_scores,
-    compute_total_loglikelihood_per_sample,
     compute_weighted_responsibilities,
     precompute_weighted_scores,
 )
@@ -579,16 +577,16 @@ def _main_loop(
                 )
             z0 = z  # log densities (alias for clarity with Fortran code)
 
-            # 3. --- Aggregate mixture logits into per-sample model log likelihoods
-            modloglik = torch.full(
-                size=(data_batch.shape[0], 1),
+            # 3. --- Aggregate mixture logits into per-sample log likelihoods
+            sample_loglik = torch.full(
+                size=(data_batch.shape[0],),
                 fill_value=initial,
                 dtype=config.dtype,
                 device=config.device,
                 )
             compute_model_loglikelihood_per_sample(
                 log_densities=z0,
-                out_modloglik=modloglik[:, 0],
+                out_loglik=sample_loglik,
             )
 
             # 4. -- Responsibilities within each component ---
@@ -597,22 +595,15 @@ def _main_loop(
             z0 = None
             del z0  # guard against use of stale name. z owns that memory
 
-            # 5. --- Across-model Responsibilities and Total Log-Likelihood ---
-            loglik[batch_indices] = compute_total_loglikelihood_per_sample(
-                modloglik=modloglik,
-                out_loglik=loglik[batch_indices]
-            )
+            # 5. --- Single-model total log-likelihood and responsibilities ---
+            loglik[batch_indices] = sample_loglik
 
             if config.do_reject:
                 raise NotImplementedError()  # pragma: no cover
             else:
-                # 6. --- Responsibilities for each model ---
-                v = compute_model_responsibilities(
-                    modloglik=modloglik,
-                    out=modloglik,  # reuse modloglik memory
-                    )
-                modloglik = None
-                del modloglik  # Guard. v owns that memory now
+                model_resps = torch.ones_like(sample_loglik)
+                sample_loglik = None
+                del sample_loglik  # Guard against use of stale name
 
             # ================================ M-STEP ==================================
             # === Maximization-step: Parameter accumulators ===
@@ -625,7 +616,6 @@ def _main_loop(
             # vsum = sum( v(bstrt:bstp,h) )
             # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum
             #---------------------------------------------------------------
-            model_resps = v[:, 0] #  select responsibilities for this model
             vsum = model_resps.sum()
 
             # NOTE: u is a view of z, so changes to u will affect z (and vice versa)
@@ -755,7 +745,7 @@ def _main_loop(
         # !$OMP END PARALLEL
 
         # End of these lifetimes
-        del b, g, u, ufp, usum, vsum, v, model_resps, y
+        del b, g, u, ufp, usum, vsum, model_resps, y
         if doing_newton:
             del fp  # already deleted if not doing_newton
 

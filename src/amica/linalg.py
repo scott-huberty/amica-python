@@ -132,7 +132,7 @@ def get_initial_model_log_likelihood(
     -------
     initial_modloglik : float
         A scalar baseline log-likelihood value. This should be broadcast across all
-        samples of the model log-likelihood array at the call site.
+        samples of the per-sample log-likelihood buffer at the call site.
 
     Notes
     -----
@@ -141,8 +141,7 @@ def get_initial_model_log_likelihood(
     - S is positive-definite with full-rank whitening, so sldet has no sign
     issue
     - In the Fortran code, the variable Ptmp(bstrt:bstp,h) holds the initial
-    model log-likelihood for model h across the data block (bstrt:bstp). This gets
-    copied into modloglik.
+    model log-likelihood for model h across the data block (bstrt:bstp).
     """
     whitening_logdet = torch.as_tensor(whitening_logdet, dtype=torch.float64)
     unmixing_logdet = torch.as_tensor(unmixing_logdet, dtype=torch.float64)

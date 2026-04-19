@@ -138,8 +138,7 @@ def choose_batch_size(
     y, z, fp, ufp), which scale with the size of n_samples:
     - One array of shape (N,):
         - loglik
-    - Two arrays of shape (N, n_models):
-        - modloglik
+    - One array of shape (N, n_models):
         - v (model responsibilities)
     - Two arrays of shape (N, n_comps)
         - b
@@ -155,7 +154,7 @@ def choose_batch_size(
     # per-sample cost across pre-allocated buffers
     bytes_per_sample = (
         1                       # loglik
-        + 2 * n_models          # modloglik, v
+        + n_models              # v
         + 2 * n_comps           # b, g
         + 5 * n_comps * n_mix   # fp, u, ufp, y, z,
         ) * dtype_size
