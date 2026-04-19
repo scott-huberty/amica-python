@@ -1,6 +1,7 @@
 """Module containing amica funciton entry point."""
 
 import time
+from dataclasses import dataclass
 from warnings import warn
 
 import torch
@@ -55,6 +56,8 @@ from amica.linalg import (
     get_unmixing_matrices,
     pre_whiten,
 )
+from amica.optim import AndersonEMAccelerator, pack_state, unpack_state
+from amica.optim.anderson import is_valid_state
 from amica.state import (
     AmicaAccumulators,
     AmicaConfig,
@@ -69,6 +72,30 @@ from ._newton import compute_newton_terms
 from .utils._logging import _emit_status, log, set_log_level
 from .utils._progress import make_progress_bar
 from .utils._verbose import _validate_verbose
+
+
+@dataclass(slots=True)
+class EMStepResult:
+    """Result of one plain AMICA outer EM iteration."""
+
+    state: AmicaState
+    wc: torch.Tensor
+    likelihood: torch.Tensor
+    ndtmpsum: torch.Tensor
+    lrate: float
+    rholrate: float
+
+
+@dataclass(slots=True)
+class AccelerationOutcome:
+    """Bookkeeping for optional post-EM acceleration."""
+
+    accepted: bool = False
+    attempted: bool = False
+    reason: str = "disabled"
+    history: int = 0
+    restart: bool = False
+    candidate_loglik: float | None = None
 
 
 def fit_amica(
@@ -93,6 +120,15 @@ def fit_amica(
         sbeta_init=None,
         mu_init=None,
         do_reject=False,
+        optimizer="em",
+        accelerator_order=5,
+        accelerator_damping=1.0,
+        accelerator_ridge=1e-8,
+        accelerator_eps_monotone=0.0,
+        accelerator_start_iter=5,
+        accelerator_period=3,
+        accelerator_max_restarts=20,
+        accelerator_validate_candidate=False,
         random_state=None,
         verbose=1,
 ):
@@ -241,6 +277,15 @@ def fit_amica(
         newtrate=newtrate,
         newt_ramp=newt_ramp,
         do_reject=do_reject,
+        optimizer=optimizer,
+        accelerator_order=accelerator_order,
+        accelerator_damping=accelerator_damping,
+        accelerator_ridge=accelerator_ridge,
+        accelerator_eps_monotone=accelerator_eps_monotone,
+        accelerator_start_iter=accelerator_start_iter,
+        accelerator_period=accelerator_period,
+        accelerator_max_restarts=accelerator_max_restarts,
+        accelerator_validate_candidate=accelerator_validate_candidate,
         verbose=verbose,
     )
 
@@ -338,53 +383,14 @@ def solve(
 
     # !------------------- INITIALIZE VARIABLES ----------------------
     # print *, myrank+1, ': Initializing variables ...'; call flush(6);
-    # if (seg_rank == 0) then
-
-    assert_allclose(state.gm.sum(), 1.0)
-    # load_alpha:
-    state.alpha[:, :num_mix] = 1.0 / num_mix
-    # load_mu:
-    mu_values = torch.arange(num_mix) - (num_mix - 1) / 2
-    state.mu[:, :] = mu_values[None, :]
-    if initial_locations is None:
-        initial_locations = torch.rand(num_comps, num_mix, generator=rng)
-    else:
-        assert initial_locations.shape == (num_comps, num_mix)
-        initial_locations = torch.as_tensor(initial_locations, dtype=torch.float64)
-    state.mu = state.mu + 0.05 * (1.0 - 2.0 * initial_locations)
-    # load_beta:
-    if initial_scales is None:
-        initial_scales = torch.rand(num_comps, num_mix, generator=rng)
-    else:
-        assert initial_scales.shape == (num_comps, num_mix)
-        initial_scales = torch.as_tensor(initial_scales, dtype=torch.float64)
-    state.sbeta = 1.0 + 0.1 * (0.5 - initial_scales)
-    # load_c:
-    state.c.fill_(0.0)
-
-    # load_A:
-    if initial_weights is None:
-        initial_weights = torch.rand(num_comps, num_comps, generator=rng)
-    else:
-        assert initial_weights.shape == (num_comps, num_comps)
-        initial_weights = torch.as_tensor(initial_weights, dtype=torch.float64)
-
-    state.A[:, :] = 0.01 * (0.5 - initial_weights)
-    idx = torch.arange(num_comps)
-    state.A[idx, idx] = 1.0
-    Anrmk = torch.linalg.norm(state.A[:, :], dim=0)
-    state.A[:, :] /= Anrmk
-    # end load_A
-
-    W, wc = get_unmixing_matrices(
-        c=state.c,
-        A=state.A,
-        W=state.W,
+    state, wc = initialize_state_parameters(
+        state=state,
+        config=config,
+        rng=rng,
+        initial_weights=initial_weights,
+        initial_scales=initial_scales,
+        initial_locations=initial_locations,
     )
-    assert W.dtype == torch.float64
-    state.W = W.clone()
-    del W # safe guard against accidental use of W instead of state.W
-
 
     # !-------------------- Determine optimal block size -------------------
     log(f"1: block size = {config.batch_size}", level="info", color=None)
@@ -399,7 +405,7 @@ def solve(
     with torch.no_grad():
         state, LL = optimize(
             X=X,
-            sldet=sldet.item(),
+            sldet=float(sldet),
             wc=wc,
             config=config,
             state=state,
@@ -408,6 +414,75 @@ def solve(
     state_dict = state.to_numpy()
     LL = LL.cpu().numpy()
     return state_dict, LL
+
+
+def initialize_state_parameters(
+        *,
+        state: AmicaState,
+        config: AmicaConfig,
+        rng: torch.Generator,
+        initial_weights=None,
+        initial_scales=None,
+        initial_locations=None,
+) -> tuple[AmicaState, torch.Tensor]:
+    """Initialize learnable AMICA parameters and derived unmixing quantities."""
+    num_comps = config.n_components
+    num_mix = config.n_mixtures
+    assert_allclose(state.gm.sum(), 1.0)
+
+    state.alpha[:, :num_mix] = 1.0 / num_mix
+    mu_values = torch.arange(num_mix, dtype=config.dtype, device=config.device)
+    mu_values -= (num_mix - 1) / 2
+    state.mu[:, :] = mu_values[None, :]
+
+    if initial_locations is None:
+        initial_locations = torch.rand(
+            num_comps, num_mix, generator=rng, device=config.device, dtype=config.dtype
+        )
+    else:
+        assert initial_locations.shape == (num_comps, num_mix)
+        initial_locations = torch.as_tensor(
+            initial_locations, dtype=config.dtype, device=config.device
+        )
+    state.mu = state.mu + 0.05 * (1.0 - 2.0 * initial_locations)
+
+    if initial_scales is None:
+        initial_scales = torch.rand(
+            num_comps, num_mix, generator=rng, device=config.device, dtype=config.dtype
+        )
+    else:
+        assert initial_scales.shape == (num_comps, num_mix)
+        initial_scales = torch.as_tensor(
+            initial_scales, dtype=config.dtype, device=config.device
+        )
+    state.sbeta = 1.0 + 0.1 * (0.5 - initial_scales)
+
+    state.c.fill_(0.0)
+
+    if initial_weights is None:
+        initial_weights = torch.rand(
+            num_comps,
+            num_comps,
+            generator=rng,
+            device=config.device,
+            dtype=config.dtype,
+        )
+    else:
+        assert initial_weights.shape == (num_comps, num_comps)
+        initial_weights = torch.as_tensor(
+            initial_weights, dtype=config.dtype, device=config.device
+        )
+
+    state.A[:, :] = 0.01 * (0.5 - initial_weights)
+    idx = torch.arange(num_comps, device=config.device)
+    state.A[idx, idx] = 1.0
+    Anrmk = torch.linalg.norm(state.A[:, :], dim=0)
+    state.A[:, :] /= Anrmk
+
+    W, wc = get_unmixing_matrices(c=state.c, A=state.A, W=state.W)
+    assert W.dtype == torch.float64
+    state.W = W.clone()
+    return state, wc
 
 
 def optimize(
@@ -439,9 +514,10 @@ def optimize(
 
     # Initialize accumulators container
     accumulators = initialize_accumulators(config)
-    if config.device.type != "cpu":
-        state.to_device(device=config.device)
-        wc = wc.to(device=config.device)
+    device = torch.device(config.device)
+    if device.type != "cpu":
+        state.to_device(device=device)
+        wc = wc.to(device=device)
     # We allocate these separately.
     Dsum = torch.tensor(0.0, dtype=torch.float64, device=config.device)
     Dsign = torch.tensor(1.0, dtype=torch.float64, device=config.device)
@@ -513,255 +589,43 @@ def _main_loop(
         min_nd: float,
 ):
     """Run the AMICA optimization loop and return updated state and LL history."""
+    accelerator = None
+    if config.optimizer in {"anderson", "daarem"}:
+        accelerator = AndersonEMAccelerator(
+            order=config.accelerator_order,
+            damping=config.accelerator_damping,
+            ridge=config.accelerator_ridge,
+            monotone=(config.optimizer == "daarem"),
+            epsilon_monotone=config.accelerator_eps_monotone,
+            restart_on_reject=config.accelerator_history_reset_on_reject,
+            max_consecutive_rejects=max(1, config.accelerator_max_restarts),
+        )
+
     while metrics.iter <= config.max_iter:
-        accumulators.reset()
-        loglik.fill_(0.0)
-        doing_newton = do_newton and (metrics.iter >= config.newt_start)
-        # !----- get determinants
-        # The Fortran code computed log|det(W)| indirectly via QR factorization
-        # We use slogdet on the original unmixing matrix to get sign and log|det|
-        _, Dsum = compute_sign_log_determinant(
-            unmixing_matrix=state.W,
-            minlog=minlog,
-        )
-
-        if config.do_reject:
-            raise NotImplementedError()  # pragma: no cover
-        # !--------- loop over the blocks ----------
-        '''
-        # In Fortran, the OMP parallel region would start before the lines below.
-        # !$OMP PARALLEL DEFAULT(SHARED) &
-        # ...
-        # !print *, myrank+1, thrdnum+1, ': Inside openmp code ... '; call flush(6)
-        '''
-
-        # -- 0. Baseline terms for per-sample model log-likelihood --
-        initial = get_initial_model_log_likelihood(
-                unmixing_logdet=Dsum,
-                whitening_logdet=sldet,
-                model_weight=state.gm[0],
-        )
-
-        #=============================== Subsection ====================================
-        # === Begin chunk loop ===
-        # ==============================================================================
-        batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
-        for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
-
-            # ======================================================================
-            #                       Expectation Step (E-step)
-            # ======================================================================
-
-            # 1. --- Compute source pre-activations
-            # !--- get b
-            if not state.W.device.type == data_batch.device.type:
-                raise ValueError(
-                    f"Mismatch between state.W device ({state.W.device}) "
-                    "and data_batch device ({data_batch.device})"
-                )
-            b = compute_preactivations(
-                X=data_batch,
-                unmixing_matrix=state.W,
-                bias=wc,
-                do_reject=config.do_reject,
-                n_weights=config.n_components,
-            )
-            # 2. --- Source densities, and per-sample mixture log-densities (logits)
-            y, z = compute_source_densities(
-                pdftype=config.pdftype,
-                b=b,
-                sbeta=state.sbeta,
-                mu=state.mu,
-                alpha=state.alpha,
-                rho=state.rho,
-                )
-            z0 = z  # log densities (alias for clarity with Fortran code)
-
-            # 3. --- Aggregate mixture logits into per-sample log likelihoods
-            sample_loglik = torch.full(
-                size=(data_batch.shape[0],),
-                fill_value=initial,
-                dtype=config.dtype,
-                device=config.device,
-                )
-            compute_model_loglikelihood_per_sample(
-                log_densities=z0,
-                out_loglik=sample_loglik,
-            )
-
-            # 4. -- Responsibilities within each component ---
-            # !--- get normalized z
-            z = compute_mixture_responsibilities(log_densities=z0, inplace=True)
-            z0 = None
-            del z0  # guard against use of stale name. z owns that memory
-
-            # 5. --- Single-model total log-likelihood and responsibilities ---
-            loglik[batch_indices] = sample_loglik
-
-            if config.do_reject:
-                raise NotImplementedError()  # pragma: no cover
-            else:
-                model_resps = torch.ones_like(sample_loglik)
-                sample_loglik = None
-                del sample_loglik  # Guard against use of stale name
-
-            # ================================ M-STEP ==================================
-            # === Maximization-step: Parameter accumulators ===
-            # - Update parameters based on current responsibilities
-            # - Update unmixing matrices with gradient ascent and Newton-Raphson
-            # ==========================================================================
-
-            # !--- get g, u, ufp
-            #--------------------------FORTRAN CODE-------------------------
-            # vsum = sum( v(bstrt:bstp,h) )
-            # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum
-            #---------------------------------------------------------------
-            vsum = model_resps.sum()
-
-            # NOTE: u is a view of z, so changes to u will affect z (and vice versa)
-            u = compute_weighted_responsibilities(
-                mixture_responsibilities=z,
-                model_responsibilities=model_resps,
-                single_model=True,
-            )
-            z = None
-            del z # guard against use of stale name. u owns that memory now
-            usum = u.sum(dim=0)  # shape: (nw, num_mix)
-
-            fp = compute_source_scores(
-                pdftype=config.pdftype,
-                y=y,
-                rho=state.rho,
-            )
-
-            # For SGD, fp only exists to get ufp. Lets overwrite it to save memory.
-            ufp = precompute_weighted_scores(
-                weighted_responsibilities=u,
-                scores=fp,
-                out_ufp=fp if not doing_newton else None,
-            )
-            if not doing_newton:
-                fp = None
-                del fp  # End of life. ufp owns that memory now
-
-            g = compute_scaled_scores(
-                weighted_scores=ufp,
-                scales=state.sbeta,
-            )
-
-            # --- Stochastic Gradient Descent accumulators ---
-            # gm (model weights)
-            accumulators.dgm_numer[0] += vsum
-            # c (bias)
-            accumulate_c_stats(
-                X=data_batch,
-                model_responsibilities=model_resps,
-                vsum=vsum,
-                n_weights=config.n_components,
-                out_numer=accumulators.dc_numer,
-                out_denom=accumulators.dc_denom,
-            )
-            # Alpha (mixture weights)
-            accumulate_alpha_stats(
-                usum=usum,
-                vsum=vsum,
-                out_numer=accumulators.dalpha_numer,
-                out_denom=accumulators.dalpha_denom,
-            )
-            # Mu (location)
-            accumulate_mu_stats(
-                ufp=ufp,
-                y=y,
-                sbeta=state.sbeta,
-                rho=state.rho,
-                out_numer=accumulators.dmu_numer,
-                out_denom=accumulators.dmu_denom,
-            )
-            # Beta (scale/precision)
-            accumulate_beta_stats(
-                usum=usum,
-                rho=state.rho,
-                ufp=ufp,
-                y=y,
-                out_numer=accumulators.dbeta_numer,
-                out_denom=accumulators.dbeta_denom,
-            )
-            # Rho (shape parameter of generalized Gaussian)
-            accumulate_rho_stats(
-                y=y,
-                rho=state.rho,
-                u=u,
-                usum=usum,
-                epsdble=epsdble,
-                out_numer=accumulators.drho_numer,
-                out_denom=accumulators.drho_denom,
-            )
-            # --- Newton-Raphson accumulators ---
-            if do_newton and metrics.iter >= config.newt_start:
-                # NOTE: Fortran computes dsigma_* for all iters, but its unnecessary
-                # Sigma^2 accumulators (noise variance)
-                accumulate_sigma2_stats(
-                    model_responsibilities=model_resps,
-                    source_estimates=b,
-                    vsum=vsum,
-                    out_numer=accumulators.newton.dsigma2_numer,
-                    out_denom=accumulators.newton.dsigma2_denom,
-                )
-                # Kappa accumulators (curvature terms for A)
-                accumulate_kappa_stats(
-                    ufp=ufp,
-                    fp=fp,
-                    sbeta=state.sbeta,
-                    usum=usum,
-                    out_numer=accumulators.newton.dkappa_numer,
-                    out_denom=accumulators.newton.dkappa_denom,
-                )
-                # Lambda accumulators (nonlinearity shape parameter)
-                accumulate_lambda_stats(
-                    fp=fp,
-                    y=y,
-                    u=u,
-                    usum=usum,
-                    out_numer=accumulators.newton.dlambda_numer,
-                    out_denom=accumulators.newton.dlambda_denom,
-                )
-                # (dbar)Alpha accumulators
-                accumulators.newton.dbaralpha_numer[:, :] += usum
-                accumulators.newton.dbaralpha_denom[:, :] += vsum
-            # end if (do_newton and iteration >= newt_start)
-
-            # if (print_debug .and. (blk == 1) .and. (thrdnum == 0)) then
-            # if update_A:
-            #--------------------------FORTRAN CODE--------------------------------
-            # call DSCAL(nw*nw,dble(0.0),Wtmp2(:,:,thrdnum+1),1)
-            # call DGEMM('T','N',nw,nw,tblksize,dble(1.0),g(bstrt:bstp,:),...
-            #            dble(1.0),Wtmp2(:,:,thrdnum+1),nw)
-            # call DAXPY(nw*nw,dble(1.0),Wtmp2(:,:,thrdnum+1),1,dWtmp(:,:,h),1)
-            #----------------------------------------------------------------------
-            accumulators.dA[:, :] += torch.matmul(g.T, b)
-        # end do (blk)'
-
-        # In Fortran, the OMP parallel region is closed here
-        # !$OMP END PARALLEL
-
-        # End of these lifetimes
-        del b, g, u, ufp, usum, vsum, model_resps, y
-        if doing_newton:
-            del fp  # already deleted if not doing_newton
-
-        likelihood, ndtmpsum = accum_updates_and_likelihood(
+        previous_state = state.clone()
+        step = em_step(
             X=X,
+            sldet=sldet,
+            wc=wc,
             config=config,
-            accumulators=accumulators,
             state=state,
-            total_LL=loglik.sum(),
-            iteration=metrics.iter
+            iteration=metrics.iter,
+            do_newton=do_newton,
+            accumulators=accumulators,
+            loglik=loglik,
+            lrate=metrics.lrate,
+            rholrate=metrics.rholrate,
+            lrate0=metrics.lrate0,
+            rholrate0=metrics.rholrate0,
+            newtrate=metrics.newtrate,
         )
-        metrics.loglik = likelihood
-        metrics.ndtmpsum = ndtmpsum
-        # return accumulators, metrics
+        state = step.state
+        wc = step.wc
+        metrics.loglik = step.likelihood
+        metrics.ndtmpsum = step.ndtmpsum
+        metrics.lrate = step.lrate
+        metrics.rholrate = step.rholrate
 
-        # ==============================================================================
         ndtmpsum = metrics.ndtmpsum
         LL[metrics.iter - 1] = metrics.loglik
 
@@ -863,26 +727,36 @@ def _main_loop(
             c_end = time.time()
             _emit_status(progress, f"Finished in {c_end - c_start:.2f} seconds")
             return state, LL
-        # else:
-        # !----- do accumulators: gm, alpha, mu, sbeta, rho, W
-        # the updated lrate & rholrate for the next iteration
-        metrics.lrate, metrics.rholrate, state, wc = update_params(
-            X=X,
-            iteration=metrics.iter,
+
+        state, wc, accel_outcome = maybe_apply_acceleration(
+            accelerator=accelerator,
             config=config,
-            state=state,
-            accumulators=accumulators,
-            lrate=metrics.lrate,
-            rholrate=metrics.rholrate,
-            lrate0=metrics.lrate0,
-            rholrate0=metrics.rholrate0,
-            wc=wc,
-            newtrate=metrics.newtrate,
+            X=X,
+            sldet=sldet,
+            previous_state=previous_state,
+            current_state=state,
+            current_loglik=float(metrics.loglik),
+            iteration=metrics.iter,
         )
 
         # !----- reject data
         if config.do_reject:
             raise NotImplementedError()  # pragma: no cover
+
+        if config.verbose == 2 and accel_outcome.attempted:
+            parts = [
+                f"iter {metrics.iter}",
+                f"EM ll={float(metrics.loglik):.7f}",
+                f"accel={config.optimizer}",
+                f"hist={accel_outcome.history}",
+                f"accepted={accel_outcome.accepted}",
+            ]
+            if accel_outcome.candidate_loglik is not None:
+                parts.append(f"cand_ll={accel_outcome.candidate_loglik:.7f}")
+            parts.append(f"reason={accel_outcome.reason}")
+            if accel_outcome.restart:
+                parts.append("restart=True")
+            log(" | ".join(parts), level="info", color=None)
 
         metrics.iter += 1
         # end if/else
@@ -895,6 +769,291 @@ def _main_loop(
     c_end = time.time()
     _emit_status(progress, f"Finished in {c_end - c_start:.2f} seconds")
     return state, LL
+
+
+def em_step(
+        *,
+        X: DataTensor2D,
+        sldet: float,
+        wc: torch.Tensor,
+        config: AmicaConfig,
+        state: AmicaState,
+        iteration: int,
+        do_newton: bool,
+        accumulators: AmicaAccumulators,
+        loglik: torch.Tensor,
+        lrate: float,
+        rholrate: float,
+        lrate0: float,
+        rholrate0: float,
+        newtrate: float,
+) -> EMStepResult:
+    """Run one full AMICA outer EM iteration as a side-effect-light map."""
+    state = state.clone()
+    accumulators.reset()
+    loglik.fill_(0.0)
+    doing_newton = do_newton and (iteration >= config.newt_start)
+    _, Dsum = compute_sign_log_determinant(unmixing_matrix=state.W, minlog=minlog)
+
+    initial = get_initial_model_log_likelihood(
+        unmixing_logdet=Dsum,
+        whitening_logdet=sldet,
+        model_weight=state.gm[0],
+    )
+
+    batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
+    for data_batch, batch_indices in batch_loader:
+        if state.W.device.type != data_batch.device.type:
+            raise ValueError(
+                f"Mismatch between state.W device ({state.W.device}) "
+                f"and data_batch device ({data_batch.device})"
+            )
+        b = compute_preactivations(
+            X=data_batch,
+            unmixing_matrix=state.W,
+            bias=wc,
+            do_reject=config.do_reject,
+            n_weights=config.n_components,
+        )
+        y, z = compute_source_densities(
+            pdftype=config.pdftype,
+            b=b,
+            sbeta=state.sbeta,
+            mu=state.mu,
+            alpha=state.alpha,
+            rho=state.rho,
+        )
+        sample_loglik = torch.full(
+            size=(data_batch.shape[0],),
+            fill_value=initial,
+            dtype=config.dtype,
+            device=config.device,
+        )
+        compute_model_loglikelihood_per_sample(log_densities=z, out_loglik=sample_loglik)
+        z = compute_mixture_responsibilities(log_densities=z, inplace=True)
+        loglik[batch_indices] = sample_loglik
+        model_resps = torch.ones_like(sample_loglik)
+        vsum = model_resps.sum()
+        u = compute_weighted_responsibilities(
+            mixture_responsibilities=z,
+            model_responsibilities=model_resps,
+            single_model=True,
+        )
+        usum = u.sum(dim=0)
+
+        fp = compute_source_scores(pdftype=config.pdftype, y=y, rho=state.rho)
+        ufp = precompute_weighted_scores(
+            weighted_responsibilities=u,
+            scores=fp,
+            out_ufp=fp if not doing_newton else None,
+        )
+        fp_for_mu = fp if doing_newton else ufp
+
+        g = compute_scaled_scores(weighted_scores=ufp, scales=state.sbeta)
+        accumulators.dgm_numer[0] += vsum
+        accumulate_c_stats(
+            X=data_batch,
+            model_responsibilities=model_resps,
+            vsum=vsum,
+            n_weights=config.n_components,
+            out_numer=accumulators.dc_numer,
+            out_denom=accumulators.dc_denom,
+        )
+        accumulate_alpha_stats(
+            usum=usum,
+            vsum=vsum,
+            out_numer=accumulators.dalpha_numer,
+            out_denom=accumulators.dalpha_denom,
+        )
+        accumulate_mu_stats(
+            ufp=ufp,
+            rho=state.rho,
+            sbeta=state.sbeta,
+            y=y,
+            fp=fp_for_mu,
+            out_numer=accumulators.dmu_numer,
+            out_denom=accumulators.dmu_denom,
+        )
+        accumulate_beta_stats(
+            usum=usum,
+            rho=state.rho,
+            u=u,
+            ufp=ufp,
+            y=y,
+            out_numer=accumulators.dbeta_numer,
+            out_denom=accumulators.dbeta_denom,
+        )
+        accumulate_rho_stats(
+            y=y,
+            rho=state.rho,
+            u=u,
+            usum=usum,
+            epsdble=epsdble,
+            out_numer=accumulators.drho_numer,
+            out_denom=accumulators.drho_denom,
+        )
+        if doing_newton:
+            accumulate_sigma2_stats(
+                model_responsibilities=model_resps,
+                source_estimates=b,
+                vsum=vsum,
+                out_numer=accumulators.newton.dsigma2_numer,
+                out_denom=accumulators.newton.dsigma2_denom,
+            )
+            accumulate_kappa_stats(
+                ufp=ufp,
+                fp=fp,
+                sbeta=state.sbeta,
+                usum=usum,
+                out_numer=accumulators.newton.dkappa_numer,
+                out_denom=accumulators.newton.dkappa_denom,
+            )
+            accumulate_lambda_stats(
+                fp=fp,
+                y=y,
+                u=u,
+                usum=usum,
+                out_numer=accumulators.newton.dlambda_numer,
+                out_denom=accumulators.newton.dlambda_denom,
+            )
+            accumulators.newton.dbaralpha_numer[:, :] += usum
+            accumulators.newton.dbaralpha_denom[:, :] += vsum
+        else:
+            fp = None
+        accumulators.dA[:, :] += torch.matmul(g.T, b)
+
+    likelihood, ndtmpsum = accum_updates_and_likelihood(
+        X=X,
+        config=config,
+        accumulators=accumulators,
+        state=state,
+        total_LL=loglik.sum(),
+        iteration=iteration,
+    )
+    lrate, rholrate, state, wc = update_params(
+        X=X,
+        iteration=iteration,
+        config=config,
+        state=state,
+        accumulators=accumulators,
+        lrate=lrate,
+        rholrate=rholrate,
+        lrate0=lrate0,
+        rholrate0=rholrate0,
+        wc=wc.clone(),
+        newtrate=newtrate,
+    )
+    return EMStepResult(
+        state=state,
+        wc=wc,
+        likelihood=likelihood,
+        ndtmpsum=ndtmpsum,
+        lrate=lrate,
+        rholrate=rholrate,
+    )
+
+
+def evaluate_loglikelihood(
+        *,
+        X: DataTensor2D,
+        sldet: float,
+        config: AmicaConfig,
+        state: AmicaState,
+) -> torch.Tensor:
+    """Compute observed-data log-likelihood for a fixed AMICA parameter state."""
+    _, Dsum = compute_sign_log_determinant(unmixing_matrix=state.W, minlog=minlog)
+    _, wc = get_unmixing_matrices(c=state.c, A=state.A, W=state.W)
+    initial = get_initial_model_log_likelihood(
+        unmixing_logdet=Dsum,
+        whitening_logdet=sldet,
+        model_weight=state.gm[0],
+    )
+    total = torch.tensor(0.0, dtype=config.dtype, device=config.device)
+    batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
+    for data_batch, _ in batch_loader:
+        b = compute_preactivations(
+            X=data_batch,
+            unmixing_matrix=state.W,
+            bias=wc,
+            do_reject=config.do_reject,
+            n_weights=config.n_components,
+        )
+        _, z = compute_source_densities(
+            pdftype=config.pdftype,
+            b=b,
+            sbeta=state.sbeta,
+            mu=state.mu,
+            alpha=state.alpha,
+            rho=state.rho,
+        )
+        sample_loglik = torch.full(
+            size=(data_batch.shape[0],),
+            fill_value=initial,
+            dtype=config.dtype,
+            device=config.device,
+        )
+        compute_model_loglikelihood_per_sample(log_densities=z, out_loglik=sample_loglik)
+        total += sample_loglik.sum()
+    return total / (X.shape[0] * config.n_components)
+
+
+def maybe_apply_acceleration(
+        *,
+        accelerator: AndersonEMAccelerator | None,
+        config: AmicaConfig,
+        X: DataTensor2D,
+        sldet: float,
+        previous_state: AmicaState,
+        current_state: AmicaState,
+        current_loglik: float,
+        iteration: int,
+) -> tuple[AmicaState, torch.Tensor, AccelerationOutcome]:
+    """Apply optional post-EM Anderson / DAAREM-style extrapolation."""
+    _, wc = get_unmixing_matrices(c=current_state.c, A=current_state.A, W=current_state.W)
+    if accelerator is None:
+        return current_state, wc, AccelerationOutcome(reason="disabled")
+    x_prev = pack_state(previous_state)
+    g_curr = pack_state(current_state)
+    accelerator.update(x=x_prev, g=g_curr)
+    if iteration < config.accelerator_start_iter:
+        return current_state, wc, AccelerationOutcome(reason="warmup")
+    if (iteration - config.accelerator_start_iter) % max(1, config.accelerator_period) != 0:
+        return current_state, wc, AccelerationOutcome(reason="period")
+
+    outcome = AccelerationOutcome(attempted=True, reason="insufficient_history")
+    proposal = accelerator.propose()
+    if proposal is None:
+        return current_state, wc, outcome
+    outcome.history = proposal.history
+
+    candidate_state = unpack_state(proposal.candidate, current_state)
+    valid, reason = is_valid_state(candidate_state)
+    if not valid:
+        outcome.reason = reason
+        outcome.restart = accelerator.reject()
+        return current_state, wc, outcome
+
+    if config.accelerator_validate_candidate:
+        candidate_loglik = float(
+            evaluate_loglikelihood(X=X, sldet=sldet, config=config, state=candidate_state)
+        )
+        outcome.candidate_loglik = candidate_loglik
+        if config.optimizer == "daarem":
+            if candidate_loglik < current_loglik - config.accelerator_eps_monotone:
+                outcome.reason = "monotonicity"
+                outcome.restart = accelerator.reject()
+                return current_state, wc, outcome
+        outcome.reason = "validated"
+    else:
+        outcome.reason = "sanity_only"
+
+    candidate_w, candidate_wc = get_unmixing_matrices(
+        c=candidate_state.c, A=candidate_state.A, W=candidate_state.W
+    )
+    candidate_state.W = candidate_w
+    accelerator.accept()
+    outcome.accepted = True
+    return candidate_state, candidate_wc, outcome
 
 
 def accum_updates_and_likelihood(

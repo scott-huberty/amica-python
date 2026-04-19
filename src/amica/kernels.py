@@ -467,8 +467,10 @@ def compute_source_scores(
         #-------------------------------------------------------------------------------
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = (torch.isclose(rho, torch.tensor(1.0), atol=1e-12))
-        gau_mask = (torch.isclose(rho, torch.tensor(2.0), atol=1e-12))
+        one = torch.tensor(1.0, dtype=rho.dtype, device=rho.device)
+        two = torch.tensor(2.0, dtype=rho.dtype, device=rho.device)
+        lap_mask = torch.isclose(rho, one, atol=1e-12)
+        gau_mask = torch.isclose(rho, two, atol=1e-12)
 
         # Default: generalized Gaussian score function
         # Step 1. Compute |y|^(rho - 1) in-place
@@ -478,7 +480,7 @@ def compute_source_scores(
         torch.exp(out_scores, out=out_scores)         # |y|^(rho - 1)
 
         # Step 2. Multiply by rho and sign(y) without np.sign allocation
-        out_scores *= rho * torch.where(y >= 0, 1.0, -1.0)
+        out_scores *= rho * torch.where(y >= 0, one, -one)
 
         # Overwrite with Laplacian/Gaussian score function where needed
         # This is usually a small loop, and ensures we get a view of the arrays
@@ -487,7 +489,7 @@ def compute_source_scores(
                 out_scores[:, i, j] = torch.sign(y[:, i, j])
         if gau_mask.any():
             for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
-                out_scores[:, i, j] = torch.multiply(y[:, i, j], 2.0)
+                out_scores[:, i, j] = torch.multiply(y[:, i, j], two)
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
@@ -742,6 +744,7 @@ def accumulate_mu_stats(
         rho: ParamsArray,
         sbeta: ParamsArray,
         y: SourceArray3D,
+        fp: SourceArray3D | None = None,
         out_numer: ParamsArray,
         out_denom: ParamsArray,
         ) -> tuple[ParamsArray, ParamsArray]:
@@ -800,25 +803,20 @@ def accumulate_mu_stats(
     # else
     # tmpsum = sbeta(j,comp_list(i,h)) * sum( ufp(bstrt:bstp) * fp(bstrt:bstp) )
     # -----------------------------------------------------------------------
-    if torch.all(rho <= 2.0):
+    mask_le2 = rho <= 2.0
+    if torch.any(mask_le2):
         mu_denom_sum = torch.sum(ufp / y, dim=0)
         if torch.any(~torch.isfinite(mu_denom_sum)):
-            # With the toy data we've seen exactly zero values. bc b and mu cancel out.
-            # TODO: We might want to do this by default in compute_sources instead.
-            # In order to improve numerical stability across runs.
             warn(
                 "Non-finite values detected in mu (locations) update; \n"
-                "clamping estimated sources (y) to min=1e-10 to avoid divide-by-zero.",
+                "clamping estimated sources (y) to avoid divide-by-zero.",
                 RuntimeWarning,
-                )
-            # Clamp y to avoid divide-by-zero and re-compute mu_denom_sum
+            )
             signs = torch.sign(y)
-            no_sign = torch.nonzero(signs == 0)
-            signs[no_sign] = 1.0
-
+            signs = torch.where(signs == 0, torch.ones_like(signs), signs)
             epsdble = torch.finfo(y.dtype).eps
-            y = signs * (abs(y) + epsdble)
-            mu_denom_sum = torch.sum(ufp / y, dim=0)
+            y_safe = signs * torch.clamp(torch.abs(y), min=epsdble)
+            mu_denom_sum = torch.sum(ufp / y_safe, dim=0)
         if torch.any(~torch.isfinite(mu_denom_sum)):
             raise RuntimeError(
                 "Non-finite values still present in mu (locations) update "
@@ -830,16 +828,34 @@ def accumulate_mu_stats(
                 "avoid NaNs."
             )
             mu_denom_sum += torch.finfo(mu_denom_sum.dtype).eps
-        tmpsum_mu_denom = (sbeta * mu_denom_sum)
-        out_denom += tmpsum_mu_denom
-    else:
-        raise NotImplementedError("Generalized Gaussian mu update not implemented yet.")
+        tmpsum_mu_denom = sbeta * mu_denom_sum
+        out_denom += torch.where(
+            mask_le2,
+            tmpsum_mu_denom,
+            torch.zeros_like(tmpsum_mu_denom),
+        )
+
+    mask_gt2 = rho > 2.0
+    if torch.any(mask_gt2):
+        if fp is None:
+            raise ValueError("fp is required for the generalized-Gaussian mu update.")
+        mu_denom_sum = torch.sum(ufp * fp, dim=0)
+        if torch.any(~torch.isfinite(mu_denom_sum)):
+            raise RuntimeError("Non-finite generalized-Gaussian mu denominator.")
+        tmpsum_mu_denom = sbeta * mu_denom_sum
+        out_denom += torch.where(
+            mask_gt2,
+            tmpsum_mu_denom,
+            torch.zeros_like(tmpsum_mu_denom),
+        )
+    return out_numer, out_denom
 
 
 def accumulate_beta_stats(
         *,
         usum: ParamsArray,
         rho: ParamsArray,
+        u: SourceArray3D | None = None,
         ufp: SourceArray3D,
         y: SourceArray3D,
         out_numer: ParamsArray,
@@ -887,12 +903,18 @@ def accumulate_beta_stats(
     # tmpsum = sum( ufp(bstrt:bstp) * y(bstrt:bstp,i,j,h) )
     # dbeta_denom_tmp(j,comp_list(i,h)) =  dbeta_denom_tmp(j,comp_list(i,h)) + tmpsum
     # ----------------------------------------------------------------------
-    if torch.all(rho <= 2.0):
-        # (s=samples, i=n_components, j=num_mixtures)
-        # Same as torch.einsum("sij,sij->ij", ufp, y)
-        out_denom += torch.sum(ufp * y, dim=0)  # shape: (nw, num_mix)
-    else:
-        raise NotImplementedError()
+    mask_le2 = rho <= 2.0
+    if torch.any(mask_le2):
+        beta_denom = torch.sum(ufp * y, dim=0)
+        out_denom += torch.where(mask_le2, beta_denom, torch.zeros_like(beta_denom))
+    mask_gt2 = rho > 2.0
+    if torch.any(mask_gt2):
+        if u is None:
+            raise ValueError("u is required for the generalized-Gaussian beta update.")
+        tmpy = torch.pow(torch.abs(y), rho[None, :, :])
+        beta_denom_hi = torch.sum(u * tmpy, dim=0)
+        out_denom += torch.where(mask_gt2, beta_denom_hi, torch.zeros_like(beta_denom_hi))
+    return out_numer, out_denom
 
 
 def accumulate_rho_stats(
@@ -981,8 +1003,6 @@ def accumulate_rho_stats(
     # Sum over samples -> (nw, num_mix) and accumulate
     out_numer += tmpy.sum(dim=0)
     out_denom += usum
-    if torch.any(rho > 2.0):
-        raise NotImplementedError()
     return out_numer, out_denom
 
 

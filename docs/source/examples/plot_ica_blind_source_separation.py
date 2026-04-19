@@ -54,7 +54,18 @@ labels = {}
 
 # AMICA
 # We instantiate amica.AMICA and call fit..
-ica = AMICA(n_components=3, whiten="zca", random_state=0)
+ica = AMICA(
+    n_components=3,
+    whiten="zca",
+    random_state=0,
+    optimizer="daarem",
+    accelerator_order=3,
+    accelerator_damping=0.8,
+    accelerator_ridge=1e-8,
+    accelerator_eps_monotone=0,
+    accelerator_start_iter=51,
+    accelerator_period=3,
+    )
 models["AMICA"] = ica.fit_transform(X)
 labels["AMICA"] = "AMICA recovered signals"
 

@@ -34,6 +34,17 @@ class AmicaConfig:
     max_iter: int = 200
     verbose: int = 1
 
+    # Outer-loop optimizer / acceleration
+    optimizer: str = "em"
+    accelerator_order: int = 5
+    accelerator_damping: float = 1.0
+    accelerator_ridge: float = 1e-8
+    accelerator_eps_monotone: float = 0.0
+    accelerator_start_iter: int = 5
+    accelerator_period: int = 3
+    accelerator_max_restarts: int = 20
+    accelerator_validate_candidate: bool = False
+    accelerator_history_reset_on_reject: bool = True
 
     # Algorithmic flags
     do_reject: bool = False
@@ -75,6 +86,19 @@ class AmicaState:
     rho: NDArray
     alpha: NDArray
     gm: NDArray
+
+    def clone(self) -> "AmicaState":
+        """Return a deep copy of the learnable parameter state."""
+        return AmicaState(
+            W=self.W.clone(),
+            A=self.A.clone(),
+            c=self.c.clone(),
+            mu=self.mu.clone(),
+            sbeta=self.sbeta.clone(),
+            rho=self.rho.clone(),
+            alpha=self.alpha.clone(),
+            gm=self.gm.clone(),
+        )
 
     def to_dict(self) -> dict[str, NDArray]:
         """Return a lightweight serialization of array fields."""
