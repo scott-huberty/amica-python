@@ -199,9 +199,12 @@ digit classification on the MNIST dataset.</p>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/src/amica/linalg.py:333: RuntimeWarning: invalid value encountered in sqrt
 </span><span data-line="2">  Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix
-</span><span data-line="3">
-</span><span data-line="4">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/sklearn/linear_model/_logistic.py:1184: FutureWarning: &#39;n_jobs&#39; has no effect since 1.8 and will be removed in 1.10. You provided &#39;n_jobs=-1&#39;, please leave it unspecified.
-</span><span data-line="5">  warnings.warn(msg, category=FutureWarning)
+</span><span data-line="3">/home/circleci/project/amica-python/src/amica/core.py:900: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+</span><span data-line="4">  warn(
+</span><span data-line="5">Finished in 97.60 seconds
+</span><span data-line="6">
+</span><span data-line="7">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/sklearn/linear_model/_logistic.py:1184: FutureWarning: &#39;n_jobs&#39; has no effect since 1.8 and will be removed in 1.10. You provided &#39;n_jobs=-1&#39;, please leave it unspecified.
+</span><span data-line="8">  warnings.warn(msg, category=FutureWarning)
 </span></pre></div>
 </div>
 <div class="output_subarea output_html rendered_html output_result">
@@ -1586,7 +1589,7 @@ forceTheme('sk-container-id-3');</script></body>
 </span><span data-line="6"><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_pipe_003.png" srcset="../_images/sphx_glr_plot_pipe_003.png" alt="Top 5 negative AMICA components for class 0, Comp 0, Comp 59, Comp 16, Comp 22, Comp 57" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 49.319 seconds)</p>
+<img src="../_images/sphx_glr_plot_pipe_003.png" srcset="../_images/sphx_glr_plot_pipe_003.png" alt="Top 5 negative AMICA components for class 0, Comp 0, Comp 59, Comp 16, Comp 22, Comp 57" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (2 minutes 24.299 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-pipe-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/a2c4dcb2419dc977b4a1c9c310d5ccdd/plot_pipe.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_pipe.ipynb</span></code></a></p>
