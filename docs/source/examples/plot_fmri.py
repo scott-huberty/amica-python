@@ -85,7 +85,7 @@ def fit_amica_components(canica, func_filenames):
     amica = AMICA(
         n_components=canica.n_components,
         batch_size=4096,
-        max_iter=500,
+        max_iter=200,
         random_state=canica.random_state,
         verbose=1,
     )
@@ -138,7 +138,7 @@ canica = CanICA(
     verbose=1,
     random_state=0,
     mask_strategy="whole-brain-template",
-    n_jobs=1,
+    n_jobs=4,
 )
 with warnings.catch_warnings():
     warnings.filterwarnings(action="ignore", category=ConvergenceWarning)
