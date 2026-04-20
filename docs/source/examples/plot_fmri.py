@@ -1,9 +1,9 @@
 """
-Deriving spatial maps from group fMRI data using ICA
-====================================================
+Run ICA on  group fMRI data 
+===========================
 
-Various approaches exist to derive spatial maps or networks from
-group fMRI data. The methods extract distributed brain regions that
+ICA can be used to derive spatial maps or networks from
+group fMRI data by identifying distributed brain regions that
 exhibit similar BOLD fluctuations over time.
 
 This example applies ICA to fMRI data measured while children
@@ -12,10 +12,7 @@ Nilearn's atlas plotting tools.
 
 This example is borrowed from the `nilearn Python package <https://nilearn.github.io/stable/auto_examples/03_connectivity/plot_compare_decomposition.html>`_.
 We visually compare AMICA to the CanICA method implemented in Nilearn, which is
-specifically designed for group-level analysis of fMRI data. To keep the AMICA
-path comparable to CanICA, we first build the same group matrix used by the
-CanICA pipeline, then fit AMICA on that matrix, and finally project the learned
-maps back into brain space for plotting.
+specifically designed for group-level analysis of fMRI data.
 
 .. tip::
     TL;DR - I would probably just use CanICA or some other Group ICA method
@@ -33,9 +30,8 @@ from sklearn.utils.extmath import randomized_svd
 from amica import AMICA
 from nilearn.datasets import fetch_development_fmri
 from nilearn.decomposition import CanICA
-from nilearn.decomposition._base import _mask_and_reduce
 from nilearn.image import iter_img, math_img
-from nilearn.plotting import plot_prob_atlas, plot_stat_map, show
+from nilearn.plotting import plot_prob_atlas, plot_stat_map
 
 
 def _orient_components(components):
@@ -47,28 +43,49 @@ def _orient_components(components):
     return components
 
 
-def fit_amica_components(canica, func_filenames):
-    """Fit AMICA on the CanICA group matrix and return maps in brain space."""
-    reduced_data = _mask_and_reduce(
-        canica.masker_,
-        func_filenames,
-        n_components=canica.n_components,
-        random_state=canica.random_state,
-        n_jobs=canica.n_jobs,
+def _subject_pca_reduce(subject_data, *, n_components, random_state):
+    """Reduce one subject to a low-rank voxel representation."""
+    left_singular_vectors, singular_values, _ = randomized_svd(
+        subject_data.T,
+        n_components=n_components,
+        random_state=random_state,
     )
-    group_pca_components, _, _ = randomized_svd(
+    return left_singular_vectors.T * singular_values[:, None]
+
+
+def _build_group_matrix(func_filenames, *, masker, n_components, random_state):
+    """Build a group matrix from masked subject data."""
+    reduced_subjects = [
+        _subject_pca_reduce(
+            masker.transform(func_file),
+            n_components=n_components,
+            random_state=random_state,
+        )
+        for func_file in func_filenames
+    ]
+    reduced_data = np.vstack(reduced_subjects)
+    group_components, _, _ = randomized_svd(
         reduced_data.T,
-        n_components=canica.n_components,
+        n_components=n_components,
         transpose=True,
-        random_state=canica.random_state,
+        random_state=random_state,
         n_iter=3,
     )
-    group_matrix = group_pca_components.T
+    return group_components.T
+
+
+def fit_amica_components(canica, func_filenames):
+    """Fit AMICA on a group matrix and return maps."""
+    group_matrix = _build_group_matrix(
+        func_filenames,
+        masker=canica.masker_,
+        n_components=canica.n_components,
+        random_state=canica.random_state,
+    )
     amica = AMICA(
         n_components=canica.n_components,
         batch_size=4096,
-        max_iter=1000,
-        tol=1e-6,
+        max_iter=500,
         random_state=canica.random_state,
         verbose=1,
     )
@@ -121,7 +138,7 @@ canica = CanICA(
     verbose=1,
     random_state=0,
     mask_strategy="whole-brain-template",
-    n_jobs=2,
+    n_jobs=1,
 )
 with warnings.catch_warnings():
     warnings.filterwarnings(action="ignore", category=ConvergenceWarning)
@@ -132,8 +149,8 @@ canica_components_img.to_filename(output_dir / "canica_resting_state.nii.gz")
 
 
 # %%
-# AMICA on the CanICA group matrix
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# AMICA on a group matrix
+# ^^^^^^^^^^^^^^^^^^^^^^^
 _amica, amica_group_matrix, amica_components_img = fit_amica_components(
     canica,
     func_filenames,
@@ -157,18 +174,5 @@ plot_prob_atlas(
 # --------------------------------------------
 plot_components(canica_components_img, prefix="CanICA")
 plot_components(amica_components_img, prefix="AMICA")
-
-show()
-
-# %%
-import shutil
-shutil.rmtree(output_dir)
-
-# %%
-# References
-# ----------
-#
-# .. footbibliography::
-
 
 # sphinx_gallery_dummy_images=8
