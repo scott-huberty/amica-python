@@ -129,7 +129,7 @@ Fit
       Winv = (eigvecs * np.sqrt(eigvals)) @ eigvecs.T  # Inverse of the whitening matrix
     /home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
       warn(
-    Finished in 138.40 seconds
+    Finished in 125.31 seconds
 
     /home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/sklearn/linear_model/_logistic.py:1184: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=-1', please leave it unspecified.
       warnings.warn(msg, category=FutureWarning)
@@ -1607,7 +1607,7 @@ Top positive / negative logistic weights
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (2 minutes 37.575 seconds)
+   **Total running time of the script:** (3 minutes 4.633 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_pipe.py:

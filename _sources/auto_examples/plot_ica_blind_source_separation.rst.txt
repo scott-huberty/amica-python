@@ -101,7 +101,7 @@ Run AMICA and FastICA
 
  .. code-block:: none
 
-    Finished in 4.47 seconds
+    Finished in 6.19 seconds
 
 
 
@@ -173,7 +173,7 @@ Plot results
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.853 seconds)
+   **Total running time of the script:** (0 minutes 6.654 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_ica_blind_source_separation.py:

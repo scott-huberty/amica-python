@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run ICA on group fMRI data - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Isolate Cosmic Microwave Background with ICA" href="plot_astronomy_planck_cmb_separation.html" /><link rel="prev" title="Use AMICA in a Scikit-Learn Pipeline" href="plot_pipe.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Run ICA on group fMRI data"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      
+      
+      <strong>AMICA-Python</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul><li class="link"><a href="../about.html">About</a></li><li class="link"><a href="../install.html">Install</a></li><li class="link"><a href="../api/index.html">API</a></li><li class="link"><a href="index.html">Examples</a></li><li class="link"><a href="../FAQ.html">FAQ</a></li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/AMICA.html">AMICA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions.html">Functional API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/utils.html">Utilities and Helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/datasets.html">Dataset Fetchers</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">AMICA Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Run ICA on  group fMRI data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#load-brain-development-fmri-dataset">Load brain development fMRI dataset</a></li>
+<li><a class="reference internal" href="#apply-ica-on-the-data">Apply ICA on the data</a><ul>
+<li><a class="reference internal" href="#canica">CanICA</a></li>
+<li><a class="reference internal" href="#amica-on-a-group-matrix">AMICA on a group matrix</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#plot-all-components-together">Plot all components together</a></li>
+<li><a class="reference internal" href="#plot-the-first-few-component-maps-separately">Plot the first few component maps separately</a></li>
+</ul>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">AMICA-Python</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">AMICA Tutorials</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Run ICA on  group fMRI data</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
+          <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-plot-fmri-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="run-ica-on-group-fmri-data">
+<span id="sphx-glr-auto-examples-plot-fmri-py"></span><h1>Run ICA on  group fMRI data<a class="headerlink" href="#run-ica-on-group-fmri-data" title="Link to this heading">¶</a></h1>
+<p>ICA can be used to derive spatial maps or networks from
+group fMRI data by identifying distributed brain regions that
+exhibit similar BOLD fluctuations over time.</p>
+<p>This example applies ICA to fMRI data measured while children
+and young adults watch movies. The resulting maps are visualized using
+Nilearn’s atlas plotting tools.</p>
+<p>This example is borrowed from the <a class="reference external" href="https://nilearn.github.io/stable/auto_examples/03_connectivity/plot_compare_decomposition.html">nilearn Python package</a>.
+We visually compare AMICA to the CanICA method implemented in Nilearn, which is
+specifically designed for group-level analysis of fMRI data.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>TL;DR - I would probably just use CanICA or some other Group ICA method
+when working with study-wide fMRI data. This tutorial is for demonstration purposes
+and does not advocate for the use of AMICA over other methods tailored for fMRI.</p>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.exceptions</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.exceptions.ConvergenceWarning.html#sklearn.exceptions.ConvergenceWarning" title="sklearn.exceptions.ConvergenceWarning" class="sphx-glr-backref-module-sklearn-exceptions sphx-glr-backref-type-py-exception"><span class="n">ConvergenceWarning</span></a>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.utils.extmath</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html#sklearn.utils.extmath.randomized_svd" title="sklearn.utils.extmath.randomized_svd" class="sphx-glr-backref-module-sklearn-utils-extmath sphx-glr-backref-type-py-function"><span class="n">randomized_svd</span></a>
+</span><span data-line="7">
+</span><span data-line="8"><span class="kn">from</span><span class="w"> </span><span class="nn">amica</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a>
+</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">nilearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">fetch_development_fmri</span>
+</span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">nilearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">CanICA</span></a>
+</span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">nilearn.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">iter_img</span><span class="p">,</span> <span class="n">math_img</span>
+</span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">nilearn.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_prob_atlas</span><span class="p">,</span> <span class="n">plot_stat_map</span>
+</span><span data-line="13">
+</span><span data-line="14">
+</span><span data-line="15"><span class="k">def</span><span class="w"> </span><span class="nf">_orient_components</span><span class="p">(</span><span class="n">components</span><span class="p">):</span>
+</span><span data-line="16"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Flip each component so its largest-magnitude peak is positive.&quot;&quot;&quot;</span>
+</span><span data-line="17">    <span class="n">components</span> <span class="o">=</span> <span class="n">components</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</span><span data-line="18">    <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">components</span><span class="p">:</span>
+</span><span data-line="19">        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">&gt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">max</span><span class="p">()):</span>
+</span><span data-line="20">            <span class="n">component</span> <span class="o">*=</span> <span class="o">-</span><span class="mf">1.0</span>
+</span><span data-line="21">    <span class="k">return</span> <span class="n">components</span>
+</span><span data-line="22">
+</span><span data-line="23">
+</span><span data-line="24"><span class="k">def</span><span class="w"> </span><span class="nf">_subject_pca_reduce</span><span class="p">(</span><span class="n">subject_data</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+</span><span data-line="25"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reduce one subject to a low-rank voxel representation.&quot;&quot;&quot;</span>
+</span><span data-line="26">    <span class="n">left_singular_vectors</span><span class="p">,</span> <span class="n">singular_values</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html#sklearn.utils.extmath.randomized_svd" title="sklearn.utils.extmath.randomized_svd" class="sphx-glr-backref-module-sklearn-utils-extmath sphx-glr-backref-type-py-function"><span class="n">randomized_svd</span></a><span class="p">(</span>
+</span><span data-line="27">        <span class="n">subject_data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+</span><span data-line="28">        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+</span><span data-line="29">        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+</span><span data-line="30">    <span class="p">)</span>
+</span><span data-line="31">    <span class="k">return</span> <span class="n">left_singular_vectors</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="n">singular_values</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+</span><span data-line="32">
+</span><span data-line="33">
+</span><span data-line="34"><span class="k">def</span><span class="w"> </span><span class="nf">_build_group_matrix</span><span class="p">(</span><span class="n">func_filenames</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">masker</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+</span><span data-line="35"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a group matrix from masked subject data.&quot;&quot;&quot;</span>
+</span><span data-line="36">    <span class="n">reduced_subjects</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="37">        <span class="n">_subject_pca_reduce</span><span class="p">(</span>
+</span><span data-line="38">            <span class="n">masker</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">func_file</span><span class="p">),</span>
+</span><span data-line="39">            <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+</span><span data-line="40">            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+</span><span data-line="41">        <span class="p">)</span>
+</span><span data-line="42">        <span class="k">for</span> <span class="n">func_file</span> <span class="ow">in</span> <span class="n">func_filenames</span>
+</span><span data-line="43">    <span class="p">]</span>
+</span><span data-line="44">    <span class="n">reduced_data</span> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.vstack.html#numpy.vstack" title="numpy.vstack" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">vstack</span></a><span class="p">(</span><span class="n">reduced_subjects</span><span class="p">)</span>
+</span><span data-line="45">    <span class="n">group_components</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.extmath.randomized_svd.html#sklearn.utils.extmath.randomized_svd" title="sklearn.utils.extmath.randomized_svd" class="sphx-glr-backref-module-sklearn-utils-extmath sphx-glr-backref-type-py-function"><span class="n">randomized_svd</span></a><span class="p">(</span>
+</span><span data-line="46">        <span class="n">reduced_data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+</span><span data-line="47">        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+</span><span data-line="48">        <span class="n">transpose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span data-line="49">        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+</span><span data-line="50">        <span class="n">n_iter</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+</span><span data-line="51">    <span class="p">)</span>
+</span><span data-line="52">    <span class="k">return</span> <span class="n">group_components</span><span class="o">.</span><span class="n">T</span>
+</span><span data-line="53">
+</span><span data-line="54">
+</span><span data-line="55"><span class="k">def</span><span class="w"> </span><span class="nf">fit_amica_components</span><span class="p">(</span><span class="n">canica</span><span class="p">,</span> <span class="n">func_filenames</span><span class="p">):</span>
+</span><span data-line="56"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Fit AMICA on a group matrix and return maps.&quot;&quot;&quot;</span>
+</span><span data-line="57">    <span class="n">group_matrix</span> <span class="o">=</span> <span class="n">_build_group_matrix</span><span class="p">(</span>
+</span><span data-line="58">        <span class="n">func_filenames</span><span class="p">,</span>
+</span><span data-line="59">        <span class="n">masker</span><span class="o">=</span><span class="n">canica</span><span class="o">.</span><span class="n">masker_</span><span class="p">,</span>
+</span><span data-line="60">        <span class="n">n_components</span><span class="o">=</span><span class="n">canica</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span>
+</span><span data-line="61">        <span class="n">random_state</span><span class="o">=</span><span class="n">canica</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+</span><span data-line="62">    <span class="p">)</span>
+</span><span data-line="63">    <span class="n">amica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a><span class="p">(</span>
+</span><span data-line="64">        <span class="n">n_components</span><span class="o">=</span><span class="n">canica</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span>
+</span><span data-line="65">        <span class="n">batch_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+</span><span data-line="66">        <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+</span><span data-line="67">        <span class="n">random_state</span><span class="o">=</span><span class="n">canica</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+</span><span data-line="68">        <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="69">    <span class="p">)</span>
+</span><span data-line="70">    <span class="n">spatial_maps</span> <span class="o">=</span> <span class="n">_orient_components</span><span class="p">(</span><span class="n">amica</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">group_matrix</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</span><span data-line="71">    <span class="n">components_img</span> <span class="o">=</span> <span class="n">canica</span><span class="o">.</span><span class="n">masker_</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">spatial_maps</span><span class="p">)</span>
+</span><span data-line="72">    <span class="k">return</span> <span class="n">amica</span><span class="p">,</span> <span class="n">group_matrix</span><span class="p">,</span> <span class="n">components_img</span>
+</span><span data-line="73">
+</span><span data-line="74">
+</span><span data-line="75"><span class="k">def</span><span class="w"> </span><span class="nf">plot_components</span><span class="p">(</span><span class="n">components_img</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">n_plots</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+</span><span data-line="76"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the first few component maps with a common color scale.&quot;&quot;&quot;</span>
+</span><span data-line="77">    <span class="n">vmax</span> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.percentile.html#numpy.percentile" title="numpy.percentile" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">percentile</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ufunc.html#numpy.ufunc" title="numpy.ufunc" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">np</span><span class="o">.</span><span class="n">abs</span></a><span class="p">(</span><span class="n">components_img</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">()),</span> <span class="mf">99.5</span><span class="p">)</span>
+</span><span data-line="78">    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cur_img</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">iter_img</span><span class="p">(</span><span class="n">components_img</span><span class="p">)):</span>
+</span><span data-line="79">        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="n">n_plots</span><span class="p">:</span>
+</span><span data-line="80">            <span class="k">break</span>
+</span><span data-line="81">        <span class="n">plot_stat_map</span><span class="p">(</span>
+</span><span data-line="82">            <span class="n">cur_img</span><span class="p">,</span>
+</span><span data-line="83">            <span class="n">display_mode</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span>
+</span><span data-line="84">            <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> IC </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span data-line="85">            <span class="n">cut_coords</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="86">            <span class="n">vmin</span><span class="o">=-</span><span class="n">vmax</span><span class="p">,</span>
+</span><span data-line="87">            <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">,</span>
+</span><span data-line="88">            <span class="n">colorbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="89">        <span class="p">)</span>
+</span></pre></div>
+</div>
+<section id="load-brain-development-fmri-dataset">
+<h2>Load brain development fMRI dataset<a class="headerlink" href="#load-brain-development-fmri-dataset" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.Bunch.html#sklearn.utils.Bunch" title="sklearn.utils.Bunch" class="sphx-glr-backref-module-sklearn-utils sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rest_dataset</span></a> <span class="o">=</span> <span class="n">fetch_development_fmri</span><span class="p">(</span><span class="n">n_subjects</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">func_filenames</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.Bunch.html#sklearn.utils.Bunch" title="sklearn.utils.Bunch" class="sphx-glr-backref-module-sklearn-utils sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rest_dataset</span></a><span class="o">.</span><span class="n">func</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;First functional nifti image (4D) is at: </span><span class="si">{</span><a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.Bunch.html#sklearn.utils.Bunch" title="sklearn.utils.Bunch" class="sphx-glr-backref-module-sklearn-utils sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rest_dataset</span></a><span class="o">.</span><span class="n">func</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">[fetch_development_fmri] Added README.md to /home/circleci/nilearn_data
+</span><span data-line="2">[fetch_development_fmri] Dataset created in
+</span><span data-line="3">/home/circleci/nilearn_data/development_fmri
+</span><span data-line="4">[fetch_development_fmri] Added README.md to
+</span><span data-line="5">/home/circleci/nilearn_data/development_fmri
+</span><span data-line="6">[fetch_development_fmri] Dataset created in
+</span><span data-line="7">/home/circleci/nilearn_data/development_fmri/development_fmri
+</span><span data-line="8">[fetch_development_fmri] Downloading data from https://osf.io/yr3av/download ...
+</span><span data-line="9">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="10">
+</span><span data-line="11">[fetch_development_fmri] Dataset found in
+</span><span data-line="12">/home/circleci/nilearn_data/development_fmri/development_fmri
+</span><span data-line="13">[fetch_development_fmri] Downloading data from
+</span><span data-line="14">https://osf.io/download/5c8ff3ea4712b400183b70b7/ ...
+</span><span data-line="15">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="16">
+</span><span data-line="17">[fetch_development_fmri] Downloading data from
+</span><span data-line="18">https://osf.io/download/5c8ff3eb2286e80019c3c194/ ...
+</span><span data-line="19">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="20">
+</span><span data-line="21">[fetch_development_fmri] Downloading data from
+</span><span data-line="22">https://osf.io/download/5c8ff3e52286e80018c3e439/ ...
+</span><span data-line="23">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="24">
+</span><span data-line="25">[fetch_development_fmri] Downloading data from
+</span><span data-line="26">https://osf.io/download/5c8ff3e72286e80017c41b3d/ ...
+</span><span data-line="27">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="28">
+</span><span data-line="29">[fetch_development_fmri] Downloading data from
+</span><span data-line="30">https://osf.io/download/5c8ff3e4a743a9001760814f/ ...
+</span><span data-line="31">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="32">
+</span><span data-line="33">[fetch_development_fmri] Downloading data from
+</span><span data-line="34">https://osf.io/download/5c8ff3e54712b400183b70a5/ ...
+</span><span data-line="35">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="36">
+</span><span data-line="37">[fetch_development_fmri] Downloading data from
+</span><span data-line="38">https://osf.io/download/5c8ff3e14712b400183b7097/ ...
+</span><span data-line="39">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="40">
+</span><span data-line="41">[fetch_development_fmri] Downloading data from
+</span><span data-line="42">https://osf.io/download/5c8ff3e32286e80018c3e42c/ ...
+</span><span data-line="43">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="44">
+</span><span data-line="45">[fetch_development_fmri] Downloading data from
+</span><span data-line="46">https://osf.io/download/5c8ff3df4712b400183b7092/ ...
+</span><span data-line="47">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="48">
+</span><span data-line="49">[fetch_development_fmri] Downloading data from
+</span><span data-line="50">https://osf.io/download/5c8ff3e04712b400193b5bdf/ ...
+</span><span data-line="51">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="52">
+</span><span data-line="53">[fetch_development_fmri] Downloading data from
+</span><span data-line="54">https://osf.io/download/5c8ff3e9a743a90017608158/ ...
+</span><span data-line="55">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="56">
+</span><span data-line="57">[fetch_development_fmri] Downloading data from
+</span><span data-line="58">https://osf.io/download/5c8ff3e82286e80018c3e443/ ...
+</span><span data-line="59">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="60">
+</span><span data-line="61">[fetch_development_fmri] Downloading data from
+</span><span data-line="62">https://osf.io/download/5cb47052f2be3c0017057069/ ...
+</span><span data-line="63">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="64">
+</span><span data-line="65">[fetch_development_fmri] Downloading data from
+</span><span data-line="66">https://osf.io/download/5cb46e5c353c5800199ac79f/ ...
+</span><span data-line="67">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="68">
+</span><span data-line="69">[fetch_development_fmri] Downloading data from
+</span><span data-line="70">https://osf.io/download/5cb47045a3bc970019f073a0/ ...
+</span><span data-line="71">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="72">
+</span><span data-line="73">[fetch_development_fmri] Downloading data from
+</span><span data-line="74">https://osf.io/download/5cb46e913992690018133b1c/ ...
+</span><span data-line="75">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="76">
+</span><span data-line="77">[fetch_development_fmri] Downloading data from
+</span><span data-line="78">https://osf.io/download/5c8ff3912286e80018c3e393/ ...
+</span><span data-line="79">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="80">
+</span><span data-line="81">[fetch_development_fmri] Downloading data from
+</span><span data-line="82">https://osf.io/download/5c8ff3952286e80017c41a1b/ ...
+</span><span data-line="83">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="84">
+</span><span data-line="85">[fetch_development_fmri] Downloading data from
+</span><span data-line="86">https://osf.io/download/5cb47023353c58001c9ac02b/ ...
+</span><span data-line="87">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="88">
+</span><span data-line="89">[fetch_development_fmri] Downloading data from
+</span><span data-line="90">https://osf.io/download/5cb46eaa39926900160f69af/ ...
+</span><span data-line="91">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="92">
+</span><span data-line="93">[fetch_development_fmri] Downloading data from
+</span><span data-line="94">https://osf.io/download/5c8ff391a743a900176080a9/ ...
+</span><span data-line="95">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="96">
+</span><span data-line="97">[fetch_development_fmri] Downloading data from
+</span><span data-line="98">https://osf.io/download/5c8ff3914712b400173b5329/ ...
+</span><span data-line="99">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="100">
+</span><span data-line="101">[fetch_development_fmri] Downloading data from
+</span><span data-line="102">https://osf.io/download/5cb4702a353c58001b9cb5ae/ ...
+</span><span data-line="103">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="104">
+</span><span data-line="105">[fetch_development_fmri] Downloading data from
+</span><span data-line="106">https://osf.io/download/5cb46e9b39926900190fad5c/ ...
+</span><span data-line="107">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="108">
+</span><span data-line="109">[fetch_development_fmri] Downloading data from
+</span><span data-line="110">https://osf.io/download/5c8ff38f2286e80018c3e38d/ ...
+</span><span data-line="111">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="112">
+</span><span data-line="113">[fetch_development_fmri] Downloading data from
+</span><span data-line="114">https://osf.io/download/5c8ff3914712b4001a3b5579/ ...
+</span><span data-line="115">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="116">
+</span><span data-line="117">[fetch_development_fmri] Downloading data from
+</span><span data-line="118">https://osf.io/download/5cb470413992690018133d8c/ ...
+</span><span data-line="119">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="120">
+</span><span data-line="121">[fetch_development_fmri] Downloading data from
+</span><span data-line="122">https://osf.io/download/5cb46e9a353c58001c9abeac/ ...
+</span><span data-line="123">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="124">
+</span><span data-line="125">[fetch_development_fmri] Downloading data from
+</span><span data-line="126">https://osf.io/download/5cb47016a3bc970017efe44f/ ...
+</span><span data-line="127">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="128">
+</span><span data-line="129">[fetch_development_fmri] Downloading data from
+</span><span data-line="130">https://osf.io/download/5cb46e43f2be3c0017056b8a/ ...
+</span><span data-line="131">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="132">
+</span><span data-line="133">[fetch_development_fmri] Downloading data from
+</span><span data-line="134">https://osf.io/download/5c8ff37da743a90018606df1/ ...
+</span><span data-line="135">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="136">
+</span><span data-line="137">[fetch_development_fmri] Downloading data from
+</span><span data-line="138">https://osf.io/download/5c8ff37c2286e80019c3c102/ ...
+</span><span data-line="139">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="140">
+</span><span data-line="141">[fetch_development_fmri] Downloading data from
+</span><span data-line="142">https://osf.io/download/5cb47056353c58001c9ac064/ ...
+</span><span data-line="143">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="144">
+</span><span data-line="145">[fetch_development_fmri] Downloading data from
+</span><span data-line="146">https://osf.io/download/5cb46e5af2be3c001801f799/ ...
+</span><span data-line="147">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="148">
+</span><span data-line="149">[fetch_development_fmri] Downloading data from
+</span><span data-line="150">https://osf.io/download/5c8ff38ca743a90018606dfe/ ...
+</span><span data-line="151">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="152">
+</span><span data-line="153">[fetch_development_fmri] Downloading data from
+</span><span data-line="154">https://osf.io/download/5c8ff38ca743a9001760809e/ ...
+</span><span data-line="155">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="156">
+</span><span data-line="157">[fetch_development_fmri] Downloading data from
+</span><span data-line="158">https://osf.io/download/5c8ff389a743a9001660a016/ ...
+</span><span data-line="159">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="160">
+</span><span data-line="161">[fetch_development_fmri] Downloading data from
+</span><span data-line="162">https://osf.io/download/5c8ff38c2286e80016c3c2da/ ...
+</span><span data-line="163">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="164">
+</span><span data-line="165">[fetch_development_fmri] Downloading data from
+</span><span data-line="166">https://osf.io/download/5c8ff3884712b400183b7023/ ...
+</span><span data-line="167">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="168">
+</span><span data-line="169">[fetch_development_fmri] Downloading data from
+</span><span data-line="170">https://osf.io/download/5c8ff3884712b400193b5b5c/ ...
+</span><span data-line="171">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="172">
+</span><span data-line="173">[fetch_development_fmri] Downloading data from
+</span><span data-line="174">https://osf.io/download/5c8ff3872286e80017c419ea/ ...
+</span><span data-line="175">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="176">
+</span><span data-line="177">[fetch_development_fmri] Downloading data from
+</span><span data-line="178">https://osf.io/download/5c8ff3872286e80017c419e9/ ...
+</span><span data-line="179">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="180">
+</span><span data-line="181">[fetch_development_fmri] Downloading data from
+</span><span data-line="182">https://osf.io/download/5cb4702f39926900171090ee/ ...
+</span><span data-line="183">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="184">
+</span><span data-line="185">[fetch_development_fmri] Downloading data from
+</span><span data-line="186">https://osf.io/download/5cb46e8b353c58001c9abe98/ ...
+</span><span data-line="187">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="188">
+</span><span data-line="189">[fetch_development_fmri] Downloading data from
+</span><span data-line="190">https://osf.io/download/5c8ff3842286e80017c419e0/ ...
+</span><span data-line="191">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="192">
+</span><span data-line="193">[fetch_development_fmri] Downloading data from
+</span><span data-line="194">https://osf.io/download/5c8ff3854712b4001a3b5568/ ...
+</span><span data-line="195">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="196">
+</span><span data-line="197">[fetch_development_fmri] Downloading data from
+</span><span data-line="198">https://osf.io/download/5c8ff3814712b4001a3b5561/ ...
+</span><span data-line="199">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="200">
+</span><span data-line="201">[fetch_development_fmri] Downloading data from
+</span><span data-line="202">https://osf.io/download/5c8ff3832286e80016c3c2d1/ ...
+</span><span data-line="203">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="204">
+</span><span data-line="205">[fetch_development_fmri] Downloading data from
+</span><span data-line="206">https://osf.io/download/5c8ff3822286e80018c3e37b/ ...
+</span><span data-line="207">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="208">
+</span><span data-line="209">[fetch_development_fmri] Downloading data from
+</span><span data-line="210">https://osf.io/download/5c8ff382a743a90018606df8/ ...
+</span><span data-line="211">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="212">
+</span><span data-line="213">[fetch_development_fmri] Downloading data from
+</span><span data-line="214">https://osf.io/download/5c8ff37e2286e80016c3c2cb/ ...
+</span><span data-line="215">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="216">
+</span><span data-line="217">[fetch_development_fmri] Downloading data from
+</span><span data-line="218">https://osf.io/download/5c8ff3832286e80019c3c10f/ ...
+</span><span data-line="219">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="220">
+</span><span data-line="221">[fetch_development_fmri] Downloading data from
+</span><span data-line="222">https://osf.io/download/5c8ff37d4712b400193b5b54/ ...
+</span><span data-line="223">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="224">
+</span><span data-line="225">[fetch_development_fmri] Downloading data from
+</span><span data-line="226">https://osf.io/download/5c8ff37d4712b400183b7011/ ...
+</span><span data-line="227">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="228">
+</span><span data-line="229">[fetch_development_fmri] Downloading data from
+</span><span data-line="230">https://osf.io/download/5cb4701e3992690018133d4f/ ...
+</span><span data-line="231">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="232">
+</span><span data-line="233">[fetch_development_fmri] Downloading data from
+</span><span data-line="234">https://osf.io/download/5cb46e6b353c58001b9cb34f/ ...
+</span><span data-line="235">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="236">
+</span><span data-line="237">[fetch_development_fmri] Downloading data from
+</span><span data-line="238">https://osf.io/download/5cb4703bf2be3c001801fa49/ ...
+</span><span data-line="239">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="240">
+</span><span data-line="241">[fetch_development_fmri] Downloading data from
+</span><span data-line="242">https://osf.io/download/5cb46e92a3bc970019f0717f/ ...
+</span><span data-line="243">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="244">
+</span><span data-line="245">[fetch_development_fmri] Downloading data from
+</span><span data-line="246">https://osf.io/download/5c8ff38c4712b4001a3b5573/ ...
+</span><span data-line="247">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="248">
+</span><span data-line="249">[fetch_development_fmri] Downloading data from
+</span><span data-line="250">https://osf.io/download/5c8ff38da743a900176080a2/ ...
+</span><span data-line="251">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="252">
+</span><span data-line="253">First functional nifti image (4D) is at: /home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar128_task-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
+</span></pre></div>
+</div>
+</section>
+<section id="apply-ica-on-the-data">
+<h2>Apply ICA on the data<a class="headerlink" href="#apply-ica-on-the-data" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;results&quot;</span> <span class="o">/</span> <span class="s2">&quot;plot_compare_decomposition&quot;</span>
+</span><span data-line="2"><span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output will be saved to: </span><span class="si">{</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Output will be saved to: /home/circleci/project/amica-python/docs/source/examples/results/plot_compare_decomposition
+</span></pre></div>
+</div>
+<section id="canica">
+<h3>CanICA<a class="headerlink" href="#canica" title="Link to this heading">¶</a></h3>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">canica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">CanICA</span></a><span class="p">(</span>
+</span><span data-line="2">    <span class="n">n_components</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">memory</span><span class="o">=</span><span class="s2">&quot;nilearn_cache&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">memory_level</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">mask_strategy</span><span class="o">=</span><span class="s2">&quot;whole-brain-template&quot;</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+</span><span data-line="9"><span class="p">)</span>
+</span><span data-line="10"><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+</span><span data-line="11">    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><a href="https://scikit-learn.org/stable/modules/generated/sklearn.exceptions.ConvergenceWarning.html#sklearn.exceptions.ConvergenceWarning" title="sklearn.exceptions.ConvergenceWarning" class="sphx-glr-backref-module-sklearn-exceptions sphx-glr-backref-type-py-exception"><span class="n">ConvergenceWarning</span></a><span class="p">)</span>
+</span><span data-line="12">    <span class="n">canica</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">func_filenames</span><span class="p">)</span>
+</span><span data-line="13">
+</span><span data-line="14"><span class="n">canica_components_img</span> <span class="o">=</span> <span class="n">canica</span><span class="o">.</span><span class="n">components_img_</span>
+</span><span data-line="15"><span class="n">canica_components_img</span><span class="o">.</span><span class="n">to_filename</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;canica_resting_state.nii.gz&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">[CanICA.fit] Loading data from
+</span><span data-line="2">[&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar128_tas
+</span><span data-line="3">k-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="4">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar126_task
+</span><span data-line="5">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="6">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar125_task
+</span><span data-line="7">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="8">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar124_task
+</span><span data-line="9">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="10">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar123_task
+</span><span data-line="11">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="12">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar127_task
+</span><span data-line="13">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="14">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar024_task
+</span><span data-line="15">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="16">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar023_task
+</span><span data-line="17">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="18">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar022_task
+</span><span data-line="19">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="20">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar021_task
+</span><span data-line="21">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="22">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar020_task
+</span><span data-line="23">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="24">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar019_task
+</span><span data-line="25">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="26">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar018_task
+</span><span data-line="27">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="28">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar017_task
+</span><span data-line="29">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="30">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar016_task
+</span><span data-line="31">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="32">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar001_task
+</span><span data-line="33">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="34">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar013_task
+</span><span data-line="35">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="36">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar012_task
+</span><span data-line="37">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="38">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar011_task
+</span><span data-line="39">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="40">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar010_task
+</span><span data-line="41">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="42">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar009_task
+</span><span data-line="43">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="44">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar008_task
+</span><span data-line="45">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="46">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar007_task
+</span><span data-line="47">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="48">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar006_task
+</span><span data-line="49">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="50">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar005_task
+</span><span data-line="51">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="52">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar004_task
+</span><span data-line="53">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="54">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar003_task
+</span><span data-line="55">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="56">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar002_task
+</span><span data-line="57">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="58">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar014_task
+</span><span data-line="59">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;,
+</span><span data-line="60">&#39;/home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar015_task
+</span><span data-line="61">-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz&#39;]
+</span><span data-line="62">[CanICA.fit] Computing mask
+</span><span data-line="63">[CanICA.fit] Resampling mask
+</span><span data-line="64">[CanICA.fit] Finished fit
+</span><span data-line="65">[CanICA.fit] Loading data
+</span><span data-line="66">[CanICA.fit] Computing image from signals
+</span><span data-line="67">[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+</span><span data-line="68">[Parallel(n_jobs=4)]: Done  10 out of  10 | elapsed:   21.0s finished
+</span><span data-line="69">[CanICA.fit] Computing image from signals
+</span></pre></div>
+</div>
+</section>
+<section id="amica-on-a-group-matrix">
+<h3>AMICA on a group matrix<a class="headerlink" href="#amica-on-a-group-matrix" title="Link to this heading">¶</a></h3>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">_amica</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">amica_group_matrix</span></a><span class="p">,</span> <span class="n">amica_components_img</span> <span class="o">=</span> <span class="n">fit_amica_components</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">canica</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">func_filenames</span><span class="p">,</span>
+</span><span data-line="4"><span class="p">)</span>
+</span><span data-line="5"><span class="n">amica_components_img</span><span class="o">.</span><span class="n">to_filename</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;amica_resting_state.nii.gz&quot;</span><span class="p">)</span>
+</span><span data-line="6"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AMICA group matrix shape: </span><span class="si">{</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">amica_group_matrix</span></a><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="2">  masker.transform(func_file),
+</span><span data-line="3">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="4">  masker.transform(func_file),
+</span><span data-line="5">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="6">  masker.transform(func_file),
+</span><span data-line="7">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="8">  masker.transform(func_file),
+</span><span data-line="9">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="10">  masker.transform(func_file),
+</span><span data-line="11">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="12">  masker.transform(func_file),
+</span><span data-line="13">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="14">  masker.transform(func_file),
+</span><span data-line="15">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="16">  masker.transform(func_file),
+</span><span data-line="17">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="18">  masker.transform(func_file),
+</span><span data-line="19">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="20">  masker.transform(func_file),
+</span><span data-line="21">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="22">  masker.transform(func_file),
+</span><span data-line="23">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="24">  masker.transform(func_file),
+</span><span data-line="25">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="26">  masker.transform(func_file),
+</span><span data-line="27">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="28">  masker.transform(func_file),
+</span><span data-line="29">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="30">  masker.transform(func_file),
+</span><span data-line="31">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="32">  masker.transform(func_file),
+</span><span data-line="33">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="34">  masker.transform(func_file),
+</span><span data-line="35">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="36">  masker.transform(func_file),
+</span><span data-line="37">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="38">  masker.transform(func_file),
+</span><span data-line="39">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="40">  masker.transform(func_file),
+</span><span data-line="41">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="42">  masker.transform(func_file),
+</span><span data-line="43">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="44">  masker.transform(func_file),
+</span><span data-line="45">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="46">  masker.transform(func_file),
+</span><span data-line="47">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="48">  masker.transform(func_file),
+</span><span data-line="49">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="50">  masker.transform(func_file),
+</span><span data-line="51">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="52">  masker.transform(func_file),
+</span><span data-line="53">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="54">  masker.transform(func_file),
+</span><span data-line="55">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="56">  masker.transform(func_file),
+</span><span data-line="57">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="58">  masker.transform(func_file),
+</span><span data-line="59">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
+</span><span data-line="60">  masker.transform(func_file),
+</span><span data-line="61">/home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+</span><span data-line="62">  warn(
+</span><span data-line="63">Finished in 95.90 seconds
+</span><span data-line="64">
+</span><span data-line="65">[MultiNiftiMasker.inverse_transform] Computing image from signals
+</span><span data-line="66">AMICA group matrix shape: (20, 21781)
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="plot-all-components-together">
+<h2>Plot all components together<a class="headerlink" href="#plot-all-components-together" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">plot_prob_atlas</span><span class="p">(</span><span class="n">canica_components_img</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;All CanICA components&quot;</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">plot_prob_atlas</span><span class="p">(</span>
+</span><span data-line="3">    <span class="n">math_img</span><span class="p">(</span><span class="s2">&quot;np.abs(img)&quot;</span><span class="p">,</span> <span class="n">img</span><span class="o">=</span><span class="n">amica_components_img</span><span class="p">),</span>
+</span><span data-line="4">    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;All AMICA components&quot;</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">)</span>
+</span></pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../_images/sphx_glr_plot_fmri_001.png" srcset="../_images/sphx_glr_plot_fmri_001.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_002.png" srcset="../_images/sphx_glr_plot_fmri_002.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/numpy/ma/core.py:2885: UserWarning: Warning: converting a masked element to nan.
+</span><span data-line="2">  _data = np.array(data, dtype=dtype, copy=copy,
+</span><span data-line="3">
+</span><span data-line="4">&lt;nilearn.plotting.displays._slicers.OrthoSlicer object at 0x74b57f271950&gt;
+</span></pre></div>
+</div>
+</section>
+<section id="plot-the-first-few-component-maps-separately">
+<h2>Plot the first few component maps separately<a class="headerlink" href="#plot-the-first-few-component-maps-separately" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">plot_components</span><span class="p">(</span><span class="n">canica_components_img</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;CanICA&quot;</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">plot_components</span><span class="p">(</span><span class="n">amica_components_img</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;AMICA&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../_images/sphx_glr_plot_fmri_003.png" srcset="../_images/sphx_glr_plot_fmri_003.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_004.png" srcset="../_images/sphx_glr_plot_fmri_004.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_005.png" srcset="../_images/sphx_glr_plot_fmri_005.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_006.png" srcset="../_images/sphx_glr_plot_fmri_006.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_007.png" srcset="../_images/sphx_glr_plot_fmri_007.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_008.png" srcset="../_images/sphx_glr_plot_fmri_008.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_009.png" srcset="../_images/sphx_glr_plot_fmri_009.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_010.png" srcset="../_images/sphx_glr_plot_fmri_010.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_011.png" srcset="../_images/sphx_glr_plot_fmri_011.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_012.png" srcset="../_images/sphx_glr_plot_fmri_012.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_013.png" srcset="../_images/sphx_glr_plot_fmri_013.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+<li><img src="../_images/sphx_glr_plot_fmri_014.png" srcset="../_images/sphx_glr_plot_fmri_014.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
+</ul>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (5 minutes 23.727 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-fmri-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/b811ffdc153b6cca0000aeb69fd22d63/plot_fmri.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_fmri.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/aa678a19d97e21ec9f9246e4fd0888a3/plot_fmri.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_fmri.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4774e1522a6c99e0ebbc1718ebc67b18/plot_fmri.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_fmri.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="plot_pipe.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Use AMICA in a Scikit-Learn Pipeline</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="plot_astronomy_planck_cmb_separation.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Isolate Cosmic Microwave Background with ICA</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2025, Scott Huberty</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

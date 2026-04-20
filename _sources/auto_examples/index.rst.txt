@@ -135,6 +135,23 @@ Example AMICA usage.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="ICA can be used to derive spatial maps or networks from group fMRI data by identifying distributed brain regions that exhibit similar BOLD fluctuations over time.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_fmri_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_fmri`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Run ICA on  group fMRI data</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="In cosmological analyses, ICA is used to separate Cosmic Microwave Background (CMB) from foreground emissions (thermal dust, synchrotron radiation etc.). The CMB is the signal of interest, while Galactic foregrounds act as contaminants.">
 
 .. only:: html
@@ -167,6 +184,7 @@ Example AMICA usage.
    /auto_examples/plot_ica_vs_pca
    /auto_examples/plot_photos
    /auto_examples/plot_pipe
+   /auto_examples/plot_fmri
    /auto_examples/plot_astronomy_planck_cmb_separation
 
 
