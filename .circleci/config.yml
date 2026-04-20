@@ -8,6 +8,7 @@ jobs:
   docs:
     docker:
       - image: cimg/python:3.11
+    resource_class: large  # 4 vCPUs
     working_directory: ~/project/amica-python
     steps:
       - checkout
