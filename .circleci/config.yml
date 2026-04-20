@@ -8,6 +8,7 @@ jobs:
   docs:
     docker:
       - image: cimg/python:3.11
+    resource_class: large
     working_directory: ~/project/amica-python
     steps:
       - checkout
@@ -34,6 +35,7 @@ jobs:
             source .venv/bin/activate
             cd docs
             make html
+          no_output_timeout: 30m
       - save_cache:
           key: amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
           paths:
