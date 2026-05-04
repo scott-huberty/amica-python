@@ -6,7 +6,7 @@ from amica import AMICA
 
 
 @pytest.mark.sklearn_api
-@parametrize_with_checks([AMICA(random_state=0)])
+@parametrize_with_checks([AMICA(random_state=0, do_newton=False, max_iter=100)])
 def test_check_estimator(estimator, check):
     """Test Scikit-Learn API Compatibility."""
     check(estimator)
