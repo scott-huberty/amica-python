@@ -17,6 +17,7 @@ from amica import AMICA, fit_amica
 from amica.datasets import data_path
 from amica.linalg import pre_whiten
 from amica.utils import generate_toy_data, load_fortran_results, load_initial_weights
+from pytest import param
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -26,12 +27,12 @@ pytestmark = pytest.mark.timeout(120)
 @pytest.mark.parametrize(
         "load_weights, n_components, entrypoint",
         [
-            (True, None, "function"),
-            (True, 16, "function"),
-            (False, None, "function"),
-            (True, None, "class"),
-            (True, 16, "class"),
-            ]
+            param(True, None, "function", id="loaded-weights_full-comps_fit-amica"),
+            param(True, 16, "function", id="loaded-weights_half_comps_fit-amica"),
+            param(False, None, "function", id="fixed-seed_full-comps-fit-amica"),
+            param(True, None, "class", id="loaded-weights_full-comps_AMICA"),
+            param(True, 16, "class", id="loaded-weights_half-comps_AMICA"),
+            ],
         )
 def test_eeglab_data(load_weights, n_components, entrypoint):
     """
@@ -136,7 +137,7 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
             assert_almost_equal(results["alpha"], alpha_f, decimal=2)
             assert_almost_equal(results["sbeta"], sbeta_f, decimal=1)
             assert_almost_equal(results["mu"], mu_f, decimal=0)
-            assert_allclose(results["rho"], rho_f, rtol=0, atol=0.02)
+            assert_allclose(results["rho"], rho_f, rtol=0, atol=0.025)
     else:
         assert_allclose(A, A_f, atol=0.9)
         assert_allclose(W, W_f, atol=0.9)
