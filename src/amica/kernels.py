@@ -425,7 +425,7 @@ def compute_weighted_responsibilities(
     # fast-path: for num_models == 1, v is all ones and thus u == z
     if single_model:
         return z  # NOTE: returns a view of z, no copy
-    
+
     # This should be unreachable because we don't support n_models > 1
     # no cover: start
     if model_responsibilities is None:
