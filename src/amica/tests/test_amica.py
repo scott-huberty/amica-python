@@ -11,13 +11,13 @@ import numpy as np
 import pytest
 import torch
 from numpy.testing import assert_allclose, assert_almost_equal
+from pytest import param
 from scipy import signal
 
 from amica import AMICA, fit_amica
 from amica.datasets import data_path
 from amica.linalg import pre_whiten
 from amica.utils import generate_toy_data, load_fortran_results, load_initial_weights
-from pytest import param
 
 pytestmark = pytest.mark.timeout(120)
 
