@@ -41,7 +41,7 @@ from amica.kernels import (
     accumulate_rho_stats,
     accumulate_sigma2_stats,
     compute_mixture_responsibilities,
-    compute_model_loglikelihood_per_sample,
+    compute_model_loglikelihood_sum,
     compute_preactivations,
     compute_scaled_scores,
     compute_source_densities,
@@ -445,8 +445,6 @@ def optimize(
     # We allocate these separately.
     Dsum = torch.tensor(0.0, dtype=torch.float64, device=config.device)
     Dsign = torch.tensor(1.0, dtype=torch.float64, device=config.device)
-    # per sample loglik
-    loglik = torch.zeros((X.shape[0],), dtype=torch.float64, device=config.device)
     # likelihood history
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64, device=config.device)
 
@@ -474,7 +472,6 @@ def optimize(
             accumulators=accumulators,
             Dsum=Dsum,
             Dsign=Dsign,
-            loglik=loglik,
             LL=LL,
             c_start=c_start,
             c1=c1,
@@ -503,7 +500,6 @@ def _main_loop(
         accumulators: AmicaAccumulators,
         Dsum: torch.Tensor,
         Dsign: torch.Tensor,
-        loglik: torch.Tensor,
         LL: torch.Tensor,
         c_start: float,
         c1: float,
@@ -515,7 +511,7 @@ def _main_loop(
     """Run the AMICA optimization loop and return updated state and LL history."""
     while metrics.iter <= config.max_iter:
         accumulators.reset()
-        loglik.fill_(0.0)
+        total_LL = torch.zeros((), dtype=config.dtype, device=config.device)
         doing_newton = do_newton and (metrics.iter >= config.newt_start)
         # !----- get determinants
         # The Fortran code computed log|det(W)| indirectly via QR factorization
@@ -546,7 +542,7 @@ def _main_loop(
         # === Begin chunk loop ===
         # ==============================================================================
         batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
-        for batch_idx, (data_batch, batch_indices) in enumerate(batch_loader):
+        for data_batch, _ in batch_loader:
 
             # ======================================================================
             #                       Expectation Step (E-step)
@@ -577,16 +573,10 @@ def _main_loop(
                 )
             z0 = z  # log densities (alias for clarity with Fortran code)
 
-            # 3. --- Aggregate mixture logits into per-sample log likelihoods
-            sample_loglik = torch.full(
-                size=(data_batch.shape[0],),
-                fill_value=initial,
-                dtype=config.dtype,
-                device=config.device,
-                )
-            compute_model_loglikelihood_per_sample(
+            # 3. --- Aggregate mixture logits into the single-model log likelihood
+            total_LL += compute_model_loglikelihood_sum(
                 log_densities=z0,
-                out_loglik=sample_loglik,
+                initial_loglik=initial,
             )
 
             # 4. -- Responsibilities within each component ---
@@ -595,15 +585,16 @@ def _main_loop(
             z0 = None
             del z0  # guard against use of stale name. z owns that memory
 
-            # 5. --- Single-model total log-likelihood and responsibilities ---
-            loglik[batch_indices] = sample_loglik
-
+            # 5. --- Single-model total responsibility mass ---
             if config.do_reject:
                 raise NotImplementedError()  # pragma: no cover
-            else:
-                model_resps = torch.ones_like(sample_loglik)
-                sample_loglik = None
-                del sample_loglik  # Guard against use of stale name
+            # Fortran does something like model_resps.sum(dim=0).
+            # We constrain to n_models == 1, so the sum is unnecessary.
+            vsum = torch.as_tensor(
+                data_batch.shape[0],
+                dtype=config.dtype,
+                device=config.device,
+            )
 
             # ================================ M-STEP ==================================
             # === Maximization-step: Parameter accumulators ===
@@ -616,12 +607,9 @@ def _main_loop(
             # vsum = sum( v(bstrt:bstp,h) )
             # dgm_numer_tmp(h) = dgm_numer_tmp(h) + vsum
             #---------------------------------------------------------------
-            vsum = model_resps.sum()
-
             # NOTE: u is a view of z, so changes to u will affect z (and vice versa)
             u = compute_weighted_responsibilities(
                 mixture_responsibilities=z,
-                model_responsibilities=model_resps,
                 single_model=True,
             )
             z = None
@@ -655,7 +643,6 @@ def _main_loop(
             # c (bias)
             accumulate_c_stats(
                 X=data_batch,
-                model_responsibilities=model_resps,
                 vsum=vsum,
                 n_weights=config.n_components,
                 out_numer=accumulators.dc_numer,
@@ -701,7 +688,6 @@ def _main_loop(
                 # NOTE: Fortran computes dsigma_* for all iters, but its unnecessary
                 # Sigma^2 accumulators (noise variance)
                 accumulate_sigma2_stats(
-                    model_responsibilities=model_resps,
                     source_estimates=b,
                     vsum=vsum,
                     out_numer=accumulators.newton.dsigma2_numer,
@@ -745,7 +731,7 @@ def _main_loop(
         # !$OMP END PARALLEL
 
         # End of these lifetimes
-        del b, g, u, ufp, usum, vsum, model_resps, y
+        del b, g, u, ufp, usum, vsum, y
         if doing_newton:
             del fp  # already deleted if not doing_newton
 
@@ -754,7 +740,7 @@ def _main_loop(
             config=config,
             accumulators=accumulators,
             state=state,
-            total_LL=loglik.sum(),
+            total_LL=total_LL,
             iteration=metrics.iter
         )
         metrics.loglik = likelihood
