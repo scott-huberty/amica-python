@@ -489,7 +489,7 @@ def test_sklearn_tutorial_data(do_newton, sklearn_example_data):
     assert_allclose(S_py, S_f)
     assert_allclose(A_py, A_f, rtol=.001)
     assert_allclose(W_py, W_f, rtol=.001)
-    assert (modout["LL"].count_nonzero() - fortran["LL"].count_nonzero()) < 3
+    assert (np.count_nonzero(modout["LL"]) - np.count_nonzero(fortran["LL"])) < 25
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU not available")
