@@ -175,7 +175,8 @@ def compute_source_densities(
         out_logits = torch.abs(sources)
         torch.log(out_logits, out=out_logits)
         # |y|^rho
-        torch.exp(rho * out_logits, out=out_logits)
+        torch.multiply(rho, out_logits, out=out_logits)
+        torch.exp(out_logits, out=out_logits)
         # log(alpha) + log(sbeta) - |y|^rho
         torch.subtract(log_alpha + log_sbeta, out_logits, out=out_logits)
         # gammaln(1 + 1/rho)
@@ -322,6 +323,20 @@ def compute_model_loglikelihood_per_sample(
     return out_loglik
 
 
+def compute_model_loglikelihood_sum(
+        *,
+        log_densities: SourceArray3D,
+        initial_loglik: torch.Tensor | float,
+):
+    """Compute summed single-model log-likelihood."""
+    assert log_densities.ndim == 3, (
+        f"log_densities must be 3D, got {log_densities.ndim}D"
+        )
+    n_samples = log_densities.shape[0]
+    component_loglik = torch.logsumexp(log_densities, dim=-1)
+    return component_loglik.sum() + (initial_loglik * n_samples)
+
+
 
 def compute_mixture_responsibilities(
         *,
@@ -367,7 +382,7 @@ def compute_mixture_responsibilities(
 def compute_weighted_responsibilities(
         *,
         mixture_responsibilities: SourceArray3D,
-        model_responsibilities: SamplesVector,
+        model_responsibilities: SamplesVector | None = None,
         single_model: bool = True,
 ) -> SourceArray3D:
     """
@@ -405,21 +420,25 @@ def compute_weighted_responsibilities(
     """
     # Alias for clarity with Fortran code
     z = mixture_responsibilities
-    model_resps = model_responsibilities
-
 
     assert z.ndim == 3, f"z must be 3D, got {z.ndim}D"
+    # fast-path: for num_models == 1, v is all ones and thus u == z
+    if single_model:
+        return z  # NOTE: returns a view of z, no copy
+    
+    # This should be unreachable because we don't support n_models > 1
+    # no cover: start
+    if model_responsibilities is None:
+        raise ValueError("model_responsibilities is required when single_model=False")
+    model_resps = model_responsibilities
     assert model_resps.ndim == 1, f"model_resps must be 1D, got {model_resps.ndim}D"
     assert z.shape[0] == model_resps.shape[0], (
         f"z.shape[0]={z.shape[0]} != model_resps.shape[0]={model_resps.shape[0]}"
     )
-    # fast-path: for num_models == 1, v is all ones and thus u == z
-    if single_model:
-        return z  # NOTE: returns a view of z, no copy
-    else:
-        # Weight mixture responsibilities by model responsibility
-        u = model_resps[:, None, None] * z  # shape: (n_samples, nw, num_mix)
+    # Weight mixture responsibilities by model responsibility
+    u = model_resps[:, None, None] * z  # shape: (n_samples, nw, num_mix)
     return u
+    # no cover: stop
 
 
 def compute_source_scores(
@@ -596,7 +615,7 @@ def compute_scaled_scores(
 def accumulate_c_stats(
         *,
         X: DataArray2D,
-        model_responsibilities: SamplesVector,
+        model_responsibilities: SamplesVector | None = None,
         vsum: float,
         do_reject: bool = False,
         n_weights: int | None = None,
@@ -649,12 +668,7 @@ def accumulate_c_stats(
     if n_weights is None:
         n_weights = X.shape[1]
     nw = n_weights  # Fortran code parity
-    v = model_responsibilities
     assert dataseg.ndim == 2, f"X must be 2D, got {dataseg.ndim}D"
-    assert v.ndim == 1, f"model responsibilities must be 1D, got {v.ndim}D"
-    assert dataseg.shape[0] == v.shape[0], (
-        f"X n_samples {dataseg.shape[0]} != model responsibilities length {v.shape[0]}"
-    )
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
     assert out_numer.shape == (dataseg[:, :nw].shape[1],), (
         f"out_numer shape {out_numer.shape} != (n_components,): {nw} "
@@ -670,7 +684,17 @@ def accumulate_c_stats(
         #--------------------------FORTRAN CODE-------------------------
         # tmpsum = sum( v(bstrt:bstp,h) * dataseg(seg)%data(i,xstrt:xstp) )
         #---------------------------------------------------------------
-        tmpsum_c_vec = dataseg[:, :nw].T @ v  # Shape: (n_components,)
+        if model_responsibilities is None:
+            tmpsum_c_vec = dataseg[:, :nw].sum(dim=0)  # Matmul (below) is expensive.
+        # Unreachable unless we support n_models > 1
+        else:  # pragma: no cover
+            v = model_responsibilities
+            assert v.ndim == 1, f"model responsibilities must be 1D, got {v.ndim}D"
+            assert dataseg.shape[0] == v.shape[0], (
+                "X n_samples "
+                f"{dataseg.shape[0]} != model responsibilities length {v.shape[0]}"
+            )
+            tmpsum_c_vec = dataseg[:, :nw].T @ v  # Shape: (n_components,)
     out_numer += tmpsum_c_vec
     out_denom += vsum
     return out_numer, out_denom
@@ -988,7 +1012,7 @@ def accumulate_rho_stats(
 
 def accumulate_sigma2_stats(
         *,
-        model_responsibilities: SamplesVector,
+        model_responsibilities: SamplesVector | None = None,
         source_estimates: SourceArray2D,
         vsum: float,
         out_numer: ComponentsVector,
@@ -1032,16 +1056,9 @@ def accumulate_sigma2_stats(
     not necessary.
     """
     # Alias for clarity with Fortran code
-    model_resps = model_responsibilities
     b = source_estimates
-    assert model_resps.ndim == 1, (
-        f"model_resps must be 1D, got {model_resps.ndim}D"
-    )
     assert b.ndim == 2, f"b must be 2D, got {b.ndim}D"
     assert vsum.numel() == 1, f"vsum must be a scalar, got {vsum}"
-    assert b.shape[0] == model_resps.shape[0], (
-        f"samples dimension mismatch {b.shape[0]} != {model_resps.shape[0]}"
-    )
     #--------------------------FORTRAN CODE-------------------------
     # !print *, myrank+1,':', thrdnum+1,': getting dsigma2 ...'; call flush(6)
     # tmpsum = sum( v(bstrt:bstp,h) * b(bstrt:bstp,i,h) * b(bstrt:bstp,i,h) )
@@ -1050,7 +1067,18 @@ def accumulate_sigma2_stats(
     #---------------------------------------------------------------
     # weighted column-wise sum of squares: (s=n_samples, i=n_components)
     # Same as torch.einsum('s,si,si->i', model_resps, b, b)
-    out_numer += model_resps @ (b**2)
+    if model_responsibilities is None:
+        out_numer += (b * b).sum(dim=0)  # equivalent to and faster than below.
+    # Unreachable unless we support n_models > 1
+    else:  # pragma: no cover
+        model_resps = model_responsibilities
+        assert model_resps.ndim == 1, (
+            f"model_resps must be 1D, got {model_resps.ndim}D"
+        )
+        assert b.shape[0] == model_resps.shape[0], (
+            f"samples dimension mismatch {b.shape[0]} != {model_resps.shape[0]}"
+        )
+        out_numer += model_resps @ (b * b)
     out_denom += vsum
     return out_numer, out_denom
 
