@@ -80,7 +80,6 @@ def test_em_step_matches_single_iteration_solver():
         iteration=1,
         do_newton=cfg.do_newton,
         accumulators=initialize_accumulators(cfg),
-        loglik=torch.zeros((X.shape[0],), dtype=cfg.dtype, device=cfg.device),
         lrate=cfg.lrate,
         rholrate=cfg.rholrate,
         lrate0=cfg.lrate,

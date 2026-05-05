@@ -37,6 +37,7 @@ doc = [
     "sphinx-copybutton",
     # For Tutorials
     "healpy",
+    "nilearn",
     "pandas",  # Needed to load the MNIST dataset example
     ]
 

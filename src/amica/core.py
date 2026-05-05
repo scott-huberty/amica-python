@@ -42,7 +42,7 @@ from amica.kernels import (
     accumulate_rho_stats,
     accumulate_sigma2_stats,
     compute_mixture_responsibilities,
-    compute_model_loglikelihood_per_sample,
+    compute_model_loglikelihood_sum,
     compute_preactivations,
     compute_scaled_scores,
     compute_source_densities,
@@ -521,8 +521,6 @@ def optimize(
     # We allocate these separately.
     Dsum = torch.tensor(0.0, dtype=torch.float64, device=config.device)
     Dsign = torch.tensor(1.0, dtype=torch.float64, device=config.device)
-    # per sample loglik
-    loglik = torch.zeros((X.shape[0],), dtype=torch.float64, device=config.device)
     # likelihood history
     LL = torch.zeros(max(1, config.max_iter), dtype=torch.float64, device=config.device)
 
@@ -550,7 +548,6 @@ def optimize(
             accumulators=accumulators,
             Dsum=Dsum,
             Dsign=Dsign,
-            loglik=loglik,
             LL=LL,
             c_start=c_start,
             c1=c1,
@@ -579,7 +576,6 @@ def _main_loop(
         accumulators: AmicaAccumulators,
         Dsum: torch.Tensor,
         Dsign: torch.Tensor,
-        loglik: torch.Tensor,
         LL: torch.Tensor,
         c_start: float,
         c1: float,
@@ -612,7 +608,6 @@ def _main_loop(
             iteration=metrics.iter,
             do_newton=do_newton,
             accumulators=accumulators,
-            loglik=loglik,
             lrate=metrics.lrate,
             rholrate=metrics.rholrate,
             lrate0=metrics.lrate0,
@@ -781,7 +776,6 @@ def em_step(
         iteration: int,
         do_newton: bool,
         accumulators: AmicaAccumulators,
-        loglik: torch.Tensor,
         lrate: float,
         rholrate: float,
         lrate0: float,
@@ -791,7 +785,7 @@ def em_step(
     """Run one full AMICA outer EM iteration as a side-effect-light map."""
     state = state.clone()
     accumulators.reset()
-    loglik.fill_(0.0)
+    total_LL = torch.zeros((), dtype=config.dtype, device=config.device)
     doing_newton = do_newton and (iteration >= config.newt_start)
     _, Dsum = compute_sign_log_determinant(unmixing_matrix=state.W, minlog=minlog)
 
@@ -802,7 +796,7 @@ def em_step(
     )
 
     batch_loader = BatchLoader(X, axis=0, batch_size=config.batch_size)
-    for data_batch, batch_indices in batch_loader:
+    for data_batch, _ in batch_loader:
         if state.W.device.type != data_batch.device.type:
             raise ValueError(
                 f"Mismatch between state.W device ({state.W.device}) "
@@ -823,20 +817,18 @@ def em_step(
             alpha=state.alpha,
             rho=state.rho,
         )
-        sample_loglik = torch.full(
-            size=(data_batch.shape[0],),
-            fill_value=initial,
+        total_LL += compute_model_loglikelihood_sum(
+            log_densities=z,
+            initial_loglik=initial,
+        )
+        z = compute_mixture_responsibilities(log_densities=z, inplace=True)
+        vsum = torch.as_tensor(
+            data_batch.shape[0],
             dtype=config.dtype,
             device=config.device,
         )
-        compute_model_loglikelihood_per_sample(log_densities=z, out_loglik=sample_loglik)
-        z = compute_mixture_responsibilities(log_densities=z, inplace=True)
-        loglik[batch_indices] = sample_loglik
-        model_resps = torch.ones_like(sample_loglik)
-        vsum = model_resps.sum()
         u = compute_weighted_responsibilities(
             mixture_responsibilities=z,
-            model_responsibilities=model_resps,
             single_model=True,
         )
         usum = u.sum(dim=0)
@@ -853,7 +845,6 @@ def em_step(
         accumulators.dgm_numer[0] += vsum
         accumulate_c_stats(
             X=data_batch,
-            model_responsibilities=model_resps,
             vsum=vsum,
             n_weights=config.n_components,
             out_numer=accumulators.dc_numer,
@@ -894,7 +885,6 @@ def em_step(
         )
         if doing_newton:
             accumulate_sigma2_stats(
-                model_responsibilities=model_resps,
                 source_estimates=b,
                 vsum=vsum,
                 out_numer=accumulators.newton.dsigma2_numer,
@@ -927,7 +917,7 @@ def em_step(
         config=config,
         accumulators=accumulators,
         state=state,
-        total_LL=loglik.sum(),
+        total_LL=total_LL,
         iteration=iteration,
     )
     lrate, rholrate, state, wc = update_params(
@@ -986,14 +976,10 @@ def evaluate_loglikelihood(
             alpha=state.alpha,
             rho=state.rho,
         )
-        sample_loglik = torch.full(
-            size=(data_batch.shape[0],),
-            fill_value=initial,
-            dtype=config.dtype,
-            device=config.device,
+        total += compute_model_loglikelihood_sum(
+            log_densities=z,
+            initial_loglik=initial,
         )
-        compute_model_loglikelihood_per_sample(log_densities=z, out_loglik=sample_loglik)
-        total += sample_loglik.sum()
     return total / (X.shape[0] * config.n_components)
 
 
