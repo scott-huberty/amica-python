@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import torch
@@ -8,7 +10,12 @@ from amica.core import (
     maybe_apply_acceleration,
     solve,
 )
-from amica.optim import AndersonEMAccelerator, pack_state, unpack_state
+from amica.optim import (
+    AndersonEMAccelerator,
+    SQUAREMAccelerator,
+    pack_state,
+    unpack_state,
+)
 from amica.state import AmicaConfig, get_initial_state, initialize_accumulators
 
 
@@ -122,6 +129,69 @@ def test_anderson_proposal_improves_toy_fixed_point():
     assert abs(accelerated - 2.0) <= abs(plain - 2.0)
 
 
+def test_squarem_proposal_matches_r_squarem_reference_step():
+    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
+    p = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
+    p1 = torch.tensor([0.0, 0.25, 1.5], dtype=torch.float64)
+    p2 = torch.tensor([-0.25, 0.875, 1.375], dtype=torch.float64)
+
+    accelerator.update(x=p, g=p1)
+    accelerator.update(x=p1, g=p2)
+
+    proposal = accelerator.propose()
+
+    assert proposal is not None
+    assert proposal.history == 2
+    assert proposal.alpha == pytest.approx(1.5879984667608413)
+    assert torch.allclose(
+        proposal.candidate,
+        torch.tensor(
+            [-0.28469259358347, 1.56678031121190, 1.35765370320826],
+            dtype=torch.float64,
+        ),
+    )
+
+
+def test_squarem_proposal_matches_local_r_squarem_package():
+    os.environ.setdefault("R_HOME", "/Users/scotterik/miniforge3/envs/amica_env/lib/R")
+    os.environ["PATH"] = (
+        "/Users/scotterik/miniforge3/envs/amica_env/bin:" + os.environ.get("PATH", "")
+    )
+    try:
+        from rpy2 import robjects
+    except Exception as exc:
+        pytest.skip(f"rpy2/R unavailable: {exc}")
+
+    robjects.r(
+        'source("/Users/scotterik/devel/projects/amica-python/optimizers/SQUAREM/R/squarem.R")'
+    )
+    robjects.r(
+        "fixpt <- function(par) c("
+        "0.5 * par[1] - 0.5,"
+        "0.5 * par[2] + 0.5,"
+        "0.5 * par[3] + 0.5)"
+    )
+    robjects.r(
+        "out <- squarem("
+        "par=c(1, -0.5, 2),"
+        "fixptfn=fixpt,"
+        "control=list(maxiter=3, step.max0=4, tol=1e-12)"
+        ")"
+    )
+    r_par = np.asarray(robjects.r("out$par"), dtype=np.float64)
+
+    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
+    p = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
+    p1 = torch.tensor([0.0, 0.25, 1.5], dtype=torch.float64)
+    p2 = torch.tensor([-0.5, 0.625, 1.25], dtype=torch.float64)
+    accelerator.update(x=p, g=p1)
+    accelerator.update(x=p1, g=p2)
+    proposal = accelerator.propose()
+
+    assert proposal is not None
+    assert np.allclose(proposal.candidate.numpy(), r_par)
+
+
 def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     cfg = _make_config(optimizer="anderson")
     accelerator = AndersonEMAccelerator(order=2, damping=1.0, ridge=1e-8)
@@ -167,3 +237,39 @@ def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     assert outcome.reason == "nonpositive_sbeta"
     assert outcome.restart
     assert len(accelerator.x_hist) == 1
+
+
+def test_solve_constructs_squarem_accelerator(monkeypatch):
+    constructed = []
+
+    class RecordingSQUAREM:
+        def __init__(self, **kwargs):
+            constructed.append(kwargs)
+
+        def update(self, *, x, g):
+            return None
+
+        def propose(self):
+            return None
+
+    monkeypatch.setattr("amica.core.SQUAREMAccelerator", RecordingSQUAREM)
+    cfg = _make_config(max_iter=1, optimizer="squarem")
+    X = np.array(
+        [[0.1, -0.3], [0.5, 0.2], [-0.4, 0.7], [0.8, -0.1]],
+        dtype=np.float64,
+    )
+
+    solve(
+        X,
+        config=cfg,
+        state=get_initial_state(cfg),
+        sldet=0.0,
+    )
+
+    assert constructed == [
+        {
+            "method": 3,
+            "step_min": 1.0,
+            "step_max": 1.0,
+        }
+    ]

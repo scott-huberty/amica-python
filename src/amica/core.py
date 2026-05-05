@@ -56,7 +56,12 @@ from amica.linalg import (
     get_unmixing_matrices,
     pre_whiten,
 )
-from amica.optim import AndersonEMAccelerator, pack_state, unpack_state
+from amica.optim import (
+    AndersonEMAccelerator,
+    SQUAREMAccelerator,
+    pack_state,
+    unpack_state,
+)
 from amica.optim.anderson import is_valid_state
 from amica.state import (
     AmicaAccumulators,
@@ -596,6 +601,12 @@ def _main_loop(
             restart_on_reject=config.accelerator_history_reset_on_reject,
             max_consecutive_rejects=max(1, config.accelerator_max_restarts),
         )
+    elif config.optimizer == "squarem":
+        accelerator = SQUAREMAccelerator(
+            method=3,
+            step_min=1.0,
+            step_max=1.0,
+        )
 
     while metrics.iter <= config.max_iter:
         previous_state = state.clone()
@@ -985,7 +996,7 @@ def evaluate_loglikelihood(
 
 def maybe_apply_acceleration(
         *,
-        accelerator: AndersonEMAccelerator | None,
+        accelerator: AndersonEMAccelerator | SQUAREMAccelerator | None,
         config: AmicaConfig,
         X: DataTensor2D,
         sldet: float,
@@ -995,7 +1006,11 @@ def maybe_apply_acceleration(
         iteration: int,
 ) -> tuple[AmicaState, torch.Tensor, AccelerationOutcome]:
     """Apply optional post-EM Anderson / DAAREM-style extrapolation."""
-    _, wc = get_unmixing_matrices(c=current_state.c, A=current_state.A, W=current_state.W)
+    _, wc = get_unmixing_matrices(
+        c=current_state.c,
+        A=current_state.A,
+        W=current_state.W,
+    )
     if accelerator is None:
         return current_state, wc, AccelerationOutcome(reason="disabled")
     x_prev = pack_state(previous_state)
@@ -1003,7 +1018,11 @@ def maybe_apply_acceleration(
     accelerator.update(x=x_prev, g=g_curr)
     if iteration < config.accelerator_start_iter:
         return current_state, wc, AccelerationOutcome(reason="warmup")
-    if (iteration - config.accelerator_start_iter) % max(1, config.accelerator_period) != 0:
+    if (
+        (iteration - config.accelerator_start_iter)
+        % max(1, config.accelerator_period)
+        != 0
+    ):
         return current_state, wc, AccelerationOutcome(reason="period")
 
     outcome = AccelerationOutcome(attempted=True, reason="insufficient_history")
@@ -1021,7 +1040,12 @@ def maybe_apply_acceleration(
 
     if config.accelerator_validate_candidate:
         candidate_loglik = float(
-            evaluate_loglikelihood(X=X, sldet=sldet, config=config, state=candidate_state)
+            evaluate_loglikelihood(
+                X=X,
+                sldet=sldet,
+                config=config,
+                state=candidate_state,
+            )
         )
         outcome.candidate_loglik = candidate_loglik
         if config.optimizer == "daarem":
