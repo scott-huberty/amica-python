@@ -134,7 +134,48 @@ class AndersonProposal:
 
 @dataclass(slots=True)
 class AndersonEMAccelerator:
-    """Minimal damped Anderson accelerator for EM-like fixed-point maps."""
+    """Anderson / DAAREM accelerator for EM-like fixed-point maps.
+
+    ``monotone=False`` uses the plain Anderson path. ``monotone=True`` uses
+    the DAAREM proposal path validated against the R ``daarem`` package.
+
+    Parameter mapping to R package ``daarem(..., control=list(...))``:
+
+    - ``order`` maps to R ``control$order``. R then uses
+      ``min(order, ceiling(num.params / 2))`` as ``nlag``; our AMICA wrapper
+      already passes high-dimensional packed states, so we use ``order`` as the
+      direct history cap.
+    - ``daarem_alpha`` maps to R ``control$alpha``.
+    - ``daarem_kappa`` maps to R ``control$kappa``.
+    - ``epsilon_monotone`` is the closest Python sibling of R ``mon.tol`` when
+      AMICA candidate validation is enabled. R checks monotonicity inside the
+      DAAREM loop; AMICA checks it in the shared acceleration wrapper after a
+      candidate state is unpacked and scored.
+
+    R controls handled outside this object:
+
+    - ``maxiter`` and ``tol`` are handled by AMICA's outer solver.
+    - ``convtype`` is handled by AMICA convergence criteria, not DAAREM.
+    - ``intermed`` is handled by AMICA logging/history, not this object.
+
+    R controls not directly implemented:
+
+    - ``cycl.mon.tol`` has no direct Python sibling. AMICA does not currently
+      apply DAAREM's cycle-level monotonicity adjustment.
+    - ``resid.tol`` has no direct Python sibling. AMICA relies on common
+      candidate validation and reject/restart behavior instead of R's
+      objective-free residual-change safeguard.
+
+    Python-only controls with no R sibling:
+
+    - ``damping`` and ``ridge`` apply only to the plain Anderson path
+      (``monotone=False``), not the DAAREM path.
+    - ``restart_on_reject`` and ``max_consecutive_rejects`` are AMICA wrapper
+      safeguards for rejected candidates.
+    - ``shrink_count``, ``lambda_ridge``, and ``r_penalty`` are DAAREM's
+      adaptive damping state, corresponding to R's ``shrink.count``,
+      ``lambda.ridge``, and ``r.penalty`` locals.
+    """
 
     order: int = 5
     damping: float = 1.0
@@ -279,7 +320,13 @@ def _damping_find(
         r_start: float | None = None,
         maxit: int = 10,
 ) -> tuple[float, float]:
-    """Port of DAAREM's ``DampingFind`` ridge-penalty search."""
+    """Port of DAAREM's ``DampingFind`` ridge-penalty search.
+
+    ``alpha``, ``kappa``, and ``shrink_count`` correspond to R's ``aa``,
+    ``kappa``, and ``sk`` arguments. ``lambda_start`` and ``r_start``
+    correspond to R's warm-started ``lambda.start`` and ``r.start``.
+    ``maxit`` maps to R's hard-coded default of 10 damping-search iterations.
+    """
     if lambda_start is None or not torch.isfinite(torch.tensor(lambda_start)):
         lambda_start = 100.0
     if r_start is None or not torch.isfinite(torch.tensor(r_start)):

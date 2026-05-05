@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -282,6 +283,44 @@ def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     assert outcome.reason == "nonpositive_sbeta"
     assert outcome.restart
     assert len(accelerator.x_hist) == 1
+
+
+def test_squarem_rejects_lower_likelihood_candidate(monkeypatch):
+    cfg = _make_config(optimizer="squarem")
+    cfg = replace(cfg, accelerator_validate_candidate=True)
+    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
+
+    previous_state = get_initial_state(cfg)
+    current_state = get_initial_state(cfg)
+    rng = torch.Generator().manual_seed(0)
+    previous_state, _ = initialize_state_parameters(
+        state=previous_state,
+        config=cfg,
+        rng=rng,
+    )
+    current_state = previous_state.clone()
+    current_state.sbeta.fill_(2.0)
+
+    previous_vec = pack_state(previous_state)
+    accelerator.update(x=previous_vec - 0.1, g=previous_vec)
+
+    monkeypatch.setattr("amica.core.evaluate_loglikelihood", lambda **kwargs: -1.0)
+
+    out_state, _, outcome = maybe_apply_acceleration(
+        accelerator=accelerator,
+        config=cfg,
+        X=torch.zeros((4, 2), dtype=cfg.dtype, device=cfg.device),
+        sldet=0.0,
+        previous_state=previous_state,
+        current_state=current_state,
+        current_loglik=0.0,
+        iteration=1,
+    )
+
+    assert out_state is current_state
+    assert not outcome.accepted
+    assert outcome.reason == "monotonicity"
+    assert outcome.restart
 
 
 def test_solve_constructs_squarem_accelerator(monkeypatch):

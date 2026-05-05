@@ -1048,7 +1048,7 @@ def maybe_apply_acceleration(
             )
         )
         outcome.candidate_loglik = candidate_loglik
-        if config.optimizer == "daarem":
+        if config.optimizer in {"daarem", "squarem"}:
             if candidate_loglik < current_loglik - config.accelerator_eps_monotone:
                 outcome.reason = "monotonicity"
                 outcome.restart = accelerator.reject()
