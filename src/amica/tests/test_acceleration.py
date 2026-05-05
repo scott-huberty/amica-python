@@ -192,6 +192,51 @@ def test_squarem_proposal_matches_local_r_squarem_package():
     assert np.allclose(proposal.candidate.numpy(), r_par)
 
 
+def test_daarem_proposal_matches_local_r_daarem_package():
+    os.environ.setdefault("R_HOME", "/Users/scotterik/miniforge3/envs/amica_env/lib/R")
+    os.environ["PATH"] = (
+        "/Users/scotterik/miniforge3/envs/amica_env/bin:" + os.environ.get("PATH", "")
+    )
+    try:
+        from rpy2 import robjects
+    except Exception as exc:
+        pytest.skip(f"rpy2/R unavailable: {exc}")
+
+    r_dir = "/Users/scotterik/devel/projects/amica-python/optimizers/daarem/R"
+    for name in (
+        "DampingFind.R",
+        "daarem_base_noobjfn.R",
+        "daarem_base_objfn.R",
+        "daarem.R",
+    ):
+        robjects.r(f'source("{r_dir}/{name}")')
+    robjects.r(
+        "fixpt <- function(par) c("
+        "0.5 * par[1] - 0.5,"
+        "0.5 * par[2] + 0.5,"
+        "0.5 * par[3] + 0.5)"
+    )
+    robjects.r(
+        "out <- daarem("
+        "par=c(1, -0.5, 2),"
+        "fixptfn=fixpt,"
+        "control=list(maxiter=3, order=3, tol=1e-12)"
+        ")"
+    )
+    r_par = np.asarray(robjects.r("out$par"), dtype=np.float64)
+
+    accelerator = AndersonEMAccelerator(order=3, monotone=True)
+    p = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
+    p1 = torch.tensor([0.0, 0.25, 1.5], dtype=torch.float64)
+    p2 = torch.tensor([-0.5, 0.625, 1.25], dtype=torch.float64)
+    accelerator.update(x=p, g=p1)
+    accelerator.update(x=p1, g=p2)
+    proposal = accelerator.propose()
+
+    assert proposal is not None
+    assert np.allclose(proposal.candidate.numpy(), r_par)
+
+
 def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     cfg = _make_config(optimizer="anderson")
     accelerator = AndersonEMAccelerator(order=2, damping=1.0, ridge=1e-8)

@@ -106,7 +106,11 @@ def is_valid_state(state: AmicaState, *, atol: float = 1e-8) -> tuple[bool, str]
         return False, "nonpositive_alpha"
     if not torch.allclose(
         state.alpha.sum(dim=1),
-        torch.ones(state.alpha.shape[0], dtype=state.alpha.dtype, device=state.alpha.device),
+        torch.ones(
+            state.alpha.shape[0],
+            dtype=state.alpha.dtype,
+            device=state.alpha.device,
+        ),
         atol=atol,
         rtol=0.0,
     ):
@@ -139,6 +143,11 @@ class AndersonEMAccelerator:
     epsilon_monotone: float = 0.0
     restart_on_reject: bool = True
     max_consecutive_rejects: int = 3
+    daarem_alpha: float = 1.2
+    daarem_kappa: int = 25
+    shrink_count: int = 0
+    lambda_ridge: float = 100000.0
+    r_penalty: float = 0.0
     x_hist: list[torch.Tensor] = field(default_factory=list)
     g_hist: list[torch.Tensor] = field(default_factory=list)
     f_hist: list[torch.Tensor] = field(default_factory=list)
@@ -151,6 +160,9 @@ class AndersonEMAccelerator:
         self.f_hist.clear()
         self.consecutive_rejects = 0
         self.restart_count = 0
+        self.shrink_count = 0
+        self.lambda_ridge = 100000.0
+        self.r_penalty = 0.0
 
     def update(self, *, x: torch.Tensor, g: torch.Tensor) -> None:
         f = g - x
@@ -169,8 +181,9 @@ class AndersonEMAccelerator:
         mk = min(self.order, len(self.x_hist) - 1)
         if mk <= 0:
             return None
+        if self.monotone:
+            return self._propose_daarem(mk)
 
-        xk = self.x_hist[-1]
         gk = self.g_hist[-1]
         fk = self.f_hist[-1]
 
@@ -184,12 +197,56 @@ class AndersonEMAccelerator:
         F = torch.stack(delta_f, dim=1)
         X = torch.stack(delta_x, dim=1)
         gram = F.T @ F
-        gram += self.ridge * torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
+        gram += self.ridge * torch.eye(
+            gram.shape[0],
+            dtype=gram.dtype,
+            device=gram.device,
+        )
         rhs = F.T @ fk
         gamma = torch.linalg.solve(gram, rhs)
         raw = gk - (X + F) @ gamma
         candidate = gk + self.damping * (raw - gk)
         return AndersonProposal(candidate=candidate, history=mk)
+
+    def _propose_daarem(self, history: int) -> AndersonProposal | None:
+        fnew = self.f_hist[-1]
+        delta_f = []
+        delta_x = []
+        start = len(self.f_hist) - history - 1
+        for idx in range(start + 1, len(self.f_hist)):
+            delta_f.append(self.f_hist[idx] - self.f_hist[idx - 1])
+            delta_x.append(self.x_hist[idx] - self.x_hist[idx - 1])
+
+        F = torch.stack(delta_f, dim=1)
+        X = torch.stack(delta_x, dim=1)
+        U, singular_values, Vh = torch.linalg.svd(F, full_matrices=False)
+        positive = singular_values > 0
+        if not torch.any(positive):
+            return None
+        singular_values = singular_values[positive]
+        U = U[:, positive]
+        Vh = Vh[positive, :]
+        uy = U.T @ fnew
+        uy_sq = uy * uy
+        ftf = torch.sqrt(torch.sum(uy_sq * singular_values * singular_values))
+        self.lambda_ridge, self.r_penalty = _damping_find(
+            uy_sq=uy_sq,
+            singular_values=singular_values,
+            alpha=self.daarem_alpha,
+            kappa=self.daarem_kappa,
+            shrink_count=self.shrink_count,
+            ftf=ftf,
+            lambda_start=self.lambda_ridge,
+            r_start=self.r_penalty,
+        )
+        d_sq = singular_values * singular_values
+        dd = (singular_values * uy) / (d_sq + self.lambda_ridge)
+        gamma = Vh.T @ dd
+
+        xnew = self.x_hist[-1]
+        xbar = xnew - X @ gamma
+        fbar = fnew - F @ gamma
+        return AndersonProposal(candidate=xbar + fbar, history=history)
 
     def reject(self) -> bool:
         self.consecutive_rejects += 1
@@ -206,3 +263,88 @@ class AndersonEMAccelerator:
 
     def accept(self) -> None:
         self.consecutive_rejects = 0
+        if self.monotone:
+            self.shrink_count += 1
+
+
+def _damping_find(
+        *,
+        uy_sq: torch.Tensor,
+        singular_values: torch.Tensor,
+        alpha: float,
+        kappa: int,
+        shrink_count: int,
+        ftf: torch.Tensor,
+        lambda_start: float | None = None,
+        r_start: float | None = None,
+        maxit: int = 10,
+) -> tuple[float, float]:
+    """Port of DAAREM's ``DampingFind`` ridge-penalty search."""
+    if lambda_start is None or not torch.isfinite(torch.tensor(lambda_start)):
+        lambda_start = 100.0
+    if r_start is None or not torch.isfinite(torch.tensor(r_start)):
+        r_start = 0.0
+
+    dtype = singular_values.dtype
+    device = singular_values.device
+    dvec = singular_values
+    uy_sq = uy_sq.to(dtype=dtype, device=device)
+    d_sq = dvec * dvec
+    pow_value = kappa - shrink_count
+    target = torch.exp(
+        -0.5 * torch.log1p(torch.tensor(alpha ** pow_value, dtype=dtype, device=device))
+    )
+    betahat_ls = uy_sq / d_sq
+    betahat_ls_norm = torch.sqrt(torch.sum(betahat_ls))
+    vk = target * betahat_ls_norm
+    if float(vk) == 0.0:
+        return float(lambda_start), float(r_start)
+
+    lambda_value = torch.tensor(lambda_start, dtype=dtype, device=device) - (
+        torch.tensor(r_start, dtype=dtype, device=device) / vk
+    )
+    lower = (
+        betahat_ls_norm * (betahat_ls_norm - vk)
+    ) / torch.sum(uy_sq / (d_sq * d_sq))
+    upper = ftf / vk
+
+    lower_stop = torch.exp(
+        -0.5
+        * torch.log1p(
+            torch.tensor(alpha ** (pow_value + 0.5), dtype=dtype, device=device)
+        )
+    )
+    upper_stop = torch.exp(
+        -0.5
+        * torch.log1p(
+            torch.tensor(alpha ** (pow_value - 0.5), dtype=dtype, device=device)
+        )
+    )
+
+    s_norm = torch.tensor(0.0, dtype=dtype, device=device)
+    phi_ratio = torch.tensor(0.0, dtype=dtype, device=device)
+    for _ in range(maxit):
+        if lambda_value <= lower or lambda_value >= upper:
+            lambda_value = torch.maximum(
+                0.0001 * upper,
+                torch.sqrt(lower * upper),
+            )
+
+        d_lambda = (dvec / (d_sq + lambda_value)) ** 2
+        d_prime = d_lambda / (d_sq + lambda_value)
+        s_norm = torch.sqrt(torch.sum(uy_sq * d_lambda))
+        phi_val = s_norm - vk
+        phi_der = -torch.sum(uy_sq * d_prime) / s_norm
+        phi_ratio = phi_val / phi_der
+
+        if (
+            s_norm <= upper_stop * betahat_ls_norm
+            and s_norm >= lower_stop * betahat_ls_norm
+        ):
+            break
+
+        upper = torch.where(phi_val >= 0, upper, lambda_value)
+        lower = torch.maximum(lower, lambda_value - phi_ratio)
+        lambda_value = lambda_value - (s_norm * phi_ratio) / vk
+
+    return float(lambda_value), float(s_norm * phi_ratio)
