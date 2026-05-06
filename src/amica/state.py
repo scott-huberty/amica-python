@@ -43,7 +43,7 @@ class AmicaConfig:
     accelerator_start_iter: int = 5
     accelerator_period: int = 3
     accelerator_max_restarts: int = 20
-    accelerator_validate_candidate: bool = False
+    accelerator_validate_candidate: bool = True
     accelerator_history_reset_on_reject: bool = True
 
     # Algorithmic flags

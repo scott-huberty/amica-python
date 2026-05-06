@@ -1,5 +1,6 @@
 from ._logging import logger, set_log_level
 from .fetch import (
+    fetch_daarem_mixdata,
     fetch_datasets,
     fetch_fortran_outputs,
     fetch_mica_release,
@@ -19,6 +20,7 @@ from .simulation import generate_toy_data
 
 __all__ = [
     "fetch_datasets",
+    "fetch_daarem_mixdata",
     "fetch_planck_temperature_maps",
     "fetch_fortran_outputs",
     "fetch_mica_release",

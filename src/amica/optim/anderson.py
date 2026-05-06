@@ -147,10 +147,9 @@ class AndersonEMAccelerator:
       direct history cap.
     - ``daarem_alpha`` maps to R ``control$alpha``.
     - ``daarem_kappa`` maps to R ``control$kappa``.
-    - ``epsilon_monotone`` is the closest Python sibling of R ``mon.tol`` when
-      AMICA candidate validation is enabled. R checks monotonicity inside the
-      DAAREM loop; AMICA checks it in the shared acceleration wrapper after a
-      candidate state is unpacked and scored.
+    - ``epsilon_monotone`` maps to R ``control$mon.tol``. R checks
+      monotonicity inside the DAAREM loop; AMICA checks it in the shared
+      acceleration wrapper after a candidate state is unpacked and scored.
     - ``cycl_monotone_tol`` maps to R ``control$cycl.mon.tol``.
 
     R controls handled outside this object:
@@ -180,7 +179,7 @@ class AndersonEMAccelerator:
     damping: float = 1.0
     ridge: float = 1e-8
     monotone: bool = True
-    epsilon_monotone: float = 0.0
+    epsilon_monotone: float = 0.01
     restart_on_reject: bool = True
     max_consecutive_rejects: int = 3
     daarem_alpha: float = 1.2

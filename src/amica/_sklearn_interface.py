@@ -194,7 +194,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             accelerator_start_iter=5,
             accelerator_period=3,
             accelerator_max_restarts=20,
-            accelerator_validate_candidate=False,
+            accelerator_validate_candidate=True,
             w_init=None,
             sbeta_init=None,
             mu_init=None,

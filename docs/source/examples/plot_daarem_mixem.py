@@ -6,32 +6,25 @@ This example demonstrates :class:`amica.optim.AndersonEMAccelerator` on a
 small mixture-proportion maximum-likelihood problem. It is adapted from the
 Stephens Lab DAAREM mixture EM tutorial:
 https://stephenslab.github.io/daarem/mixem.html
-
-The original tutorial uses a saved conditional-likelihood matrix. Here we
-generate a deterministic synthetic matrix so the example can run without
-external data files or R dependencies.
 """
 
 # %%
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from amica.optim import AndersonEMAccelerator
+from amica.utils import fetch_daarem_mixdata
 
+def load_reference_likelihood_matrix():
+    """Load the original Stephens Lab tutorial data through rpy2."""
+    from rpy2 import robjects
 
-def make_likelihood_matrix(n_samples=1000, n_mixtures=30, random_state=0):
-    """Create a deterministic conditional-likelihood matrix."""
-    rng = np.random.default_rng(random_state)
-    weights = rng.dirichlet(np.full(n_mixtures, 0.3))
-    components = rng.choice(n_mixtures, size=n_samples, p=weights)
-    L = 0.05 + rng.gamma(shape=1.0, scale=0.5, size=(n_samples, n_mixtures))
-    L[np.arange(n_samples), components] += rng.gamma(
-        shape=6.0,
-        scale=1.0,
-        size=n_samples,
-    )
-    return L
+    data_path = fetch_daarem_mixdata()
+    robjects.r(f'load("{data_path}")')
+    return np.asarray(robjects.r("L"), dtype=np.float64)
 
 
 def project_simplex(x):
@@ -68,7 +61,7 @@ def fit_em(L, x0, n_iter):
 
 def fit_daarem(L, x0, n_iter, order=5):
     """Run DAAREM-style acceleration over consecutive EM updates."""
-    accelerator = AndersonEMAccelerator(order=order, monotone=True)
+    accelerator = AndersonEMAccelerator(order=order, monotone=True, epsilon_monotone=.01)
     x = mixem_update(L, x0)
     values = [mixobjective(L, x)]
     accelerator.update(
@@ -110,10 +103,10 @@ def fit_daarem(L, x0, n_iter, order=5):
 # %%
 # Set up a deterministic mixture problem.
 # ---------------------------------------
-L = make_likelihood_matrix()
+L = load_reference_likelihood_matrix()
 n_mixtures = L.shape[1]
 x0 = np.full(n_mixtures, 1.0 / n_mixtures)
-n_iter = 50
+n_iter = 200
 
 # %%
 # Compare plain EM and DAAREM.
@@ -128,6 +121,7 @@ print(f"Improvement: {daarem_values[-1] - em_values[-1]:.6f}")
 np.testing.assert_allclose(em_weights.sum(), 1.0)
 np.testing.assert_allclose(daarem_weights.sum(), 1.0)
 assert daarem_values[-1] > em_values[-1]
+np.testing.assert_allclose(daarem_values[-1], -59895.960056733769, atol=0.2)
 
 # %%
 # Plot convergence.

@@ -109,6 +109,53 @@ PHOTOS_FILES = {
     "example2_texture": ("example2_texture", "md5:65c169b03e55686a66f6fb6471ca7d60"),
 }
 
+
+DAAREM_MIXDATA_URL = (
+    "https://github.com/stephenslab/daarem/raw/refs/heads/master/"
+    "data/mixdata.RData"
+)
+DAAREM_MIXDATA_HASH = (
+    "sha256:6a2d6332ad48b89ee4d258aa000840ecfecc3133ffd2290bf00a5d0237870f4a"
+)
+
+
+def fetch_daarem_mixdata(output_dir: Path | None = None) -> Path:
+    """Download the Stephens Lab DAAREM mixture-EM tutorial data.
+
+    This optional dataset is used to demonstrate DAAREM on the same
+    mixture-proportion example as the original Stephens Lab tutorial:
+    https://stephenslab.github.io/daarem/mixem.html
+
+    Parameters
+    ----------
+    output_dir : pathlib.Path | None
+        Directory where ``mixdata.RData`` should be cached. Defaults to
+        ``~/amica_test_data/daarem``.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the cached ``mixdata.RData`` file.
+    """
+    import pooch
+
+    cache_dir = (
+        Path(output_dir).expanduser()
+        if output_dir is not None
+        else CACHE_DIR / "daarem"
+    )
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return Path(
+        pooch.retrieve(
+            url=DAAREM_MIXDATA_URL,
+            known_hash=DAAREM_MIXDATA_HASH,
+            path=cache_dir,
+            fname="mixdata.RData",
+            progressbar=True,
+        )
+    )
+
+
 def fetch_photos() -> Path:
     """
     Download the photos dataset used in cocktail party example.

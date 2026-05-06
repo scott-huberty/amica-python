@@ -133,7 +133,7 @@ def fit_amica(
         accelerator_start_iter=5,
         accelerator_period=3,
         accelerator_max_restarts=20,
-        accelerator_validate_candidate=False,
+        accelerator_validate_candidate=True,
         random_state=None,
         verbose=1,
 ):

@@ -238,6 +238,16 @@ def test_daarem_proposal_matches_local_r_daarem_package():
     assert np.allclose(proposal.candidate.numpy(), r_par)
 
 
+def test_daarem_accelerator_defaults_match_r_reference_controls():
+    accelerator = AndersonEMAccelerator(monotone=True)
+
+    assert accelerator.order == 5
+    assert accelerator.epsilon_monotone == pytest.approx(0.01)
+    assert accelerator.daarem_alpha == pytest.approx(1.2)
+    assert accelerator.daarem_kappa == 25
+    assert accelerator.cycl_monotone_tol == pytest.approx(0.0)
+
+
 def test_daarem_cycle_monotonicity_increases_damping_after_cycle_drop():
     accelerator = AndersonEMAccelerator(
         order=3,
