@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import mne
+import numpy as np
 from numpy.testing import assert_allclose
 
 from amica.datasets import data_path
@@ -34,6 +35,33 @@ def test_write_param_file(tmp_path):
     content = param_fpath.read_text()
     want = (Path(__file__).parent / "assets" / "amicadefs_test.param").read_text()
     assert content == want
+
+
+def test_write_param_file_formats_small_floats_for_fortran_fixed_reads(tmp_path):
+    """Small floats must include a decimal mantissa for Fortran fixed reads."""
+    data = np.array([[0.0, 1.0], [2.0, 3.0]])
+
+    param_fpath, _ = write_param_file(
+        tmp_path / "small_float.param",
+        files="data.fdt",
+        outdir="out/",
+        data=data,
+        min_dll=1e-7,
+        min_grad_norm=1e-7,
+        minlrate=1e-8,
+        mineig=1e-15,
+        invsigmin=1e-8,
+    )
+
+    params = dict(
+        line.split(maxsplit=1)
+        for line in param_fpath.read_text().splitlines()
+    )
+
+    for key in ("min_dll", "min_grad_norm", "minlrate", "mineig", "invsigmin"):
+        assert "." in params[key]
+        assert "e" in params[key].lower()
+        assert float(params[key]) > 0.0
 
 
 def test_io(tmp_path):

@@ -1,10 +1,18 @@
 """Utilities for interfacing with Fortran AMICA outputs."""
 import inspect
+from numbers import Integral, Real
 from dataclasses import MISSING, asdict, dataclass, fields
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
+
+
+def _format_param_value(value):
+    """Format param values so Fortran fixed-format reads parse floats correctly."""
+    if isinstance(value, Real) and not isinstance(value, Integral | bool):
+        return f"{float(value):.8e}"
+    return str(value)
 
 
 def load_initial_weights(fortran_outdir, *, n_components, n_mixtures):
@@ -268,7 +276,12 @@ def write_param_file(fpath, data, **kwargs):
     params = FortranParams(**merged)
     params_dict = params.to_param_dict()
 
-    fpath.write_text("".join(f"{key} {value}\n" for key, value in params_dict.items()))
+    fpath.write_text(
+        "".join(
+            f"{key} {_format_param_value(value)}\n"
+            for key, value in params_dict.items()
+        )
+    )
     return fpath, params
 
 
