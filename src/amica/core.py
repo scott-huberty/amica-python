@@ -58,7 +58,6 @@ from amica.linalg import (
 )
 from amica.optim import (
     AndersonEMAccelerator,
-    SQUAREMAccelerator,
     pack_state,
     unpack_state,
 )
@@ -601,13 +600,6 @@ def _main_loop(
             restart_on_reject=config.accelerator_history_reset_on_reject,
             max_consecutive_rejects=max(1, config.accelerator_max_restarts),
         )
-    elif config.optimizer == "squarem":
-        accelerator = SQUAREMAccelerator(
-            method=3,
-            step_min=1.0,
-            step_max=1.0,
-        )
-
     while metrics.iter <= config.max_iter:
         previous_state = state.clone()
         step = em_step(
@@ -996,7 +988,7 @@ def evaluate_loglikelihood(
 
 def maybe_apply_acceleration(
         *,
-        accelerator: AndersonEMAccelerator | SQUAREMAccelerator | None,
+        accelerator: AndersonEMAccelerator | None,
         config: AmicaConfig,
         X: DataTensor2D,
         sldet: float,
@@ -1048,14 +1040,13 @@ def maybe_apply_acceleration(
             )
         )
         outcome.candidate_loglik = candidate_loglik
-        if config.optimizer in {"daarem", "squarem"}:
+        if config.optimizer == "daarem":
             if candidate_loglik < current_loglik - config.accelerator_eps_monotone:
                 outcome.reason = "monotonicity"
-                if config.optimizer == "daarem":
-                    accelerator.update_cycle_monotonicity(
-                        loglik=current_loglik,
-                        history=proposal.history,
-                    )
+                accelerator.update_cycle_monotonicity(
+                    loglik=current_loglik,
+                    history=proposal.history,
+                )
                 outcome.restart = accelerator.reject()
                 return current_state, wc, outcome
         outcome.reason = "validated"

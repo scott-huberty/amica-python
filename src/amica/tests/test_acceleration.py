@@ -13,7 +13,6 @@ from amica.core import (
 )
 from amica.optim import (
     AndersonEMAccelerator,
-    SQUAREMAccelerator,
     pack_state,
     unpack_state,
 )
@@ -128,69 +127,6 @@ def test_anderson_proposal_improves_toy_fixed_point():
     accelerated = proposal.candidate.item()
     assert np.isfinite(accelerated)
     assert abs(accelerated - 2.0) <= abs(plain - 2.0)
-
-
-def test_squarem_proposal_matches_r_squarem_reference_step():
-    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
-    p = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
-    p1 = torch.tensor([0.0, 0.25, 1.5], dtype=torch.float64)
-    p2 = torch.tensor([-0.25, 0.875, 1.375], dtype=torch.float64)
-
-    accelerator.update(x=p, g=p1)
-    accelerator.update(x=p1, g=p2)
-
-    proposal = accelerator.propose()
-
-    assert proposal is not None
-    assert proposal.history == 2
-    assert proposal.alpha == pytest.approx(1.5879984667608413)
-    assert torch.allclose(
-        proposal.candidate,
-        torch.tensor(
-            [-0.28469259358347, 1.56678031121190, 1.35765370320826],
-            dtype=torch.float64,
-        ),
-    )
-
-
-def test_squarem_proposal_matches_local_r_squarem_package():
-    os.environ.setdefault("R_HOME", "/Users/scotterik/miniforge3/envs/amica_env/lib/R")
-    os.environ["PATH"] = (
-        "/Users/scotterik/miniforge3/envs/amica_env/bin:" + os.environ.get("PATH", "")
-    )
-    try:
-        from rpy2 import robjects
-    except Exception as exc:
-        pytest.skip(f"rpy2/R unavailable: {exc}")
-
-    robjects.r(
-        'source("/Users/scotterik/devel/projects/amica-python/optimizers/SQUAREM/R/squarem.R")'
-    )
-    robjects.r(
-        "fixpt <- function(par) c("
-        "0.5 * par[1] - 0.5,"
-        "0.5 * par[2] + 0.5,"
-        "0.5 * par[3] + 0.5)"
-    )
-    robjects.r(
-        "out <- squarem("
-        "par=c(1, -0.5, 2),"
-        "fixptfn=fixpt,"
-        "control=list(maxiter=3, step.max0=4, tol=1e-12)"
-        ")"
-    )
-    r_par = np.asarray(robjects.r("out$par"), dtype=np.float64)
-
-    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
-    p = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
-    p1 = torch.tensor([0.0, 0.25, 1.5], dtype=torch.float64)
-    p2 = torch.tensor([-0.5, 0.625, 1.25], dtype=torch.float64)
-    accelerator.update(x=p, g=p1)
-    accelerator.update(x=p1, g=p2)
-    proposal = accelerator.propose()
-
-    assert proposal is not None
-    assert np.allclose(proposal.candidate.numpy(), r_par)
 
 
 def test_daarem_proposal_matches_local_r_daarem_package():
@@ -314,44 +250,6 @@ def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     assert len(accelerator.x_hist) == 1
 
 
-def test_squarem_rejects_lower_likelihood_candidate(monkeypatch):
-    cfg = _make_config(optimizer="squarem")
-    cfg = replace(cfg, accelerator_validate_candidate=True)
-    accelerator = SQUAREMAccelerator(method=3, step_min=1.0, step_max=4.0)
-
-    previous_state = get_initial_state(cfg)
-    current_state = get_initial_state(cfg)
-    rng = torch.Generator().manual_seed(0)
-    previous_state, _ = initialize_state_parameters(
-        state=previous_state,
-        config=cfg,
-        rng=rng,
-    )
-    current_state = previous_state.clone()
-    current_state.sbeta.fill_(2.0)
-
-    previous_vec = pack_state(previous_state)
-    accelerator.update(x=previous_vec - 0.1, g=previous_vec)
-
-    monkeypatch.setattr("amica.core.evaluate_loglikelihood", lambda **kwargs: -1.0)
-
-    out_state, _, outcome = maybe_apply_acceleration(
-        accelerator=accelerator,
-        config=cfg,
-        X=torch.zeros((4, 2), dtype=cfg.dtype, device=cfg.device),
-        sldet=0.0,
-        previous_state=previous_state,
-        current_state=current_state,
-        current_loglik=0.0,
-        iteration=1,
-    )
-
-    assert out_state is current_state
-    assert not outcome.accepted
-    assert outcome.reason == "monotonicity"
-    assert outcome.restart
-
-
 def test_daarem_validated_candidate_updates_cycle_monotonicity(monkeypatch):
     cfg = _make_config(optimizer="daarem")
     cfg = replace(cfg, accelerator_validate_candidate=True)
@@ -387,39 +285,3 @@ def test_daarem_validated_candidate_updates_cycle_monotonicity(monkeypatch):
     assert outcome.accepted
     assert accelerator.cycle_count == 0
     assert accelerator.cycle_loglik == 1.0
-
-
-def test_solve_constructs_squarem_accelerator(monkeypatch):
-    constructed = []
-
-    class RecordingSQUAREM:
-        def __init__(self, **kwargs):
-            constructed.append(kwargs)
-
-        def update(self, *, x, g):
-            return None
-
-        def propose(self):
-            return None
-
-    monkeypatch.setattr("amica.core.SQUAREMAccelerator", RecordingSQUAREM)
-    cfg = _make_config(max_iter=1, optimizer="squarem")
-    X = np.array(
-        [[0.1, -0.3], [0.5, 0.2], [-0.4, 0.7], [0.8, -0.1]],
-        dtype=np.float64,
-    )
-
-    solve(
-        X,
-        config=cfg,
-        state=get_initial_state(cfg),
-        sldet=0.0,
-    )
-
-    assert constructed == [
-        {
-            "method": 3,
-            "step_min": 1.0,
-            "step_max": 1.0,
-        }
-    ]
