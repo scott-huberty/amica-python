@@ -151,6 +151,8 @@ class AndersonEMAccelerator:
       monotonicity inside the DAAREM loop; AMICA checks it in the shared
       acceleration wrapper after a candidate state is unpacked and scored.
     - ``cycl_monotone_tol`` maps to R ``control$cycl.mon.tol``.
+      The DAAREM path resets its fixed-point history after each ``order`` /
+      ``nlag`` cycle, matching R's ``count <- 0`` cycle boundary.
 
     R controls handled outside this object:
 
@@ -298,9 +300,7 @@ class AndersonEMAccelerator:
             self.consecutive_rejects >= self.max_consecutive_rejects
         )
         if should_restart:
-            self.x_hist = self.x_hist[-1:]
-            self.g_hist = self.g_hist[-1:]
-            self.f_hist = self.f_hist[-1:]
+            self._keep_current_point_only()
             self.consecutive_rejects = 0
             self.restart_count += 1
         return should_restart
@@ -317,16 +317,22 @@ class AndersonEMAccelerator:
         if self.cycle_loglik is None:
             self.cycle_loglik = loglik
         self.cycle_count += 1
-        if self.cycle_count != history:
+        if self.cycle_count != self.order:
             return
 
         if loglik < self.cycle_loglik - self.cycl_monotone_tol:
             self.shrink_count = max(
-                self.shrink_count - history,
+                self.shrink_count - self.order,
                 -2 * self.daarem_kappa,
             )
         self.cycle_loglik = loglik
         self.cycle_count = 0
+        self._keep_current_point_only()
+
+    def _keep_current_point_only(self) -> None:
+        self.x_hist = self.x_hist[-1:]
+        self.g_hist = self.g_hist[-1:]
+        self.f_hist = self.f_hist[-1:]
 
 
 def _damping_find(

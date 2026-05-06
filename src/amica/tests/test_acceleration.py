@@ -203,6 +203,30 @@ def test_daarem_cycle_monotonicity_increases_damping_after_cycle_drop():
     assert accelerator.cycle_loglik == 9.0
 
 
+def test_daarem_resets_history_after_full_r_cycle():
+    accelerator = AndersonEMAccelerator(order=3, monotone=True)
+
+    for idx in range(4):
+        x = torch.tensor([float(idx), float(idx * idx)], dtype=torch.float64)
+        g = x + torch.tensor([1.0 + idx, 0.5], dtype=torch.float64)
+        accelerator.update(x=x, g=g)
+        proposal = accelerator.propose()
+        if proposal is None:
+            continue
+        accelerator.accept()
+        accelerator.update_cycle_monotonicity(
+            loglik=float(idx),
+            history=proposal.history,
+        )
+
+    assert accelerator.cycle_count == 0
+    assert len(accelerator.x_hist) == 1
+    assert torch.allclose(
+        accelerator.x_hist[0],
+        torch.tensor([3.0, 9.0], dtype=torch.float64),
+    )
+
+
 def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     cfg = _make_config(optimizer="anderson")
     accelerator = AndersonEMAccelerator(order=2, damping=1.0, ridge=1e-8)
