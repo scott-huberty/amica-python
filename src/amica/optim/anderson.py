@@ -151,6 +151,7 @@ class AndersonEMAccelerator:
       AMICA candidate validation is enabled. R checks monotonicity inside the
       DAAREM loop; AMICA checks it in the shared acceleration wrapper after a
       candidate state is unpacked and scored.
+    - ``cycl_monotone_tol`` maps to R ``control$cycl.mon.tol``.
 
     R controls handled outside this object:
 
@@ -160,8 +161,6 @@ class AndersonEMAccelerator:
 
     R controls not directly implemented:
 
-    - ``cycl.mon.tol`` has no direct Python sibling. AMICA does not currently
-      apply DAAREM's cycle-level monotonicity adjustment.
     - ``resid.tol`` has no direct Python sibling. AMICA relies on common
       candidate validation and reject/restart behavior instead of R's
       objective-free residual-change safeguard.
@@ -186,9 +185,12 @@ class AndersonEMAccelerator:
     max_consecutive_rejects: int = 3
     daarem_alpha: float = 1.2
     daarem_kappa: int = 25
+    cycl_monotone_tol: float = 0.0
     shrink_count: int = 0
     lambda_ridge: float = 100000.0
     r_penalty: float = 0.0
+    cycle_count: int = 0
+    cycle_loglik: float | None = None
     x_hist: list[torch.Tensor] = field(default_factory=list)
     g_hist: list[torch.Tensor] = field(default_factory=list)
     f_hist: list[torch.Tensor] = field(default_factory=list)
@@ -204,6 +206,8 @@ class AndersonEMAccelerator:
         self.shrink_count = 0
         self.lambda_ridge = 100000.0
         self.r_penalty = 0.0
+        self.cycle_count = 0
+        self.cycle_loglik = None
 
     def update(self, *, x: torch.Tensor, g: torch.Tensor) -> None:
         f = g - x
@@ -306,6 +310,24 @@ class AndersonEMAccelerator:
         self.consecutive_rejects = 0
         if self.monotone:
             self.shrink_count += 1
+
+    def update_cycle_monotonicity(self, *, loglik: float, history: int) -> None:
+        """Apply R DAAREM's cycle-level monotonicity damping adjustment."""
+        if not self.monotone:
+            return
+        if self.cycle_loglik is None:
+            self.cycle_loglik = loglik
+        self.cycle_count += 1
+        if self.cycle_count != history:
+            return
+
+        if loglik < self.cycle_loglik - self.cycl_monotone_tol:
+            self.shrink_count = max(
+                self.shrink_count - history,
+                -2 * self.daarem_kappa,
+            )
+        self.cycle_loglik = loglik
+        self.cycle_count = 0
 
 
 def _damping_find(

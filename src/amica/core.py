@@ -1051,6 +1051,11 @@ def maybe_apply_acceleration(
         if config.optimizer in {"daarem", "squarem"}:
             if candidate_loglik < current_loglik - config.accelerator_eps_monotone:
                 outcome.reason = "monotonicity"
+                if config.optimizer == "daarem":
+                    accelerator.update_cycle_monotonicity(
+                        loglik=current_loglik,
+                        history=proposal.history,
+                    )
                 outcome.restart = accelerator.reject()
                 return current_state, wc, outcome
         outcome.reason = "validated"
@@ -1062,6 +1067,15 @@ def maybe_apply_acceleration(
     )
     candidate_state.W = candidate_w
     accelerator.accept()
+    if (
+        config.optimizer == "daarem"
+        and config.accelerator_validate_candidate
+        and outcome.candidate_loglik is not None
+    ):
+        accelerator.update_cycle_monotonicity(
+            loglik=outcome.candidate_loglik,
+            history=proposal.history,
+        )
     outcome.accepted = True
     return candidate_state, candidate_wc, outcome
 

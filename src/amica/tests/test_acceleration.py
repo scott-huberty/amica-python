@@ -238,6 +238,25 @@ def test_daarem_proposal_matches_local_r_daarem_package():
     assert np.allclose(proposal.candidate.numpy(), r_par)
 
 
+def test_daarem_cycle_monotonicity_increases_damping_after_cycle_drop():
+    accelerator = AndersonEMAccelerator(
+        order=3,
+        monotone=True,
+        daarem_kappa=25,
+        cycl_monotone_tol=0.0,
+    )
+
+    accelerator.update_cycle_monotonicity(loglik=10.0, history=3)
+    accelerator.accept()
+    accelerator.update_cycle_monotonicity(loglik=11.0, history=3)
+    accelerator.accept()
+    accelerator.update_cycle_monotonicity(loglik=9.0, history=3)
+
+    assert accelerator.shrink_count == -1
+    assert accelerator.cycle_count == 0
+    assert accelerator.cycle_loglik == 9.0
+
+
 def test_rejected_candidate_falls_back_to_plain_em(monkeypatch):
     cfg = _make_config(optimizer="anderson")
     accelerator = AndersonEMAccelerator(order=2, damping=1.0, ridge=1e-8)
@@ -321,6 +340,43 @@ def test_squarem_rejects_lower_likelihood_candidate(monkeypatch):
     assert not outcome.accepted
     assert outcome.reason == "monotonicity"
     assert outcome.restart
+
+
+def test_daarem_validated_candidate_updates_cycle_monotonicity(monkeypatch):
+    cfg = _make_config(optimizer="daarem")
+    cfg = replace(cfg, accelerator_validate_candidate=True)
+    accelerator = AndersonEMAccelerator(order=1, monotone=True)
+
+    previous_state = get_initial_state(cfg)
+    current_state = get_initial_state(cfg)
+    rng = torch.Generator().manual_seed(0)
+    previous_state, _ = initialize_state_parameters(
+        state=previous_state,
+        config=cfg,
+        rng=rng,
+    )
+    current_state = previous_state.clone()
+    current_state.sbeta.fill_(2.0)
+
+    previous_vec = pack_state(previous_state)
+    accelerator.update(x=previous_vec - 0.1, g=previous_vec)
+
+    monkeypatch.setattr("amica.core.evaluate_loglikelihood", lambda **kwargs: 1.0)
+
+    _, _, outcome = maybe_apply_acceleration(
+        accelerator=accelerator,
+        config=cfg,
+        X=torch.zeros((4, 2), dtype=cfg.dtype, device=cfg.device),
+        sldet=0.0,
+        previous_state=previous_state,
+        current_state=current_state,
+        current_loglik=0.0,
+        iteration=1,
+    )
+
+    assert outcome.accepted
+    assert accelerator.cycle_count == 0
+    assert accelerator.cycle_loglik == 1.0
 
 
 def test_solve_constructs_squarem_accelerator(monkeypatch):
