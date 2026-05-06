@@ -136,8 +136,9 @@ class AndersonProposal:
 class AndersonEMAccelerator:
     """Anderson / DAAREM accelerator for EM-like fixed-point maps.
 
-    ``monotone=False`` uses the plain Anderson path. ``monotone=True`` uses
-    the DAAREM proposal path validated against the R ``daarem`` package.
+    ``monotone=False`` uses plain Anderson optimization (as implemented in the
+    ``daarem`` R package). ``monotone=True`` uses the DAAREM algorithm, as implemented
+    in the R ``daarem`` package.
 
     Parameter mapping to R package ``daarem(..., control=list(...))``:
 
@@ -151,8 +152,8 @@ class AndersonEMAccelerator:
       monotonicity inside the DAAREM loop; AMICA checks it in the shared
       acceleration wrapper after a candidate state is unpacked and scored.
     - ``cycl_monotone_tol`` maps to R ``control$cycl.mon.tol``.
-      The DAAREM path resets its fixed-point history after each ``order`` /
-      ``nlag`` cycle, matching R's ``count <- 0`` cycle boundary.
+      DAAREM resets its fixed-point history after each ``order`` /
+      ``nlag`` cycle, matching R's ``count <- 0``.
 
     R controls handled outside this object:
 
@@ -300,6 +301,8 @@ class AndersonEMAccelerator:
             self.consecutive_rejects >= self.max_consecutive_rejects
         )
         if should_restart:
+            # Could implement a rolling window in the future
+            # as some implementations of anderson do.
             self._keep_current_point_only()
             self.consecutive_rejects = 0
             self.restart_count += 1
