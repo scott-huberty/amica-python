@@ -178,7 +178,7 @@ class AndersonEMAccelerator:
       ``lambda.ridge``, and ``r.penalty`` locals.
     """
 
-    order: int = 5
+    order: int = 1
     damping: float = 1.0
     ridge: float = 1e-8
     monotone: bool = True

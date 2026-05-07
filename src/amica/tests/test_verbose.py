@@ -33,7 +33,7 @@ def test_sklearn_verbose(monkeypatch):
     captured = []
 
     def _fake_fit_amica(X, **kwargs):
-        captured.append(kwargs["verbose"])
+        captured.append(kwargs)
         n_features = X.shape[1]
         n_components = kwargs["n_components"] or n_features
         return {
@@ -57,7 +57,7 @@ def test_sklearn_verbose(monkeypatch):
     est.fit(X)
     est.fit(X, verbose=0)
 
-    assert captured == [2, 0]
+    assert [kwargs["verbose"] for kwargs in captured] == [2, 0]
     assert est.n_iter_ == 1
     assert np.array_equal(est.ll_, np.array([1.0]))
     assert est.mu_.shape == (3, 3)
@@ -69,3 +69,45 @@ def test_sklearn_verbose(monkeypatch):
     assert est.scales_ is est.sbeta_
     assert est.shapes_ is est.rho_
     assert est.mixture_weights_ is est.alpha_
+
+
+def test_sklearn_optimizer_kwargs(monkeypatch):
+    """Check that AMICA passes optimizer kwargs as one fit_amica parameter."""
+    captured = []
+
+    def _fake_fit_amica(X, **kwargs):
+        captured.append(kwargs)
+        n_features = X.shape[1]
+        n_components = kwargs["n_components"] or n_features
+        return {
+            "mean": np.zeros(n_features),
+            "S": np.eye(n_features),
+            "W": np.eye(n_components),
+            "A": np.eye(n_components),
+            "LL": np.array([1.0]),
+            "gm": np.array([1.0]),
+            "mu": np.zeros((n_components, kwargs["n_mixtures"])),
+            "rho": np.zeros((n_components, kwargs["n_mixtures"])),
+            "sbeta": np.ones((n_components, kwargs["n_mixtures"])),
+            "c": np.zeros((n_components,)),
+            "alpha": np.ones((n_components, kwargs["n_mixtures"])),
+        }
+
+    optimizer_kwargs = {
+        "accelerator_order": 3,
+        "accelerator_period": 2,
+    }
+    monkeypatch.setattr("amica._sklearn_interface.fit_amica", _fake_fit_amica)
+    X = np.random.RandomState(0).randn(10, 3)
+
+    AMICA(
+        n_components=3,
+        optimizer="daarem",
+        optimizer_kwargs=optimizer_kwargs,
+    ).fit(X)
+
+    kwargs = captured[0]
+    assert kwargs["optimizer"] == "daarem"
+    assert kwargs["optimizer_kwargs"] is optimizer_kwargs
+    assert "accelerator_order" not in kwargs
+    assert "accelerator_period" not in kwargs

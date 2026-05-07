@@ -78,6 +78,31 @@ from .utils._progress import make_progress_bar
 from .utils._verbose import _validate_verbose
 
 
+DEFAULT_OPTIMIZER_KWARGS: dict[str, object] = {
+    "accelerator_order": 1,
+    "accelerator_damping": 1.0,
+    "accelerator_ridge": 1e-8,
+    "accelerator_eps_monotone": 0.0,
+    "accelerator_start_iter": 5,
+    "accelerator_period": 1,
+    "accelerator_max_restarts": 20,
+    "accelerator_validate_candidate": True,
+}
+
+
+def _resolve_optimizer_kwargs(
+        optimizer_kwargs: dict[str, object] | None,
+) -> dict[str, object]:
+    resolved = DEFAULT_OPTIMIZER_KWARGS.copy()
+    if optimizer_kwargs is not None:
+        unknown = set(optimizer_kwargs) - set(resolved)
+        if unknown:
+            unknown_str = ", ".join(sorted(unknown))
+            raise TypeError(f"Unknown optimizer_kwargs keys: {unknown_str}")
+        resolved.update(optimizer_kwargs)
+    return resolved
+
+
 @dataclass(slots=True)
 class EMStepResult:
     """Result of one plain AMICA outer EM iteration."""
@@ -125,14 +150,7 @@ def fit_amica(
         mu_init=None,
         do_reject=False,
         optimizer="em",
-        accelerator_order=5,
-        accelerator_damping=1.0,
-        accelerator_ridge=1e-8,
-        accelerator_eps_monotone=0.0,
-        accelerator_start_iter=5,
-        accelerator_period=3,
-        accelerator_max_restarts=20,
-        accelerator_validate_candidate=True,
+        optimizer_kwargs=None,
         random_state=None,
         verbose=1,
 ):
@@ -205,6 +223,16 @@ def fit_amica(
         ``True``.
     newtrate : float, default=1.0
         learning rate for newton iterations.
+    optimizer : {"em", "anderson", "daarem"}, default="em"
+        Outer-loop optimizer / acceleration path.
+    optimizer_kwargs : dict or None, default=None
+        Optional accelerator settings for ``optimizer="anderson"`` or
+        ``optimizer="daarem"``. Supported keys are ``accelerator_order``,
+        ``accelerator_damping``, ``accelerator_ridge``,
+        ``accelerator_eps_monotone``, ``accelerator_start_iter``,
+        ``accelerator_period``, ``accelerator_max_restarts``, and
+        ``accelerator_validate_candidate``. If ``None``, AMICA uses the default
+        accelerator settings.
     verbose : int, default=1
         Output mode during optimization:
 
@@ -256,6 +284,7 @@ def fit_amica(
     """
     verbose = _validate_verbose(verbose)
     set_log_level("INFO" if verbose == 2 else "ERROR")
+    optimizer_kwargs = _resolve_optimizer_kwargs(optimizer_kwargs)
 
     if batch_size is None:
         batch_size = choose_batch_size(
@@ -282,14 +311,16 @@ def fit_amica(
         newt_ramp=newt_ramp,
         do_reject=do_reject,
         optimizer=optimizer,
-        accelerator_order=accelerator_order,
-        accelerator_damping=accelerator_damping,
-        accelerator_ridge=accelerator_ridge,
-        accelerator_eps_monotone=accelerator_eps_monotone,
-        accelerator_start_iter=accelerator_start_iter,
-        accelerator_period=accelerator_period,
-        accelerator_max_restarts=accelerator_max_restarts,
-        accelerator_validate_candidate=accelerator_validate_candidate,
+        accelerator_order=int(optimizer_kwargs["accelerator_order"]),
+        accelerator_damping=float(optimizer_kwargs["accelerator_damping"]),
+        accelerator_ridge=float(optimizer_kwargs["accelerator_ridge"]),
+        accelerator_eps_monotone=float(optimizer_kwargs["accelerator_eps_monotone"]),
+        accelerator_start_iter=int(optimizer_kwargs["accelerator_start_iter"]),
+        accelerator_period=int(optimizer_kwargs["accelerator_period"]),
+        accelerator_max_restarts=int(optimizer_kwargs["accelerator_max_restarts"]),
+        accelerator_validate_candidate=bool(
+            optimizer_kwargs["accelerator_validate_candidate"]
+        ),
         verbose=verbose,
     )
 

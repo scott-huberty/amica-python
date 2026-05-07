@@ -92,6 +92,10 @@ class AMICA(TransformerMixin, BaseEstimator):
         ``True``.
     newtrate : float, default=1.0
         lrate for newton iterations.
+    optimizer : {"em", "anderson", "daarem"}, default="em"
+        Outer-loop optimizer / acceleration path.
+    optimizer_kwargs : dict or None, default=None
+        Optional accelerator settings for the Anderson / DAAREM optimizer paths.
     w_init : ndarray of shape (``n_components``, ``n_components``), default=``None``
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.
@@ -187,14 +191,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             newt_start=50,
             newtrate=1.0,
             optimizer="em",
-            accelerator_order=5,
-            accelerator_damping=1.0,
-            accelerator_ridge=1e-8,
-            accelerator_eps_monotone=0.0,
-            accelerator_start_iter=5,
-            accelerator_period=3,
-            accelerator_max_restarts=20,
-            accelerator_validate_candidate=True,
+            optimizer_kwargs=None,
             w_init=None,
             sbeta_init=None,
             mu_init=None,
@@ -216,14 +213,7 @@ class AMICA(TransformerMixin, BaseEstimator):
         self.newt_start = newt_start
         self.newtrate = newtrate
         self.optimizer = optimizer
-        self.accelerator_order = accelerator_order
-        self.accelerator_damping = accelerator_damping
-        self.accelerator_ridge = accelerator_ridge
-        self.accelerator_eps_monotone = accelerator_eps_monotone
-        self.accelerator_start_iter = accelerator_start_iter
-        self.accelerator_period = accelerator_period
-        self.accelerator_max_restarts = accelerator_max_restarts
-        self.accelerator_validate_candidate = accelerator_validate_candidate
+        self.optimizer_kwargs = optimizer_kwargs
         self.w_init = w_init
         self.sbeta_init = sbeta_init
         self.mu_init = mu_init
@@ -274,14 +264,7 @@ class AMICA(TransformerMixin, BaseEstimator):
             newt_start=self.newt_start,
             newtrate=self.newtrate,
             optimizer=self.optimizer,
-            accelerator_order=self.accelerator_order,
-            accelerator_damping=self.accelerator_damping,
-            accelerator_ridge=self.accelerator_ridge,
-            accelerator_eps_monotone=self.accelerator_eps_monotone,
-            accelerator_start_iter=self.accelerator_start_iter,
-            accelerator_period=self.accelerator_period,
-            accelerator_max_restarts=self.accelerator_max_restarts,
-            accelerator_validate_candidate=self.accelerator_validate_candidate,
+            optimizer_kwargs=self.optimizer_kwargs,
             w_init=self.w_init,
             sbeta_init=self.sbeta_init,
             mu_init=self.mu_init,

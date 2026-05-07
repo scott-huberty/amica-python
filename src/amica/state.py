@@ -36,12 +36,12 @@ class AmicaConfig:
 
     # Outer-loop optimizer / acceleration
     optimizer: str = "em"
-    accelerator_order: int = 5
+    accelerator_order: int = 1
     accelerator_damping: float = 1.0
     accelerator_ridge: float = 1e-8
     accelerator_eps_monotone: float = 0.0
     accelerator_start_iter: int = 5
-    accelerator_period: int = 3
+    accelerator_period: int = 1
     accelerator_max_restarts: int = 20
     accelerator_validate_candidate: bool = True
     accelerator_history_reset_on_reject: bool = True

@@ -6,9 +6,11 @@ import pytest
 import torch
 
 from amica.core import (
+    DEFAULT_OPTIMIZER_KWARGS,
     em_step,
     initialize_state_parameters,
     maybe_apply_acceleration,
+    _resolve_optimizer_kwargs,
     solve,
 )
 from amica.optim import (
@@ -177,11 +179,25 @@ def test_daarem_proposal_matches_local_r_daarem_package():
 def test_daarem_accelerator_defaults_match_r_reference_controls():
     accelerator = AndersonEMAccelerator(monotone=True)
 
-    assert accelerator.order == 5
+    assert accelerator.order == 1
     assert accelerator.epsilon_monotone == pytest.approx(0.01)
     assert accelerator.daarem_alpha == pytest.approx(1.2)
     assert accelerator.daarem_kappa == 25
     assert accelerator.cycl_monotone_tol == pytest.approx(0.0)
+
+
+def test_optimizer_kwargs_defaults_use_single_step_acceleration():
+    kwargs = _resolve_optimizer_kwargs(None)
+
+    assert kwargs["accelerator_order"] == 1
+    assert kwargs["accelerator_period"] == 1
+    assert DEFAULT_OPTIMIZER_KWARGS["accelerator_order"] == 1
+    assert DEFAULT_OPTIMIZER_KWARGS["accelerator_period"] == 1
+
+
+def test_optimizer_kwargs_reject_unknown_keys():
+    with pytest.raises(TypeError, match="Unknown optimizer_kwargs keys"):
+        _resolve_optimizer_kwargs({"accelerator_orders": 2})
 
 
 def test_daarem_cycle_monotonicity_increases_damping_after_cycle_drop():

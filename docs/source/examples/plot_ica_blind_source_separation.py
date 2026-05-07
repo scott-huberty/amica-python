@@ -59,12 +59,14 @@ ica = AMICA(
     whiten="zca",
     random_state=0,
     optimizer="daarem",
-    accelerator_order=3,
-    accelerator_damping=0.8,
-    accelerator_ridge=1e-8,
-    accelerator_eps_monotone=0,
-    accelerator_start_iter=51,
-    accelerator_period=3,
+    optimizer_kwargs={
+        "accelerator_order": 3,
+        "accelerator_damping": 0.8,
+        "accelerator_ridge": 1e-8,
+        "accelerator_eps_monotone": 0,
+        "accelerator_start_iter": 51,
+        "accelerator_period": 3,
+    },
     verbose=2
     )
 models["AMICA"] = ica.fit_transform(X)
