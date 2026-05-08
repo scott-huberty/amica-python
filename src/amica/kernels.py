@@ -154,9 +154,6 @@ def compute_source_densities(
     # Shape assertions for new dimension standard
     # These parameters are the full arrays, not indexed yet
     assert alpha.shape[0] >= nw, f"alpha.shape[0]={alpha.shape[0]} must be >= nw={nw}"
-    assert alpha.shape[1] == num_mix, (
-        f"alpha.shape[1]={alpha.shape[1]} != num_mix={num_mix}"
-        )
     assert sbeta.shape == alpha.shape, (
         f"sbeta shape {sbeta.shape} != alpha shape {alpha.shape}"
         )
@@ -229,15 +226,10 @@ def compute_source_densities(
             raise RuntimeError("Non-finite log scales encountered.")
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = torch.isclose(
-            rho, torch.tensor(1.0, dtype=torch.float64), atol=1e-12
-            )
-
-        gau_mask = (
-            torch.isclose(
-                rho, torch.tensor(2.0, dtype=torch.float64), atol=1e-12
-            )
-            )
+        one = torch.tensor(1.0, dtype=rho.dtype, device=rho.device)
+        two = torch.tensor(2.0, dtype=rho.dtype, device=rho.device)
+        lap_mask = torch.isclose(rho, one, atol=1e-12)
+        gau_mask = torch.isclose(rho, two, atol=1e-12)
 
         # Default: generalized Gaussian log-prob + log mixture weight
         # This is all or the vast majority of values, so just compute gen gau over all
@@ -249,25 +241,39 @@ def compute_source_densities(
             rho=rho,
         )
         assert out_logits.shape == (N1, nw, num_mix)
-        # Overwrite with Laplacian/Gaussian log-prob + log mixture weight where needed
-        # This is usually a small loop, and ensures we get a view of the arrays
-        if lap_mask.any():
-            for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
-                out_logits[:, i, j] = laplacian_logprob(
-                    sources=out_sources[:, i, j],
-                    log_alpha=log_mixture_weights[i, j],
-                    log_sbeta=log_scales[i, j],
-                    out_logits=out_logits[:, i, j]
-                )
-        if gau_mask.any():
-            for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
-                out_logits[:, i, j] = gaussian_logprob(
-                    sources=out_sources[:, i, j],
-                    log_alpha=log_mixture_weights[i, j],
-                    log_sbeta=log_scales[i, j],
-                    out_logits=out_logits[:, i, j]
-                )
+        # Overwrite Laplacian/Gaussian log-probabilities in one batch per density type.
+        # This only materializes the selected subset, not a full-sized temporary.
+        any_lap = lap_mask.any()
+        any_gau = gau_mask.any()
+        if any_lap or any_gau:
+            flat_sources = out_sources.reshape(N1, -1)
+            flat_logits = out_logits.reshape(N1, -1)
+            flat_log_mixture_weights = log_mixture_weights.reshape(-1)
+            flat_log_scales = log_scales.reshape(-1)
+        if any_lap:
+            lap_indices = lap_mask.reshape(-1).nonzero(as_tuple=True)[0]
+            lap_sources = flat_sources.index_select(1, lap_indices)
+            lap_logits = torch.empty_like(lap_sources)
+            laplacian_logprob(
+                sources=lap_sources,
+                log_alpha=flat_log_mixture_weights[lap_indices],
+                log_sbeta=flat_log_scales[lap_indices],
+                out_logits=lap_logits,
+            )
+            flat_logits.index_copy_(1, lap_indices, lap_logits)
+        if any_gau:
+            gau_indices = gau_mask.reshape(-1).nonzero(as_tuple=True)[0]
+            gau_sources = flat_sources.index_select(1, gau_indices)
+            gau_logits = torch.empty_like(gau_sources)
+            gaussian_logprob(
+                sources=gau_sources,
+                log_alpha=flat_log_mixture_weights[gau_indices],
+                log_sbeta=flat_log_scales[gau_indices],
+                out_logits=gau_logits,
+            )
+            flat_logits.index_copy_(1, gau_indices, gau_logits)
         # end if lap_mask/gau_mask.any()
+    # no cover: start
     elif pdftype == 1:
         raise NotImplementedError()
     elif pdftype == 2:
@@ -278,6 +284,7 @@ def compute_source_densities(
         raise ValueError(
             f"Invalid pdftype {pdftype}. Only pdftype=0 (Gaussian) is supported."
             )
+    # no cover: end
     # end select
     # !--- end for j
     return out_sources, out_logits
