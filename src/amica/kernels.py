@@ -507,17 +507,6 @@ def compute_source_scores(
 
         # Step 2. Multiply by rho and sign(y) without np.sign allocation
         out_scores *= rho * torch.where(y >= 0, one, -one)
-<<<<<<< HEAD
-
-        # Overwrite with Laplacian/Gaussian score function where needed
-        # This is usually a small loop, and ensures we get a view of the arrays
-        if lap_mask.any():
-            for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
-                out_scores[:, i, j] = torch.sign(y[:, i, j])
-        if gau_mask.any():
-            for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
-                out_scores[:, i, j] = torch.multiply(y[:, i, j], two)
-=======
 
         # Overwrite Laplacian/Gaussian score values where needed
         any_lap = lap_mask.any()
@@ -534,7 +523,6 @@ def compute_source_scores(
                 gau_scores = torch.multiply(flat_y.index_select(1, gau_indices), two)
                 flat_scores.index_copy_(1, gau_indices, gau_scores)
 
->>>>>>> laplace_perf
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
@@ -1114,11 +1102,7 @@ def accumulate_sigma2_stats(
     # weighted column-wise sum of squares: (s=n_samples, i=n_components)
     # Same as torch.einsum('s,si,si->i', model_resps, b, b)
     if model_responsibilities is None:
-<<<<<<< HEAD
         out_numer += (b * b).sum(dim=0) # torch.einsum("ij,ij->j", b, b)  # avoids materializing b * b
-=======
-        out_numer += (b * b).sum(dim=0)  # equivalent to and faster than below.
->>>>>>> laplace_perf
     # Unreachable unless we support n_models > 1
     else:  # pragma: no cover
         model_resps = model_responsibilities
