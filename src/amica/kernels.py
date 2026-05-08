@@ -493,8 +493,10 @@ def compute_source_scores(
         #-------------------------------------------------------------------------------
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = (torch.isclose(rho, torch.tensor(1.0), atol=1e-12))
-        gau_mask = (torch.isclose(rho, torch.tensor(2.0), atol=1e-12))
+        one = torch.tensor(1.0, dtype=rho.dtype, device=rho.device)
+        two = torch.tensor(2.0, dtype=rho.dtype, device=rho.device)
+        lap_mask = torch.isclose(rho, one, atol=1e-12)
+        gau_mask = torch.isclose(rho, two, atol=1e-12)
 
         # Default: generalized Gaussian score function
         # Step 1. Compute |y|^(rho - 1) in-place
@@ -504,16 +506,23 @@ def compute_source_scores(
         torch.exp(out_scores, out=out_scores)         # |y|^(rho - 1)
 
         # Step 2. Multiply by rho and sign(y) without np.sign allocation
-        out_scores *= rho * torch.where(y >= 0, 1.0, -1.0)
+        out_scores *= rho * torch.where(y >= 0, one, -one)
 
-        # Overwrite with Laplacian/Gaussian score function where needed
-        # This is usually a small loop, and ensures we get a view of the arrays
-        if lap_mask.any():
-            for i, j in zip(*lap_mask.nonzero(as_tuple=True)):
-                out_scores[:, i, j] = torch.sign(y[:, i, j])
-        if gau_mask.any():
-            for i, j in zip(*gau_mask.nonzero(as_tuple=True)):
-                out_scores[:, i, j] = torch.multiply(y[:, i, j], 2.0)
+        # Overwrite Laplacian/Gaussian score values where needed
+        any_lap = lap_mask.any()
+        any_gau = gau_mask.any()
+        if any_lap or any_gau:
+            flat_y = y.reshape(N1, -1)
+            flat_scores = out_scores.reshape(N1, -1)
+            if any_lap:
+                lap_indices = lap_mask.reshape(-1).nonzero(as_tuple=True)[0]
+                lap_scores = torch.sign(flat_y.index_select(1, lap_indices))
+                flat_scores.index_copy_(1, lap_indices, lap_scores)
+            if any_gau:
+                gau_indices = gau_mask.reshape(-1).nonzero(as_tuple=True)[0]
+                gau_scores = torch.multiply(flat_y.index_select(1, gau_indices), two)
+                flat_scores.index_copy_(1, gau_indices, gau_scores)
+
     elif pdftype == 2:
         raise NotImplementedError()
     elif pdftype == 3:
