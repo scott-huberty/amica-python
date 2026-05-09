@@ -270,7 +270,6 @@ def write_param_file(fpath, data, **kwargs):
     merged = {**_get_fortran_param_defaults(), **kwargs}
     merged.setdefault("data_dim", data.shape[1])
     merged.setdefault("field_dim", data.shape[0])
-    merged.setdefault("block_size", data.shape[0])
     merged.setdefault("pcakeep", data.shape[1])
 
     params = FortranParams(**merged)
@@ -293,13 +292,13 @@ class FortranParams:
     files:          str | Path
     outdir:         str | Path
     # Data Shape
-    block_size:     int
     data_dim:       int  # n_features
     field_dim:      int # n_samples
+    block_size:     int = 128
     max_iter:       int = 500
-    blk_min:        int | None = None
-    blk_step:       int | None = None
-    blk_max:        int | None = None
+    blk_min:        int = 256
+    blk_step:       int = 256
+    blk_max:        int = 1024
     # Whitening
     do_mean:        int = 1
     do_sphere:      int = 1
@@ -383,12 +382,6 @@ class FortranParams:
 
     def __post_init__(self):
         """Initialize attributes."""
-        if self.blk_min is None:
-            self.blk_min = self.block_size // 4
-        if self.blk_step is None:
-            self.blk_step = self.block_size // 4
-        if self.blk_max is None:
-            self.blk_max = self.block_size
         if self.pcakeep is None:
             self.pcakeep = self.data_dim
 

@@ -1,8 +1,8 @@
 files ./tests/eeglab_sample_data/eeglab_data.fdt
 outdir ./tests/eeglab_sample_data/amicaout_test/
-block_size 512
 data_dim 32
 field_dim 30504
+block_size 128
 max_iter 500
 blk_min 256
 blk_step 256

@@ -25,10 +25,6 @@ def test_write_param_file(tmp_path):
         outdir="./tests/eeglab_sample_data/amicaout_test/",
         data=data,
         **{
-            "block_size": 512,
-            "blk_min": 256,
-            "blk_step": 256,
-            "blk_max": 1024,
             "writestep": 20,
         },
     )
