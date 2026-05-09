@@ -33,14 +33,7 @@ from amica.constants import (
     use_min_dll,
 )
 from amica.kernels import (
-    accumulate_alpha_stats,
-    accumulate_beta_stats,
-    accumulate_c_stats,
-    accumulate_kappa_stats,
-    accumulate_lambda_stats,
-    accumulate_mu_stats,
-    accumulate_rho_stats,
-    accumulate_sigma2_stats,
+    accumulate_batch_update_stats,
     compute_mixture_responsibilities,
     compute_model_loglikelihood_sum,
     compute_preactivations,
@@ -876,73 +869,41 @@ def em_step(
         fp_for_mu = fp if doing_newton else ufp
 
         g = compute_scaled_scores(weighted_scores=ufp, scales=state.sbeta)
-        accumulators.dgm_numer[0] += vsum
-        accumulate_c_stats(
+        accumulate_batch_update_stats(
             X=data_batch,
-            vsum=vsum,
-            n_weights=config.n_components,
-            out_numer=accumulators.dc_numer,
-            out_denom=accumulators.dc_denom,
-        )
-        accumulate_alpha_stats(
-            usum=usum,
-            vsum=vsum,
-            out_numer=accumulators.dalpha_numer,
-            out_denom=accumulators.dalpha_denom,
-        )
-        accumulate_mu_stats(
+            b=b,
+            u=u,
             ufp=ufp,
+            fp=fp_for_mu,
+            y=y,
             rho=state.rho,
             sbeta=state.sbeta,
-            y=y,
-            fp=fp_for_mu,
-            out_numer=accumulators.dmu_numer,
-            out_denom=accumulators.dmu_denom,
-        )
-        accumulate_beta_stats(
             usum=usum,
-            rho=state.rho,
-            u=u,
-            ufp=ufp,
-            y=y,
-            out_numer=accumulators.dbeta_numer,
-            out_denom=accumulators.dbeta_denom,
-        )
-        accumulate_rho_stats(
-            y=y,
-            rho=state.rho,
-            u=u,
-            usum=usum,
+            vsum=vsum,
             epsdble=epsdble,
-            out_numer=accumulators.drho_numer,
-            out_denom=accumulators.drho_denom,
+            n_weights=config.n_components,
+            doing_newton=doing_newton,
+            out_dgm_numer=accumulators.dgm_numer,
+            out_dc_numer=accumulators.dc_numer,
+            out_dc_denom=accumulators.dc_denom,
+            out_dalpha_numer=accumulators.dalpha_numer,
+            out_dalpha_denom=accumulators.dalpha_denom,
+            out_dmu_numer=accumulators.dmu_numer,
+            out_dmu_denom=accumulators.dmu_denom,
+            out_dbeta_numer=accumulators.dbeta_numer,
+            out_dbeta_denom=accumulators.dbeta_denom,
+            out_drho_numer=accumulators.drho_numer,
+            out_drho_denom=accumulators.drho_denom,
+            out_dsigma2_numer=accumulators.newton.dsigma2_numer,
+            out_dsigma2_denom=accumulators.newton.dsigma2_denom,
+            out_dkappa_numer=accumulators.newton.dkappa_numer,
+            out_dkappa_denom=accumulators.newton.dkappa_denom,
+            out_dlambda_numer=accumulators.newton.dlambda_numer,
+            out_dlambda_denom=accumulators.newton.dlambda_denom,
+            out_dbaralpha_numer=accumulators.newton.dbaralpha_numer,
+            out_dbaralpha_denom=accumulators.newton.dbaralpha_denom,
         )
-        if doing_newton:
-            accumulate_sigma2_stats(
-                source_estimates=b,
-                vsum=vsum,
-                out_numer=accumulators.newton.dsigma2_numer,
-                out_denom=accumulators.newton.dsigma2_denom,
-            )
-            accumulate_kappa_stats(
-                ufp=ufp,
-                fp=fp,
-                sbeta=state.sbeta,
-                usum=usum,
-                out_numer=accumulators.newton.dkappa_numer,
-                out_denom=accumulators.newton.dkappa_denom,
-            )
-            accumulate_lambda_stats(
-                fp=fp,
-                y=y,
-                u=u,
-                usum=usum,
-                out_numer=accumulators.newton.dlambda_numer,
-                out_denom=accumulators.newton.dlambda_denom,
-            )
-            accumulators.newton.dbaralpha_numer[:, :] += usum
-            accumulators.newton.dbaralpha_denom[:, :] += vsum
-        else:
+        if not doing_newton:
             fp = None
         accumulators.dA[:, :] += torch.matmul(g.T, b)
 
