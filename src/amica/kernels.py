@@ -358,6 +358,41 @@ def compute_model_loglikelihood_sum(
     return component_loglik.sum() + (initial_loglik * n_samples)
 
 
+def compute_loglikelihood_and_responsibilities(
+        *,
+        log_densities: SourceArray3D,
+        initial_loglik: torch.Tensor | float,
+) -> tuple[torch.Tensor, SourceArray3D]:
+    """Compute summed log-likelihood and responsibilities in one stable pass.
+
+    This mutates ``log_densities`` in-place from logits into mixture responsibilities.
+    It is equivalent to calling ``compute_model_loglikelihood_sum`` followed by
+    ``compute_mixture_responsibilities(..., inplace=True)``, but reuses the
+    max-subtracted exponentials needed by both operations.
+    """
+    assert log_densities.ndim == 3, (
+        f"log_densities must be 3D, got {log_densities.ndim}D"
+    )
+    n_samples = log_densities.shape[0]
+    num_mix = log_densities.shape[-1]
+
+    if num_mix == 1:
+        total = log_densities.sum() + (initial_loglik * n_samples)
+        log_densities.fill_(1.0)
+        return total, log_densities
+
+    # Stable logsumexp/softmax: subtract max before exponentiating, matching the
+    # numerical-stability trick used by the Fortran implementation.
+    max_log_density = torch.amax(log_densities, dim=-1, keepdim=True)
+    log_densities.sub_(max_log_density)
+    log_densities.exp_()
+    mixture_sum = log_densities.sum(dim=-1, keepdim=True)
+    component_loglik = max_log_density + torch.log(mixture_sum)
+    total = component_loglik.sum() + (initial_loglik * n_samples)
+    log_densities.div_(mixture_sum)
+    return total, log_densities
+
+
 
 def compute_mixture_responsibilities(
         *,

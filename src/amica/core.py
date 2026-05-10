@@ -41,7 +41,7 @@ from amica.kernels import (
     accumulate_mu_stats,
     accumulate_rho_stats,
     accumulate_sigma2_stats,
-    compute_mixture_responsibilities,
+    compute_loglikelihood_and_responsibilities,
     compute_model_loglikelihood_sum,
     compute_preactivations,
     compute_scaled_scores,
@@ -888,11 +888,11 @@ def em_step(
             out_sources=accumulators.scratch_y,
             out_logits=accumulators.scratch_z,
         )
-        total_LL += compute_model_loglikelihood_sum(
+        likelihood_sum, z = compute_loglikelihood_and_responsibilities(
             log_densities=z,
             initial_loglik=initial,
         )
-        z = compute_mixture_responsibilities(log_densities=z, inplace=True)
+        total_LL += likelihood_sum
         vsum = torch.as_tensor(
             data_batch.shape[0],
             dtype=config.dtype,
