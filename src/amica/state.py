@@ -304,26 +304,27 @@ def get_initial_state(
     num_comps = cfg.n_components  # Match amica.py variable names
     num_mix = cfg.n_mixtures
     dtype = cfg.dtype
+    device = cfg.device
 
     # Single-model W
-    W = torch.empty((num_comps, num_comps), dtype=dtype)
-    assert W.dtype == torch.float64
+    W = torch.empty((num_comps, num_comps), dtype=dtype, device=device)
+    assert W.dtype == dtype
 
     # A - match amica.py: A = np.zeros((num_comps, num_comps))
-    A = torch.zeros((num_comps, num_comps), dtype=dtype)
+    A = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)
 
-    c = torch.zeros((num_comps,), dtype=dtype)  # Bias terms per component
+    c = torch.zeros((num_comps,), dtype=dtype, device=device)  # Bias terms per component
     # sbeta, mu, rho - match amica.py patterns
-    sbeta = torch.empty((num_comps, num_mix), dtype=dtype)
-    mu = torch.zeros((num_comps, num_mix), dtype=dtype)
+    sbeta = torch.empty((num_comps, num_mix), dtype=dtype, device=device)
+    mu = torch.zeros((num_comps, num_mix), dtype=dtype, device=device)
 
     # Shape parameters
-    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype)
+    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype, device=device)
 
     # Initialize alpha (mixing coefficients)
-    alpha = torch.zeros((num_comps, num_mix), dtype=dtype)
+    alpha = torch.zeros((num_comps, num_mix), dtype=dtype, device=device)
 
-    gm = torch.ones((1,), dtype=dtype)
+    gm = torch.ones((1,), dtype=dtype, device=device)
     return AmicaState(W=W, A=A, c=c, mu=mu, sbeta=sbeta, rho=rho, alpha=alpha, gm=gm)
 
 

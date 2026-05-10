@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from warnings import warn
 
 import torch
-from numpy.testing import assert_allclose
 from sklearn.exceptions import ConvergenceWarning
 
 from amica._types import (
@@ -445,7 +444,7 @@ def solve(
     """
     # No-copy (if on CPU)
     X: DataTensor2D = torch.as_tensor(X, dtype=config.dtype, device=config.device)
-    rng = torch.Generator()
+    rng = torch.Generator(device=torch.device(config.device))
     if random_state is not None:
         rng.manual_seed(random_state)
     # The API will use n_components but under the hood we'll match the Fortran naming
@@ -501,7 +500,8 @@ def initialize_state_parameters(
     """Initialize learnable AMICA parameters and derived unmixing quantities."""
     num_comps = config.n_components
     num_mix = config.n_mixtures
-    assert_allclose(state.gm.sum(), 1.0)
+    if not torch.isclose(state.gm.sum(), state.gm.new_tensor(1.0)):
+        raise RuntimeError("Initial model weights must sum to 1.0.")
 
     state.alpha[:, :num_mix] = 1.0 / num_mix
     mu_values = torch.arange(num_mix, dtype=config.dtype, device=config.device)
@@ -1368,8 +1368,8 @@ def update_params(
 
     # if update_beta:
     state.sbeta *= torch.sqrt(accumulators.dbeta_numer / accumulators.dbeta_denom)
-    sbetatmp = torch.minimum(torch.tensor(invsigmax), state.sbeta)
-    state.sbeta = torch.maximum(torch.tensor(invsigmin), sbetatmp)
+    sbetatmp = torch.minimum(state.sbeta.new_tensor(invsigmax), state.sbeta)
+    state.sbeta = torch.maximum(state.sbeta.new_tensor(invsigmin), sbetatmp)
     if torch.any(~torch.isfinite(state.sbeta)):
         raise RuntimeError("Non-finite sbeta encountered during update.")
 
@@ -1383,9 +1383,9 @@ def update_params(
             / accumulators.drho_denom
         )
     )
-    rhotmp = torch.minimum(torch.tensor(maxrho), state.rho) # shape (num_comps, num_mix)
+    rhotmp = torch.minimum(state.rho.new_tensor(maxrho), state.rho) # shape (num_comps, num_mix)
     assert rhotmp.shape == (config.n_components, config.n_mixtures)
-    state.rho = torch.maximum(torch.tensor(minrho), rhotmp)
+    state.rho = torch.maximum(state.rho.new_tensor(minrho), rhotmp)
 
     # !--- rescale
     # !print *, 'rescaling A ...'; call flush(6)

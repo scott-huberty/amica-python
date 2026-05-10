@@ -545,8 +545,10 @@ def compute_source_scores(
         #-------------------------------------------------------------------------------
 
         # Masks: Laplacian (rho==1), Gaussian (rho==2); generalized Gaussian otherwise
-        lap_mask = (torch.isclose(rho, torch.tensor(1.0), atol=1e-12))
-        gau_mask = (torch.isclose(rho, torch.tensor(2.0), atol=1e-12))
+        one = torch.tensor(1.0, dtype=rho.dtype, device=rho.device)
+        two = torch.tensor(2.0, dtype=rho.dtype, device=rho.device)
+        lap_mask = torch.isclose(rho, one, atol=1e-12)
+        gau_mask = torch.isclose(rho, two, atol=1e-12)
 
         # Default: generalized Gaussian score function
         # Step 1. Compute |y|^(rho - 1) in-place
