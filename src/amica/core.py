@@ -87,6 +87,9 @@ DEFAULT_OPTIMIZER_KWARGS: dict[str, object] = {
     "accelerator_period": 1,
     "accelerator_max_restarts": 20,
     "accelerator_validate_candidate": True,
+    "accelerator_daarem_alpha": 1.2,
+    "accelerator_daarem_kappa": 25,
+    "accelerator_cycl_monotone_tol": 0.0,
 }
 
 
@@ -254,8 +257,10 @@ def fit_amica(
         ``optimizer="daarem"``. Supported keys are ``accelerator_order``,
         ``accelerator_damping``, ``accelerator_ridge``,
         ``accelerator_eps_monotone``, ``accelerator_start_iter``,
-        ``accelerator_period``, ``accelerator_max_restarts``, and
-        ``accelerator_validate_candidate``. If ``None``, AMICA uses the default
+        ``accelerator_period``, ``accelerator_max_restarts``,
+        ``accelerator_validate_candidate``, ``accelerator_daarem_alpha``,
+        ``accelerator_daarem_kappa``, and
+        ``accelerator_cycl_monotone_tol``. If ``None``, AMICA uses the default
         accelerator settings.
     verbose : int, default=1
         Output mode during optimization:
@@ -344,6 +349,15 @@ def fit_amica(
         accelerator_max_restarts=int(optimizer_kwargs["accelerator_max_restarts"]),
         accelerator_validate_candidate=bool(
             optimizer_kwargs["accelerator_validate_candidate"]
+        ),
+        accelerator_daarem_alpha=float(
+            optimizer_kwargs["accelerator_daarem_alpha"]
+        ),
+        accelerator_daarem_kappa=int(
+            optimizer_kwargs["accelerator_daarem_kappa"]
+        ),
+        accelerator_cycl_monotone_tol=float(
+            optimizer_kwargs["accelerator_cycl_monotone_tol"]
         ),
         verbose=verbose,
     )
@@ -654,6 +668,9 @@ def _main_loop(
             epsilon_monotone=config.accelerator_eps_monotone,
             restart_on_reject=config.accelerator_history_reset_on_reject,
             max_consecutive_rejects=max(1, config.accelerator_max_restarts),
+            daarem_alpha=config.accelerator_daarem_alpha,
+            daarem_kappa=config.accelerator_daarem_kappa,
+            cycl_monotone_tol=config.accelerator_cycl_monotone_tol,
         )
     while metrics.iter <= config.max_iter:
         previous_state = state.clone()

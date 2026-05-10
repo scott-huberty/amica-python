@@ -45,6 +45,9 @@ class AmicaConfig:
     accelerator_max_restarts: int = 20
     accelerator_validate_candidate: bool = True
     accelerator_history_reset_on_reject: bool = True
+    accelerator_daarem_alpha: float = 1.2
+    accelerator_daarem_kappa: int = 25
+    accelerator_cycl_monotone_tol: float = 0.0
 
     # Algorithmic flags
     do_reject: bool = False
