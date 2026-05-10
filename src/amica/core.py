@@ -78,12 +78,12 @@ from .utils._verbose import _validate_verbose
 
 
 DEFAULT_OPTIMIZER_KWARGS: dict[str, object] = {
-    "accelerator_order": 1,
+    "accelerator_order": 5,
     "accelerator_damping": 1.0,
     "accelerator_ridge": 1e-8,
     "accelerator_eps_monotone": 0.0,
     "accelerator_start_iter": 5,
-    "accelerator_period": 1,
+    "accelerator_period": 3,
     "accelerator_max_restarts": 20,
     "accelerator_validate_candidate": True,
     "accelerator_daarem_alpha": 1.2,
