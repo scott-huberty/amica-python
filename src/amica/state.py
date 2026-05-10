@@ -169,6 +169,10 @@ class AmicaAccumulators:
     loglik_sum: float = 0.0
 
     newton: AmicaNewtonAccumulators | None = None
+    scratch_y: NDArray | None = None
+    scratch_z: NDArray | None = None
+    scratch_fp: NDArray | None = None
+    scratch_ufp: NDArray | None = None
 
     def reset(self) -> None:
         """Zero all per-iteration accumulators in-place.

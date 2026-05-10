@@ -127,6 +127,30 @@ class AccelerationOutcome:
     candidate_loglik: float | None = None
 
 
+def _ensure_batch_scratch(
+        accumulators: AmicaAccumulators,
+        *,
+        shape: tuple[int, int, int],
+        dtype: torch.dtype,
+        device: torch.device | str,
+) -> None:
+    """Allocate reusable per-batch scratch buffers when shape changes."""
+    if (
+            accumulators.scratch_y is None
+            or accumulators.scratch_z is None
+            or accumulators.scratch_fp is None
+            or accumulators.scratch_ufp is None
+            or accumulators.scratch_y.shape != shape
+            or accumulators.scratch_z.shape != shape
+            or accumulators.scratch_fp.shape != shape
+            or accumulators.scratch_ufp.shape != shape
+    ):
+        accumulators.scratch_y = torch.empty(shape, dtype=dtype, device=device)
+        accumulators.scratch_z = torch.empty(shape, dtype=dtype, device=device)
+        accumulators.scratch_fp = torch.empty(shape, dtype=dtype, device=device)
+        accumulators.scratch_ufp = torch.empty(shape, dtype=dtype, device=device)
+
+
 def fit_amica(
         X,
         *,
@@ -843,6 +867,17 @@ def em_step(
             do_reject=config.do_reject,
             n_weights=config.n_components,
         )
+        scratch_shape = (
+            data_batch.shape[0],
+            config.n_components,
+            config.n_mixtures,
+        )
+        _ensure_batch_scratch(
+            accumulators,
+            shape=scratch_shape,
+            dtype=config.dtype,
+            device=config.device,
+        )
         y, z = compute_source_densities(
             pdftype=config.pdftype,
             b=b,
@@ -850,6 +885,8 @@ def em_step(
             mu=state.mu,
             alpha=state.alpha,
             rho=state.rho,
+            out_sources=accumulators.scratch_y,
+            out_logits=accumulators.scratch_z,
         )
         total_LL += compute_model_loglikelihood_sum(
             log_densities=z,
@@ -867,11 +904,16 @@ def em_step(
         )
         usum = u.sum(dim=0)
 
-        fp = compute_source_scores(pdftype=config.pdftype, y=y, rho=state.rho)
+        fp = compute_source_scores(
+            pdftype=config.pdftype,
+            y=y,
+            rho=state.rho,
+            out_scores=accumulators.scratch_fp,
+        )
         ufp = precompute_weighted_scores(
             weighted_responsibilities=u,
             scores=fp,
-            out_ufp=fp if not doing_newton else None,
+            out_ufp=fp if not doing_newton else accumulators.scratch_ufp,
         )
         fp_for_mu = fp if doing_newton else ufp
 

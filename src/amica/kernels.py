@@ -98,6 +98,8 @@ def compute_source_densities(
         mu: ParamsArray,
         alpha: ParamsArray,
         rho: ParamsArray,
+        out_sources: SourceArray3D | None = None,
+        out_logits: SourceArray3D | None = None,
         ) -> tuple[SourceArray3D, SourceArray3D]:
     """Calculate scaled sources (y) and per-mixture log-densities (logits).
 
@@ -166,10 +168,18 @@ def compute_source_densities(
     assert b.shape == (N1, nw), f"b shape {b.shape} != (N1={N1}, nw={nw})"
 
     # We have 3 possible log-probability functions
-    def generalized_gaussian_logprob(sources, log_alpha, log_sbeta, rho):
+    if out_sources is not None:
+        assert out_sources.shape == (N1, nw, num_mix)
+    if out_logits is not None:
+        assert out_logits.shape == (N1, nw, num_mix)
+
+    def generalized_gaussian_logprob(sources, log_alpha, log_sbeta, rho, out_logits):
         """Log p(y) = log(alpha)+log(sbeta)-|y|^rho-log( Gamma(1+1/rho) ) + log(2)."""
         # log(|y|)
-        out_logits = torch.abs(sources)
+        if out_logits is None:
+            out_logits = torch.abs(sources)
+        else:
+            torch.abs(sources, out=out_logits)
         torch.log(out_logits, out=out_logits)
         # |y|^rho
         torch.multiply(rho, out_logits, out=out_logits)
@@ -207,7 +217,10 @@ def compute_source_densities(
         # y(bstrt:bstp,i,j,h) = sbeta(j,comp_list(i,h)) * ( b(bstrt:bstp,i,h) - mu(j,...
         #---------------------------------------------------------------
         # 1. Center and scale the source estimates (In-place)
-        out_sources = torch.subtract(b[:, :, None], mu[None, :, :])
+        if out_sources is None:
+            out_sources = torch.subtract(b[:, :, None], mu[None, :, :])
+        else:
+            torch.subtract(b[:, :, None], mu[None, :, :], out=out_sources)
         torch.multiply(sbeta, out_sources, out=out_sources)
 
         #------------------Mixture Log-Likelihood for each component----------------
@@ -239,6 +252,7 @@ def compute_source_densities(
             log_alpha=log_mixture_weights,
             log_sbeta=log_scales,
             rho=rho,
+            out_logits=out_logits,
         )
         assert out_logits.shape == (N1, nw, num_mix)
         # Overwrite Laplacian/Gaussian log-probabilities in one batch per density type.
@@ -453,6 +467,7 @@ def compute_source_scores(
         pdftype: int,
         y: SourceArray3D,
         rho: ParamsArray,
+        out_scores: SourceArray3D | None = None,
 ):
     """Compute the score function (fp) to evaluate the non-Gaussianity of sources.
 
@@ -478,6 +493,8 @@ def compute_source_scores(
     assert y.shape == (N1, nw, num_mix), f"y shape {y.shape} != (N1, nw, num_mix)"
     assert rho.shape[0] >= nw, f"rho.shape[0]={rho.shape[0]} must be >= nw={nw}"
     assert rho.shape[1] == num_mix, f"rho.shape[1]={rho.shape[1]} != num_mix={num_mix}"
+    if out_scores is not None:
+        assert out_scores.shape == y.shape
 
     # !--- get fp, zfp
     if pdftype == 0:
@@ -498,7 +515,10 @@ def compute_source_scores(
 
         # Default: generalized Gaussian score function
         # Step 1. Compute |y|^(rho - 1) in-place
-        out_scores = torch.abs(y)                  # out_scores = |y|
+        if out_scores is None:
+            out_scores = torch.abs(y)              # out_scores = |y|
+        else:
+            torch.abs(y, out=out_scores)
         torch.log(out_scores, out=out_scores)         # log(|y|)
         torch.multiply(rho - 1.0, out_scores, out=out_scores)
         torch.exp(out_scores, out=out_scores)         # |y|^(rho - 1)
