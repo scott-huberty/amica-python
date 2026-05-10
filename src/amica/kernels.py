@@ -1245,6 +1245,8 @@ def accumulate_lambda_stats(
     """
     Get sufficient statistics for lambda (nonlinearity) update.
 
+    `fp` is mutated in-place. 
+
     Parameters
     ----------
     fp : np.ndarray
@@ -1302,10 +1304,12 @@ def accumulate_lambda_stats(
     # ------------------------------------------------------------------
     # (s=n_samples, i=n_components, j=n_mixtures)
     # Same as (u * (fp * y - 1.0)**2).sum(dim=0) but avoids 3 intermediate allocations
-    tmp = fp * y # one allocation
-    tmp -= 1.0
-    tmp **= 2
+    # XXX: This is the last use of fp, so we overwrite it.
+    fp *= y
+    fp -= 1.0
+    fp **= 2
+    fp *= u
     # Same as torch.einsum('sij,sij->ij', u, tmp)
-    out_numer += (u * tmp).sum(dim=0)
+    out_numer += fp.sum(dim=0)
     out_denom += usum
     return out_numer, out_denom
