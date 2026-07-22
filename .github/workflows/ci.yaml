@@ -71,6 +71,10 @@ jobs:
           r-version: 'release'
           use-public-rspm: true
 
+      - name: Install R test dependencies
+        run: |
+          Rscript -e 'install.packages("daarem", repos = "https://cloud.r-project.org")'
+
       - name: Create uv virtual environment
         run: |
           uv venv

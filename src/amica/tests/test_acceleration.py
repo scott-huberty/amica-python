@@ -1,4 +1,4 @@
-import os
+import shutil
 from dataclasses import replace
 
 import numpy as np
@@ -131,24 +131,20 @@ def test_anderson_proposal_improves_toy_fixed_point():
     assert abs(accelerated - 2.0) <= abs(plain - 2.0)
 
 
-def test_daarem_proposal_matches_local_r_daarem_package():
-    os.environ.setdefault("R_HOME", "/Users/scotterik/miniforge3/envs/amica_env/lib/R")
-    os.environ["PATH"] = (
-        "/Users/scotterik/miniforge3/envs/amica_env/bin:" + os.environ.get("PATH", "")
-    )
+def test_daarem_proposal_matches_r_daarem_package():
+    if shutil.which("R") is None or shutil.which("Rscript") is None:
+        pytest.skip("R/Rscript unavailable")
+
     try:
         from rpy2 import robjects
     except Exception as exc:
         pytest.skip(f"rpy2/R unavailable: {exc}")
 
-    r_dir = "/Users/scotterik/devel/projects/amica-python/optimizers/daarem/R"
-    for name in (
-        "DampingFind.R",
-        "daarem_base_noobjfn.R",
-        "daarem_base_objfn.R",
-        "daarem.R",
-    ):
-        robjects.r(f'source("{r_dir}/{name}")')
+    try:
+        robjects.r("library(daarem)")
+    except Exception as exc:
+        pytest.skip(f"R package daarem unavailable: {exc}")
+
     robjects.r(
         "fixpt <- function(par) c("
         "0.5 * par[1] - 0.5,"

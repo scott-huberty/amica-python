@@ -1,8 +1,26 @@
+import os
+import shutil
+from pathlib import Path
+
 import numpy as np
+import pytest
 import torch
 
 from amica.optim import AndersonEMAccelerator
 from amica.utils import fetch_daarem_mixdata
+
+rscript = shutil.which("Rscript")
+if rscript is None:
+    pytest.skip(
+        "Rscript not found in PATH; skipping tests that require external R",
+        allow_module_level=True,
+    )
+
+
+def _clear_invalid_r_home() -> None:
+    r_home = os.environ.get("R_HOME")
+    if r_home is not None and not (Path(r_home) / "bin" / "Rscript").exists():
+        os.environ.pop("R_HOME")
 
 
 def _make_likelihood_matrix(n_samples=1000, n_mixtures=30, random_state=0):
@@ -19,6 +37,7 @@ def _make_likelihood_matrix(n_samples=1000, n_mixtures=30, random_state=0):
 
 
 def _load_reference_likelihood_matrix():
+    _clear_invalid_r_home()
     from rpy2 import robjects
 
     data_path = fetch_daarem_mixdata()
