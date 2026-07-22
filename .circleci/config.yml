@@ -32,7 +32,15 @@ jobs:
           name: Install R runtime
           command: |
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends r-base
+            sudo apt-get install -y --no-install-recommends \
+              r-base \
+              r-base-dev \
+              libbz2-dev \
+              libicu-dev \
+              liblzma-dev \
+              libpcre2-dev \
+              libtirpc-dev \
+              zlib1g-dev
             R --version
       - run:
           name: Install package with dev+doc extras
