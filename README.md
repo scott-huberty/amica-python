@@ -5,9 +5,7 @@
 
 # AMICA-Python
 
-A Python implementation of the [AMICA](https://sccn.ucsd.edu/~jason/amica_a.pdf) (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation, that was originally [developed in FORTRAN](https://github.com/sccn/amica) by Jason Palmer at the Swartz Center for Computational Neuroscience (SCCN).
-
-AMICA-Python is alpha but is correctness tested against the Fortran implementation and is ready for test driving.
+A Python implementation of the [AMICA](https://sccn.ucsd.edu/~jason/amica_a.pdf) (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation, that was originally [developed in FORTRAN](https://github.com/sccn/amica) by Jason Palmer at the Swartz Center for Computational Neuroscience (SCCN). AMICA-Python is correctness tested against the Fortran implementation.
 
 | Python | Fortran |
 |--------|---------|
@@ -16,60 +14,44 @@ AMICA-Python is alpha but is correctness tested against the Fortran implementati
 
 ## Installation
 
-For now, AMICA-Python should be installed from source, and you will have to manually install
-PyTorch (see below) yourself:
+AMICA-Python is available from PyPI and conda-forge. Since AMICA-Python uses
+PyTorch for the core numerical routines, installation depending on which PyTorch build
+you need (e.g. CPU-only or with GPU support):
 
 ```bash
-git clone https://github.com/scott-huberty/amica-python.git
-cd amica-python
-pip install -e .
+uv pip install "amica-python[torch-cpu]"
 ```
 
-> [!IMPORTANT]
-> You must install PyTorch before using AMICA-Python.
-
-### Installing PyTorch
-
-Depending on your system and preferences, you can install PyTorch with or without GPU support.
-
-To install the standard version of PyTorch, run:
+For a CUDA-enabled PyTorch install, use:
 
 ```bash
-python -m pip install torch
+uv pip install "amica-python[torch-cuda]"
 ```
 
-To install the CPU-only version of PyTorch, run:
+You can also install with pip:
 
 ```bash
-python -m pip install torch --index-url https://download.pytorch.org/whl/cu113
+python -m pip install "amica-python[torch-cpu]"
 ```
 
-Or for Conda users:
+Or with conda-forge, which installs the PyTorch runtime dependency as part of
+the AMICA-Python package:
 
 ```bash
-conda install -c conda-forge pytorch-cpu
+conda install -c conda-forge amica-python
 ```
 
->[!WARNING]
-> If you are using an Intel Mac, you cannot install Pytorch via pip, because there are no precompiled wheels for that platform. Instead, you must install PyTorch via Conda, e.g.:
+If you need a specific PyTorch build, install PyTorch first using the
+instructions for your platform at [pytorch.org](https://pytorch.org/get-started/locally/),
+then install AMICA-Python without the PyTorch extra:
 
 ```bash
-conda install pytorch -c conda-forge
-```
-
-If you use UV, you can also just install torch while installing AMICA-Python:
-
-```bash
-uv pip install -e ".[torch-cpu]"
-```
-
-```bash
-uv pip install -e ".[torch-cuda]"
+python -m pip install amica-python
 ```
 
 ## Usage
 
-AMICA-Python exposes a scikit-learn style interface. Here is an example of how to use it:
+AMICA-Python exposes a scikit-learn interface. Here is an example of how to use it:
 
 ```python
 import numpy as np
@@ -112,39 +94,3 @@ ica = AMICA(device='cuda', random_state=0)
 <br/>
 
 For more examples and documentation, please see the [documentation](https://scott-huberty.github.io/amica-python/).
-
-## What is AMICA?
-
-AMICA is composed of two main ideas, which are hinted at by the name and the title of the original paper:
-*AMICA: An Adaptive Mixture of Independent Component Analyzers with Shared Components*.
-
-#### 1. *Adaptive Mixture* ICA
-
-Standard ICA assumes each source is independent and *non-Gaussian*. Extended Infomax ICA
-improves on this by handling both *sub-Gaussian* and *super-Gaussian* sources. AMICA goes
-further by modeling each source as a *mixture of multiple Gaussians*. This flexibility
-lets AMICA represent virtually any source shape - super-Gaussian, sub-Gaussian,
-or even some funky bimodal distribution:
-
-<img src="docs/source/_static/GMM.png" alt="Source distributions modeled by AMICA" width="25%"/>
-
-In practice, the authors argue that this leads to a more accurate
-approximation of the source signals.
-
-#### 2. *Shared Components*
-
-AMICA can learn multiple ICA decompositions (i.e. models). This is a work around to the assumption of ICA that the sources are
-stationary (they do not change over time). AMICA will
-decide which model best explains the data at each sample, effectively allowing
-the sources to change over time. The "shared components" part of the paper title refers
-to AMICA's ability to allow the various ICA models to share some components (i.e. sources)
-between them, to reduce computational load.
-
-# What does AMICA-Python implement?
-
-In short, AMICA-Python implements point 1 above (Adaptive Mixture ICA),
-but does not implement point 2 (running multiple ICA models simultaneously).
-
-AMICA-Python is powered by [Torch](https://pytorch.org/) and wrapped in an easy-to-use [scikit-learn](https://scikit-learn.org/stable/) style interface.
-
-The outputs are numerically tested against the original FORTRAN implementation to ensure correctness and minimize bugs.
