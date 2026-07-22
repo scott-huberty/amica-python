@@ -1006,7 +1006,11 @@ def accumulate_beta_stats(
             raise ValueError("u is required for the generalized-Gaussian beta update.")
         tmpy = torch.pow(torch.abs(y), rho[None, :, :])
         beta_denom_hi = torch.sum(u * tmpy, dim=0)
-        out_denom += torch.where(mask_gt2, beta_denom_hi, torch.zeros_like(beta_denom_hi))
+        out_denom += torch.where(
+            mask_gt2,
+            beta_denom_hi,
+            torch.zeros_like(beta_denom_hi),
+        )
     return out_numer, out_denom
 
 
@@ -1157,7 +1161,7 @@ def accumulate_sigma2_stats(
     # weighted column-wise sum of squares: (s=n_samples, i=n_components)
     # Same as torch.einsum('s,si,si->i', model_resps, b, b)
     if model_responsibilities is None:
-        out_numer += (b * b).sum(dim=0) # torch.einsum("ij,ij->j", b, b)  # avoids materializing b * b
+        out_numer += (b * b).sum(dim=0)
     # Unreachable unless we support n_models > 1
     else:  # pragma: no cover
         model_resps = model_responsibilities
@@ -1252,7 +1256,7 @@ def accumulate_lambda_stats(
     """
     Get sufficient statistics for lambda (nonlinearity) update.
 
-    `fp` is mutated in-place. 
+    `fp` is mutated in-place.
 
     Parameters
     ----------

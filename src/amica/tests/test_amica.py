@@ -241,7 +241,6 @@ def test_simulated_data(n_samples, noise_factor, entrypoint):
     # Unpack Fortran results
     A_f = fortran_results["A"]
     W_f = fortran_results["W"][:, :, 0]
-    alpha_f = fortran_results["alpha"]
     sbeta_f = fortran_results["sbeta"]
     mu_f = fortran_results["mu"]
     rho_f = fortran_results["rho"]

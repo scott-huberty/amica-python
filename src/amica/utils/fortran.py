@@ -1,8 +1,8 @@
 """Utilities for interfacing with Fortran AMICA outputs."""
 import inspect
-from numbers import Integral, Real
 from dataclasses import MISSING, asdict, dataclass, fields
 from functools import lru_cache
+from numbers import Integral, Real
 from pathlib import Path
 
 import numpy as np

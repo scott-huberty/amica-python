@@ -200,6 +200,7 @@ class AndersonEMAccelerator:
     restart_count: int = 0
 
     def reset(self) -> None:
+        """Clear accumulated fixed-point history and DAAREM state."""
         self.x_hist.clear()
         self.g_hist.clear()
         self.f_hist.clear()
@@ -212,6 +213,7 @@ class AndersonEMAccelerator:
         self.cycle_loglik = None
 
     def update(self, *, x: torch.Tensor, g: torch.Tensor) -> None:
+        """Append one fixed-point iterate and its update."""
         f = g - x
         self.x_hist.append(x.detach().clone().to(dtype=torch.float64))
         self.g_hist.append(g.detach().clone().to(dtype=torch.float64))
@@ -223,6 +225,7 @@ class AndersonEMAccelerator:
             self.f_hist = self.f_hist[-keep:]
 
     def propose(self) -> AndersonProposal | None:
+        """Return an accelerated candidate when enough history is available."""
         if len(self.x_hist) < 2:
             return None
         mk = min(self.order, len(self.x_hist) - 1)
@@ -296,6 +299,7 @@ class AndersonEMAccelerator:
         return AndersonProposal(candidate=xbar + fbar, history=history)
 
     def reject(self) -> bool:
+        """Record a rejected proposal and return whether history was restarted."""
         self.consecutive_rejects += 1
         should_restart = self.restart_on_reject or (
             self.consecutive_rejects >= self.max_consecutive_rejects
@@ -309,6 +313,7 @@ class AndersonEMAccelerator:
         return should_restart
 
     def accept(self) -> None:
+        """Record an accepted proposal."""
         self.consecutive_rejects = 0
         if self.monotone:
             self.shrink_count += 1

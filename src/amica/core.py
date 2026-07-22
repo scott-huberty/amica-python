@@ -76,7 +76,6 @@ from .utils._logging import _emit_status, log, set_log_level
 from .utils._progress import make_progress_bar
 from .utils._verbose import _validate_verbose
 
-
 DEFAULT_OPTIMIZER_KWARGS: dict[str, object] = {
     "accelerator_order": 5,
     "accelerator_damping": 1.0,
@@ -447,10 +446,6 @@ def solve(
     rng = torch.Generator(device=torch.device(config.device))
     if random_state is not None:
         rng.manual_seed(random_state)
-    # The API will use n_components but under the hood we'll match the Fortran naming
-    # TODO: Maybe rename n_components to num_comps in the config dataclass?
-    num_comps = config.n_components
-    num_mix = config.n_mixtures
     # !-------------------- ALLOCATE VARIABLES ---------------------
 
     # !------------------- INITIALIZE VARIABLES ----------------------
@@ -1383,7 +1378,10 @@ def update_params(
             / accumulators.drho_denom
         )
     )
-    rhotmp = torch.minimum(state.rho.new_tensor(maxrho), state.rho) # shape (num_comps, num_mix)
+    rhotmp = torch.minimum(
+        state.rho.new_tensor(maxrho),
+        state.rho,
+    )
     assert rhotmp.shape == (config.n_components, config.n_mixtures)
     state.rho = torch.maximum(state.rho.new_tensor(minrho), rhotmp)
 

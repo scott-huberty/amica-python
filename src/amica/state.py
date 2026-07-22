@@ -90,7 +90,7 @@ class AmicaState:
     alpha: NDArray
     gm: NDArray
 
-    def clone(self) -> "AmicaState":
+    def clone(self) -> AmicaState:
         """Return a deep copy of the learnable parameter state."""
         return AmicaState(
             W=self.W.clone(),
@@ -313,13 +313,19 @@ def get_initial_state(
     # A - match amica.py: A = np.zeros((num_comps, num_comps))
     A = torch.zeros((num_comps, num_comps), dtype=dtype, device=device)
 
-    c = torch.zeros((num_comps,), dtype=dtype, device=device)  # Bias terms per component
+    # Bias terms per component
+    c = torch.zeros((num_comps,), dtype=dtype, device=device)
     # sbeta, mu, rho - match amica.py patterns
     sbeta = torch.empty((num_comps, num_mix), dtype=dtype, device=device)
     mu = torch.zeros((num_comps, num_mix), dtype=dtype, device=device)
 
     # Shape parameters
-    rho = torch.full(fill_value=rho0, size=(num_comps, num_mix), dtype=dtype, device=device)
+    rho = torch.full(
+        fill_value=rho0,
+        size=(num_comps, num_mix),
+        dtype=dtype,
+        device=device,
+    )
 
     # Initialize alpha (mixing coefficients)
     alpha = torch.zeros((num_comps, num_mix), dtype=dtype, device=device)

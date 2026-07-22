@@ -7,10 +7,10 @@ import torch
 
 from amica.core import (
     DEFAULT_OPTIMIZER_KWARGS,
+    _resolve_optimizer_kwargs,
     em_step,
     initialize_state_parameters,
     maybe_apply_acceleration,
-    _resolve_optimizer_kwargs,
     solve,
 )
 from amica.optim import (
