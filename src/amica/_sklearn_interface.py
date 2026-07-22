@@ -92,10 +92,12 @@ class AMICA(TransformerMixin, BaseEstimator):
         ``True``.
     newtrate : float, default=1.0
         lrate for newton iterations.
-    optimizer : {"em", "anderson", "daarem"}, default="em"
-        Outer-loop optimizer / acceleration path.
+    optimizer : {"em", "daarem"}, default="em"
+        ``"em"`` uses the same optimization routine as the Fortran implementaiton.
+        ``"daarem"`` uses damped Anderson acceleration with restarts and
+        monotonicity control :footcite:p:`henderson2019daarem`.
     optimizer_kwargs : dict or None, default=None
-        Optional accelerator settings for the Anderson / DAAREM optimizer paths.
+        Optional accelerator settings for the DAAREM optimizer.
     w_init : ndarray of shape (``n_components``, ``n_components``), default=``None``
         Initial un-mixing array. If ``None``, then an array of values drawn from a
         normal distribution is used.

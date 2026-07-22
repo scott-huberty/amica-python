@@ -40,6 +40,7 @@ doc = [
     "healpy",
     "nilearn",
     "pandas",  # Needed to load the MNIST dataset example
+    "rdata",
     ]
 
 [project.urls]
