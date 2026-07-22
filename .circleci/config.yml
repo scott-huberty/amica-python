@@ -28,12 +28,6 @@ jobs:
       - restore_cache:
           keys:
             - amica-planck-100-v1
-      - restore_cache:
-          keys:
-            - amica-planck-143-v1
-      - restore_cache:
-          keys:
-            - amica-planck-217-v1
       - run:
           name: Install package with dev+doc extras
           command: |
@@ -84,28 +78,11 @@ jobs:
           command: |
             source .venv/bin/activate
             python .circleci/fetch_amica_datasets.py --planck-frequency 100
+          no_output_timeout: 30m
       - save_cache:
           key: amica-planck-100-v1
           paths:
             - ~/amica_test_data/planck_pr3/HFI_SkyMap_100_2048_R3.01_full.fits
-      - run:
-          name: Fetch Planck 143 GHz map if needed
-          command: |
-            source .venv/bin/activate
-            python .circleci/fetch_amica_datasets.py --planck-frequency 143
-      - save_cache:
-          key: amica-planck-143-v1
-          paths:
-            - ~/amica_test_data/planck_pr3/HFI_SkyMap_143_2048_R3.01_full.fits
-      - run:
-          name: Fetch Planck 217 GHz map if needed
-          command: |
-            source .venv/bin/activate
-            python .circleci/fetch_amica_datasets.py --planck-frequency 217
-      - save_cache:
-          key: amica-planck-217-v1
-          paths:
-            - ~/amica_test_data/planck_pr3/HFI_SkyMap_217_2048_R3.01_full.fits
       - run:
           name: Build Sphinx docs
           command: |

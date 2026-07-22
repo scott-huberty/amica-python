@@ -45,7 +45,7 @@ import healpy as hp
 # resolution or the set of input channels while keeping the example lightweight.
 
 NSIDE = 32
-FREQUENCIES_GHZ = (30, 44, 70, 100, 143, 217)
+FREQUENCIES_GHZ = (30, 44, 70, 100)
 GALACTIC_LATITUDE_CUT_DEG = 10.0
 N_COMPONENTS = 4
 RANDOM_STATE = 0
@@ -130,7 +130,7 @@ X_smica = X.T
 # Planck satellite. They are a full-sky measurement of microwave intensity
 # (i.e. temperature) at a specific frequency, projected onto a sphere.
 
-ncols = 3
+ncols = 2
 nrows = math.ceil(len(FREQUENCIES_GHZ) / ncols)
 
 fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows),

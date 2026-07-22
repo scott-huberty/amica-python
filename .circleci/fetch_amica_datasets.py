@@ -8,7 +8,7 @@ from amica.datasets import data_path
 from amica.utils import fetch_planck_temperature_maps
 from amica.utils.fetch import PLANCK_MAP_FILENAMES
 
-PLANCK_FREQUENCIES_GHZ = (30, 44, 70, 100, 143, 217)
+PLANCK_FREQUENCIES_GHZ = (30, 44, 70, 100)
 
 
 def print_tree(directory: Path, prefix: str = "") -> None:
