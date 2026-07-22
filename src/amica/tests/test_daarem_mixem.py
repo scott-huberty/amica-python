@@ -9,13 +9,6 @@ import torch
 from amica.optim import AndersonEMAccelerator
 from amica.utils import fetch_daarem_mixdata
 
-rscript = shutil.which("Rscript")
-if rscript is None:
-    pytest.skip(
-        "Rscript not found in PATH; skipping tests that require external R",
-        allow_module_level=True,
-    )
-
 
 def _clear_invalid_r_home() -> None:
     r_home = os.environ.get("R_HOME")
@@ -37,6 +30,9 @@ def _make_likelihood_matrix(n_samples=1000, n_mixtures=30, random_state=0):
 
 
 def _load_reference_likelihood_matrix():
+    if shutil.which("Rscript") is None:
+        pytest.skip("Rscript not found in PATH")
+
     _clear_invalid_r_home()
     from rpy2 import robjects
 
@@ -113,6 +109,7 @@ def _fit_daarem(L, x0, n_iter, order=5):
     return _project_simplex(x), np.asarray(values)
 
 
+@pytest.mark.r_required
 def test_daarem_accelerates_mixture_proportion_em():
     L = _load_reference_likelihood_matrix()
     x0 = np.full(L.shape[1], 1.0 / L.shape[1])

@@ -84,6 +84,7 @@ addopts = [
     "--ignore=src/amica/tests/test_kernels.py",
 ]
 markers = [
+    "r_required: Tests that require an R runtime and R package dependencies",
     "sklearn_api: Tests that validate Scikit-Learn API conformance",
     "slow: Marks tests as slow (deselect with `pytest -m not slow`)"
 ]

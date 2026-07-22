@@ -131,6 +131,7 @@ def test_anderson_proposal_improves_toy_fixed_point():
     assert abs(accelerated - 2.0) <= abs(plain - 2.0)
 
 
+@pytest.mark.r_required
 def test_daarem_proposal_matches_r_daarem_package():
     if shutil.which("R") is None or shutil.which("Rscript") is None:
         pytest.skip("R/Rscript unavailable")
