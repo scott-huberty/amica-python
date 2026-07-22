@@ -102,8 +102,6 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#what-is-amica">What is AMICA?</a></li>
-<li><a class="reference internal" href="#what-does-amica-python-implement">What does AMICA-Python implement?</a></li>
-<li><a class="reference internal" href="#what-wasn-t-implemented">What wasn&#8217;t implemented?</a></li>
 </ul>
 </div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
   </aside>
@@ -140,36 +138,13 @@ data-aria-dark="Switch to auto color mode">
 (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation,
 that was originally <a class="reference external" href="https://github.com/sccn/amica">developed in FORTRAN</a> by Jason
 Palmer at the Swartz Center for Computational Neuroscience (SCCN).</p>
-<p>AMICA-Python is pre-alpha but is tested and ready for test driving.</p>
 <section id="what-is-amica">
 <h2>What is AMICA?<a class="headerlink" href="#what-is-amica" title="Link to this heading">#</a></h2>
 <p>Like the Infomax ICA algorithm, AMICA can identify sub and super-Gaussian sources. However,
-AMICA goes a step further by modeling the components as arising from a mixture of multiple
-source distributions. This design decision was likely motivated by the hypothesis that
-neural activity, which can be recorded with electrophysiological (EEG), derives from
-multiple source generators.</p>
-</section>
-<section id="what-does-amica-python-implement">
-<h2>What does AMICA-Python implement?<a class="headerlink" href="#what-does-amica-python-implement" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p>AMICA-Python implements what I consider to be the core AMICA algorithm, powered by
-<a class="reference external" href="https://pytorch.org/">Torch</a> and wrapped in an easy-to-use <a class="reference external" href="https://scikit-learn.org/stable/">scikit-learn</a> style interface.</p></li>
-<li><p>The outputs are numerically tested against the original FORTRAN implementation to ensure correctness and minimize bugs.</p></li>
-</ul>
-</section>
-<section id="what-wasn-t-implemented">
-<h2>What wasn’t implemented?<a class="headerlink" href="#what-wasn-t-implemented" title="Link to this heading">#</a></h2>
-<ul>
-<li><p>AMICA-Python does <em>not</em> implement all the features of the original FORTRAN implementation, Notably:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p>Run multiple models (i.e. run multiple decompositions) to fit different segments of data.</p></li>
-<li><p>Reject samples based on a thresholded log-likelihood.</p></li>
-<li><p>AMICA-Python does not expose all the parameters of the original AMICA algorithm.</p></li>
-</ul>
-</div></blockquote>
-</li>
-</ul>
+AMICA goes a step further by modeling the sources themselves as a mixture of multiple
+Generalized Gaussian distributions:</p>
+<a class="reference internal image-reference" href="_static/GGD.png"><img alt="Source distribution modeled as a generalized Gaussian mixture." class="align-center" src="_static/GGD.png" style="width: 70%;" />
+</a>
 </section>
 </section>
 
