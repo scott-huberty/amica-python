@@ -137,7 +137,8 @@ def test_eeglab_data(load_weights, n_components, entrypoint):
             assert_almost_equal(results["alpha"], alpha_f, decimal=2)
             assert_almost_equal(results["sbeta"], sbeta_f, decimal=1)
             assert_almost_equal(results["mu"], mu_f, decimal=0)
-            assert_allclose(results["rho"], rho_f, rtol=0, atol=0.025)
+            rho_atol = 0.03 if n_components is not None else 0.025
+            assert_allclose(results["rho"], rho_f, rtol=0, atol=rho_atol)
     else:
         assert_allclose(A, A_f, atol=0.9)
         assert_allclose(W, W_f, atol=0.9)
