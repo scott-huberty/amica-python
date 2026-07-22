@@ -16,6 +16,24 @@ jobs:
           keys:
             - amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
             - amica-data-
+      - restore_cache:
+          keys:
+            - amica-planck-30-v1
+      - restore_cache:
+          keys:
+            - amica-planck-44-v1
+      - restore_cache:
+          keys:
+            - amica-planck-70-v1
+      - restore_cache:
+          keys:
+            - amica-planck-100-v1
+      - restore_cache:
+          keys:
+            - amica-planck-143-v1
+      - restore_cache:
+          keys:
+            - amica-planck-217-v1
       - run:
           name: Install package with dev+doc extras
           command: |
@@ -24,11 +42,70 @@ jobs:
             uv pip install -e ".[torch-cpu,dev,doc]"
             uv pip install "smica @ git+https://github.com/scott-huberty/smica.git"
       - run:
-          name: Fetch AMICA datasets if needed
+          name: Fetch default AMICA datasets if needed
           command: |
             mkdir -p ~/amica_test_data
             source .venv/bin/activate
             python .circleci/fetch_amica_datasets.py
+      - save_cache:
+          key: amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
+          paths:
+            - ~/amica_test_data/eeglab_sample_data
+            - ~/amica_test_data/photos
+      - run:
+          name: Fetch Planck 30 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 30
+      - save_cache:
+          key: amica-planck-30-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/LFI_SkyMap_030-BPassCorrected-field-IQU_1024_R3.00_full.fits
+      - run:
+          name: Fetch Planck 44 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 44
+      - save_cache:
+          key: amica-planck-44-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/LFI_SkyMap_044-BPassCorrected-field-IQU_1024_R3.00_full.fits
+      - run:
+          name: Fetch Planck 70 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 70
+      - save_cache:
+          key: amica-planck-70-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/LFI_SkyMap_070-BPassCorrected-field-IQU_1024_R3.00_full.fits
+      - run:
+          name: Fetch Planck 100 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 100
+      - save_cache:
+          key: amica-planck-100-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/HFI_SkyMap_100_2048_R3.01_full.fits
+      - run:
+          name: Fetch Planck 143 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 143
+      - save_cache:
+          key: amica-planck-143-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/HFI_SkyMap_143_2048_R3.01_full.fits
+      - run:
+          name: Fetch Planck 217 GHz map if needed
+          command: |
+            source .venv/bin/activate
+            python .circleci/fetch_amica_datasets.py --planck-frequency 217
+      - save_cache:
+          key: amica-planck-217-v1
+          paths:
+            - ~/amica_test_data/planck_pr3/HFI_SkyMap_217_2048_R3.01_full.fits
       - run:
           name: Build Sphinx docs
           command: |
@@ -36,10 +113,6 @@ jobs:
             cd docs
             make html
           no_output_timeout: 30m
-      - save_cache:
-          key: amica-data-{{ checksum ".circleci/amica-data-cache-version.txt" }}
-          paths:
-            - ~/amica_test_data
       - persist_to_workspace:
           root: docs/build
           # Must be relative to root
