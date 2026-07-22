@@ -2,13 +2,13 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Blind Source Separation with AMICA &amp; FastICA - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="ICA on 2D point clouds" href="plot_ica_vs_pca.html" /><link rel="prev" title="Run AMICA on EEG Data" href="plot_eeg.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Blind Source Separation with AMICA &amp; FastICA - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use AMICA in a Scikit-Learn Pipeline" href="plot_pipe.html" /><link rel="prev" title="Blind source separation (BSS) on blended photographs" href="plot_photos.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Blind Source Separation with AMICA &amp; FastICA"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Blind Source Separation with AMICA &amp; FastICA"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -142,7 +144,7 @@ data-aria-dark="Switch to auto color mode">
 to download the full example code.</p>
 </div>
 <section class="sphx-glr-example-title" id="blind-source-separation-with-amica-fastica">
-<span id="sphx-glr-auto-examples-plot-ica-blind-source-separation-py"></span><h1>Blind Source Separation with AMICA &amp; FastICA<a class="headerlink" href="#blind-source-separation-with-amica-fastica" title="Link to this heading">¶</a></h1>
+<span id="sphx-glr-auto-examples-plot-ica-blind-source-separation-py"></span><h1>Blind Source Separation with AMICA &amp; FastICA<a class="headerlink" href="#blind-source-separation-with-amica-fastica" title="Link to this heading">#</a></h1>
 <p>An example of estimating sources from noisy mixtures.</p>
 <p>ICA separates independent sources given only mixed
 microphone recordings. Imagine three instruments playing
@@ -155,7 +157,7 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
 <a class="reference external" href="https://scikit-learn.org/stable/auto_examples/decomposition/plot_ica_blind_source_separation.html">Scikit-Learn documentation</a>.</p>
 </div>
 <section id="generate-sample-data">
-<h2>Generate sample data<a class="headerlink" href="#generate-sample-data" title="Link to this heading">¶</a></h2>
+<h2>Generate sample data<a class="headerlink" href="#generate-sample-data" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 </span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">signal</span>
 </span><span data-line="3">
@@ -180,7 +182,7 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
 </div>
 </section>
 <section id="run-amica-and-fastica">
-<h2>Run AMICA and FastICA<a class="headerlink" href="#run-amica-and-fastica" title="Link to this heading">¶</a></h2>
+<h2>Run AMICA and FastICA<a class="headerlink" href="#run-amica-and-fastica" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">amica</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a>
 </span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html#sklearn.decomposition.FastICA" title="sklearn.decomposition.FastICA" class="sphx-glr-backref-module-sklearn-decomposition sphx-glr-backref-type-py-class"><span class="n">FastICA</span></a>
 </span><span data-line="3">
@@ -189,12 +191,309 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
 </span><span data-line="6">
 </span><span data-line="7"><span class="c1"># AMICA</span>
 </span><span data-line="8"><span class="c1"># We instantiate amica.AMICA and call fit..</span>
-</span><span data-line="9"><span class="n">ica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">whiten</span><span class="o">=</span><span class="s2">&quot;zca&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-</span><span data-line="10"><span class="n">models</span><span class="p">[</span><span class="s2">&quot;AMICA&quot;</span><span class="p">]</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin.fit_transform" title="sklearn.base.TransformerMixin.fit_transform" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-method"><span class="n">ica</span><span class="o">.</span><span class="n">fit_transform</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span></a><span class="p">)</span>
-</span><span data-line="11"><span class="n">labels</span><span class="p">[</span><span class="s2">&quot;AMICA&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;AMICA recovered signals&quot;</span>
+</span><span data-line="9"><span class="n">ica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a><span class="p">(</span>
+</span><span data-line="10">    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+</span><span data-line="11">    <span class="n">whiten</span><span class="o">=</span><span class="s2">&quot;zca&quot;</span><span class="p">,</span>
+</span><span data-line="12">    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span data-line="13">    <span class="n">optimizer</span><span class="o">=</span><span class="s2">&quot;daarem&quot;</span><span class="p">,</span>
+</span><span data-line="14">    <span class="n">optimizer_kwargs</span><span class="o">=</span><span class="p">{</span>
+</span><span data-line="15">        <span class="s2">&quot;accelerator_order&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+</span><span data-line="16">        <span class="s2">&quot;accelerator_damping&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span>
+</span><span data-line="17">        <span class="s2">&quot;accelerator_ridge&quot;</span><span class="p">:</span> <span class="mf">1e-8</span><span class="p">,</span>
+</span><span data-line="18">        <span class="s2">&quot;accelerator_eps_monotone&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+</span><span data-line="19">        <span class="s2">&quot;accelerator_start_iter&quot;</span><span class="p">:</span> <span class="mi">51</span><span class="p">,</span>
+</span><span data-line="20">        <span class="s2">&quot;accelerator_period&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+</span><span data-line="21">    <span class="p">},</span>
+</span><span data-line="22">    <span class="n">verbose</span><span class="o">=</span><span class="mi">2</span>
+</span><span data-line="23">    <span class="p">)</span>
+</span><span data-line="24"><span class="n">models</span><span class="p">[</span><span class="s2">&quot;AMICA&quot;</span><span class="p">]</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin.fit_transform" title="sklearn.base.TransformerMixin.fit_transform" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-method"><span class="n">ica</span><span class="o">.</span><span class="n">fit_transform</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span></a><span class="p">)</span>
+</span><span data-line="25"><span class="n">labels</span><span class="p">[</span><span class="s2">&quot;AMICA&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;AMICA recovered signals&quot;</span>
 </span></pre></div>
 </div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Finished in 6.19 seconds
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">INFO     getting the mean ...
+</span><span data-line="2">INFO      Getting the covariance matrix ...
+</span><span data-line="3">INFO     doing eigenvalue decomposition for 3 features ...
+</span><span data-line="4">INFO     minimum eigenvalues: [0.05201252]
+</span><span data-line="5">INFO     maximum eigenvalues: [14.0572034   1.35729453  0.05201252]
+</span><span data-line="6">INFO     num eigvals kept: 3
+</span><span data-line="7">INFO     Sphering the data...
+</span><span data-line="8">INFO     numeigs = 3, nw = 3
+</span><span data-line="9">INFO     1: block size = 2000
+</span><span data-line="10">INFO     Solving. (please be patient, this may take a while)...
+</span><span data-line="11">INFO     Iteration 1, lrate = 0.05000, LL = -1.4208643, nd = 0.1965180, D =
+</span><span data-line="12">         0.00000 took 0.00 seconds
+</span><span data-line="13">INFO     Iteration 2, lrate = 0.05000, LL = -1.3636536, nd = 0.1723261, D =
+</span><span data-line="14">         0.00000 took 0.01 seconds
+</span><span data-line="15">INFO     Iteration 3, lrate = 0.05000, LL = -1.3238623, nd = 0.2980232, D =
+</span><span data-line="16">         0.00000 took 0.05 seconds
+</span><span data-line="17">INFO     Iteration 4, lrate = 0.05000, LL = -1.2865584, nd = 0.4412654, D =
+</span><span data-line="18">         0.00000 took 0.00 seconds
+</span><span data-line="19">INFO     Iteration 5, lrate = 0.05000, LL = -1.2385767, nd = 0.5302712, D =
+</span><span data-line="20">         0.00000 took 0.00 seconds
+</span><span data-line="21">INFO     Iteration 6, lrate = 0.05000, LL = -1.1797772, nd = 0.5185603, D =
+</span><span data-line="22">         0.00000 took 0.00 seconds
+</span><span data-line="23">INFO     Iteration 7, lrate = 0.05000, LL = -1.1225606, nd = 0.4013239, D =
+</span><span data-line="24">         0.00000 took 0.04 seconds
+</span><span data-line="25">INFO     Iteration 8, lrate = 0.05000, LL = -1.0865829, nd = 0.2305540, D =
+</span><span data-line="26">         0.00000 took 0.00 seconds
+</span><span data-line="27">INFO     Iteration 9, lrate = 0.05000, LL = -1.0738310, nd = 0.1660310, D =
+</span><span data-line="28">         0.00000 took 0.00 seconds
+</span><span data-line="29">INFO     Iteration 10, lrate = 0.05000, LL = -1.0678697, nd = 0.1539337, D =
+</span><span data-line="30">         0.00000 took 0.09 seconds
+</span><span data-line="31">INFO     Iteration 11, lrate = 0.05000, LL = -1.0633096, nd = 0.1482986, D =
+</span><span data-line="32">         0.00000 took 0.00 seconds
+</span><span data-line="33">INFO     Iteration 12, lrate = 0.05000, LL = -1.0596034, nd = 0.1333072, D =
+</span><span data-line="34">         0.00000 took 0.00 seconds
+</span><span data-line="35">INFO     Iteration 13, lrate = 0.05000, LL = -1.0565292, nd = 0.1328886, D =
+</span><span data-line="36">         0.00000 took 0.00 seconds
+</span><span data-line="37">INFO     Iteration 14, lrate = 0.05000, LL = -1.0539693, nd = 0.1170593, D =
+</span><span data-line="38">         0.00000 took 0.02 seconds
+</span><span data-line="39">INFO     Iteration 15, lrate = 0.05000, LL = -1.0519178, nd = 0.1299362, D =
+</span><span data-line="40">         0.00000 took 0.00 seconds
+</span><span data-line="41">INFO     Iteration 16, lrate = 0.05000, LL = -1.0503348, nd = 0.1265691, D =
+</span><span data-line="42">         0.00000 took 0.00 seconds
+</span><span data-line="43">INFO     Iteration 17, lrate = 0.05000, LL = -1.0493665, nd = 0.1684180, D =
+</span><span data-line="44">         0.00000 took 0.09 seconds
+</span><span data-line="45">INFO     Iteration 18, lrate = 0.05000, LL = -1.0491577, nd = 0.2095800, D =
+</span><span data-line="46">         0.00000 took 0.01 seconds
+</span><span data-line="47">INFO     Iteration 19, lrate = 0.05000, LL = -1.0505280, nd = 0.2933917, D =
+</span><span data-line="48">         0.00000 took 0.09 seconds
+</span><span data-line="49">WARNING  Likelihood decreasing!
+</span><span data-line="50">INFO     Iteration 20, lrate = 0.05000, LL = -1.0537696, nd = 0.4207022, D =
+</span><span data-line="51">         0.00000 took 0.01 seconds
+</span><span data-line="52">WARNING  Likelihood decreasing!
+</span><span data-line="53">INFO     Iteration 21, lrate = 0.05000, LL = -1.0631841, nd = 0.5297685, D =
+</span><span data-line="54">         0.00000 took 0.01 seconds
+</span><span data-line="55">WARNING  Likelihood decreasing!
+</span><span data-line="56">INFO     Iteration 22, lrate = 0.02500, LL = -1.0701513, nd = 0.7366217, D =
+</span><span data-line="57">         0.00000 took 0.09 seconds
+</span><span data-line="58">WARNING  Likelihood decreasing!
+</span><span data-line="59">INFO     Iteration 23, lrate = 0.02500, LL = -1.0637904, nd = 0.4346021, D =
+</span><span data-line="60">         0.00000 took 0.01 seconds
+</span><span data-line="61">INFO     Iteration 24, lrate = 0.02500, LL = -1.0455442, nd = 0.1676119, D =
+</span><span data-line="62">         0.00000 took 0.00 seconds
+</span><span data-line="63">INFO     Iteration 25, lrate = 0.02500, LL = -1.0441093, nd = 0.1033307, D =
+</span><span data-line="64">         0.00000 took 0.09 seconds
+</span><span data-line="65">INFO     Iteration 26, lrate = 0.02500, LL = -1.0433850, nd = 0.0767973, D =
+</span><span data-line="66">         0.00000 took 0.00 seconds
+</span><span data-line="67">INFO     Iteration 27, lrate = 0.02500, LL = -1.0429549, nd = 0.0631458, D =
+</span><span data-line="68">         0.00000 took 0.00 seconds
+</span><span data-line="69">INFO     Iteration 28, lrate = 0.02500, LL = -1.0426414, nd = 0.0540902, D =
+</span><span data-line="70">         0.00000 took 0.05 seconds
+</span><span data-line="71">INFO     Iteration 29, lrate = 0.02500, LL = -1.0423719, nd = 0.0498047, D =
+</span><span data-line="72">         0.00000 took 0.04 seconds
+</span><span data-line="73">INFO     Iteration 30, lrate = 0.02500, LL = -1.0421284, nd = 0.0466436, D =
+</span><span data-line="74">         0.00000 took 0.00 seconds
+</span><span data-line="75">INFO     Iteration 31, lrate = 0.02500, LL = -1.0419023, nd = 0.0449003, D =
+</span><span data-line="76">         0.00000 took 0.00 seconds
+</span><span data-line="77">INFO     Iteration 32, lrate = 0.02500, LL = -1.0416904, nd = 0.0434227, D =
+</span><span data-line="78">         0.00000 took 0.09 seconds
+</span><span data-line="79">INFO     Iteration 33, lrate = 0.02500, LL = -1.0414902, nd = 0.0423446, D =
+</span><span data-line="80">         0.00000 took 0.01 seconds
+</span><span data-line="81">INFO     Iteration 34, lrate = 0.02500, LL = -1.0413049, nd = 0.0413000, D =
+</span><span data-line="82">         0.00000 took 0.09 seconds
+</span><span data-line="83">INFO     Iteration 35, lrate = 0.02500, LL = -1.0411408, nd = 0.0406732, D =
+</span><span data-line="84">         0.00000 took 0.01 seconds
+</span><span data-line="85">INFO     Iteration 36, lrate = 0.02500, LL = -1.0409856, nd = 0.0397119, D =
+</span><span data-line="86">         0.00000 took 0.09 seconds
+</span><span data-line="87">INFO     Iteration 37, lrate = 0.02500, LL = -1.0408352, nd = 0.0391197, D =
+</span><span data-line="88">         0.00000 took 0.01 seconds
+</span><span data-line="89">INFO     Iteration 38, lrate = 0.02500, LL = -1.0406891, nd = 0.0383731, D =
+</span><span data-line="90">         0.00000 took 0.01 seconds
+</span><span data-line="91">INFO     Iteration 39, lrate = 0.02500, LL = -1.0405470, nd = 0.0378065, D =
+</span><span data-line="92">         0.00000 took 0.08 seconds
+</span><span data-line="93">INFO     Iteration 40, lrate = 0.02500, LL = -1.0404085, nd = 0.0371885, D =
+</span><span data-line="94">         0.00000 took 0.01 seconds
+</span><span data-line="95">INFO     Iteration 41, lrate = 0.02500, LL = -1.0402732, nd = 0.0366582, D =
+</span><span data-line="96">         0.00000 took 0.01 seconds
+</span><span data-line="97">INFO     Iteration 42, lrate = 0.02500, LL = -1.0401410, nd = 0.0361047, D =
+</span><span data-line="98">         0.00000 took 0.09 seconds
+</span><span data-line="99">INFO     Iteration 43, lrate = 0.02500, LL = -1.0400119, nd = 0.0355872, D =
+</span><span data-line="100">         0.00000 took 0.01 seconds
+</span><span data-line="101">INFO     Iteration 44, lrate = 0.02500, LL = -1.0398863, nd = 0.0350726, D =
+</span><span data-line="102">         0.00000 took 0.01 seconds
+</span><span data-line="103">INFO     Iteration 45, lrate = 0.02500, LL = -1.0397649, nd = 0.0345777, D =
+</span><span data-line="104">         0.00000 took 0.09 seconds
+</span><span data-line="105">INFO     Iteration 46, lrate = 0.02500, LL = -1.0396483, nd = 0.0340770, D =
+</span><span data-line="106">         0.00000 took 0.01 seconds
+</span><span data-line="107">INFO     Iteration 47, lrate = 0.02500, LL = -1.0395371, nd = 0.0335802, D =
+</span><span data-line="108">         0.00000 took 0.01 seconds
+</span><span data-line="109">INFO     Iteration 48, lrate = 0.02500, LL = -1.0394312, nd = 0.0330925, D =
+</span><span data-line="110">         0.00000 took 0.08 seconds
+</span><span data-line="111">INFO     Iteration 49, lrate = 0.02500, LL = -1.0393300, nd = 0.0326123, D =
+</span><span data-line="112">         0.00000 took 0.01 seconds
+</span><span data-line="113">INFO     Iteration 50, lrate = 0.05000, LL = -1.0392328, nd = 0.0093887, D =
+</span><span data-line="114">         0.00000 took 0.01 seconds
+</span><span data-line="115">INFO     Starting Newton ... setting numdecs to 0
+</span><span data-line="116">INFO     Iteration 51, lrate = 0.10000, LL = -1.0391712, nd = 0.0092939, D =
+</span><span data-line="117">         0.00000 took 0.04 seconds
+</span><span data-line="118">INFO     iter 51 | EM ll=-1.0391712 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="119">         cand_ll=-1.0390269 | reason=validated
+</span><span data-line="120">INFO     Iteration 52, lrate = 0.20000, LL = -1.0390269, nd = 0.0090017, D =
+</span><span data-line="121">         0.00000 took 0.06 seconds
+</span><span data-line="122">INFO     Iteration 53, lrate = 0.30000, LL = -1.0388488, nd = 0.0085231, D =
+</span><span data-line="123">         0.00000 took 0.04 seconds
+</span><span data-line="124">INFO     Iteration 54, lrate = 0.40000, LL = -1.0386135, nd = 0.0078658, D =
+</span><span data-line="125">         0.00000 took 0.01 seconds
+</span><span data-line="126">INFO     iter 54 | EM ll=-1.0386135 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="127">         cand_ll=-1.0385569 | reason=validated
+</span><span data-line="128">INFO     Iteration 55, lrate = 0.50000, LL = -1.0385569, nd = 0.0077010, D =
+</span><span data-line="129">         0.00000 took 0.08 seconds
+</span><span data-line="130">INFO     Iteration 56, lrate = 0.60000, LL = -1.0382434, nd = 0.0067033, D =
+</span><span data-line="131">         0.00000 took 0.01 seconds
+</span><span data-line="132">INFO     Iteration 57, lrate = 0.70000, LL = -1.0379506, nd = 0.0056721, D =
+</span><span data-line="133">         0.00000 took 0.09 seconds
+</span><span data-line="134">INFO     iter 57 | EM ll=-1.0379506 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="135">         cand_ll=-1.0378994 | reason=validated
+</span><span data-line="136">INFO     Iteration 58, lrate = 0.80000, LL = -1.0378994, nd = 0.0055445, D =
+</span><span data-line="137">         0.00000 took 0.01 seconds
+</span><span data-line="138">INFO     Iteration 59, lrate = 0.90000, LL = -1.0376287, nd = 0.0044116, D =
+</span><span data-line="139">         0.00000 took 0.09 seconds
+</span><span data-line="140">INFO     Iteration 60, lrate = 1.00000, LL = -1.0374198, nd = 0.0034455, D =
+</span><span data-line="141">         0.00000 took 0.01 seconds
+</span><span data-line="142">INFO     iter 60 | EM ll=-1.0374198 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="143">         cand_ll=-1.0372738 | reason=validated
+</span><span data-line="144">INFO     Iteration 61, lrate = 1.00000, LL = -1.0372738, nd = 0.0027901, D =
+</span><span data-line="145">         0.00000 took 0.09 seconds
+</span><span data-line="146">INFO     Iteration 62, lrate = 1.00000, LL = -1.0371612, nd = 0.0021496, D =
+</span><span data-line="147">         0.00000 took 0.01 seconds
+</span><span data-line="148">INFO     Iteration 63, lrate = 1.00000, LL = -1.0370820, nd = 0.0016812, D =
+</span><span data-line="149">         0.00000 took 0.01 seconds
+</span><span data-line="150">INFO     iter 63 | EM ll=-1.0370820 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="151">         cand_ll=-1.0368980 | reason=validated
+</span><span data-line="152">INFO     Iteration 64, lrate = 1.00000, LL = -1.0368980, nd = 0.0002007, D =
+</span><span data-line="153">         0.00000 took 0.09 seconds
+</span><span data-line="154">INFO     Iteration 65, lrate = 1.00000, LL = -1.0368872, nd = 0.0001608, D =
+</span><span data-line="155">         0.00000 took 0.01 seconds
+</span><span data-line="156">INFO     Iteration 66, lrate = 1.00000, LL = -1.0368791, nd = 0.0001586, D =
+</span><span data-line="157">         0.00000 took 0.09 seconds
+</span><span data-line="158">INFO     iter 66 | EM ll=-1.0368791 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="159">         cand_ll=-1.0368615 | reason=validated
+</span><span data-line="160">INFO     Iteration 67, lrate = 1.00000, LL = -1.0368615, nd = 0.0001318, D =
+</span><span data-line="161">         0.00000 took 0.01 seconds
+</span><span data-line="162">INFO     Iteration 68, lrate = 1.00000, LL = -1.0368585, nd = 0.0000860, D =
+</span><span data-line="163">         0.00000 took 0.04 seconds
+</span><span data-line="164">INFO     Iteration 69, lrate = 1.00000, LL = -1.0368561, nd = 0.0000498, D =
+</span><span data-line="165">         0.00000 took 0.01 seconds
+</span><span data-line="166">INFO     iter 69 | EM ll=-1.0368561 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="167">         cand_ll=-1.0368506 | reason=validated
+</span><span data-line="168">INFO     Iteration 70, lrate = 1.00000, LL = -1.0368506, nd = 0.0000899, D =
+</span><span data-line="169">         0.00000 took 0.10 seconds
+</span><span data-line="170">INFO     Iteration 71, lrate = 1.00000, LL = -1.0368492, nd = 0.0000654, D =
+</span><span data-line="171">         0.00000 took 0.09 seconds
+</span><span data-line="172">INFO     Iteration 72, lrate = 1.00000, LL = -1.0368479, nd = 0.0000508, D =
+</span><span data-line="173">         0.00000 took 0.01 seconds
+</span><span data-line="174">INFO     iter 72 | EM ll=-1.0368479 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="175">         cand_ll=-1.0368433 | reason=validated
+</span><span data-line="176">INFO     Iteration 73, lrate = 1.00000, LL = -1.0368433, nd = 0.0000307, D =
+</span><span data-line="177">         0.00000 took 0.09 seconds
+</span><span data-line="178">INFO     Iteration 74, lrate = 1.00000, LL = -1.0368422, nd = 0.0000328, D =
+</span><span data-line="179">         0.00000 took 0.01 seconds
+</span><span data-line="180">INFO     Iteration 75, lrate = 1.00000, LL = -1.0368412, nd = 0.0000220, D =
+</span><span data-line="181">         0.00000 took 0.09 seconds
+</span><span data-line="182">INFO     iter 75 | EM ll=-1.0368412 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="183">         cand_ll=-1.0368322 | reason=validated
+</span><span data-line="184">INFO     Iteration 76, lrate = 1.00000, LL = -1.0368322, nd = 0.0000270, D =
+</span><span data-line="185">         0.00000 took 0.10 seconds
+</span><span data-line="186">INFO     Iteration 77, lrate = 1.00000, LL = -1.0368314, nd = 0.0000396, D =
+</span><span data-line="187">         0.00000 took 0.09 seconds
+</span><span data-line="188">INFO     Iteration 78, lrate = 1.00000, LL = -1.0368307, nd = 0.0000189, D =
+</span><span data-line="189">         0.00000 took 0.06 seconds
+</span><span data-line="190">INFO     iter 78 | EM ll=-1.0368307 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="191">         cand_ll=-1.0368191 | reason=validated
+</span><span data-line="192">INFO     Iteration 79, lrate = 1.00000, LL = -1.0368191, nd = 0.0000607, D =
+</span><span data-line="193">         0.00000 took 0.05 seconds
+</span><span data-line="194">INFO     Iteration 80, lrate = 1.00000, LL = -1.0368186, nd = 0.0000665, D =
+</span><span data-line="195">         0.00000 took 0.09 seconds
+</span><span data-line="196">INFO     Iteration 81, lrate = 1.00000, LL = -1.0368182, nd = 0.0000395, D =
+</span><span data-line="197">         0.00000 took 0.01 seconds
+</span><span data-line="198">INFO     iter 81 | EM ll=-1.0368182 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="199">         cand_ll=-1.0368142 | reason=validated
+</span><span data-line="200">INFO     Iteration 82, lrate = 1.00000, LL = -1.0368142, nd = 0.0000390, D =
+</span><span data-line="201">         0.00000 took 0.10 seconds
+</span><span data-line="202">INFO     Iteration 83, lrate = 1.00000, LL = -1.0368139, nd = 0.0000430, D =
+</span><span data-line="203">         0.00000 took 0.09 seconds
+</span><span data-line="204">INFO     Iteration 84, lrate = 1.00000, LL = -1.0368137, nd = 0.0000265, D =
+</span><span data-line="205">         0.00000 took 0.01 seconds
+</span><span data-line="206">INFO     iter 84 | EM ll=-1.0368137 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="207">         cand_ll=-1.0368105 | reason=validated
+</span><span data-line="208">INFO     Iteration 85, lrate = 1.00000, LL = -1.0368105, nd = 0.0000261, D =
+</span><span data-line="209">         0.00000 took 0.10 seconds
+</span><span data-line="210">INFO     Iteration 86, lrate = 1.00000, LL = -1.0368103, nd = 0.0000262, D =
+</span><span data-line="211">         0.00000 took 0.09 seconds
+</span><span data-line="212">INFO     Iteration 87, lrate = 1.00000, LL = -1.0368102, nd = 0.0000185, D =
+</span><span data-line="213">         0.00000 took 0.01 seconds
+</span><span data-line="214">INFO     iter 87 | EM ll=-1.0368102 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="215">         cand_ll=-1.0368081 | reason=validated
+</span><span data-line="216">INFO     Iteration 88, lrate = 1.00000, LL = -1.0368081, nd = 0.0000190, D =
+</span><span data-line="217">         0.00000 took 0.09 seconds
+</span><span data-line="218">INFO     Iteration 89, lrate = 1.00000, LL = -1.0368080, nd = 0.0000129, D =
+</span><span data-line="219">         0.00000 took 0.05 seconds
+</span><span data-line="220">INFO     Iteration 90, lrate = 1.00000, LL = -1.0368079, nd = 0.0000134, D =
+</span><span data-line="221">         0.00000 took 0.04 seconds
+</span><span data-line="222">INFO     iter 90 | EM ll=-1.0368079 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="223">         cand_ll=-1.0368072 | reason=validated
+</span><span data-line="224">INFO     Iteration 91, lrate = 1.00000, LL = -1.0368072, nd = 0.0000114, D =
+</span><span data-line="225">         0.00000 took 0.10 seconds
+</span><span data-line="226">INFO     Iteration 92, lrate = 1.00000, LL = -1.0368072, nd = 0.0000062, D =
+</span><span data-line="227">         0.00000 took 0.01 seconds
+</span><span data-line="228">INFO     Iteration 93, lrate = 1.00000, LL = -1.0368071, nd = 0.0000090, D =
+</span><span data-line="229">         0.00000 took 0.09 seconds
+</span><span data-line="230">INFO     iter 93 | EM ll=-1.0368071 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="231">         cand_ll=-1.0368057 | reason=validated
+</span><span data-line="232">INFO     Iteration 94, lrate = 1.00000, LL = -1.0368057, nd = 0.0000124, D =
+</span><span data-line="233">         0.00000 took 0.01 seconds
+</span><span data-line="234">INFO     Iteration 95, lrate = 1.00000, LL = -1.0368056, nd = 0.0000091, D =
+</span><span data-line="235">         0.00000 took 0.09 seconds
+</span><span data-line="236">INFO     Iteration 96, lrate = 1.00000, LL = -1.0368056, nd = 0.0000111, D =
+</span><span data-line="237">         0.00000 took 0.01 seconds
+</span><span data-line="238">INFO     iter 96 | EM ll=-1.0368056 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="239">         cand_ll=-1.0368048 | reason=validated
+</span><span data-line="240">INFO     Iteration 97, lrate = 1.00000, LL = -1.0368048, nd = 0.0000117, D =
+</span><span data-line="241">         0.00000 took 0.09 seconds
+</span><span data-line="242">INFO     Iteration 98, lrate = 1.00000, LL = -1.0368048, nd = 0.0000058, D =
+</span><span data-line="243">         0.00000 took 0.01 seconds
+</span><span data-line="244">INFO     Iteration 99, lrate = 1.00000, LL = -1.0368047, nd = 0.0000095, D =
+</span><span data-line="245">         0.00000 took 0.09 seconds
+</span><span data-line="246">INFO     iter 99 | EM ll=-1.0368047 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="247">         cand_ll=-1.0368044 | reason=validated
+</span><span data-line="248">INFO     Iteration 100, lrate = 1.00000, LL = -1.0368044, nd = 0.0000083, D =
+</span><span data-line="249">         0.00000 took 0.10 seconds
+</span><span data-line="250">INFO     Iteration 101, lrate = 1.00000, LL = -1.0368044, nd = 0.0000084, D =
+</span><span data-line="251">         0.00000 took 0.01 seconds
+</span><span data-line="252">INFO     Iteration 102, lrate = 1.00000, LL = -1.0368044, nd = 0.0000085, D =
+</span><span data-line="253">         0.00000 took 0.09 seconds
+</span><span data-line="254">INFO     iter 102 | EM ll=-1.0368044 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="255">         cand_ll=-1.0368039 | reason=validated
+</span><span data-line="256">INFO     Iteration 103, lrate = 1.00000, LL = -1.0368039, nd = 0.0000194, D =
+</span><span data-line="257">         0.00000 took 0.10 seconds
+</span><span data-line="258">INFO     Iteration 104, lrate = 1.00000, LL = -1.0368039, nd = 0.0000094, D =
+</span><span data-line="259">         0.00000 took 0.01 seconds
+</span><span data-line="260">INFO     Iteration 105, lrate = 1.00000, LL = -1.0368039, nd = 0.0000092, D =
+</span><span data-line="261">         0.00000 took 0.08 seconds
+</span><span data-line="262">INFO     iter 105 | EM ll=-1.0368039 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="263">         cand_ll=-1.0368037 | reason=validated
+</span><span data-line="264">INFO     Iteration 106, lrate = 1.00000, LL = -1.0368037, nd = 0.0000121, D =
+</span><span data-line="265">         0.00000 took 0.06 seconds
+</span><span data-line="266">INFO     Iteration 107, lrate = 1.00000, LL = -1.0368037, nd = 0.0000052, D =
+</span><span data-line="267">         0.00000 took 0.02 seconds
+</span><span data-line="268">INFO     Iteration 108, lrate = 1.00000, LL = -1.0368037, nd = 0.0000050, D =
+</span><span data-line="269">         0.00000 took 0.10 seconds
+</span><span data-line="270">INFO     iter 108 | EM ll=-1.0368037 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="271">         cand_ll=-1.0368036 | reason=validated
+</span><span data-line="272">INFO     Iteration 109, lrate = 1.00000, LL = -1.0368036, nd = 0.0000017, D =
+</span><span data-line="273">         0.00000 took 0.10 seconds
+</span><span data-line="274">INFO     Iteration 110, lrate = 1.00000, LL = -1.0368036, nd = 0.0000039, D =
+</span><span data-line="275">         0.00000 took 0.01 seconds
+</span><span data-line="276">INFO     Iteration 111, lrate = 1.00000, LL = -1.0368036, nd = 0.0000018, D =
+</span><span data-line="277">         0.00000 took 0.01 seconds
+</span><span data-line="278">INFO     iter 111 | EM ll=-1.0368036 | accel=daarem | hist=3 | accepted=True |
+</span><span data-line="279">         cand_ll=-1.0368036 | reason=validated
+</span><span data-line="280">INFO     Iteration 112, lrate = 1.00000, LL = -1.0368036, nd = 0.0000029, D =
+</span><span data-line="281">         0.00000 took 0.10 seconds
+</span><span data-line="282">INFO     Exiting because likelihood increasing by less than 1e-07 for more than
+</span><span data-line="283">         5 iterations ...
+</span><span data-line="284">INFO     Finished in 5.18 seconds
 </span></pre></div>
 </div>
 <p>We can prove that the ICA model applies by reverting the unmixing.</p>
@@ -209,7 +508,7 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
 </div>
 </section>
 <section id="plot-results">
-<h2>Plot results<a class="headerlink" href="#plot-results" title="Link to this heading">¶</a></h2>
+<h2>Plot results<a class="headerlink" href="#plot-results" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="c1"># Merge dictionaries into one mapping title -&gt; data</span>
@@ -231,7 +530,7 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
 </span><span data-line="19"><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_ica_blind_source_separation_001.png" srcset="../_images/sphx_glr_plot_ica_blind_source_separation_001.png" alt="Observed mixtures, True sources, AMICA recovered signals, FastICA recovered signals" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 6.654 seconds)</p>
+<img src="../_images/sphx_glr_plot_ica_blind_source_separation_001.png" srcset="../_images/sphx_glr_plot_ica_blind_source_separation_001.png" alt="Observed mixtures, True sources, AMICA recovered signals, FastICA recovered signals" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 5.564 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-ica-blind-source-separation-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/0f116796b9d58d39537701cbf25c560c/plot_ica_blind_source_separation.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_ica_blind_source_separation.ipynb</span></code></a></p>
@@ -253,16 +552,16 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
   </svg>
   <span>Back to top</span>
 </button><div class="navigation flex print:hidden"><div class="navigation-prev">
-    <a href="plot_eeg.html">
+    <a href="plot_photos.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">Run AMICA on EEG Data</div></div>
+        <span>Previous</span><div class="title">Blind source separation (BSS) on blended photographs</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="plot_ica_vs_pca.html">
+    <a href="plot_pipe.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">ICA on 2D point clouds</div>
+        <div class="title">Use AMICA in a Scikit-Learn Pipeline</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -284,17 +583,18 @@ non-Gaussian. PCA, by contrast, fails in this setting.</p>
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

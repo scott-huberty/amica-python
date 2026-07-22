@@ -178,19 +178,19 @@ Load brain development fMRI dataset
     /home/circleci/nilearn_data/development_fmri/development_fmri
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3ea4712b400183b70b7/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3eb2286e80019c3c194/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e52286e80018c3e439/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e72286e80017c41b3d/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e4a743a9001760814f/ ...
@@ -198,51 +198,51 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e54712b400183b70a5/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e14712b400183b7097/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e32286e80018c3e42c/ ...
-    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3df4712b400183b7092/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (6 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e04712b400193b5bdf/ ...
-    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3e9a743a90017608158/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
-
-    [fetch_development_fmri] Downloading data from 
-    https://osf.io/download/5c8ff3e82286e80018c3e443/ ...
     [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
+    https://osf.io/download/5c8ff3e82286e80018c3e443/ ...
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
+
+    [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb47052f2be3c0017057069/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e5c353c5800199ac79f/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb47045a3bc970019f073a0/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e913992690018133b1c/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3912286e80018c3e393/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3952286e80017c41a1b/ ...
@@ -258,43 +258,43 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff391a743a900176080a9/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3914712b400173b5329/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb4702a353c58001b9cb5ae/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e9b39926900190fad5c/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38f2286e80018c3e38d/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3914712b4001a3b5579/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb470413992690018133d8c/ ...
-    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e9a353c58001c9abeac/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb47016a3bc970017efe44f/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (7 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e43f2be3c0017056b8a/ ...
-    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (6 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff37da743a90018606df1/ ...
@@ -302,15 +302,15 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff37c2286e80019c3c102/ ...
-    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb47056353c58001c9ac064/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e5af2be3c001801f799/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (6 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38ca743a90018606dfe/ ...
@@ -318,19 +318,19 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38ca743a9001760809e/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff389a743a9001660a016/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38c2286e80016c3c2da/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3884712b400183b7023/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3884712b400193b5b5c/ ...
@@ -338,23 +338,23 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3872286e80017c419ea/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3872286e80017c419e9/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb4702f39926900171090ee/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (6 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e8b353c58001c9abe98/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (7 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3842286e80017c419e0/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (7 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3854712b4001a3b5568/ ...
@@ -366,23 +366,23 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3832286e80016c3c2d1/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3822286e80018c3e37b/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff382a743a90018606df8/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff37e2286e80016c3c2cb/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff3832286e80019c3c10f/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (2 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff37d4712b400193b5b54/ ...
@@ -390,19 +390,19 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff37d4712b400183b7011/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb4701e3992690018133d4f/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e6b353c58001b9cb34f/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (5 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb4703bf2be3c001801fa49/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5cb46e92a3bc970019f0717f/ ...
@@ -410,11 +410,11 @@ Load brain development fMRI dataset
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38c4712b4001a3b5573/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (4 seconds, 0 min)
 
     [fetch_development_fmri] Downloading data from 
     https://osf.io/download/5c8ff38da743a900176080a2/ ...
-    [fetch_development_fmri]  ...done. (1 seconds, 0 min)
+    [fetch_development_fmri]  ...done. (3 seconds, 0 min)
 
     First functional nifti image (4D) is at: /home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar128_task-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
 
@@ -549,7 +549,7 @@ CanICA
     [CanICA.fit] Loading data
     [CanICA.fit] Computing image from signals
     [Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
-    [Parallel(n_jobs=4)]: Done  10 out of  10 | elapsed:   21.0s finished
+    [Parallel(n_jobs=4)]: Done  10 out of  10 | elapsed:   20.5s finished
     [CanICA.fit] Computing image from signals
 
 
@@ -640,9 +640,9 @@ AMICA on a group matrix
       masker.transform(func_file),
     /home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The 'zscore' strategy incorrectly uses population std to calculate sample zscores. The new strategy 'zscore_sample' corrects this behavior by using the sample std. In release 0.14.0, the 'zscore' option will be removed and using standardize=True will fall back to 'zscore_sample'.To avoid this warning, please use 'zscore_sample' instead.
       masker.transform(func_file),
-    /home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+    /home/circleci/project/amica-python/src/amica/core.py:829: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
       warn(
-    Finished in 95.90 seconds
+    Finished in 85.00 seconds
 
     [MultiNiftiMasker.inverse_transform] Computing image from signals
     AMICA group matrix shape: (20, 21781)
@@ -694,7 +694,7 @@ Plot all components together
     /home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/numpy/ma/core.py:2885: UserWarning: Warning: converting a masked element to nan.
       _data = np.array(data, dtype=dtype, copy=copy,
 
-    <nilearn.plotting.displays._slicers.OrthoSlicer object at 0x74b57f271950>
+    <nilearn.plotting.displays._slicers.OrthoSlicer object at 0x7a5487be9190>
 
 
 
@@ -807,7 +807,7 @@ Plot the first few component maps separately
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (5 minutes 23.727 seconds)
+   **Total running time of the script:** (7 minutes 19.014 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_fmri.py:

@@ -6,9 +6,9 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="About"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="About"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="auto_examples/plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -133,14 +135,14 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <section id="about">
-<h1>About<a class="headerlink" href="#about" title="Link to this heading">¶</a></h1>
+<h1>About<a class="headerlink" href="#about" title="Link to this heading">#</a></h1>
 <p>A Python implementation of the <a class="reference external" href="https://sccn.ucsd.edu/~jason/amica_a.pdf">AMICA</a>
 (Adaptive Mixture Independent Component Analysis) algorithm for blind source separation,
 that was originally <a class="reference external" href="https://github.com/sccn/amica">developed in FORTRAN</a> by Jason
 Palmer at the Swartz Center for Computational Neuroscience (SCCN).</p>
 <p>AMICA-Python is pre-alpha but is tested and ready for test driving.</p>
 <section id="what-is-amica">
-<h2>What is AMICA?<a class="headerlink" href="#what-is-amica" title="Link to this heading">¶</a></h2>
+<h2>What is AMICA?<a class="headerlink" href="#what-is-amica" title="Link to this heading">#</a></h2>
 <p>Like the Infomax ICA algorithm, AMICA can identify sub and super-Gaussian sources. However,
 AMICA goes a step further by modeling the components as arising from a mixture of multiple
 source distributions. This design decision was likely motivated by the hypothesis that
@@ -148,7 +150,7 @@ neural activity, which can be recorded with electrophysiological (EEG), derives 
 multiple source generators.</p>
 </section>
 <section id="what-does-amica-python-implement">
-<h2>What does AMICA-Python implement?<a class="headerlink" href="#what-does-amica-python-implement" title="Link to this heading">¶</a></h2>
+<h2>What does AMICA-Python implement?<a class="headerlink" href="#what-does-amica-python-implement" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p>AMICA-Python implements what I consider to be the core AMICA algorithm, powered by
 <a class="reference external" href="https://pytorch.org/">Torch</a> and wrapped in an easy-to-use <a class="reference external" href="https://scikit-learn.org/stable/">scikit-learn</a> style interface.</p></li>
@@ -156,7 +158,7 @@ multiple source generators.</p>
 </ul>
 </section>
 <section id="what-wasn-t-implemented">
-<h2>What wasn’t implemented?<a class="headerlink" href="#what-wasn-t-implemented" title="Link to this heading">¶</a></h2>
+<h2>What wasn’t implemented?<a class="headerlink" href="#what-wasn-t-implemented" title="Link to this heading">#</a></h2>
 <ul>
 <li><p>AMICA-Python does <em>not</em> implement all the features of the original FORTRAN implementation, Notably:</p>
 <blockquote>
@@ -208,17 +210,18 @@ multiple source generators.</p>
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="_static/documentation_options.js?v=5929fcd5"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="_static/copybutton.js?v=f281be69"></script>
       <script src="_static/design-tabs.js?v=f930bc37"></script>
-      <script src="_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="_static/shibuya.js?v=50760d75"></script></body>
 </html>

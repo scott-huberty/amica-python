@@ -7,6 +7,10 @@ AMICA Tutorials
 
 Example AMICA usage.
 
+.. raw:: html
+
+  <div id='sg-tag-list' class='sphx-glr-tag-list'></div>
+
 
 .. raw:: html
 
@@ -67,23 +71,6 @@ Example AMICA usage.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="An example of estimating sources from noisy mixtures.">
-
-.. only:: html
-
-  .. image:: /auto_examples/images/thumb/sphx_glr_plot_ica_blind_source_separation_thumb.png
-    :alt:
-
-  :doc:`/auto_examples/plot_ica_blind_source_separation`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
-    </div>
-
-
-.. raw:: html
-
     <div class="sphx-glr-thumbcontainer" tooltip="This example illustrates visually in the feature space a comparison by results using two different component analysis techniques.">
 
 .. only:: html
@@ -118,6 +105,23 @@ Example AMICA usage.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="An example of estimating sources from noisy mixtures.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_ica_blind_source_separation_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_ica_blind_source_separation`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="We&#x27;ll use AMICA as a preprocessing step in a scikit-learn pipeline to perform digit classification on the MNIST dataset.">
 
 .. only:: html
@@ -130,6 +134,23 @@ Example AMICA usage.
 .. raw:: html
 
       <div class="sphx-glr-thumbnail-title">Use AMICA in a Scikit-Learn Pipeline</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates amica.optim.AndersonEMAccelerator on a small mixture-proportion maximum-likelihood problem. It is adapted from the Stephens Lab DAAREM mixture EM tutorial: https://stephenslab.github.io/daarem/mixem.html">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_daarem_mixem_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_daarem_mixem`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Accelerate a simple EM algorithm with DAAREM</div>
     </div>
 
 
@@ -180,10 +201,11 @@ Example AMICA usage.
    /auto_examples/plot_toy
    /auto_examples/plot_sphere
    /auto_examples/plot_eeg
-   /auto_examples/plot_ica_blind_source_separation
    /auto_examples/plot_ica_vs_pca
    /auto_examples/plot_photos
+   /auto_examples/plot_ica_blind_source_separation
    /auto_examples/plot_pipe
+   /auto_examples/plot_daarem_mixem
    /auto_examples/plot_fmri
    /auto_examples/plot_astronomy_planck_cmb_separation
 

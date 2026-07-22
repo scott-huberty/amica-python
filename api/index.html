@@ -6,9 +6,9 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="API Reference"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="API Reference"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../auto_examples/plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -128,7 +130,7 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <section id="api-reference">
-<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">#</a></h1>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -177,17 +179,18 @@ data-aria-dark="Switch to auto color mode">
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

@@ -6,9 +6,9 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Isolate Cosmic Microwave Background with ICA"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Isolate Cosmic Microwave Background with ICA"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -159,7 +161,7 @@ data-aria-dark="Switch to auto color mode">
 to download the full example code.</p>
 </div>
 <section class="sphx-glr-example-title" id="isolate-cosmic-microwave-background-with-ica">
-<span id="sphx-glr-auto-examples-plot-astronomy-planck-cmb-separation-py"></span><h1>Isolate Cosmic Microwave Background with ICA<a class="headerlink" href="#isolate-cosmic-microwave-background-with-ica" title="Link to this heading">¶</a></h1>
+<span id="sphx-glr-auto-examples-plot-astronomy-planck-cmb-separation-py"></span><h1>Isolate Cosmic Microwave Background with ICA<a class="headerlink" href="#isolate-cosmic-microwave-background-with-ica" title="Link to this heading">#</a></h1>
 <p>In cosmological analyses, ICA is used to separate
 <a class="reference external" href="https://cmb.physics.wisc.edu/pub/tutorial/cmb.html">Cosmic Microwave Background</a>
 (CMB) from foreground emissions (thermal dust, synchrotron radiation etc.). The CMB is
@@ -177,7 +179,7 @@ analyses require much more careful treatment of foregrounds and systematics; see
 for background and scientific context.</p>
 </div>
 <section id="imports">
-<h2>Imports<a class="headerlink" href="#imports" title="Link to this heading">¶</a></h2>
+<h2>Imports<a class="headerlink" href="#imports" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
@@ -192,11 +194,11 @@ for background and scientific context.</p>
 </div>
 </section>
 <section id="configuration">
-<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">¶</a></h2>
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">#</a></h2>
 <p>We keep the configuration near the top so it is easy to change the HEALPix
 resolution or the set of input channels while keeping the example lightweight.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">NSIDE</span> <span class="o">=</span> <span class="mi">32</span>
-</span><span data-line="2"><span class="n">FREQUENCIES_GHZ</span> <span class="o">=</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">44</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">143</span><span class="p">,</span> <span class="mi">217</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">FREQUENCIES_GHZ</span> <span class="o">=</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">44</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
 </span><span data-line="3"><span class="n">GALACTIC_LATITUDE_CUT_DEG</span> <span class="o">=</span> <span class="mf">10.0</span>
 </span><span data-line="4"><span class="n">N_COMPONENTS</span> <span class="o">=</span> <span class="mi">4</span>
 </span><span data-line="5"><span class="n">RANDOM_STATE</span> <span class="o">=</span> <span class="mi">0</span>
@@ -246,7 +248,7 @@ resolution or the set of input channels while keeping the example lightweight.</
 </div>
 </section>
 <section id="download-and-preprocess-planck-maps">
-<h2>Download and preprocess Planck maps<a class="headerlink" href="#download-and-preprocess-planck-maps" title="Link to this heading">¶</a></h2>
+<h2>Download and preprocess Planck maps<a class="headerlink" href="#download-and-preprocess-planck-maps" title="Link to this heading">#</a></h2>
 <p>The original Planck maps are stored at high HEALPix resolution. We downgrade
 early to keep the example compact and fast.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">map_paths</span> <span class="o">=</span> <span class="n">fetch_planck_temperature_maps</span><span class="p">(</span><span class="n">FREQUENCIES_GHZ</span><span class="p">)</span>
@@ -275,11 +277,11 @@ early to keep the example compact and fast.</p>
 </div>
 </section>
 <section id="visualize-the-observed-frequency-maps">
-<h2>Visualize the observed frequency maps<a class="headerlink" href="#visualize-the-observed-frequency-maps" title="Link to this heading">¶</a></h2>
+<h2>Visualize the observed frequency maps<a class="headerlink" href="#visualize-the-observed-frequency-maps" title="Link to this heading">#</a></h2>
 <p>These maps are images of the entire sky as seen from earth. Taken produced from the
 Planck satellite. They are a full-sky measurement of microwave intensity
 (i.e. temperature) at a specific frequency, projected onto a sphere.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span>
 </span><span data-line="2"><span class="n">nrows</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">FREQUENCIES_GHZ</span><span class="p">)</span> <span class="o">/</span> <span class="n">ncols</span><span class="p">)</span>
 </span><span data-line="3">
 </span><span data-line="4"><span class="n">fig</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">axes</span></a> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">ncols</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">nrows</span><span class="p">),</span>
@@ -324,12 +326,12 @@ Planck satellite. They are a full-sky measurement of microwave intensity
 </span><span data-line="43"><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png" alt="Observed Planck temperature maps, 30 GHz, 44 GHz, 70 GHz, 100 GHz, 143 GHz, 217 GHz" class = "sphx-glr-single-img"/><p>Beautiful! The bright horizontal band in the center of the maps are the Galactic
+<img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png" alt="Observed Planck temperature maps, 30 GHz, 44 GHz, 70 GHz, 100 GHz" class = "sphx-glr-single-img"/><p>Beautiful! The bright horizontal band in the center of the maps are the Galactic
 plane, i.e. microwave emissions from our own Milky Way. For the purpose of
 a CMB analysis, we are not interested in this signal and will exclude it from ICA.</p>
 </section>
 <section id="plot-the-simple-galactic-mask">
-<h2>Plot the simple Galactic mask<a class="headerlink" href="#plot-the-simple-galactic-mask" title="Link to this heading">¶</a></h2>
+<h2>Plot the simple Galactic mask<a class="headerlink" href="#plot-the-simple-galactic-mask" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
 </span><span data-line="2"><span class="n">hp</span><span class="o">.</span><span class="n">mollview</span><span class="p">(</span>
 </span><span data-line="3">    <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">mask</span></a><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span>
@@ -349,11 +351,11 @@ a CMB analysis, we are not interested in this signal and will exclude it from IC
 </div>
 </section>
 <section id="fit-ica">
-<h2>Fit ICA<a class="headerlink" href="#fit-ica" title="Link to this heading">¶</a></h2>
+<h2>Fit ICA<a class="headerlink" href="#fit-ica" title="Link to this heading">#</a></h2>
 <p>Each HEALPix pixel is treated as one sample and the different frequency
 channels are the observed mixtures.</p>
 <section id="amica">
-<h3>AMICA<a class="headerlink" href="#amica" title="Link to this heading">¶</a></h3>
+<h3>AMICA<a class="headerlink" href="#amica" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">amica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a><span class="p">(</span>
 </span><span data-line="2">    <span class="n">n_components</span><span class="o">=</span><span class="n">N_COMPONENTS</span><span class="p">,</span>
 </span><span data-line="3">    <span class="n">mean_center</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -369,14 +371,14 @@ channels are the observed mixtures.</p>
 </span><span data-line="13"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AMICA finished after </span><span class="si">{</span><span class="n">amica</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2"> iterations.&quot;</span><span class="p">)</span>
 </span></pre></div>
 </div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/src/amica/core.py:829: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
 </span><span data-line="2">  warn(
 </span><span data-line="3">AMICA finished after 80 iterations.
 </span></pre></div>
 </div>
 </section>
 <section id="smica">
-<h3>SMICA<a class="headerlink" href="#smica" title="Link to this heading">¶</a></h3>
+<h3>SMICA<a class="headerlink" href="#smica" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">smica</span></code> package expects data with shape
 <code class="docutils literal notranslate"><span class="pre">(n_channels,</span> <span class="pre">n_samples)</span></code> and a set of Fourier-bin edges in <code class="docutils literal notranslate"><span class="pre">freqs</span></code>.
 Those are not the physical Planck channel frequencies. Instead, they define
@@ -396,7 +398,7 @@ how the masked pixel sequence is partitioned in the frequency domain.</p>
 </span><span data-line="13"><span class="p">)</span>
 </span></pre></div>
 </div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:256: UserWarning: Warning, em algorithm did not converge: criterion 2.36e-04
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:256: UserWarning: Warning, em algorithm did not converge: criterion 4.01e-03
 </span><span data-line="2">  warnings.warn(&#39;Warning, em algorithm did not converge: &#39;
 </span><span data-line="3">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:92: NumbaPerformanceWarning: np.dot() is faster on contiguous arrays, called on (Array(float64, 2, &#39;C&#39;, False, aligned=True), Array(float64, 2, &#39;A&#39;, False, aligned=True))
 </span><span data-line="4">  op[i] = np.dot(A[i], B[i])
@@ -406,7 +408,7 @@ how the masked pixel sequence is partitioned in the frequency domain.</p>
 </section>
 </section>
 <section id="visualize-the-recovered-components-on-the-sky">
-<h2>Visualize the recovered components on the sky<a class="headerlink" href="#visualize-the-recovered-components-on-the-sky" title="Link to this heading">¶</a></h2>
+<h2>Visualize the recovered components on the sky<a class="headerlink" href="#visualize-the-recovered-components-on-the-sky" title="Link to this heading">#</a></h2>
 <p>The CMB component is expected to be anisotropic, i.e. it has a fairly uniform
 temperature across the sky. In the AMICA model, this looks like component 3. In
 the SMICA model, this looks like component 4.</p>
@@ -415,7 +417,7 @@ the SMICA model, this looks like component 4.</p>
 </span></pre></div>
 </div>
 <section id="id1">
-<h3>AMICA<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<h3>AMICA<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">fig</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">axes</span></a> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">axes</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">axes</span></a><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
 </span><span data-line="3">
@@ -451,7 +453,7 @@ the SMICA model, this looks like component 4.</p>
 </div>
 <img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_003.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_003.png" alt="Recovered latent components (AMICA), AMICA component 1, AMICA component 2, AMICA component 3, AMICA component 4" class = "sphx-glr-single-img"/></section>
 <section id="id2">
-<h3>SMICA<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<h3>SMICA<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">smica_component_maps</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.full.html#numpy.full" title="numpy.full" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">full</span></a><span class="p">((</span><span class="n">N_COMPONENTS</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">mask</span></a><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">hp</span><span class="o">.</span><span class="n">UNSEEN</span><span class="p">)</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">smica_component_maps</span></a><span class="p">[:,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">valid_pixels</span></a><span class="p">]</span> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">smica_sources</span></a>
 </span><span data-line="3">
@@ -495,12 +497,12 @@ the SMICA model, this looks like component 4.</p>
 <img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_004.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_004.png" alt="SMICA latent components, SMICA component 1, SMICA component 2, SMICA component 3, SMICA component 4" class = "sphx-glr-single-img"/></section>
 </section>
 <section id="inspect-the-frequency-mixing-behavior">
-<h2>Inspect the frequency mixing behavior<a class="headerlink" href="#inspect-the-frequency-mixing-behavior" title="Link to this heading">¶</a></h2>
+<h2>Inspect the frequency mixing behavior<a class="headerlink" href="#inspect-the-frequency-mixing-behavior" title="Link to this heading">#</a></h2>
 <p>A component that isolates CMB activity often has a comparatively flat response
 across frequencies, while others tend to have a varying response across frequencies
 because they emphasize low-frequency Galactic emission or residual structure.</p>
 <section id="id3">
-<h3>AMICA<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<h3>AMICA<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">frequency_response</span></a> <span class="o">=</span> <span class="n">normalize_frequency_response</span><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">mixing_matrix</span></a><span class="p">)</span>
 </span><span data-line="2"><span class="n">cmb_like_component</span> <span class="o">=</span> <span class="n">find_most_cmb_like_component</span><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">mixing_matrix</span></a><span class="p">)</span>
 </span><span data-line="3">
@@ -542,7 +544,7 @@ because they emphasize low-frequency Galactic emission or residual structure.</p
 </div>
 <img src="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_005.png" srcset="../_images/sphx_glr_plot_astronomy_planck_cmb_separation_005.png" alt="Normalized mixing matrix, Recovered frequency response" class = "sphx-glr-single-img"/></section>
 <section id="id4">
-<h3>SMICA<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<h3>SMICA<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">smica_response</span></a> <span class="o">=</span> <span class="n">normalize_frequency_response</span><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">smica_mixing_matrix</span></a><span class="p">)</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="n">fig</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">axes</span></a> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mf">4.5</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -585,7 +587,7 @@ because they emphasize low-frequency Galactic emission or residual structure.</p
 galactic plane from ICA). How well does it do? You might be surprised at AMICA’s
 ability to isolate the CMB even in the presence of the overpowering galactic plane.</p>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 59.983 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 29.409 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-astronomy-planck-cmb-separation-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b007a2bcd80e5f0796d6afccdaeb847b/plot_astronomy_planck_cmb_separation.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_astronomy_planck_cmb_separation.ipynb</span></code></a></p>
@@ -631,17 +633,18 @@ ability to isolate the CMB even in the presence of the overpowering galactic pla
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

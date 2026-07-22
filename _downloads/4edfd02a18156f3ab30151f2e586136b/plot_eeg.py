@@ -64,11 +64,12 @@ data *= 1e6  # Convert from Volts to microVolts
 
 # %%
 transformer = AMICA(
-        max_iter=200,
+        max_iter=2000,
         w_init=initial_weights,
         sbeta_init=initial_scales,
         mu_init=initial_locations,
-        verbose=2
+        tol=1e-7,
+        verbose=2,
 )
 transformer.fit(data)
 

@@ -82,7 +82,7 @@ resolution or the set of input channels while keeping the example lightweight.
 
 
     NSIDE = 32
-    FREQUENCIES_GHZ = (30, 44, 70, 100, 143, 217)
+    FREQUENCIES_GHZ = (30, 44, 70, 100)
     GALACTIC_LATITUDE_CUT_DEG = 10.0
     N_COMPONENTS = 4
     RANDOM_STATE = 0
@@ -199,7 +199,7 @@ Planck satellite. They are a full-sky measurement of microwave intensity
 .. code-block:: Python
 
 
-    ncols = 3
+    ncols = 2
     nrows = math.ceil(len(FREQUENCIES_GHZ) / ncols)
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows),
@@ -248,7 +248,7 @@ Planck satellite. They are a full-sky measurement of microwave intensity
 
 
 .. image-sg:: /auto_examples/images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png
-   :alt: Observed Planck temperature maps, 30 GHz, 44 GHz, 70 GHz, 100 GHz, 143 GHz, 217 GHz
+   :alt: Observed Planck temperature maps, 30 GHz, 44 GHz, 70 GHz, 100 GHz
    :srcset: /auto_examples/images/sphx_glr_plot_astronomy_planck_cmb_separation_001.png
    :class: sphx-glr-single-img
 
@@ -346,7 +346,7 @@ AMICA
 
  .. code-block:: none
 
-    /home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+    /home/circleci/project/amica-python/src/amica/core.py:829: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
       warn(
     AMICA finished after 80 iterations.
 
@@ -390,7 +390,7 @@ how the masked pixel sequence is partitioned in the frequency domain.
 
  .. code-block:: none
 
-    /home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:256: UserWarning: Warning, em algorithm did not converge: criterion 2.36e-04
+    /home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:256: UserWarning: Warning, em algorithm did not converge: criterion 4.01e-03
       warnings.warn('Warning, em algorithm did not converge: '
     /home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/smica/_em.py:92: NumbaPerformanceWarning: np.dot() is faster on contiguous arrays, called on (Array(float64, 2, 'C', False, aligned=True), Array(float64, 2, 'A', False, aligned=True))
       op[i] = np.dot(A[i], B[i])
@@ -680,7 +680,7 @@ SMICA
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 59.983 seconds)
+   **Total running time of the script:** (0 minutes 29.409 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_astronomy_planck_cmb_separation.py:

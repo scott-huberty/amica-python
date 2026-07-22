@@ -6,9 +6,9 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="AMICA Tutorials"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="AMICA Tutorials"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -128,9 +130,9 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <section id="amica-tutorials">
-<h1>AMICA Tutorials<a class="headerlink" href="#amica-tutorials" title="Link to this heading">¶</a></h1>
+<h1>AMICA Tutorials<a class="headerlink" href="#amica-tutorials" title="Link to this heading">#</a></h1>
 <p>Example AMICA usage.</p>
-<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="Run ICA On Toy Data"><img alt="" src="../_images/sphx_glr_plot_toy_thumb.png" />
+<div id='sg-tag-list' class='sphx-glr-tag-list'></div><div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="Run ICA On Toy Data"><img alt="" src="../_images/sphx_glr_plot_toy_thumb.png" />
 <p><a class="reference internal" href="plot_toy.html"><span class="doc">Run ICA On Toy Data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Run ICA On Toy Data</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="Sphering (whitening) data"><img alt="" src="../_images/sphx_glr_plot_sphere_thumb.png" />
@@ -139,18 +141,21 @@ data-aria-dark="Switch to auto color mode">
 </div><div class="sphx-glr-thumbcontainer" tooltip="In this tutorial we will:"><img alt="" src="../_images/sphx_glr_plot_eeg_thumb.png" />
 <p><a class="reference internal" href="plot_eeg.html"><span class="doc">Run AMICA on EEG Data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Run AMICA on EEG Data</div>
-</div><div class="sphx-glr-thumbcontainer" tooltip="An example of estimating sources from noisy mixtures."><img alt="" src="../_images/sphx_glr_plot_ica_blind_source_separation_thumb.png" />
-<p><a class="reference internal" href="plot_ica_blind_source_separation.html"><span class="doc">Blind Source Separation with AMICA &amp; FastICA</span></a></p>
-  <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="This example illustrates visually in the feature space a comparison by results using two different component analysis techniques."><img alt="" src="../_images/sphx_glr_plot_ica_vs_pca_thumb.png" />
 <p><a class="reference internal" href="plot_ica_vs_pca.html"><span class="doc">ICA on 2D point clouds</span></a></p>
   <div class="sphx-glr-thumbnail-title">ICA on 2D point clouds</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="We blend 5 grayscale photographs using a random mixing matrix and attempt to recover them using AMICA and FastICA."><img alt="" src="../_images/sphx_glr_plot_photos_thumb.png" />
 <p><a class="reference internal" href="plot_photos.html"><span class="doc">Blind source separation (BSS) on blended photographs</span></a></p>
   <div class="sphx-glr-thumbnail-title">Blind source separation (BSS) on blended photographs</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="An example of estimating sources from noisy mixtures."><img alt="" src="../_images/sphx_glr_plot_ica_blind_source_separation_thumb.png" />
+<p><a class="reference internal" href="plot_ica_blind_source_separation.html"><span class="doc">Blind Source Separation with AMICA &amp; FastICA</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Blind Source Separation with AMICA & FastICA</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="We&#x27;ll use AMICA as a preprocessing step in a scikit-learn pipeline to perform digit classification on the MNIST dataset."><img alt="" src="../_images/sphx_glr_plot_pipe_thumb.png" />
 <p><a class="reference internal" href="plot_pipe.html"><span class="doc">Use AMICA in a Scikit-Learn Pipeline</span></a></p>
   <div class="sphx-glr-thumbnail-title">Use AMICA in a Scikit-Learn Pipeline</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates amica.optim.AndersonEMAccelerator on a small mixture-proportion maximum-likelihood problem. It is adapted from the Stephens Lab DAAREM mixture EM tutorial: https://stephenslab.github.io/daarem/mixem.html"><img alt="" src="../_images/sphx_glr_plot_daarem_mixem_thumb.png" />
+<p><a class="reference internal" href="plot_daarem_mixem.html"><span class="doc">Accelerate a simple EM algorithm with DAAREM</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Accelerate a simple EM algorithm with DAAREM</div>
 </div><div class="sphx-glr-thumbcontainer" tooltip="ICA can be used to derive spatial maps or networks from group fMRI data by identifying distributed brain regions that exhibit similar BOLD fluctuations over time."><img alt="" src="../_images/sphx_glr_plot_fmri_thumb.png" />
 <p><a class="reference internal" href="plot_fmri.html"><span class="doc">Run ICA on  group fMRI data</span></a></p>
   <div class="sphx-glr-thumbnail-title">Run ICA on  group fMRI data</div>
@@ -199,17 +204,18 @@ data-aria-dark="Switch to auto color mode">
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

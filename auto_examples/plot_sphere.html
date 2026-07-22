@@ -6,9 +6,9 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Sphering (whitening) data"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Sphering (whitening) data"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -141,7 +143,7 @@ data-aria-dark="Switch to auto color mode">
 to download the full example code.</p>
 </div>
 <section class="sphx-glr-example-title" id="sphering-whitening-data">
-<span id="sphx-glr-auto-examples-plot-sphere-py"></span><h1>Sphering (whitening) data<a class="headerlink" href="#sphering-whitening-data" title="Link to this heading">¶</a></h1>
+<span id="sphx-glr-auto-examples-plot-sphere-py"></span><h1>Sphering (whitening) data<a class="headerlink" href="#sphering-whitening-data" title="Link to this heading">#</a></h1>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 </span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 </span><span data-line="3">
@@ -150,7 +152,7 @@ to download the full example code.</p>
 </div>
 <p>This example heavily borrows from this great <a class="reference external" href="https://cbrnr.github.io/blog/whitening-pca-zca/">tutorial</a>.</p>
 <section id="toy-data">
-<h2>Toy Data<a class="headerlink" href="#toy-data" title="Link to this heading">¶</a></h2>
+<h2>Toy Data<a class="headerlink" href="#toy-data" title="Link to this heading">#</a></h2>
 <p>Generate toy 2D Gaussian data with correlated dimensions</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="numpy.random.Generator" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rng</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.default_rng" title="numpy.random.default_rng" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span></a><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 </span><span data-line="2"><span class="n">mu</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
@@ -185,7 +187,7 @@ to download the full example code.</p>
 </div>
 <img src="../_images/sphx_glr_plot_sphere_001.png" srcset="../_images/sphx_glr_plot_sphere_001.png" alt="Original" class = "sphx-glr-single-img"/></section>
 <section id="whitening-with-different-options">
-<h2>Whitening with different options<a class="headerlink" href="#whitening-with-different-options" title="Link to this heading">¶</a></h2>
+<h2>Whitening with different options<a class="headerlink" href="#whitening-with-different-options" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">title</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span data-line="2">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="s2">&quot;ZCA&quot;</span><span class="p">),</span>
 </span><span data-line="3">    <span class="p">({</span><span class="s2">&quot;do_approx_sphere&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="s2">&quot;PCA&quot;</span><span class="p">),</span>
@@ -200,7 +202,7 @@ to download the full example code.</p>
 <li><img src="../_images/sphx_glr_plot_sphere_003.png" srcset="../_images/sphx_glr_plot_sphere_003.png" alt="PCA" class = "sphx-glr-multi-img"/></li>
 <li><img src="../_images/sphx_glr_plot_sphere_004.png" srcset="../_images/sphx_glr_plot_sphere_004.png" alt="Normalize by Variance" class = "sphx-glr-multi-img"/></li>
 </ul>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.378 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.391 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-sphere-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b4ff29590b33d137aede532cb16b3b6f/plot_sphere.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_sphere.ipynb</span></code></a></p>
@@ -253,17 +255,18 @@ to download the full example code.</p>
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

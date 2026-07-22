@@ -2,13 +2,13 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Blind source separation (BSS) on blended photographs - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use AMICA in a Scikit-Learn Pipeline" href="plot_pipe.html" /><link rel="prev" title="ICA on 2D point clouds" href="plot_ica_vs_pca.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Blind source separation (BSS) on blended photographs - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Blind Source Separation with AMICA &amp; FastICA" href="plot_ica_blind_source_separation.html" /><link rel="prev" title="ICA on 2D point clouds" href="plot_ica_vs_pca.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Blind source separation (BSS) on blended photographs"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Blind source separation (BSS) on blended photographs"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_fmri.html">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -144,7 +146,7 @@ data-aria-dark="Switch to auto color mode">
 to download the full example code.</p>
 </div>
 <section class="sphx-glr-example-title" id="blind-source-separation-bss-on-blended-photographs">
-<span id="sphx-glr-auto-examples-plot-photos-py"></span><h1>Blind source separation (BSS) on blended photographs<a class="headerlink" href="#blind-source-separation-bss-on-blended-photographs" title="Link to this heading">¶</a></h1>
+<span id="sphx-glr-auto-examples-plot-photos-py"></span><h1>Blind source separation (BSS) on blended photographs<a class="headerlink" href="#blind-source-separation-bss-on-blended-photographs" title="Link to this heading">#</a></h1>
 <p>We blend 5 grayscale photographs using a random mixing matrix
 and attempt to recover them using AMICA and FastICA.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
@@ -157,7 +159,7 @@ and attempt to recover them using AMICA and FastICA.</p>
 </span></pre></div>
 </div>
 <section id="utilities">
-<h2>Utilities<a class="headerlink" href="#utilities" title="Link to this heading">¶</a></h2>
+<h2>Utilities<a class="headerlink" href="#utilities" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">load_grayscale_image</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class"><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span></a><span class="p">:</span>
 </span><span data-line="2">    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s2">&quot;L&quot;</span><span class="p">)</span>
 </span><span data-line="3">    <span class="k">if</span> <span class="n">size</span><span class="p">:</span>
@@ -183,7 +185,7 @@ and attempt to recover them using AMICA and FastICA.</p>
 </div>
 </section>
 <section id="load-source-images">
-<h2>Load source images<a class="headerlink" href="#load-source-images" title="Link to this heading">¶</a></h2>
+<h2>Load source images<a class="headerlink" href="#load-source-images" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">photos_dir</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">data_path</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;photos&quot;</span>
 </span><span data-line="2"><span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span>
 </span><span data-line="3">    <span class="s2">&quot;example2_baboon&quot;</span><span class="p">,</span>
@@ -205,7 +207,7 @@ and attempt to recover them using AMICA and FastICA.</p>
 </div>
 <img src="../_images/sphx_glr_plot_photos_001.png" srcset="../_images/sphx_glr_plot_photos_001.png" alt="Source Images" class = "sphx-glr-single-img"/></section>
 <section id="mix-sources-with-random-mixing-matrix">
-<h2>Mix sources with random mixing matrix<a class="headerlink" href="#mix-sources-with-random-mixing-matrix" title="Link to this heading">¶</a></h2>
+<h2>Mix sources with random mixing matrix<a class="headerlink" href="#mix-sources-with-random-mixing-matrix" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">seed</span> <span class="o">=</span> <span class="mi">42</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="numpy.random.Generator" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rng</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.default_rng" title="numpy.random.default_rng" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-py-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span></a><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
 </span><span data-line="3"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">A</span></a> <span class="o">=</span> <a href="https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.random.html#numpy.random.Generator.random" title="numpy.random.Generator.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-py-method"><span class="n">rng</span><span class="o">.</span><span class="n">random</span></a><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
@@ -217,7 +219,7 @@ and attempt to recover them using AMICA and FastICA.</p>
 </div>
 <img src="../_images/sphx_glr_plot_photos_002.png" srcset="../_images/sphx_glr_plot_photos_002.png" alt="Mixed Observations" class = "sphx-glr-single-img"/></section>
 <section id="recover-with-amica">
-<h2>Recover with AMICA<a class="headerlink" href="#recover-with-amica" title="Link to this heading">¶</a></h2>
+<h2>Recover with AMICA<a class="headerlink" href="#recover-with-amica" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">amica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">AMICA</span></a><span class="p">(</span><span class="n">random_state</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">.0001</span><span class="p">)</span> <span class="c1"># increase tol to match FastICA tolerance</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">S_amica</span></a> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin.fit_transform" title="sklearn.base.TransformerMixin.fit_transform" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-method"><span class="n">amica</span><span class="o">.</span><span class="n">fit_transform</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span><span class="o">.</span><span class="n">T</span></a><span class="p">)</span><span class="o">.</span><span class="n">T</span>
 </span><span data-line="3"><span class="n">recovered_amica</span> <span class="o">=</span> <span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">S_amica</span></a><span class="p">]</span>
@@ -225,12 +227,12 @@ and attempt to recover them using AMICA and FastICA.</p>
 </span><span data-line="5"><span class="n">plot_images</span><span class="p">(</span><span class="n">recovered_amica</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Recovered with AMICA&quot;</span><span class="p">)</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_photos_003.png" srcset="../_images/sphx_glr_plot_photos_003.png" alt="Recovered with AMICA" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Finished in 40.71 seconds
+<img src="../_images/sphx_glr_plot_photos_003.png" srcset="../_images/sphx_glr_plot_photos_003.png" alt="Recovered with AMICA" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">Finished in 21.60 seconds
 </span></pre></div>
 </div>
 </section>
 <section id="recover-with-fastica">
-<h2>Recover with FastICA<a class="headerlink" href="#recover-with-fastica" title="Link to this heading">¶</a></h2>
+<h2>Recover with FastICA<a class="headerlink" href="#recover-with-fastica" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html#sklearn.decomposition.FastICA" title="sklearn.decomposition.FastICA" class="sphx-glr-backref-module-sklearn-decomposition sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">fastica</span></a> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html#sklearn.decomposition.FastICA" title="sklearn.decomposition.FastICA" class="sphx-glr-backref-module-sklearn-decomposition sphx-glr-backref-type-py-class"><span class="n">FastICA</span></a><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 </span><span data-line="2"><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">S_fast</span></a> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html#sklearn.decomposition.FastICA.fit_transform" title="sklearn.decomposition.FastICA.fit_transform" class="sphx-glr-backref-module-sklearn-decomposition sphx-glr-backref-type-py-method"><span class="n">fastica</span><span class="o">.</span><span class="n">fit_transform</span></a><span class="p">(</span><a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">X</span><span class="o">.</span><span class="n">T</span></a><span class="p">)</span><span class="o">.</span><span class="n">T</span>
 </span><span data-line="3"><span class="n">recovered_fastica</span> <span class="o">=</span> <span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">S_fast</span></a><span class="p">]</span>
@@ -238,7 +240,7 @@ and attempt to recover them using AMICA and FastICA.</p>
 </span><span data-line="5"><span class="n">plot_images</span><span class="p">(</span><span class="n">recovered_fastica</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Recovered with FastICA&quot;</span><span class="p">)</span>
 </span></pre></div>
 </div>
-<img src="../_images/sphx_glr_plot_photos_004.png" srcset="../_images/sphx_glr_plot_photos_004.png" alt="Recovered with FastICA" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 42.451 seconds)</p>
+<img src="../_images/sphx_glr_plot_photos_004.png" srcset="../_images/sphx_glr_plot_photos_004.png" alt="Recovered with FastICA" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 23.268 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-photos-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/1fa87a8f739f7fab253420a51d7ce1b5/plot_photos.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_photos.ipynb</span></code></a></p>
@@ -266,10 +268,10 @@ and attempt to recover them using AMICA and FastICA.</p>
         <span>Previous</span><div class="title">ICA on 2D point clouds</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="plot_pipe.html">
+    <a href="plot_ica_blind_source_separation.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Use AMICA in a Scikit-Learn Pipeline</div>
+        <div class="title">Blind Source Separation with AMICA &amp; FastICA</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -291,17 +293,18 @@ and attempt to recover them using AMICA and FastICA.</p>
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>

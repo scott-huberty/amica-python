@@ -2,13 +2,13 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run ICA on group fMRI data - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Isolate Cosmic Microwave Background with ICA" href="plot_astronomy_planck_cmb_separation.html" /><link rel="prev" title="Use AMICA in a Scikit-Learn Pipeline" href="plot_pipe.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run ICA on group fMRI data - AMICA-Python documentation</title><link rel="author" title="About these documents" href="../about.html" /><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Isolate Cosmic Microwave Background with ICA" href="plot_astronomy_planck_cmb_separation.html" /><link rel="prev" title="Accelerate a simple EM algorithm with DAAREM" href="plot_daarem_mixem.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
@@ -23,7 +23,8 @@
   --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
 }
 </style>
-    <meta property="og:type" content="website"/><meta property="og:title" content="Run ICA on group fMRI data"/>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Run ICA on group fMRI data"/>
     <meta name="twitter:card" content="summary"/>
   </head>
 <body><div class="sy-head">
@@ -79,10 +80,11 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l2"><a class="reference internal" href="plot_toy.html">Run ICA On Toy Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_sphere.html">Sphering (whitening) data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_eeg.html">Run AMICA on EEG Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_vs_pca.html">ICA on 2D point clouds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_photos.html">Blind source separation (BSS) on blended photographs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_ica_blind_source_separation.html">Blind Source Separation with AMICA &amp; FastICA</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_pipe.html">Use AMICA in a Scikit-Learn Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_daarem_mixem.html">Accelerate a simple EM algorithm with DAAREM</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Run ICA on  group fMRI data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_astronomy_planck_cmb_separation.html">Isolate Cosmic Microwave Background with ICA</a></li>
 </ul>
@@ -147,7 +149,7 @@ data-aria-dark="Switch to auto color mode">
 to download the full example code.</p>
 </div>
 <section class="sphx-glr-example-title" id="run-ica-on-group-fmri-data">
-<span id="sphx-glr-auto-examples-plot-fmri-py"></span><h1>Run ICA on  group fMRI data<a class="headerlink" href="#run-ica-on-group-fmri-data" title="Link to this heading">¶</a></h1>
+<span id="sphx-glr-auto-examples-plot-fmri-py"></span><h1>Run ICA on  group fMRI data<a class="headerlink" href="#run-ica-on-group-fmri-data" title="Link to this heading">#</a></h1>
 <p>ICA can be used to derive spatial maps or networks from
 group fMRI data by identifying distributed brain regions that
 exhibit similar BOLD fluctuations over time.</p>
@@ -255,7 +257,7 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span></pre></div>
 </div>
 <section id="load-brain-development-fmri-dataset">
-<h2>Load brain development fMRI dataset<a class="headerlink" href="#load-brain-development-fmri-dataset" title="Link to this heading">¶</a></h2>
+<h2>Load brain development fMRI dataset<a class="headerlink" href="#load-brain-development-fmri-dataset" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.Bunch.html#sklearn.utils.Bunch" title="sklearn.utils.Bunch" class="sphx-glr-backref-module-sklearn-utils sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rest_dataset</span></a> <span class="o">=</span> <span class="n">fetch_development_fmri</span><span class="p">(</span><span class="n">n_subjects</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
 </span><span data-line="2"><span class="n">func_filenames</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.Bunch.html#sklearn.utils.Bunch" title="sklearn.utils.Bunch" class="sphx-glr-backref-module-sklearn-utils sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">rest_dataset</span></a><span class="o">.</span><span class="n">func</span>
 </span><span data-line="3">
@@ -276,19 +278,19 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="12">/home/circleci/nilearn_data/development_fmri/development_fmri
 </span><span data-line="13">[fetch_development_fmri] Downloading data from
 </span><span data-line="14">https://osf.io/download/5c8ff3ea4712b400183b70b7/ ...
-</span><span data-line="15">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="15">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="16">
 </span><span data-line="17">[fetch_development_fmri] Downloading data from
 </span><span data-line="18">https://osf.io/download/5c8ff3eb2286e80019c3c194/ ...
-</span><span data-line="19">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="19">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="20">
 </span><span data-line="21">[fetch_development_fmri] Downloading data from
 </span><span data-line="22">https://osf.io/download/5c8ff3e52286e80018c3e439/ ...
-</span><span data-line="23">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="23">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="24">
 </span><span data-line="25">[fetch_development_fmri] Downloading data from
 </span><span data-line="26">https://osf.io/download/5c8ff3e72286e80017c41b3d/ ...
-</span><span data-line="27">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="27">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="28">
 </span><span data-line="29">[fetch_development_fmri] Downloading data from
 </span><span data-line="30">https://osf.io/download/5c8ff3e4a743a9001760814f/ ...
@@ -296,51 +298,51 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="32">
 </span><span data-line="33">[fetch_development_fmri] Downloading data from
 </span><span data-line="34">https://osf.io/download/5c8ff3e54712b400183b70a5/ ...
-</span><span data-line="35">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="35">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="36">
 </span><span data-line="37">[fetch_development_fmri] Downloading data from
 </span><span data-line="38">https://osf.io/download/5c8ff3e14712b400183b7097/ ...
-</span><span data-line="39">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="39">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="40">
 </span><span data-line="41">[fetch_development_fmri] Downloading data from
 </span><span data-line="42">https://osf.io/download/5c8ff3e32286e80018c3e42c/ ...
-</span><span data-line="43">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="43">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="44">
 </span><span data-line="45">[fetch_development_fmri] Downloading data from
 </span><span data-line="46">https://osf.io/download/5c8ff3df4712b400183b7092/ ...
-</span><span data-line="47">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="47">[fetch_development_fmri]  ...done. (6 seconds, 0 min)
 </span><span data-line="48">
 </span><span data-line="49">[fetch_development_fmri] Downloading data from
 </span><span data-line="50">https://osf.io/download/5c8ff3e04712b400193b5bdf/ ...
-</span><span data-line="51">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="51">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="52">
 </span><span data-line="53">[fetch_development_fmri] Downloading data from
 </span><span data-line="54">https://osf.io/download/5c8ff3e9a743a90017608158/ ...
-</span><span data-line="55">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="55">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="56">
 </span><span data-line="57">[fetch_development_fmri] Downloading data from
 </span><span data-line="58">https://osf.io/download/5c8ff3e82286e80018c3e443/ ...
-</span><span data-line="59">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="59">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="60">
 </span><span data-line="61">[fetch_development_fmri] Downloading data from
 </span><span data-line="62">https://osf.io/download/5cb47052f2be3c0017057069/ ...
-</span><span data-line="63">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="63">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="64">
 </span><span data-line="65">[fetch_development_fmri] Downloading data from
 </span><span data-line="66">https://osf.io/download/5cb46e5c353c5800199ac79f/ ...
-</span><span data-line="67">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="67">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="68">
 </span><span data-line="69">[fetch_development_fmri] Downloading data from
 </span><span data-line="70">https://osf.io/download/5cb47045a3bc970019f073a0/ ...
-</span><span data-line="71">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="71">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="72">
 </span><span data-line="73">[fetch_development_fmri] Downloading data from
 </span><span data-line="74">https://osf.io/download/5cb46e913992690018133b1c/ ...
-</span><span data-line="75">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="75">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="76">
 </span><span data-line="77">[fetch_development_fmri] Downloading data from
 </span><span data-line="78">https://osf.io/download/5c8ff3912286e80018c3e393/ ...
-</span><span data-line="79">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="79">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="80">
 </span><span data-line="81">[fetch_development_fmri] Downloading data from
 </span><span data-line="82">https://osf.io/download/5c8ff3952286e80017c41a1b/ ...
@@ -356,43 +358,43 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="92">
 </span><span data-line="93">[fetch_development_fmri] Downloading data from
 </span><span data-line="94">https://osf.io/download/5c8ff391a743a900176080a9/ ...
-</span><span data-line="95">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="95">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="96">
 </span><span data-line="97">[fetch_development_fmri] Downloading data from
 </span><span data-line="98">https://osf.io/download/5c8ff3914712b400173b5329/ ...
-</span><span data-line="99">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="99">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="100">
 </span><span data-line="101">[fetch_development_fmri] Downloading data from
 </span><span data-line="102">https://osf.io/download/5cb4702a353c58001b9cb5ae/ ...
-</span><span data-line="103">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="103">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="104">
 </span><span data-line="105">[fetch_development_fmri] Downloading data from
 </span><span data-line="106">https://osf.io/download/5cb46e9b39926900190fad5c/ ...
-</span><span data-line="107">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="107">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="108">
 </span><span data-line="109">[fetch_development_fmri] Downloading data from
 </span><span data-line="110">https://osf.io/download/5c8ff38f2286e80018c3e38d/ ...
-</span><span data-line="111">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="111">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="112">
 </span><span data-line="113">[fetch_development_fmri] Downloading data from
 </span><span data-line="114">https://osf.io/download/5c8ff3914712b4001a3b5579/ ...
-</span><span data-line="115">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="115">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="116">
 </span><span data-line="117">[fetch_development_fmri] Downloading data from
 </span><span data-line="118">https://osf.io/download/5cb470413992690018133d8c/ ...
-</span><span data-line="119">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="119">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
 </span><span data-line="120">
 </span><span data-line="121">[fetch_development_fmri] Downloading data from
 </span><span data-line="122">https://osf.io/download/5cb46e9a353c58001c9abeac/ ...
-</span><span data-line="123">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="123">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="124">
 </span><span data-line="125">[fetch_development_fmri] Downloading data from
 </span><span data-line="126">https://osf.io/download/5cb47016a3bc970017efe44f/ ...
-</span><span data-line="127">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="127">[fetch_development_fmri]  ...done. (7 seconds, 0 min)
 </span><span data-line="128">
 </span><span data-line="129">[fetch_development_fmri] Downloading data from
 </span><span data-line="130">https://osf.io/download/5cb46e43f2be3c0017056b8a/ ...
-</span><span data-line="131">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="131">[fetch_development_fmri]  ...done. (6 seconds, 0 min)
 </span><span data-line="132">
 </span><span data-line="133">[fetch_development_fmri] Downloading data from
 </span><span data-line="134">https://osf.io/download/5c8ff37da743a90018606df1/ ...
@@ -400,15 +402,15 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="136">
 </span><span data-line="137">[fetch_development_fmri] Downloading data from
 </span><span data-line="138">https://osf.io/download/5c8ff37c2286e80019c3c102/ ...
-</span><span data-line="139">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
+</span><span data-line="139">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="140">
 </span><span data-line="141">[fetch_development_fmri] Downloading data from
 </span><span data-line="142">https://osf.io/download/5cb47056353c58001c9ac064/ ...
-</span><span data-line="143">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="143">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="144">
 </span><span data-line="145">[fetch_development_fmri] Downloading data from
 </span><span data-line="146">https://osf.io/download/5cb46e5af2be3c001801f799/ ...
-</span><span data-line="147">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="147">[fetch_development_fmri]  ...done. (6 seconds, 0 min)
 </span><span data-line="148">
 </span><span data-line="149">[fetch_development_fmri] Downloading data from
 </span><span data-line="150">https://osf.io/download/5c8ff38ca743a90018606dfe/ ...
@@ -416,19 +418,19 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="152">
 </span><span data-line="153">[fetch_development_fmri] Downloading data from
 </span><span data-line="154">https://osf.io/download/5c8ff38ca743a9001760809e/ ...
-</span><span data-line="155">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="155">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="156">
 </span><span data-line="157">[fetch_development_fmri] Downloading data from
 </span><span data-line="158">https://osf.io/download/5c8ff389a743a9001660a016/ ...
-</span><span data-line="159">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="159">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="160">
 </span><span data-line="161">[fetch_development_fmri] Downloading data from
 </span><span data-line="162">https://osf.io/download/5c8ff38c2286e80016c3c2da/ ...
-</span><span data-line="163">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="163">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="164">
 </span><span data-line="165">[fetch_development_fmri] Downloading data from
 </span><span data-line="166">https://osf.io/download/5c8ff3884712b400183b7023/ ...
-</span><span data-line="167">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="167">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="168">
 </span><span data-line="169">[fetch_development_fmri] Downloading data from
 </span><span data-line="170">https://osf.io/download/5c8ff3884712b400193b5b5c/ ...
@@ -436,23 +438,23 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="172">
 </span><span data-line="173">[fetch_development_fmri] Downloading data from
 </span><span data-line="174">https://osf.io/download/5c8ff3872286e80017c419ea/ ...
-</span><span data-line="175">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="175">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="176">
 </span><span data-line="177">[fetch_development_fmri] Downloading data from
 </span><span data-line="178">https://osf.io/download/5c8ff3872286e80017c419e9/ ...
-</span><span data-line="179">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="179">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="180">
 </span><span data-line="181">[fetch_development_fmri] Downloading data from
 </span><span data-line="182">https://osf.io/download/5cb4702f39926900171090ee/ ...
-</span><span data-line="183">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="183">[fetch_development_fmri]  ...done. (6 seconds, 0 min)
 </span><span data-line="184">
 </span><span data-line="185">[fetch_development_fmri] Downloading data from
 </span><span data-line="186">https://osf.io/download/5cb46e8b353c58001c9abe98/ ...
-</span><span data-line="187">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="187">[fetch_development_fmri]  ...done. (7 seconds, 0 min)
 </span><span data-line="188">
 </span><span data-line="189">[fetch_development_fmri] Downloading data from
 </span><span data-line="190">https://osf.io/download/5c8ff3842286e80017c419e0/ ...
-</span><span data-line="191">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="191">[fetch_development_fmri]  ...done. (7 seconds, 0 min)
 </span><span data-line="192">
 </span><span data-line="193">[fetch_development_fmri] Downloading data from
 </span><span data-line="194">https://osf.io/download/5c8ff3854712b4001a3b5568/ ...
@@ -464,23 +466,23 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="200">
 </span><span data-line="201">[fetch_development_fmri] Downloading data from
 </span><span data-line="202">https://osf.io/download/5c8ff3832286e80016c3c2d1/ ...
-</span><span data-line="203">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="203">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="204">
 </span><span data-line="205">[fetch_development_fmri] Downloading data from
 </span><span data-line="206">https://osf.io/download/5c8ff3822286e80018c3e37b/ ...
-</span><span data-line="207">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="207">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="208">
 </span><span data-line="209">[fetch_development_fmri] Downloading data from
 </span><span data-line="210">https://osf.io/download/5c8ff382a743a90018606df8/ ...
-</span><span data-line="211">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="211">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="212">
 </span><span data-line="213">[fetch_development_fmri] Downloading data from
 </span><span data-line="214">https://osf.io/download/5c8ff37e2286e80016c3c2cb/ ...
-</span><span data-line="215">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="215">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="216">
 </span><span data-line="217">[fetch_development_fmri] Downloading data from
 </span><span data-line="218">https://osf.io/download/5c8ff3832286e80019c3c10f/ ...
-</span><span data-line="219">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="219">[fetch_development_fmri]  ...done. (2 seconds, 0 min)
 </span><span data-line="220">
 </span><span data-line="221">[fetch_development_fmri] Downloading data from
 </span><span data-line="222">https://osf.io/download/5c8ff37d4712b400193b5b54/ ...
@@ -488,19 +490,19 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="224">
 </span><span data-line="225">[fetch_development_fmri] Downloading data from
 </span><span data-line="226">https://osf.io/download/5c8ff37d4712b400183b7011/ ...
-</span><span data-line="227">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="227">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="228">
 </span><span data-line="229">[fetch_development_fmri] Downloading data from
 </span><span data-line="230">https://osf.io/download/5cb4701e3992690018133d4f/ ...
-</span><span data-line="231">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="231">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="232">
 </span><span data-line="233">[fetch_development_fmri] Downloading data from
 </span><span data-line="234">https://osf.io/download/5cb46e6b353c58001b9cb34f/ ...
-</span><span data-line="235">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="235">[fetch_development_fmri]  ...done. (5 seconds, 0 min)
 </span><span data-line="236">
 </span><span data-line="237">[fetch_development_fmri] Downloading data from
 </span><span data-line="238">https://osf.io/download/5cb4703bf2be3c001801fa49/ ...
-</span><span data-line="239">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="239">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="240">
 </span><span data-line="241">[fetch_development_fmri] Downloading data from
 </span><span data-line="242">https://osf.io/download/5cb46e92a3bc970019f0717f/ ...
@@ -508,18 +510,18 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="244">
 </span><span data-line="245">[fetch_development_fmri] Downloading data from
 </span><span data-line="246">https://osf.io/download/5c8ff38c4712b4001a3b5573/ ...
-</span><span data-line="247">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="247">[fetch_development_fmri]  ...done. (4 seconds, 0 min)
 </span><span data-line="248">
 </span><span data-line="249">[fetch_development_fmri] Downloading data from
 </span><span data-line="250">https://osf.io/download/5c8ff38da743a900176080a2/ ...
-</span><span data-line="251">[fetch_development_fmri]  ...done. (1 seconds, 0 min)
+</span><span data-line="251">[fetch_development_fmri]  ...done. (3 seconds, 0 min)
 </span><span data-line="252">
 </span><span data-line="253">First functional nifti image (4D) is at: /home/circleci/nilearn_data/development_fmri/development_fmri/sub-pixar128_task-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
 </span></pre></div>
 </div>
 </section>
 <section id="apply-ica-on-the-data">
-<h2>Apply ICA on the data<a class="headerlink" href="#apply-ica-on-the-data" title="Link to this heading">¶</a></h2>
+<h2>Apply ICA on the data<a class="headerlink" href="#apply-ica-on-the-data" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;results&quot;</span> <span class="o">/</span> <span class="s2">&quot;plot_compare_decomposition&quot;</span>
 </span><span data-line="2"><span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span data-line="3"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output will be saved to: </span><span class="si">{</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -529,7 +531,7 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span></pre></div>
 </div>
 <section id="canica">
-<h3>CanICA<a class="headerlink" href="#canica" title="Link to this heading">¶</a></h3>
+<h3>CanICA<a class="headerlink" href="#canica" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">canica</span> <span class="o">=</span> <a href="https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html#sklearn.base.TransformerMixin" title="sklearn.base.TransformerMixin" class="sphx-glr-backref-module-sklearn-base sphx-glr-backref-type-py-class"><span class="n">CanICA</span></a><span class="p">(</span>
 </span><span data-line="2">    <span class="n">n_components</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
 </span><span data-line="3">    <span class="n">memory</span><span class="o">=</span><span class="s2">&quot;nilearn_cache&quot;</span><span class="p">,</span>
@@ -614,13 +616,13 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="65">[CanICA.fit] Loading data
 </span><span data-line="66">[CanICA.fit] Computing image from signals
 </span><span data-line="67">[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
-</span><span data-line="68">[Parallel(n_jobs=4)]: Done  10 out of  10 | elapsed:   21.0s finished
+</span><span data-line="68">[Parallel(n_jobs=4)]: Done  10 out of  10 | elapsed:   20.5s finished
 </span><span data-line="69">[CanICA.fit] Computing image from signals
 </span></pre></div>
 </div>
 </section>
 <section id="amica-on-a-group-matrix">
-<h3>AMICA on a group matrix<a class="headerlink" href="#amica-on-a-group-matrix" title="Link to this heading">¶</a></h3>
+<h3>AMICA on a group matrix<a class="headerlink" href="#amica-on-a-group-matrix" title="Link to this heading">#</a></h3>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">_amica</span><span class="p">,</span> <a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">amica_group_matrix</span></a><span class="p">,</span> <span class="n">amica_components_img</span> <span class="o">=</span> <span class="n">fit_amica_components</span><span class="p">(</span>
 </span><span data-line="2">    <span class="n">canica</span><span class="p">,</span>
 </span><span data-line="3">    <span class="n">func_filenames</span><span class="p">,</span>
@@ -689,9 +691,9 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </span><span data-line="58">  masker.transform(func_file),
 </span><span data-line="59">/home/circleci/project/amica-python/docs/source/examples/plot_fmri.py:60: FutureWarning: The &#39;zscore&#39; strategy incorrectly uses population std to calculate sample zscores. The new strategy &#39;zscore_sample&#39; corrects this behavior by using the sample std. In release 0.14.0, the &#39;zscore&#39; option will be removed and using standardize=True will fall back to &#39;zscore_sample&#39;.To avoid this warning, please use &#39;zscore_sample&#39; instead.
 </span><span data-line="60">  masker.transform(func_file),
-</span><span data-line="61">/home/circleci/project/amica-python/src/amica/core.py:890: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
+</span><span data-line="61">/home/circleci/project/amica-python/src/amica/core.py:829: ConvergenceWarning: Maximum number of iterations reached before convergence. Consider increasing max_iter or relaxing tol.
 </span><span data-line="62">  warn(
-</span><span data-line="63">Finished in 95.90 seconds
+</span><span data-line="63">Finished in 85.00 seconds
 </span><span data-line="64">
 </span><span data-line="65">[MultiNiftiMasker.inverse_transform] Computing image from signals
 </span><span data-line="66">AMICA group matrix shape: (20, 21781)
@@ -700,7 +702,7 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 </section>
 </section>
 <section id="plot-all-components-together">
-<h2>Plot all components together<a class="headerlink" href="#plot-all-components-together" title="Link to this heading">¶</a></h2>
+<h2>Plot all components together<a class="headerlink" href="#plot-all-components-together" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">plot_prob_atlas</span><span class="p">(</span><span class="n">canica_components_img</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;All CanICA components&quot;</span><span class="p">)</span>
 </span><span data-line="2"><span class="n">plot_prob_atlas</span><span class="p">(</span>
 </span><span data-line="3">    <span class="n">math_img</span><span class="p">(</span><span class="s2">&quot;np.abs(img)&quot;</span><span class="p">,</span> <span class="n">img</span><span class="o">=</span><span class="n">amica_components_img</span><span class="p">),</span>
@@ -715,12 +717,12 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">/home/circleci/project/amica-python/.venv/lib/python3.11/site-packages/numpy/ma/core.py:2885: UserWarning: Warning: converting a masked element to nan.
 </span><span data-line="2">  _data = np.array(data, dtype=dtype, copy=copy,
 </span><span data-line="3">
-</span><span data-line="4">&lt;nilearn.plotting.displays._slicers.OrthoSlicer object at 0x74b57f271950&gt;
+</span><span data-line="4">&lt;nilearn.plotting.displays._slicers.OrthoSlicer object at 0x7a5487be9190&gt;
 </span></pre></div>
 </div>
 </section>
 <section id="plot-the-first-few-component-maps-separately">
-<h2>Plot the first few component maps separately<a class="headerlink" href="#plot-the-first-few-component-maps-separately" title="Link to this heading">¶</a></h2>
+<h2>Plot the first few component maps separately<a class="headerlink" href="#plot-the-first-few-component-maps-separately" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">plot_components</span><span class="p">(</span><span class="n">canica_components_img</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;CanICA&quot;</span><span class="p">)</span>
 </span><span data-line="2"><span class="n">plot_components</span><span class="p">(</span><span class="n">amica_components_img</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;AMICA&quot;</span><span class="p">)</span>
 </span></pre></div>
@@ -739,7 +741,7 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
 <li><img src="../_images/sphx_glr_plot_fmri_013.png" srcset="../_images/sphx_glr_plot_fmri_013.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
 <li><img src="../_images/sphx_glr_plot_fmri_014.png" srcset="../_images/sphx_glr_plot_fmri_014.png" alt="plot fmri" class = "sphx-glr-multi-img"/></li>
 </ul>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (5 minutes 23.727 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (7 minutes 19.014 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-fmri-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b811ffdc153b6cca0000aeb69fd22d63/plot_fmri.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_fmri.ipynb</span></code></a></p>
@@ -761,10 +763,10 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
   </svg>
   <span>Back to top</span>
 </button><div class="navigation flex print:hidden"><div class="navigation-prev">
-    <a href="plot_pipe.html">
+    <a href="plot_daarem_mixem.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">Use AMICA in a Scikit-Learn Pipeline</div></div>
+        <span>Previous</span><div class="title">Accelerate a simple EM algorithm with DAAREM</div></div>
     </a>
   </div><div class="navigation-next">
     <a href="plot_astronomy_planck_cmb_separation.html">
@@ -792,17 +794,18 @@ and does not advocate for the use of AMICA over other methods tailored for fMRI.
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/scott-huberty/amica-python" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="../_static/documentation_options.js?v=5929fcd5"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
       <script src="../_static/design-tabs.js?v=f930bc37"></script>
-      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
 </html>
